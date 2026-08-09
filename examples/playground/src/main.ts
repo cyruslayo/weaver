@@ -14,6 +14,7 @@ const schema: JsonObject = {
     Text: component("Text", { text: ref("DynamicString"), variant: { enum: ["h1", "h2", "h3", "h4", "h5", "caption", "body"] } }, ["text"]),
     Column: component("Column", { children: ref("ChildList"), justify: { enum: ["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch"] }, align: { enum: ["start", "center", "end", "stretch"] } }, ["children"]),
     Card: component("Card", { child: ref("ComponentId") }, ["child"]),
+    Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), child: ref("ComponentId") }, required: ["title", "child"], additionalProperties: false } } }, ["tabs"]),
     Button: component("Button", { child: ref("ComponentId"), variant: { enum: ["default", "primary", "borderless"] }, action: ref("Action"), checks: { type: "array" } }, ["child", "action"], [ref("Checkable")]),
     TextField: component("TextField", { label: ref("DynamicString"), value: ref("DynamicString"), variant: { enum: ["shortText", "longText", "number", "obscured"] }, checks: { type: "array" } }, ["label"], [ref("Checkable")]),
     CheckBox: component("CheckBox", { label: ref("DynamicString"), value: ref("DynamicBoolean"), checks: { type: "array" } }, ["label", "value"], [ref("Checkable")]),
@@ -41,13 +42,16 @@ debug.textContent = "Outbound events appear here.";
 const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId }));
 created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId, sendDataModel: true } });
 created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main", components: [
-  { id: "root", component: "Column", children: ["title", "name", "greeting", "ready", "volume", "choice", "button"] },
-  { id: "title", component: "Text", variant: "h1", text: "Weaver Basic input playground" },
-  { id: "name", component: "TextField", label: "Name", value: { path: "/form/name" } },
+  { id: "root", component: "Tabs", tabs: [{ title: "Overview", child: "overview" }, { title: "Form", child: "form" }, { title: "Event", child: "event" }] },
+  { id: "overview", component: "Column", children: ["title", "greeting"] },
+  { id: "title", component: "Text", variant: "h1", text: "Weaver Basic Tabs playground" },
   { id: "greeting", component: "Text", text: { path: "/form/name" } },
+  { id: "form", component: "Column", children: ["name", "ready", "volume", "choice"] },
+  { id: "name", component: "TextField", label: "Name", value: { path: "/form/name" } },
   { id: "ready", component: "CheckBox", label: "Ready", value: { path: "/form/ready" } },
   { id: "volume", component: "Slider", label: "Volume", min: 0, max: 10, value: { path: "/form/volume" } },
   { id: "choice", component: "ChoicePicker", label: "Mode", value: { path: "/form/mode" }, options: [{ label: "Fast", value: "fast" }, { label: "Careful", value: "careful" }] },
+  { id: "event", component: "Column", children: ["button"] },
   { id: "button", component: "Button", variant: "primary", child: "button-text", action: { event: { name: "playground.submit", context: { name: { path: "/form/name" } } } } },
   { id: "button-text", component: "Text", text: "Create server event" },
 ] } });

@@ -94,6 +94,31 @@ fail. Local functions have already run in Core and are never handed off. Blocked
 or failed actions are not handed off. Host callback exceptions are isolated as
 `SERVER_EVENT_HANDOFF_FAILED`; successful Core state is not rolled back.
 
+## Mount-local renderer state
+
+Renderer-local state is ephemeral Web presentation state. It is mount-local,
+component-instance-local (`sourceComponentId + scopePath`), non-protocol, and
+non-DataModel. It never enters `SurfaceStore`, `WeaverRuntime`, A2UI messages, or
+server events. Tabs uses it for `selectedIndex`; a future Modal may reuse the
+same narrow facility for open state.
+
+```text
+DOM interaction
+      ↓
+setLocalState()
+      ↓
+mount refresh
+      ↓
+full subtree replacement
+```
+
+The refresh uses the normal focus capture, generation invalidation, detached
+build, atomic replacement, and focus restoration pipeline. Reads and writes are
+defensive JSON-like copies. Successful presentations prune state for absent
+instances; failed attempts do not. A successful progressive `ready: false`
+render and unmount clear all state for that mount. There is no persistence or
+state subscription system.
+
 ## Generation safety
 
 Every rendered interaction belongs to one mount generation. Each render attempt
@@ -164,7 +189,25 @@ Basic renderer registrations do not own catalog schema identity. The host passes
 | Button | Implemented |
 | TextField, CheckBox, Slider, ChoicePicker, DateTimeInput | Implemented |
 | Image, Video, AudioPlayer | Implemented |
-| Icon, Modal, Tabs | Deferred |
+| Tabs | Implemented |
+| Icon, Modal | Deferred |
+
+Tabs uses native button headers in a `tablist`, one live `tabpanel`,
+`aria-selected`, ARIA ID associations, and roving tabindex. ArrowLeft and
+ArrowRight wrap, while Home and End select the boundary tabs; navigation uses
+automatic activation and the normal registered-control focus restoration.
+Each `tabs[index]` maps to its repeated `child` relationship by structured
+location `/tabs/{index}/child`, never by raw ComponentId or leaf property alone.
+Missing titles render empty and missing selected children produce an empty
+panel. `selectedIndex` is positional: reordering preserves the numeric index,
+not semantic tab identity; an out-of-range index renders as zero.
+
+Only the selected Tabs child is inserted into the live DOM. The current generic
+child-first renderer may still construct inactive descendant Nodes off-DOM.
+This can initiate policy-approved native media resource loading when `src` is
+assigned. This milestone does not claim lazy rendering or weaken the resource
+policy; selective relationship construction remains a future optimization if
+profiling or security requirements justify it.
 
 Unimplemented components remain absent from the registry and fail with `RENDERER_NOT_FOUND`; detached-tree construction preserves the last successful DOM, and a later supported update recovers normally.
 

@@ -23,6 +23,10 @@ function catalog(catalogId: string): JsonObject {
       TabsLike: component("TabsLike", { tabs: { type: "array", items: { type: "object", properties: {
         title: ref("DynamicString"), child: ref("ComponentId"),
       }, required: ["title", "child"], additionalProperties: false } } }),
+      Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: {
+        title: ref("DynamicString"), child: ref("ComponentId"),
+      }, required: ["title", "child"], additionalProperties: false } } }),
+      Local: component("Local"),
       CheckText: component("CheckText", { text: ref("DynamicString"), checks: { type: "array" } }, [ref("Checkable")]),
       Missing: component("Missing"), Throwing: component("Throwing"), Invalid: component("Invalid"),
     },
@@ -214,6 +218,75 @@ test("missing initial surface is a typed mount error", () => {
   const { result } = mount(runtime());
   assert.equal(!result.ok && result.error.code, "SURFACE_RESOLUTION_FAILED");
   assert.equal(!result.ok && result.error.code === "SURFACE_RESOLUTION_FAILED" && result.error.cause.code, "SURFACE_NOT_FOUND");
+});
+
+test("mount-local state defaults, rerenders defensively, rejects stale writes, and never mutates Core", () => {
+  const rt = runtime(); rt.process(create()); rt.process(components([{ id: "root", component: "Local" }]));
+  let renders = 0; const seen: unknown[] = []; const callbacks: Array<(value: unknown) => unknown> = [];
+  const local: RendererRegistration = { catalogId: "test", component: "Local", render: ({ document, interactions }) => {
+    renders++;
+    const value = interactions.getLocalState("value", { count: 0, values: [0] });
+    seen.push(value);
+    callbacks.push((next) => interactions.setLocalState("value", next as JsonObject));
+    return document.createElement("div");
+  } };
+  const before = rt.getSurface("s");
+  const mounted = mount(rt, [...registrations(), local]); assert.ok(mounted.result.ok);
+  const owned = { count: 1, values: [1] }; assert.deepEqual(callbacks[0]?.(owned), { ok: true });
+  owned.count = 9; owned.values.push(9);
+  (seen[1] as { count: number; values: number[] }).values.push(7);
+  assert.deepEqual(callbacks[1]?.({ count: 2, values: [2] }), { ok: true });
+  assert.deepEqual(seen[2], { count: 2, values: [2] });
+  assert.equal(renders, 3); assert.deepEqual(rt.getSurface("s"), before);
+  assert.deepEqual(callbacks[0]?.({ count: 99 }), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+  assert.equal(renders, 3);
+  mounted.result.value.unmount();
+  assert.deepEqual(callbacks.at(-1)?.({ count: 99 }), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+});
+
+test("local state prunes only after a successful presentation removes an instance", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([{ id: "root", component: "Stack", sections: ["a"] }, { id: "a", component: "Local" }]));
+  const values: number[] = []; let setA: ((value: number) => unknown) | undefined;
+  const local: RendererRegistration = { catalogId: "test", component: "Local", render: ({ document, interactions }) => {
+    values.push(interactions.getLocalState("count", 0)); setA = (value) => interactions.setLocalState("count", value); return document.createElement("div");
+  } };
+  const mounted = mount(rt, [...registrations(), local]); assert.ok(mounted.result.ok); setA?.(4);
+  rt.process(components([{ id: "root", component: "Missing" }]));
+  rt.process(components([{ id: "root", component: "Stack", sections: ["a"] }]));
+  assert.equal(values.at(-1), 4, "failed presentation must not prune A");
+  rt.process(components([{ id: "root", component: "Stack", sections: [] }]));
+  rt.process(components([{ id: "root", component: "Stack", sections: ["a"] }]));
+  assert.equal(values.at(-1), 0, "successful removal prunes A");
+});
+
+test("Basic Tabs selects by structural location, persists locally, restores keyboard focus, and isolates mounts", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Tabs", tabs: [{ title: { path: "/titles/0" }, child: "a" }, { title: { path: "/titles/1" }, child: "b" }, { title: "History", child: "missing" }] },
+    { id: "a", component: "Text", text: { path: "/content" } }, { id: "b", component: "Text", text: "Details" },
+  ]));
+  rt.process(data({ titles: ["Overview", "Account"], content: "Welcome", unrelated: 0 }));
+  const regs = createBasicCatalogRendererRegistrations({ catalogId: "test" });
+  const one = mount(rt, regs); const two = mount(rt, regs); assert.ok(one.result.ok && two.result.ok);
+  one.target.ownerDocument.body.append(one.target);
+  two.target.ownerDocument.body.append(two.target);
+  const tabs = (target: Element) => [...target.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+  assert.deepEqual(tabs(one.target).map((button) => button.textContent), ["Overview", "Account", "History"]);
+  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Welcome");
+  const oldFirst = tabs(one.target)[0]!; oldFirst.focus();
+  oldFirst.dispatchEvent(new oldFirst.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Details");
+  assert.equal(one.target.ownerDocument.activeElement, tabs(one.target)[1]);
+  assert.equal(tabs(two.target)[0]?.getAttribute("aria-selected"), "true");
+  rt.process(data({ titles: ["Overview", "Account updated"], content: "Changed", unrelated: 1 }));
+  assert.equal(tabs(one.target)[1]?.textContent, "Account updated"); assert.equal(tabs(one.target)[1]?.getAttribute("aria-selected"), "true");
+  oldFirst.click(); assert.equal(tabs(one.target)[1]?.getAttribute("aria-selected"), "true", "stale button cannot select");
+  tabs(one.target)[2]?.click();
+  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "");
+  rt.process(components([{ id: "root", component: "Tabs", tabs: [{ title: "Only", child: "a" }] }]));
+  assert.equal(tabs(one.target)[0]?.getAttribute("aria-selected"), "true");
+  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Changed");
 });
 
 function interactionCatalog(): JsonObject {

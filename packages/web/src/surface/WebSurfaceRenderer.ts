@@ -1,6 +1,7 @@
 import type {
   ComponentCheckSnapshot,
   HydratedComponentInstance,
+  JsonValue,
   WeaverResolvedSurface,
   WeaverRuntime,
 } from "@weaver/core";
@@ -51,23 +52,30 @@ export class WebSurfaceRenderer {
     let generation = 0;
     let controlMetadata = new WeakMap<Element, string>();
     let controls = new Map<string, Element>();
+    const localState = new Map<string, Map<string, JsonValue>>();
     const render = (): WebSurfaceRenderResult => {
       const focus = captureFocus(container, document, controlMetadata);
       const renderGeneration = ++generation;
       const nextControlMetadata = new WeakMap<Element, string>();
       const nextControls = new Map<string, Element>();
+      const renderedIdentities = new Set<string>();
       const result = this.#render(
         options.surfaceId,
         container,
         document,
         renderGeneration,
         () => mounted && generation === renderGeneration,
+        () => render(),
+        localState,
+        renderedIdentities,
         nextControlMetadata,
         nextControls,
       );
       if (result.ok) {
         controlMetadata = nextControlMetadata;
         controls = nextControls;
+        if (!result.value.ready) localState.clear();
+        else for (const identity of localState.keys()) if (!renderedIdentities.has(identity)) localState.delete(identity);
         if (mounted) restoreFocus(focus, controls);
       }
       return result;
@@ -76,6 +84,7 @@ export class WebSurfaceRenderer {
     if (!lastResult.ok) {
       mounted = false;
       generation++;
+      localState.clear();
       return lastResult;
     }
 
@@ -100,6 +109,7 @@ export class WebSurfaceRenderer {
           if (!mounted) return;
           mounted = false;
           generation++;
+          localState.clear();
           unsubscribe();
           container.remove();
         },
@@ -114,6 +124,9 @@ export class WebSurfaceRenderer {
     document: Document,
     generation: number,
     isCurrent: () => boolean,
+    requestRefresh: () => WebSurfaceRenderResult,
+    localState: Map<string, Map<string, JsonValue>>,
+    renderedIdentities: Set<string>,
     controlMetadata: WeakMap<Element, string>,
     controls: Map<string, Element>,
   ): WebSurfaceRenderResult {
@@ -124,7 +137,7 @@ export class WebSurfaceRenderer {
       return { ok: true, value: { ready: false } };
     }
 
-    const rendered = this.#renderTree(resolved.value, document, generation, isCurrent, controlMetadata, controls);
+    const rendered = this.#renderTree(resolved.value, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
     if (!rendered.ok) return rendered;
     container.replaceChildren(rendered.value);
     return { ok: true, value: { ready: true } };
@@ -135,6 +148,9 @@ export class WebSurfaceRenderer {
     document: Document,
     generation: number,
     isCurrent: () => boolean,
+    requestRefresh: () => WebSurfaceRenderResult,
+    localState: Map<string, Map<string, JsonValue>>,
+    renderedIdentities: Set<string>,
     controlMetadata: WeakMap<Element, string>,
     controls: Map<string, Element>,
   ): { ok: true; value: Node } | { ok: false; error: WebRenderError } {
@@ -142,7 +158,7 @@ export class WebSurfaceRenderer {
     for (const snapshot of surface.checks.components) {
       checks.set(identityKey(snapshot.sourceComponentId, snapshot.scopePath), snapshot);
     }
-    return this.#renderInstance(surface.surfaceId, surface.catalogId, surface.tree.root!, checks, document, generation, isCurrent, controlMetadata, controls);
+    return this.#renderInstance(surface.surfaceId, surface.catalogId, surface.tree.root!, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
   }
 
   #renderInstance(
@@ -153,9 +169,14 @@ export class WebSurfaceRenderer {
     document: Document,
     generation: number,
     isCurrent: () => boolean,
+    requestRefresh: () => WebSurfaceRenderResult,
+    localState: Map<string, Map<string, JsonValue>>,
+    renderedIdentities: Set<string>,
     controlMetadata: WeakMap<Element, string>,
     controls: Map<string, Element>,
   ): { ok: true; value: Node } | { ok: false; error: WebRenderError } {
+    const instanceIdentity = identityKey(instance.sourceComponentId, instance.scopePath);
+    renderedIdentities.add(instanceIdentity);
     const relationships: WebRenderedRelationship[] = [];
     for (const relationship of instance.relationships) {
       if (relationship.kind === "single") {
@@ -164,7 +185,7 @@ export class WebSurfaceRenderer {
             location: relationship.location.map((segment) => ({ ...segment })) });
           continue;
         }
-        const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent, controlMetadata, controls);
+        const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
         if (!child.ok) return child;
         relationships.push({ kind: "single", property: relationship.property,
           location: relationship.location.map((segment) => ({ ...segment })), child: child.value });
@@ -172,7 +193,7 @@ export class WebSurfaceRenderer {
       }
       const children: Node[] = [];
       for (const childInstance of relationship.children) {
-        const child = this.#renderInstance(surfaceId, catalogId, childInstance, checks, document, generation, isCurrent, controlMetadata, controls);
+        const child = this.#renderInstance(surfaceId, catalogId, childInstance, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
         if (!child.ok) return child;
         children.push(child.value);
       }
@@ -181,24 +202,24 @@ export class WebSurfaceRenderer {
     }
 
     const renderer = this.#renderers.get(catalogId, instance.component);
-    const metadata = {
-      catalogId,
-      component: instance.component,
-      sourceComponentId: instance.sourceComponentId,
-      scopePath: instance.scopePath,
-    };
+    const metadata = { catalogId, component: instance.component, sourceComponentId: instance.sourceComponentId, scopePath: instance.scopePath };
     if (renderer === undefined) return { ok: false, error: { code: "RENDERER_NOT_FOUND", ...metadata } };
 
+    const renderedState = cloneStateEntries(localState.get(instanceIdentity));
     const interactions: WebComponentInteractions = {
       writeInput: (property, value) => {
         if (!isCurrent()) return { ok: false, error: { code: "STALE_RENDER_INTERACTION" } };
-        return this.#runtime.writeInput({
-          surfaceId,
-          sourceComponentId: instance.sourceComponentId,
-          scopePath: instance.scopePath,
-          property,
-          value,
-        });
+        return this.#runtime.writeInput({ surfaceId, sourceComponentId: instance.sourceComponentId, scopePath: instance.scopePath, property, value });
+      },
+      getLocalState: (key, fallback) => cloneJsonValue(renderedState.get(key) ?? fallback) as typeof fallback,
+      setLocalState: (key, value) => {
+        if (!isCurrent()) return { ok: false, error: { code: "STALE_RENDER_INTERACTION" } };
+        if (!isJsonValue(value)) return { ok: false, error: { code: "INVALID_LOCAL_STATE_VALUE" } };
+        let state = localState.get(instanceIdentity);
+        if (state === undefined) { state = new Map(); localState.set(instanceIdentity, state); }
+        state.set(key, cloneJsonValue(value));
+        requestRefresh();
+        return { ok: true };
       },
       registerControl: (element, localKey) => {
         const identity = controlIdentityKey(instance.sourceComponentId, instance.scopePath, localKey);
@@ -207,21 +228,11 @@ export class WebSurfaceRenderer {
       },
       dispatchAction: (actionProperty) => {
         if (!isCurrent()) return { ok: false, error: { code: "STALE_RENDER_INTERACTION" } };
-        const result = this.#runtime.dispatchAction({
-          surfaceId,
-          sourceComponentId: instance.sourceComponentId,
-          scopePath: instance.scopePath,
-          actionProperty,
-        });
+        const result = this.#runtime.dispatchAction({ surfaceId, sourceComponentId: instance.sourceComponentId, scopePath: instance.scopePath, actionProperty });
         if (result.ok && result.value.kind === "serverEvent" && this.#onServerEvent !== undefined) {
           try {
-            this.#onServerEvent(structuredClone({
-              message: result.value.message,
-              ...(result.value.metadata === undefined ? {} : { metadata: result.value.metadata }),
-            }));
-          } catch {
-            return { ok: false, error: { code: "SERVER_EVENT_HANDOFF_FAILED" } };
-          }
+            this.#onServerEvent(structuredClone({ message: result.value.message, ...(result.value.metadata === undefined ? {} : { metadata: result.value.metadata }) }));
+          } catch { return { ok: false, error: { code: "SERVER_EVENT_HANDOFF_FAILED" } }; }
         }
         return result;
       },
@@ -229,23 +240,37 @@ export class WebSurfaceRenderer {
 
     let node: unknown;
     try {
-      node = renderer({
-        document,
-        catalogId,
-        instance,
-        properties: Object.freeze({ ...instance.properties }),
-        relationships: Object.freeze(relationships),
-        checks: checks.get(identityKey(instance.sourceComponentId, instance.scopePath)),
-        interactions,
-      });
-    } catch {
-      return { ok: false, error: { code: "RENDERER_EXECUTION_FAILED", ...metadata } };
-    }
-    if (!isNode(node, document)) {
-      return { ok: false, error: { code: "INVALID_RENDERER_RESULT", ...metadata } };
-    }
+      node = renderer({ document, catalogId, instance, properties: Object.freeze({ ...instance.properties }), relationships: Object.freeze(relationships), checks: checks.get(instanceIdentity), interactions });
+    } catch { return { ok: false, error: { code: "RENDERER_EXECUTION_FAILED", ...metadata } }; }
+    if (!isNode(node, document)) return { ok: false, error: { code: "INVALID_RENDERER_RESULT", ...metadata } };
     return { ok: true, value: node };
   }
+}
+
+function cloneStateEntries(state: ReadonlyMap<string, JsonValue> | undefined): Map<string, JsonValue> {
+  const clone = new Map<string, JsonValue>();
+  if (state !== undefined) for (const [key, value] of state) clone.set(key, cloneJsonValue(value));
+  return clone;
+}
+
+function cloneJsonValue<T extends JsonValue>(value: T): T {
+  return structuredClone(value);
+}
+
+function isJsonValue(value: unknown, seen = new Set<object>()): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || seen.has(value)) return false;
+  seen.add(value);
+  let valid: boolean;
+  if (Array.isArray(value)) valid = value.every((entry) => isJsonValue(entry, seen));
+  else {
+    const prototype = Object.getPrototypeOf(value);
+    valid = (prototype === Object.prototype || prototype === null)
+      && Object.values(value).every((entry) => isJsonValue(entry, seen));
+  }
+  seen.delete(value);
+  return valid;
 }
 
 function isNode(value: unknown, document: Document): value is Node {

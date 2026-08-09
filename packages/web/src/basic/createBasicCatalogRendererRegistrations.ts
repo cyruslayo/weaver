@@ -6,6 +6,7 @@ import {
   renderDivider,
   renderList,
   renderRow,
+  renderTabs,
   renderText,
 } from "./renderers.js";
 import { createBasicInputRenderers } from "./inputs.js";
@@ -32,6 +33,7 @@ export function createBasicCatalogRendererRegistrations(
     { catalogId: options.catalogId, component: "Column", render: renderColumn },
     { catalogId: options.catalogId, component: "List", render: renderList },
     { catalogId: options.catalogId, component: "Card", render: renderCard },
+    { catalogId: options.catalogId, component: "Tabs", render: renderTabs },
     { catalogId: options.catalogId, component: "Button", render: renderButton },
     { catalogId: options.catalogId, component: "TextField", render: inputs.TextField },
     { catalogId: options.catalogId, component: "CheckBox", render: inputs.CheckBox },

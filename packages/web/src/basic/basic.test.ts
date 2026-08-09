@@ -17,7 +17,7 @@ function setup(component: string, overrides: Partial<WebComponentRenderInput> = 
     catalogId: "test-basic",
     instance: { sourceComponentId: "root", component, scopePath: "/", definition: {}, properties: {}, relationships: [] },
     properties: {}, relationships: [],
-    interactions: { registerControl: () => {}, writeInput: () => ({ ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }), dispatchAction: (property: string) => { calls.push(property); return { ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }; } },
+    interactions: { registerControl: () => {}, getLocalState: (_key, fallback) => structuredClone(fallback), setLocalState: () => ({ ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }), writeInput: () => ({ ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }), dispatchAction: (property: string) => { calls.push(property); return { ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }; } },
     ...overrides,
   } as WebComponentRenderInput;
   return { document, calls, node: registration.render(input) as HTMLElement };
@@ -27,7 +27,7 @@ const child = (document: Document, text: string) => { const node = document.crea
 
 test("factory registers exactly the foundation components under the supplied catalog ID", () => {
   const registrations = createBasicCatalogRendererRegistrations({ catalogId: "not-an-official-url" });
-  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Image", "Video", "AudioPlayer", "Divider", "Row", "Column", "List", "Card", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
+  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Image", "Video", "AudioPlayer", "Divider", "Row", "Column", "List", "Card", "Tabs", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
   assert.ok(registrations.every(({ catalogId }) => catalogId === "not-an-official-url"));
 });
 
@@ -122,6 +122,29 @@ test("Card appends one resolved child and tolerates a missing child", () => {
   assert.equal(setup("Card").node.childNodes.length, 0);
 });
 
+test("Tabs maps repeated structural child locations and exposes accessible positional headers", () => {
+  const base = setup("Tabs");
+  const first = child(base.document, "first");
+  const second = child(base.document, "second");
+  const rendered = setup("Tabs", {
+    properties: { tabs: [{ title: "Overview" }, { title: undefined }, { title: null }] },
+    relationships: [
+      { kind: "single", property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 1 }, { kind: "property", name: "child" }], child: second },
+      { kind: "single", property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }], child: first },
+    ],
+  }).node;
+  const buttons = [...rendered.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+  const panel = rendered.querySelector<HTMLElement>('[role="tabpanel"]')!;
+  assert.deepEqual(buttons.map((button) => button.textContent), ["Overview", "", ""]);
+  assert.deepEqual(buttons.map((button) => [button.type, button.getAttribute("aria-selected"), button.tabIndex]), [["button", "true", 0], ["button", "false", -1], ["button", "false", -1]]);
+  assert.equal(rendered.querySelector('[role="tablist"]')?.children.length, 3);
+  assert.equal(panel.textContent, "first");
+  assert.equal(buttons[0]?.getAttribute("aria-controls"), panel.id);
+  assert.equal(panel.getAttribute("aria-labelledby"), buttons[0]?.id);
+  assert.equal(rendered.textContent?.includes("second"), false);
+  assert.equal([...buttons, panel].some((element) => element.id.includes("root") || element.id.includes("/")), false);
+});
+
 test("Divider uses native horizontal and semantic minimal vertical forms", () => {
   assert.equal(setup("Divider").node.tagName, "HR");
   assert.equal(setup("Divider", { properties: { axis: "horizontal" } }).node.tagName, "HR");
@@ -195,5 +218,5 @@ test("invalid inputs remain editable and expose only failed validation messages"
   assert.equal(control.disabled, false); assert.equal(control.getAttribute("aria-invalid"), "true"); assert.ok(control.getAttribute("aria-describedby")); assert.equal(node.textContent?.includes("Required"), true); assert.equal(node.textContent?.includes("Wait"), false);
 });
 
-function interactions(writes: unknown[]) { return { registerControl: () => {}, writeInput: (property: string, value: unknown) => { writes.push([property, value]); return { ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }; }, dispatchAction: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }) }; }
+function interactions(writes: unknown[]) { return { registerControl: () => {}, getLocalState: <T>(_key: string, fallback: T) => structuredClone(fallback), setLocalState: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }), writeInput: (property: string, value: unknown) => { writes.push([property, value]); return { ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }; }, dispatchAction: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }) }; }
 function fire(node: Element, type: string): void { node.dispatchEvent(new node.ownerDocument.defaultView!.Event(type, { bubbles: true })); }

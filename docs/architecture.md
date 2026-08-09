@@ -276,8 +276,8 @@ Catalog validation (trusted type and properties)
 RendererRegistry
         |
         +-- Basic Catalog registrations: Text, Image, Video, AudioPlayer, Divider, Row,
-        |                                Column, List, Card, Button, TextField, CheckBox,
-        |                                Slider, ChoicePicker, DateTimeInput
+        |                                Column, List, Card, Tabs, Button, TextField,
+        |                                CheckBox, Slider, ChoicePicker, DateTimeInput
         +-- application/custom renderer registrations
         |
         v
@@ -979,6 +979,20 @@ envelopes.
 The first framework-free browser layer consumes only Core's public derived API:
 
 ```text
+                    WebSurfaceRenderer
+                           │
+             ┌─────────────┴─────────────┐
+             ↓                           ↓
+       Core-derived UI             mount-local state
+                                         │
+                                         ↓
+                                  Tabs selectedIndex
+                                         │
+                                         ↓
+                                  mount refresh
+```
+
+```text
                         @weaver/core
 
                       WeaverRuntime
@@ -999,7 +1013,7 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Video, AudioPlayer, Divider, Row, Column, List, Card, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; application/custom registrations remain alongside them. Media adds a Web-only trust boundary:
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; application/custom registrations remain alongside them. Media adds a Web-only trust boundary:
 
 ```text
 hydrated media URL
