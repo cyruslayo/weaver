@@ -7,6 +7,11 @@ import type {
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
+  CatalogFunctionArgumentDefinition,
+  CatalogFunctionDefinition,
+  CatalogFunctionDefinitionResult,
+  CatalogFunctionReturnType,
+  CatalogFunctionValidationResult,
   CatalogRegistration,
   ComponentStructureDefinition,
   DynamicPropertyDefinition,
@@ -20,6 +25,8 @@ import type {
 interface RegisteredCatalog {
   schema: JsonObject;
   validators: ReadonlyMap<string, ValidateFunction>;
+  functionValidators: ReadonlyMap<string, ValidateFunction>;
+  functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
   themeValidator: ValidateFunction;
@@ -33,6 +40,118 @@ const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
   "common_types.json#/$defs/DynamicBoolean": "dynamicBoolean",
   "common_types.json#/$defs/DynamicStringList": "dynamicStringList",
 };
+
+const DYNAMIC_FUNCTION_ARGUMENT_REFS: Readonly<Record<string, DynamicPropertyKind | "dynamicValue">> = {
+  ...DYNAMIC_PROPERTY_REFS,
+  "common_types.json#/$defs/DynamicValue": "dynamicValue",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString": "dynamicString",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber": "dynamicNumber",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean": "dynamicBoolean",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList": "dynamicStringList",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicValue": "dynamicValue",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicString": "dynamicString",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicNumber": "dynamicNumber",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicBoolean": "dynamicBoolean",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicStringList": "dynamicStringList",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicValue": "dynamicValue",
+  "#/$defs/DynamicString": "dynamicString",
+  "#/$defs/DynamicNumber": "dynamicNumber",
+  "#/$defs/DynamicBoolean": "dynamicBoolean",
+  "#/$defs/DynamicStringList": "dynamicStringList",
+  "#/$defs/DynamicValue": "dynamicValue",
+};
+const FUNCTION_RETURN_TYPES: readonly CatalogFunctionReturnType[] = [
+  "string", "number", "boolean", "array", "object", "any", "void",
+];
+
+function isPlainObject(value: unknown): value is JsonObject {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function functionArgumentDefinition(schema: JsonObject | undefined): CatalogFunctionArgumentDefinition {
+  if (schema === undefined) return { kind: "dynamicValue" };
+  const reference = typeof schema.$ref === "string" ? DYNAMIC_FUNCTION_ARGUMENT_REFS[schema.$ref] : undefined;
+  if (reference !== undefined) return { kind: reference };
+
+  if (schema.type === "array" && isPlainObject(schema.items)) {
+    const item = functionArgumentDefinition(schema.items);
+    if (item.kind === "dynamicValue" || item.kind === "dynamicString" || item.kind === "dynamicNumber" ||
+      item.kind === "dynamicBoolean" || item.kind === "dynamicStringList") {
+      return { kind: "arrayOfDynamicValues" };
+    }
+  }
+
+  if (schema.type === "object") {
+    const properties = isPlainObject(schema.properties) ? schema.properties : undefined;
+    if (properties !== undefined) {
+      const fields: Record<string, CatalogFunctionArgumentDefinition> = {};
+      for (const [name, value] of Object.entries(properties)) {
+        if (isPlainObject(value)) fields[name] = functionArgumentDefinition(value);
+      }
+      return { kind: "literalObject", properties: fields };
+    }
+    return { kind: "literalObject" };
+  }
+
+  // A schema without a type is the A2UI convention for an unrestricted dynamic value.
+  if (schema.type === undefined && schema.$ref === undefined && schema.oneOf === undefined && schema.anyOf === undefined) {
+    return { kind: "dynamicValue" };
+  }
+  return { kind: "literal" };
+}
+
+function discoverFunctionDefinition(
+  catalogId: string,
+  name: string,
+  functionSchema: JsonObject,
+): CatalogFunctionDefinition | undefined {
+  const properties = isPlainObject(functionSchema.properties) ? functionSchema.properties : undefined;
+  const returnTypeSchema = properties !== undefined && isPlainObject(properties.returnType)
+    ? properties.returnType
+    : undefined;
+  const returnType = returnTypeSchema?.const;
+  if (returnType !== undefined && (typeof returnType !== "string" || !FUNCTION_RETURN_TYPES.includes(returnType as CatalogFunctionReturnType))) {
+    return undefined;
+  }
+  const argsSchema = properties !== undefined && isPlainObject(properties.args) ? properties.args : undefined;
+  const argsProperties = argsSchema !== undefined && isPlainObject(argsSchema.properties) ? argsSchema.properties : undefined;
+  const args: Record<string, CatalogFunctionArgumentDefinition> = {};
+  for (const [argName, schema] of Object.entries(argsProperties ?? {})) {
+    if (isPlainObject(schema)) args[argName] = functionArgumentDefinition(schema);
+  }
+  return {
+    catalogId,
+    name,
+    returnType: (returnType as CatalogFunctionReturnType | undefined) ?? "any",
+    arguments: args,
+  };
+}
+
+function cloneFunctionDefinition(definition: CatalogFunctionDefinition): CatalogFunctionDefinition {
+  const argumentsCopy: Record<string, CatalogFunctionArgumentDefinition> = {};
+  for (const [name, argument] of Object.entries(definition.arguments)) {
+    argumentsCopy[name] = {
+      kind: argument.kind,
+      ...(argument.properties === undefined ? {} : { properties: cloneArgumentDefinitions(argument.properties) }),
+    };
+  }
+  return { ...definition, arguments: argumentsCopy };
+}
+
+function cloneArgumentDefinitions(
+  definitions: Readonly<Record<string, CatalogFunctionArgumentDefinition>>,
+): Record<string, CatalogFunctionArgumentDefinition> {
+  const result: Record<string, CatalogFunctionArgumentDefinition> = {};
+  for (const [name, definition] of Object.entries(definitions)) {
+    result[name] = {
+      kind: definition.kind,
+      ...(definition.properties === undefined ? {} : { properties: cloneArgumentDefinitions(definition.properties) }),
+    };
+  }
+  return result;
+}
 
 function discoverStructure(componentSchema: JsonObject): ComponentStructureDefinition {
   const structure: ComponentStructureDefinition = { singleChildFields: [], childListFields: [] };
@@ -123,8 +242,14 @@ export class CatalogRegistry {
 
     const components = schema.components as JsonObject;
     const validators = new Map<string, ValidateFunction>();
+    const functionValidators = new Map<string, ValidateFunction>();
+    const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
+    const functions = schema.functions === undefined ? {} : schema.functions;
+    if (!isPlainObject(functions)) {
+      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog functions must be an object") };
+    }
     let themeValidator: ValidateFunction;
     try {
       for (const [componentName, componentSchema] of Object.entries(components)) {
@@ -139,6 +264,18 @@ export class CatalogRegistry {
         compilationSchema.$ref = `#/components/${escapeJsonPointer(componentName)}`;
         validators.set(componentName, this.#ajv.compile(compilationSchema));
       }
+      for (const [functionName, functionSchema] of Object.entries(functions)) {
+        if (!isPlainObject(functionSchema) || !this.#ajv.validateSchema(functionSchema)) {
+          throw new Error("invalid function schema");
+        }
+        const definition = discoverFunctionDefinition(catalogId, functionName, functionSchema);
+        if (definition === undefined) throw new Error("unsupported function return type");
+        const compilationSchema = cloneJson(schema);
+        compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(functionName)}/function.json`;
+        compilationSchema.$ref = `#/functions/${escapeJsonPointer(functionName)}`;
+        functionValidators.set(functionName, this.#ajv.compile(compilationSchema));
+        functionDefinitions.set(functionName, definition);
+      }
       const themeCompilationSchema = cloneJson(schema);
       themeCompilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/theme/catalog.json`;
       themeCompilationSchema.$ref = "#/$defs/theme";
@@ -148,7 +285,15 @@ export class CatalogRegistry {
     }
 
     this.#registrationSequence += 1;
-    this.#catalogs.set(catalogId, { schema, validators, structures, dynamicProperties, themeValidator });
+    this.#catalogs.set(catalogId, {
+      schema,
+      validators,
+      functionValidators,
+      functionDefinitions,
+      structures,
+      dynamicProperties,
+      themeValidator,
+    });
     return { ok: true, value: { catalogId, schema: cloneJson(schema) } };
   }
 
@@ -167,6 +312,67 @@ export class CatalogRegistry {
 
   getSupportedCatalogIds(): string[] {
     return [...this.#catalogs.keys()];
+  }
+
+  hasFunction(catalogId: string, functionName: string): boolean {
+    return this.#catalogs.get(catalogId)?.functionValidators.has(functionName) ?? false;
+  }
+
+  getFunctionDefinition(catalogId: string, functionName: string): CatalogFunctionDefinitionResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const definition = catalog.functionDefinitions.get(functionName);
+    if (definition === undefined) {
+      return {
+        ok: false,
+        error: {
+          ...error("FUNCTION_NOT_ALLOWED", catalogId, "Function is not allowed by the catalog"),
+          functionName,
+        },
+      };
+    }
+    return { ok: true, value: cloneFunctionDefinition(definition) };
+  }
+
+  validateFunctionCall(catalogId: string, functionCall: unknown): CatalogFunctionValidationResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const functionName = isPlainObject(functionCall) && typeof functionCall.call === "string"
+      ? functionCall.call
+      : undefined;
+    if (functionName === undefined || !catalog.functionValidators.has(functionName)) {
+      return {
+        ok: false,
+        error: {
+          ...error("FUNCTION_NOT_ALLOWED", catalogId, "Function is not allowed by the catalog"),
+          ...(functionName === undefined ? {} : { functionName }),
+        },
+      };
+    }
+
+    const issues: CatalogValidationIssue[] = [];
+    if (!isPlainObject(functionCall) || !isPlainObject(functionCall.args) ||
+      ("returnType" in functionCall &&
+        (typeof functionCall.returnType !== "string" || !FUNCTION_RETURN_TYPES.includes(functionCall.returnType as CatalogFunctionReturnType)))) {
+      issues.push({ path: "/", message: "FunctionCall must contain a call name and object args", keyword: "type" });
+    }
+    const validator = catalog.functionValidators.get(functionName)!;
+    if (issues.length === 0 && !validator(functionCall)) issues.push(...normalizeErrors(validator.errors));
+    if (issues.length > 0) {
+      return {
+        ok: false,
+        error: {
+          ...error("FUNCTION_VALIDATION_FAILED", catalogId, "Function call does not satisfy the catalog schema"),
+          functionName,
+          issues,
+        },
+      };
+    }
+    return { ok: true, value: functionCall };
   }
 
   getComponentStructure(catalogId: string, componentName: string): CatalogComponentStructureResult {

@@ -244,14 +244,17 @@ CatalogRegistry
         v
 trusted registered A2UI catalog JSON Schemas
         +-- components
-        +-- functions (preserved; execution deferred)
+        +-- function contracts (compiled validators and metadata)
         +-- $defs.theme (compiled for surface theme validation)
 ```
 
 The registry uses A2UI v0.9.1 Draft 2020-12 JSON Schema catalogs directly. It
-compiles component validators at atomic registration time, retains defensive
-schema copies, rejects duplicate IDs, and exposes only Weaver snapshots and
-normalized validation issues. Ajv and compiled validators remain internal.
+compiles component and function validators at atomic registration time,
+extracts narrow function metadata, retains defensive schema copies, rejects
+duplicate IDs, and exposes only Weaver snapshots and normalized validation
+issues. A direct `properties.returnType.const` is trusted as the return
+contract; custom schemas without that simple metadata conservatively use
+`any`. Ajv and compiled validators remain internal.
 Catalog schemas are data and cannot provide executable code. Registration must
 resolve and compile every schema reference; message processing never fetches
 external `$ref` resources. The official Basic Catalog's external references
@@ -277,6 +280,52 @@ The prototype `ComponentRegistry` supplied the useful trusted-allowlist idea;
 `CatalogRegistry` is the protocol-aligned, framework-independent replacement
 for that responsibility. DOM renderer registration remains future `@weaver/web`
 work.
+
+## Trusted function execution
+
+Catalog and implementation trust are separate boundaries:
+
+```text
+CatalogRegistry
+      │
+      ├── component contracts
+      └── function contracts
+                 │
+                 v
+FunctionRegistry
+      │
+      └── trusted host implementations
+                 │
+                 v
+FunctionEvaluator
+      │
+      ├── DataContext bindings
+      ├── nested function calls
+      └── return validation
+```
+
+The agent chooses a function name and JSON arguments. The registered catalog
+allows a function contract and validates the `FunctionCall`; the host
+application supplies the executable implementation. Catalog JSON is never
+executed and cannot register code. Weaver does not use `eval`, `new Function`,
+dynamic imports, or script URLs.
+
+Function identity is `catalogId + function name`. There is no cross-catalog
+fallback and no global registry escape hatch. A declared function may remain
+unimplemented until its host registers it. Missing implementations are
+reported separately from undeclared functions.
+
+Function arguments resolve direct A2UI dynamic references through the supplied
+immutable `DataContext`. Relative bindings use the current collection scope.
+Nested calls use the same selected catalog; ordinary object schemas remain
+literal defensive objects. Wrapped or general JSON Schema argument semantics
+are intentionally unsupported beyond the recognized direct A2UI references.
+
+Weaver Core functions are synchronous local operations in the v0.9.1 runtime
+design. Network work is not a `FunctionRegistry` responsibility and belongs in
+future actions or transport mechanisms. Function evaluation, action dispatch,
+and renderer effects remain separate lifecycles. Evaluation also applies a
+configurable nesting limit (32 by default) as a Weaver safety boundary.
 
 Runtime trust orchestration is:
 
@@ -488,9 +537,10 @@ future renderer
 Responsibilities remain separate: `CatalogRegistry` defines property semantics,
 `DataContext` performs scoped lookup, `ComponentInstanceResolver` creates scoped
 UI instances, and `ComponentPropertyResolver` hydrates literals and path
-bindings. A future trusted `FunctionRegistry` will execute catalog functions,
-and a future Web renderer will own presentation. Function calls are currently
-preserved as explicit unresolved descriptors; behavior definitions such as
+bindings. `FunctionEvaluator` now executes catalog functions through trusted
+host implementations, while a future Web renderer will own presentation.
+`ComponentPropertyResolver` remains deliberately unchanged: function calls are
+still preserved as explicit unresolved descriptors. Behavior definitions such as
 actions and checks remain defensively copied static properties for later layers.
 
 Dynamic-property discovery follows the same narrow direct-reference policy as

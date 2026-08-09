@@ -22,6 +22,34 @@ export type DynamicPropertyKind =
   | "dynamicBoolean"
   | "dynamicStringList";
 
+export type CatalogFunctionReturnType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "array"
+  | "object"
+  | "any"
+  | "void";
+
+export type CatalogFunctionArgumentKind =
+  | "dynamicValue"
+  | DynamicPropertyKind
+  | "arrayOfDynamicValues"
+  | "literal"
+  | "literalObject";
+
+export interface CatalogFunctionArgumentDefinition {
+  kind: CatalogFunctionArgumentKind;
+  properties?: Readonly<Record<string, CatalogFunctionArgumentDefinition>>;
+}
+
+export interface CatalogFunctionDefinition {
+  catalogId: string;
+  name: string;
+  returnType: CatalogFunctionReturnType;
+  arguments: Readonly<Record<string, CatalogFunctionArgumentDefinition>>;
+}
+
 export interface DynamicPropertyDefinition {
   property: string;
   valueKind: DynamicPropertyKind;
@@ -41,3 +69,5 @@ export type CatalogComponentValidationResult = CatalogRegistryResult<A2UICompone
 export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;
 export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStructureDefinition>;
 export type CatalogDynamicPropertiesResult = CatalogRegistryResult<DynamicPropertyDefinition[]>;
+export type CatalogFunctionDefinitionResult = CatalogRegistryResult<CatalogFunctionDefinition>;
+export type CatalogFunctionValidationResult = CatalogRegistryResult<unknown>;
