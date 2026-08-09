@@ -10,6 +10,7 @@ strict: `@weaver/core` has no Web or MCP dependency; adapters depend on Core.
 - surface and data-model state
 - progressive component trees, scoped instances, property hydration, and checks
 - input binding and transport-neutral action dispatch
+- nested/wrapped dynamic property hydration
 - `WeaverRuntime` composition and orchestration facade
 
 `WeaverRuntime` is now the recommended application entry point. Lower-level Core
@@ -32,6 +33,7 @@ Basic Catalog foundation renderers
 The Core runtime facade is complete. Web consumes resolved surfaces through an
 immutable trusted renderer registry, reactively rebuilds mount-owned DOM
 subtrees, and delegates narrow input/action callbacks to current runtime state.
+Core now hydrates catalog-declared nested and `allOf`-wrapped dynamic values.
 The next milestone is Basic Catalog input renderers. Full Basic Catalog support and themes remain pending.
 Web must not duplicate Core state, protocol validation, catalog trust, checks,
 or action behavior.

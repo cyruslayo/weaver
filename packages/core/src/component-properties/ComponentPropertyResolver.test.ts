@@ -42,6 +42,14 @@ function setup(data: JsonValue = {}, implementations: Record<string, (...args: a
       }),
       Metric: component("Metric", { primaryValue: ref("DynamicNumber"), name: ref("DynamicString"), sections: ref("ChildList") }),
       Leaf: component("Leaf", { name: ref("DynamicString") }),
+      Nested: component("Nested", {
+        options: { type: "array", items: { type: "object", properties: {
+          label: ref("DynamicString"), value: { type: "string" }, metadata: { type: "object" },
+        } } },
+        min: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
+        max: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
+        tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), id: { type: "string" } } } },
+      }),
     },
     functions: {
       echo: fn("echo", "string", { value: ref("DynamicString") }),
@@ -466,6 +474,62 @@ test("keeps null function results explicit with the destination mismatch recorde
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, null);
   assert.deepEqual(result.issues, [{ code: "DYNAMIC_VALUE_TYPE_MISMATCH", sourceComponentId: "root", property: "title", expected: "dynamicString" }]);
+});
+
+test("hydrates ChoicePicker-like labels, wrapped dates, and Tabs-like titles without touching static siblings", () => {
+  const data = { labels: { a: "First" }, displayName: "Scoped", constraints: { minDate: "2026-08-01" } };
+  const { properties, catalogId } = setup(data, {
+    formatName: (args: { value: string }) => `Formatted ${args.value}`,
+  });
+  const definition: JsonObject = {
+    id: "root", component: "Nested",
+    options: [
+      { label: "Literal", value: "stable-0", metadata: { path: "literal" } },
+      { label: { path: "/labels/a" }, value: "stable-1", metadata: { call: "literal" } },
+      { label: { path: "displayName" }, value: "stable-2" },
+      { label: { call: "formatName", args: { value: "Name" } }, value: "stable-3" },
+    ],
+    min: { path: "/constraints/minDate" },
+    max: { call: "formatName", args: { value: "2026-09-01" } },
+    tabs: [{ id: "tab-a", title: { path: "/labels/a" } }],
+  };
+  const context = ok(DataContext.root({ ...data, items: [{ displayName: "Scoped" }] }).createCollectionItemContext("/items", 0));
+  const result = ok(properties.resolve(instance(definition, "/items/0", 0), context, catalogId));
+  assert.deepEqual(result.properties.options, [
+    { label: "Literal", value: "stable-0", metadata: { path: "literal" } },
+    { label: "First", value: "stable-1", metadata: { call: "literal" } },
+    { label: "Scoped", value: "stable-2" },
+    { label: "Formatted Name", value: "stable-3" },
+  ]);
+  assert.equal(result.properties.min, "2026-08-01");
+  assert.equal(result.properties.max, "Formatted 2026-09-01");
+  assert.deepEqual(result.properties.tabs, [{ id: "tab-a", title: "First" }]);
+  assert.deepEqual(result.issues, []);
+});
+
+test("isolates nested missing, type mismatch, and function failures with precise runtime locations", () => {
+  const { properties, catalogId } = setup({ wrong: 42 }, {
+    thrower: () => { throw new Error("secret"); },
+  });
+  const definition: JsonObject = { id: "root", component: "Nested", options: [
+    { label: { path: "/missing" }, value: "a" },
+    { label: { path: "/wrong" }, value: "b" },
+    { label: { call: "thrower", args: { value: "x" } }, value: "c" },
+    { label: "Safe", value: "d" },
+  ] };
+  const result = ok(properties.resolve(instance(definition), DataContext.root({ wrong: 42 }), catalogId));
+  assert.deepEqual(result.properties.options, [
+    { label: undefined, value: "a" }, { label: undefined, value: "b" },
+    { label: undefined, value: "c" }, { label: "Safe", value: "d" },
+  ]);
+  assert.deepEqual(result.issues.map((issue) => [issue.code, issue.path]), [
+    ["DYNAMIC_VALUE_TYPE_MISMATCH", "/options/1/label"],
+    ["FUNCTION_EVALUATION_FAILED", "/options/2/label"],
+  ]);
+  assert.deepEqual(result.unresolved.map(({ property, path }) => [property, path]), [["options", "/options/2/label"]]);
+  (result.properties.options as Array<Record<string, unknown>>)[3]!.label = "mutated";
+  result.issues[0]!.location![0] = { kind: "property", name: "changed" };
+  assert.equal(((definition.options as JsonObject[])[3]!.label), "Safe");
 });
 
 test("preserves catalog-declared argument binding failure as a controlled issue", () => {

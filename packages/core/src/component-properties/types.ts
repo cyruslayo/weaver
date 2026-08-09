@@ -2,14 +2,27 @@ import type { DynamicPropertyKind } from "../catalog/index.js";
 import type { ComponentInstanceIssue, ComponentInstanceSnapshot } from "../component-instances/index.js";
 import type { DataContextError } from "../data-context/index.js";
 import type { FunctionEvaluationError } from "../functions/index.js";
-import type { JsonObject, JsonValue } from "../protocol/index.js";
+import type { JsonObject, JsonPrimitive } from "../protocol/index.js";
 
-export type ResolvedComponentProperties = Record<string, JsonValue | undefined>;
+/** Renderer-facing derived data; unlike protocol JSON it preserves progressive missing values. */
+export type HydratedValue =
+  | JsonPrimitive
+  | undefined
+  | HydratedValue[]
+  | { [key: string]: HydratedValue };
+
+export type ResolvedComponentProperties = Record<string, HydratedValue>;
+
+export type ComponentPropertyLocationSegment =
+  | { kind: "property"; name: string }
+  | { kind: "arrayIndex"; index: number };
 
 export interface UnresolvedProperty {
   property: string;
   reason: "FUNCTION_EVALUATION_FAILED";
   functionCall: JsonObject;
+  location?: ComponentPropertyLocationSegment[];
+  path?: string;
 }
 
 export interface HydratedComponentInstance {
@@ -33,12 +46,16 @@ export type ComponentPropertyIssue =
       sourceComponentId: string;
       property: string;
       expected: DynamicPropertyKind;
+      location?: ComponentPropertyLocationSegment[];
+      path?: string;
     }
   | {
       code: "FUNCTION_EVALUATION_FAILED";
       sourceComponentId: string;
       property: string;
       error: FunctionEvaluationError;
+      location?: ComponentPropertyLocationSegment[];
+      path?: string;
     };
 
 export interface ResolvedInstanceProperties {

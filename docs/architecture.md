@@ -551,12 +551,33 @@ trusted host implementations; a future Web renderer will own presentation.
 Behavior definitions such as actions and checks remain defensively copied static
 properties for later layers.
 
-Dynamic-property discovery follows the same narrow direct-reference policy as
-structural discovery. Only direct component-property `$ref` values naming the
-v0.9.1 `DynamicString`, `DynamicNumber`, `DynamicBoolean`, and
-`DynamicStringList` common types are recorded. Wrapped schema compositions and
-arbitrary nested objects are not interpreted. Structural fields are excluded
-from hydrated properties and remain represented only as relationships.
+Catalog registration compiles dynamic hydration metadata once:
+
+```text
+CatalogRegistry
+      ↓
+dynamic value locations
+      ↓
+ComponentPropertyResolver
+      ↓
+hydrated nested values
+```
+
+Discovery recognizes exact v0.9.1 `DynamicString`, `DynamicNumber`,
+`DynamicBoolean`, and `DynamicStringList` references directly or as a direct
+`allOf` member. It recursively descends only through `properties` and `items`,
+and stops at a recognized dynamic value. Structural path segments describe
+properties and array items; runtime hydration supplies actual array indices.
+The existing direct top-level dynamic-property metadata remains separate for
+`InputBindingWriter`.
+
+This is deliberately not general JSON Schema evaluation. Discovery does not
+traverse `oneOf` or `anyOf`, merge arbitrary `allOf` schemas, evaluate
+conditionals, or support Icon's custom bindable union. Unsupported but valid
+schema compositions simply produce no hydration metadata; catalog validation
+remains independent. Date/time format constraints are likewise not interpreted
+by Core. Structural fields are excluded from hydrated properties and remain
+represented only as relationships.
 
 ### Architecture decision: function evaluation is injected
 

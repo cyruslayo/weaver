@@ -8,6 +8,7 @@ import type {
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
+  CatalogDynamicValueLocationsResult,
   CatalogFunctionArgumentDefinition,
   CatalogFunctionDefinition,
   CatalogFunctionDefinitionResult,
@@ -17,6 +18,8 @@ import type {
   ComponentStructureDefinition,
   DynamicPropertyDefinition,
   DynamicPropertyKind,
+  DynamicValueLocation,
+  DynamicValueLocationSegment,
   CatalogRegistryResult,
   CatalogSnapshot,
   CatalogThemeValidationResult,
@@ -30,6 +33,7 @@ interface RegisteredCatalog {
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
+  dynamicValueLocations: ReadonlyMap<string, readonly DynamicValueLocation[]>;
   actionProperties: ReadonlyMap<string, readonly string[]>;
   checkableComponents: ReadonlySet<string>;
   themeValidator: ValidateFunction;
@@ -185,6 +189,37 @@ function isCheckable(componentSchema: JsonObject): boolean {
   );
 }
 
+function dynamicKind(schema: JsonObject): DynamicPropertyKind | undefined {
+  const direct = typeof schema.$ref === "string" ? DYNAMIC_PROPERTY_REFS[schema.$ref] : undefined;
+  if (direct !== undefined) return direct;
+  if (!Array.isArray(schema.allOf)) return undefined;
+  for (const member of schema.allOf) {
+    if (!isPlainObject(member) || typeof member.$ref !== "string") continue;
+    const wrapped = DYNAMIC_PROPERTY_REFS[member.$ref];
+    if (wrapped !== undefined) return wrapped;
+  }
+  return undefined;
+}
+
+function discoverDynamicValueLocations(componentSchema: JsonObject): DynamicValueLocation[] {
+  const locations: DynamicValueLocation[] = [];
+  const visit = (schema: JsonObject, path: DynamicValueLocationSegment[]): void => {
+    const valueKind = dynamicKind(schema);
+    if (valueKind !== undefined) {
+      locations.push({ path: path.map((segment) => ({ ...segment })), valueKind });
+      return;
+    }
+    if (isPlainObject(schema.properties)) {
+      for (const [name, child] of Object.entries(schema.properties)) {
+        if (isPlainObject(child)) visit(child, [...path, { kind: "property", name }]);
+      }
+    }
+    if (isPlainObject(schema.items)) visit(schema.items, [...path, { kind: "arrayItems" }]);
+  };
+  visit(componentSchema, []);
+  return locations;
+}
+
 function discoverDynamicProperties(componentSchema: JsonObject): DynamicPropertyDefinition[] {
   const definitions: DynamicPropertyDefinition[] = [];
   const properties = componentSchema.properties;
@@ -265,6 +300,7 @@ export class CatalogRegistry {
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
+    const dynamicValueLocations = new Map<string, readonly DynamicValueLocation[]>();
     const actionProperties = new Map<string, readonly string[]>();
     const checkableComponents = new Set<string>();
     const functions = schema.functions === undefined ? {} : schema.functions;
@@ -280,6 +316,7 @@ export class CatalogRegistry {
         if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
         dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
+        dynamicValueLocations.set(componentName, discoverDynamicValueLocations(componentSchema));
         actionProperties.set(componentName, discoverActionProperties(componentSchema));
         if (isCheckable(componentSchema)) checkableComponents.add(componentName);
         const compilationSchema = cloneJson(schema);
@@ -315,6 +352,7 @@ export class CatalogRegistry {
       functionDefinitions,
       structures,
       dynamicProperties,
+      dynamicValueLocations,
       actionProperties,
       checkableComponents,
       themeValidator,
@@ -445,6 +483,30 @@ export class CatalogRegistry {
       };
     }
     return { ok: true, value: definitions.map((definition) => ({ ...definition })) };
+  }
+
+  getDynamicValueLocations(catalogId: string, componentName: string): CatalogDynamicValueLocationsResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const locations = catalog.dynamicValueLocations.get(componentName);
+    if (locations === undefined) {
+      return {
+        ok: false,
+        error: {
+          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component property metadata is not available"),
+          component: componentName,
+        },
+      };
+    }
+    return {
+      ok: true,
+      value: locations.map(({ path, valueKind }) => ({
+        path: path.map((segment) => ({ ...segment })),
+        valueKind,
+      })),
+    };
   }
 
   /** Detects only direct common_types.json#/$defs/Action property references. */

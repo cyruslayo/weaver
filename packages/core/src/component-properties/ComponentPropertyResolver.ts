@@ -1,4 +1,6 @@
-import type { CatalogRegistry, CatalogRegistryError, DynamicPropertyKind } from "../catalog/index.js";
+import type {
+  CatalogRegistry, CatalogRegistryError, DynamicPropertyKind, DynamicValueLocationSegment,
+} from "../catalog/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext, isDataPathBinding } from "../data-context/index.js";
 import { FunctionEvaluator } from "../functions/index.js";
@@ -9,10 +11,12 @@ import type { ComponentPropertyError } from "./errors.js";
 import type {
   ComponentInstanceTreeInput,
   ComponentPropertyIssue,
+  ComponentPropertyLocationSegment,
   ComponentPropertyResult,
   ComponentPropertyTreeResult,
   HydratedComponentInstance,
   HydratedInstanceRelationship,
+  HydratedValue,
   ResolvedComponentProperties,
   UnresolvedProperty,
 } from "./types.js";
@@ -35,16 +39,31 @@ function isFunctionCall(value: JsonValue): value is JsonObject {
     !Array.isArray(value.args) && typeof value.args === "object";
 }
 
+function readablePath(location: readonly ComponentPropertyLocationSegment[]): string {
+  return "/" + location.map((segment) => segment.kind === "property"
+    ? segment.name.replaceAll("~", "~0").replaceAll("/", "~1")
+    : String(segment.index)).join("/");
+}
+
+function nestedLocation(location: readonly ComponentPropertyLocationSegment[]) {
+  return location.length <= 1 ? {} : {
+    location: location.map((segment) => ({ ...segment })),
+    path: readablePath(location),
+  };
+}
+
 function functionError(
   sourceComponentId: string,
   property: string,
   error: FunctionEvaluationError,
+  location: readonly ComponentPropertyLocationSegment[],
 ): ComponentPropertyIssue {
   return {
     code: "FUNCTION_EVALUATION_FAILED",
     sourceComponentId,
     property,
     error,
+    ...nestedLocation(location),
   };
 }
 
@@ -75,67 +94,89 @@ export class ComponentPropertyResolver {
   ): ComponentPropertyResult {
     const structure = this.catalogs.getComponentStructure(catalogId, instance.component);
     if (!structure.ok) return { ok: false, error: catalogFailure(structure.error) };
-    const metadata = this.catalogs.getDynamicProperties(catalogId, instance.component);
+    const metadata = this.catalogs.getDynamicValueLocations(catalogId, instance.component);
     if (!metadata.ok) return { ok: false, error: catalogFailure(metadata.error) };
 
     const structural = new Set([...structure.value.singleChildFields, ...structure.value.childListFields]);
-    const dynamic = new Map(metadata.value.map((definition) => [definition.property, definition.valueKind]));
     const properties: ResolvedComponentProperties = {};
     const unresolved: UnresolvedProperty[] = [];
     const issues: ComponentPropertyIssue[] = [];
 
     for (const [property, original] of Object.entries(instance.definition)) {
       if (property === "id" || property === "component" || structural.has(property)) continue;
-      const valueKind = dynamic.get(property);
-      if (valueKind === undefined) {
-        properties[property] = cloneJson(original);
-        continue;
-      }
+      properties[property] = cloneJson(original);
+    }
 
+    const hydrateValue = (
+      original: JsonValue,
+      valueKind: DynamicPropertyKind,
+      location: readonly ComponentPropertyLocationSegment[],
+    ): HydratedValue => {
+      const property = location[0]?.kind === "property" ? location[0].name : "";
       let value: JsonValue | undefined;
       let functionOwned = false;
       if (isFunctionCall(original)) {
         const evaluated = this.functionEvaluator.evaluate(catalogId, original, dataContext);
         if (!evaluated.ok) {
-          properties[property] = undefined;
           unresolved.push({
-            property,
-            reason: "FUNCTION_EVALUATION_FAILED",
-            functionCall: cloneJson(original),
+            property, reason: "FUNCTION_EVALUATION_FAILED", functionCall: cloneJson(original),
+            ...nestedLocation(location),
           });
-          issues.push(functionError(instance.sourceComponentId, property, evaluated.error));
-          continue;
+          issues.push(functionError(instance.sourceComponentId, property, evaluated.error, location));
+          return undefined;
         }
-        // The evaluator already owns argument binding, nested calls, and return-contract
-        // validation and returns defensively cloned results; only the destination
-        // dynamic-property rules run here.
         value = evaluated.value;
         functionOwned = true;
+      } else if (isDataPathBinding(original)) {
+        const resolved = dataContext.resolveBinding(original);
+        value = resolved.ok ? resolved.value : undefined;
       } else {
         value = cloneJson(original);
-        if (isDataPathBinding(original)) {
-          const resolved = dataContext.resolveBinding(original);
-          if (!resolved.ok) {
-            // Components were catalog-valid; an invalid scoped path remains unavailable to rendering.
-            value = undefined;
-          } else {
-            value = resolved.value;
-          }
-        }
       }
 
       if (value !== undefined && !compatible(valueKind, value)) {
         issues.push({
-          code: "DYNAMIC_VALUE_TYPE_MISMATCH",
-          sourceComponentId: instance.sourceComponentId,
-          property,
-          expected: valueKind,
+          code: "DYNAMIC_VALUE_TYPE_MISMATCH", sourceComponentId: instance.sourceComponentId,
+          property, expected: valueKind, ...nestedLocation(location),
         });
-        // Explicit null remains distinguishable; other incompatible values are withheld.
-        properties[property] = value === null ? null : undefined;
-      } else {
-        properties[property] = value === undefined ? undefined : functionOwned ? value : cloneJson(value);
+        return value === null ? null : undefined;
       }
+      return value === undefined ? undefined : functionOwned ? clonePlain(value) : cloneJson(value);
+    };
+
+    const apply = (
+      schemaPath: readonly DynamicValueLocationSegment[],
+      offset: number,
+      original: JsonValue,
+      target: HydratedValue,
+      runtimePath: ComponentPropertyLocationSegment[],
+      valueKind: DynamicPropertyKind,
+    ): HydratedValue => {
+      if (offset === schemaPath.length) return hydrateValue(original, valueKind, runtimePath);
+      const segment = schemaPath[offset]!;
+      if (segment.kind === "property") {
+        if (original === null || Array.isArray(original) || typeof original !== "object" ||
+          target === null || Array.isArray(target) || typeof target !== "object" ||
+          !Object.hasOwn(original, segment.name)) return target;
+        const originalChild = original[segment.name]!;
+        const targetObject = target as { [key: string]: HydratedValue };
+        targetObject[segment.name] = apply(schemaPath, offset + 1, originalChild, targetObject[segment.name],
+          [...runtimePath, { kind: "property", name: segment.name }], valueKind);
+        return target;
+      }
+      if (!Array.isArray(original) || !Array.isArray(target)) return target;
+      for (let index = 0; index < original.length; index += 1) {
+        target[index] = apply(schemaPath, offset + 1, original[index]!, target[index],
+          [...runtimePath, { kind: "arrayIndex", index }], valueKind);
+      }
+      return target;
+    };
+
+    for (const location of metadata.value) {
+      const first = location.path[0];
+      if (first?.kind !== "property" || structural.has(first.name) || !Object.hasOwn(instance.definition, first.name)) continue;
+      properties[first.name] = apply(location.path, 1, instance.definition[first.name]!, properties[first.name],
+        [{ kind: "property", name: first.name }], location.valueKind);
     }
 
     return { ok: true, value: { properties, unresolved, issues } };

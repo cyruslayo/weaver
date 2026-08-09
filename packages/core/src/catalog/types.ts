@@ -55,6 +55,15 @@ export interface DynamicPropertyDefinition {
   valueKind: DynamicPropertyKind;
 }
 
+export type DynamicValueLocationSegment =
+  | { kind: "property"; name: string }
+  | { kind: "arrayItems" };
+
+export interface DynamicValueLocation {
+  path: readonly DynamicValueLocationSegment[];
+  valueKind: DynamicPropertyKind;
+}
+
 export interface CatalogValidationIssue {
   path: string;
   message: string;
@@ -69,6 +78,7 @@ export type CatalogComponentValidationResult = CatalogRegistryResult<A2UICompone
 export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;
 export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStructureDefinition>;
 export type CatalogDynamicPropertiesResult = CatalogRegistryResult<DynamicPropertyDefinition[]>;
+export type CatalogDynamicValueLocationsResult = CatalogRegistryResult<DynamicValueLocation[]>;
 export type CatalogActionPropertiesResult = CatalogRegistryResult<string[]>;
 export type CatalogFunctionDefinitionResult = CatalogRegistryResult<CatalogFunctionDefinition>;
 export type CatalogFunctionValidationResult = CatalogRegistryResult<unknown>;

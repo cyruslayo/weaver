@@ -1,6 +1,7 @@
 import type {
   ComponentCheckSnapshot,
   HydratedComponentInstance,
+  HydratedValue,
   JsonValue,
   WeaverActionResult,
   WeaverInputResult,
@@ -32,7 +33,7 @@ export interface WebComponentRenderInput {
   document: Document;
   catalogId: string;
   instance: HydratedComponentInstance;
-  properties: Readonly<Record<string, JsonValue | undefined>>;
+  properties: Readonly<Record<string, HydratedValue>>;
   relationships: readonly WebRenderedRelationship[];
   checks?: ComponentCheckSnapshot;
   interactions: WebComponentInteractions;

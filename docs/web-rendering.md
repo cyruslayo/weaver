@@ -28,6 +28,12 @@ relationship's `property` and `kind`. Renderers receive hydrated properties,
 instance identity, resolved relationship nodes, and the check snapshot selected
 by the full `sourceComponentId + scopePath` identity.
 
+Web renderers must not resolve `DataBinding` or `FunctionCall` values. Core
+hydrates supported direct, `allOf`-wrapped, and structurally nested Dynamic*
+locations before rendering, including array-item fields such as option labels.
+Progressively missing nested values may remain `undefined`. Browser-specific
+DateTime normalization and presentation fallback remain renderer concerns.
+
 ## Trust boundaries
 
 ```text

@@ -5,6 +5,7 @@ export type {
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
+  CatalogDynamicValueLocationsResult,
   CatalogFunctionArgumentDefinition,
   CatalogFunctionArgumentKind,
   CatalogFunctionDefinition,
@@ -19,4 +20,6 @@ export type {
   ComponentStructureDefinition,
   DynamicPropertyDefinition,
   DynamicPropertyKind,
+  DynamicValueLocation,
+  DynamicValueLocationSegment,
 } from "./types.js";

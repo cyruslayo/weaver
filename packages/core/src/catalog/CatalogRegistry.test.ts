@@ -200,6 +200,51 @@ test("discovers only direct Action property references defensively", () => {
   assert.deepEqual(registry.getActionProperties("actions", "CustomButton"), { ok: true, value: ["primaryAction"] });
 });
 
+test("discovers wrapped and recursively nested dynamic value locations defensively", () => {
+  const source = catalog("locations", {
+    Complex: {
+      type: "object",
+      properties: {
+        id: { type: "string" }, component: { const: "Complex" },
+        min: { allOf: [
+          { $ref: "common_types.json#/$defs/DynamicString" },
+          { if: {}, then: {} },
+        ] },
+        config: { type: "object", properties: { title: { $ref: "common_types.json#/$defs/DynamicString" } } },
+        options: { type: "array", items: { type: "object", properties: {
+          label: { $ref: "common_types.json#/$defs/DynamicString" }, value: { type: "string" },
+        } } },
+        groups: { type: "array", items: { type: "object", properties: {
+          items: { type: "array", items: { type: "object", properties: {
+            label: { $ref: "common_types.json#/$defs/DynamicBoolean" },
+          } } },
+        } } },
+        ignored: { oneOf: [{ $ref: "common_types.json#/$defs/DynamicString" }, { type: "number" }] },
+      },
+    },
+  });
+  (source.$defs as JsonObject).commonTypes = { $id: "common_types.json", $defs: {
+    DynamicString: { oneOf: [{ type: "string" }, { type: "object" }] },
+    DynamicBoolean: { oneOf: [{ type: "boolean" }, { type: "object" }] },
+  } };
+  const registry = new CatalogRegistry();
+  assert.equal(registry.register({ catalogId: "locations", schema: source }).ok, true);
+  const expected = [
+    { path: [{ kind: "property", name: "min" }], valueKind: "dynamicString" },
+    { path: [{ kind: "property", name: "config" }, { kind: "property", name: "title" }], valueKind: "dynamicString" },
+    { path: [{ kind: "property", name: "options" }, { kind: "arrayItems" }, { kind: "property", name: "label" }], valueKind: "dynamicString" },
+    { path: [{ kind: "property", name: "groups" }, { kind: "arrayItems" }, { kind: "property", name: "items" }, { kind: "arrayItems" }, { kind: "property", name: "label" }], valueKind: "dynamicBoolean" },
+  ];
+  const result = registry.getDynamicValueLocations("locations", "Complex");
+  assert.deepEqual(result, { ok: true, value: expected });
+  assert.deepEqual(registry.getDynamicProperties("locations", "Complex"), { ok: true, value: [] });
+  if (result.ok) {
+    result.value.push({ path: [], valueKind: "dynamicNumber" });
+    (result.value[0]!.path[0] as { kind: "property"; name: string }).name = "changed";
+  }
+  assert.deepEqual(registry.getDynamicValueLocations("locations", "Complex"), { ok: true, value: expected });
+});
+
 test("discovers only direct supported dynamic property references defensively", () => {
   const source = catalog("dynamic", {
     Metric: {
