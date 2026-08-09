@@ -220,6 +220,68 @@ processor applies messages immediately in caller-provided order and adds no
 queue, transport parsing, or subscription layer. Catalog validation remains
 responsible for catalog membership and component-defined semantics.
 
+## Trusted catalog boundary
+
+Catalog trust is established only by application setup, never by incoming A2UI
+messages:
+
+```text
+Trusted application setup
+        |
+        v
+CatalogRegistry
+        |
+        v
+registered A2UI catalog JSON Schemas
+        +-- components
+        +-- functions (preserved; execution deferred)
+        +-- themes (preserved; rendering deferred)
+```
+
+The registry uses A2UI v0.9.1 Draft 2020-12 JSON Schema catalogs directly. It
+compiles component validators at atomic registration time, retains defensive
+schema copies, rejects duplicate IDs, and exposes only Weaver snapshots and
+normalized validation issues. Ajv and compiled validators remain internal.
+Catalog schemas are data and cannot provide executable code.
+
+The rendering pipeline is intentionally split:
+
+```text
+A2UI component
+        |
+        v
+Protocol validation (structural A2UI shape)
+        |
+        v
+Catalog validation (trusted type and properties)
+        |
+        v
+future renderer
+```
+
+The prototype `ComponentRegistry` supplied the useful trusted-allowlist idea;
+`CatalogRegistry` is the protocol-aligned, framework-independent replacement
+for that responsibility. DOM renderer registration remains future `@weaver/web`
+work.
+
+Surface orchestration is pending and is not implemented by either
+`A2UIMessageProcessor` or `SurfaceStore` in this milestone:
+
+```text
+createSurface.catalogId
+       |
+       v
+selected registered catalog
+       |
+       v
+updateComponents validation
+```
+
+That future orchestration must reject unknown catalogs without fallback and
+validate each update against the surface's fixed catalog before rendering. It
+must continue allowing unresolved child references during progressive delivery;
+reference resolution and root completeness are separate surface/render checks.
+
 ## Application boundary
 
 ```text

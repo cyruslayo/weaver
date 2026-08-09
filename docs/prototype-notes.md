@@ -5,7 +5,7 @@ implementation has been migrated into the new packages.
 
 | Concept | Prototype files | Disposition |
 | --- | --- | --- |
-| ComponentRegistry | `frontend/src/ComponentRegistry.ts`; wired by `frontend/src/main.ts` and legacy `App.ts` | Preserve the trusted component-construction boundary; redesign its public types and lifecycle before migration. |
+| ComponentRegistry | `frontend/src/ComponentRegistry.ts`; wired by `frontend/src/main.ts` and legacy `App.ts` | Its trusted allowlist is useful, but its DOM construction and renderer map remain prototype-only. The new framework-independent `CatalogRegistry` supersedes its trust-boundary responsibility with the protocol-aligned A2UI catalog contract. |
 | StateActionBus | `frontend/src/StateActionBus.ts`; wired by `frontend/src/main.ts` and legacy `App.ts` | Preserve state updates, subscriptions, and action intent; redesign transport, payload ownership, and framework boundaries. |
 | StreamingEngine | `frontend/src/StreamingEngine.ts`; used by `frontend/src/main.ts` | Preserve incremental-input lessons; redesign around the future standard protocol rather than custom frames or repaired model JSON. |
 | StreamingEngine tests | `frontend/src/StreamingEngine.test.ts` | Preserve as prototype regression evidence; replace with protocol-conformance tests during later migration. |
@@ -21,5 +21,11 @@ implementation has been migrated into the new packages.
 - The assumption that an AI model directly emits the permanent Weaver wire format.
 - Prototype SSE endpoint and action payload shapes in `server.js` and `StateActionBus`.
 
-These observations do not select or implement a replacement protocol. A2UI and
-MCP work is explicitly deferred.
+The prototype's useful idea was that only application-approved component names
+may cross into rendering. `@weaver/core` now implements that idea as a trusted
+`CatalogRegistry`: applications register A2UI v0.9.1 catalog JSON Schemas during
+initialization, and components are checked for catalog membership and schema
+conformance. It does not migrate the prototype's renderers, recursive DOM
+construction, actions, or replacement-on-register behavior.
+
+The remaining observations do not select or implement renderer or MCP behavior.
