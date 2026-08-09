@@ -19,19 +19,19 @@ but no surface can be created until a trusted catalog exists; because runtime
 configuration is immutable, such a runtime is useful only for hosts that do not
 process surfaces.
 
-## Next phase: `@weaver/web`
+## Current phase: `@weaver/web`
 
-The first Web milestone is:
+Completed Task 20 milestone:
 
 ```text
-trusted RendererRegistry
-+
-minimal DOM renderer
+RendererRegistry + minimal DOM rendering
 ```
 
-The Web package will consume resolved surfaces and send browser interactions
-back through `writeInput()` and `dispatchAction()`. It must not duplicate Core
-state, protocol validation, catalog trust, checks, or action behavior.
+The Core runtime facade is complete. Web now consumes resolved surfaces through
+an immutable trusted renderer registry and reactively rebuilds mount-owned DOM
+subtrees. Production Basic Catalog rendering, input event bridging, action event
+bridging, and themes remain pending. Web must not duplicate Core state, protocol
+validation, catalog trust, checks, or action behavior.
 
 ## Deferred work
 

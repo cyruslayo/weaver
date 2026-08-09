@@ -939,6 +939,58 @@ It does not advertise inline catalogs. A transport adapter decides where that
 value is attached; the runtime does not create HTTP, A2A, MCP, or JSON-RPC
 envelopes.
 
+## Browser rendering
+
+The first framework-free browser layer consumes only Core's public derived API:
+
+```text
+                        @weaver/core
+
+                      WeaverRuntime
+                           │
+                           ↓
+                 WeaverResolvedSurface
+                           │
+                           ↓
+                        @weaver/web
+                           │
+                  WebSurfaceRenderer
+                           │
+                           ↓
+                    RendererRegistry
+                           │
+                           ↓
+                     trusted DOM
+```
+
+Catalog validation means component data is allowed. Renderer registration means
+browser implementation code is allowed. These are separate trust boundaries: a
+validated component still requires an exact `catalogId + component` renderer.
+A2UI data never loads renderer code; implementations are host application code
+registered during initialization. There are no cross-catalog or global
+fallbacks and no dynamic code or HTML-string execution.
+
+Task 20 uses full derived DOM subtree rebuilds for every surface mutation.
+Incremental reconciliation is deferred until profiling demonstrates a need.
+Each mount owns one container and atomically replaces only that container's
+children:
+
+```text
+runtime subscription
+       ↓
+resolve current surface
+       ↓
+build new DOM subtree
+       ↓
+successful?
+   /          \
+ no            yes
+ |              |
+keep old DOM   replace mount subtree
+```
+
+See [Web rendering](./web-rendering.md) for the renderer and mount boundaries.
+
 ## Application boundary
 
 ```text

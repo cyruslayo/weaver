@@ -1,5 +1,2 @@
-import { createWeaverRuntime } from "@weaver/core";
-
-export function createWebRuntime() {
-  return createWeaverRuntime();
-}
+export * from "./renderers/index.js";
+export * from "./surface/index.js";
