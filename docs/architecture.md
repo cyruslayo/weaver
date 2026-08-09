@@ -743,6 +743,57 @@ Consumers rebuild DataContext after relevant surface updates. DataContext has
 no subscription API, preventing a duplicate reactive system and preserving the
 store as the single runtime source of truth.
 
+## User action dispatch
+
+```text
+User interaction
+      ↓
+ActionDispatcher
+      ↓
+CheckEvaluator
+      ↓
+Action
+ ┌────┴────┐
+ ↓         ↓
+local      event
+ ↓          ↓
+Function   ActionContextResolver
+Evaluator       ↓
+          client action
+          + optional metadata
+```
+
+Actions execute only after an explicit interaction; hydration, tree resolution,
+check evaluation, and message processing never dispatch them. The agent selects
+a catalog-declared action. The catalog defines allowed function contracts, the
+host supplies trusted local implementations, and server events contain resolved
+JSON data only. Action-property discovery recognizes only a direct
+`common_types.json#/$defs/Action` property reference. Wrapped, transitive, and
+general schema compositions are deliberately not interpreted.
+
+Before either path runs, the dispatcher evaluates checks in the instance's
+current `DataContext`. Only `status = valid` dispatches. `invalid`, `pending`,
+and `error` all block dispatch. This conservative gating is a Weaver runtime
+decision. Components without checks remain valid.
+
+Local actions execute through `FunctionEvaluator` and produce no message or
+transport metadata. Event context resolves literals, bindings, and non-void
+catalog functions atomically. Missing values and resolution failures block the
+event; arrays remain literal JSON and are not recursively interpreted.
+
+Instance and wire identity intentionally differ:
+
+```text
+Internal instance identity: sourceComponentId + scopePath
+A2UI wire identity:         sourceComponentId
+```
+
+When item identity is required, it travels explicitly in event context.
+`sendDataModel` does not modify action context. For server events only, it
+prepares transport-neutral `a2uiClientDataModel` metadata containing the current
+origin surface object. A non-object root cannot be synchronized and blocks that
+event. The dispatcher neither sends messages nor writes `SurfaceStore`.
+
 ## Application boundary
 
 ```text

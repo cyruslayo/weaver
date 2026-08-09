@@ -179,6 +179,27 @@ test("does not resolve progressive component references or require a root ID", (
   assert.equal(registry.validateComponent("test", { id: "not-root", component: "Button", child: "missing" }).ok, true);
 });
 
+test("discovers only direct Action property references defensively", () => {
+  const source = catalog("actions", {
+    CustomButton: {
+      type: "object",
+      properties: {
+        id: { type: "string" }, component: { const: "CustomButton" },
+        primaryAction: { $ref: "common_types.json#/$defs/Action" },
+        config: { type: "object" },
+        wrappedAction: { oneOf: [{ $ref: "common_types.json#/$defs/Action" }] },
+      },
+    },
+  });
+  (source.$defs as JsonObject).commonTypes = { $id: "common_types.json", $defs: { Action: { type: "object" } } };
+  const registry = new CatalogRegistry();
+  assert.equal(registry.register({ catalogId: "actions", schema: source }).ok, true);
+  const result = registry.getActionProperties("actions", "CustomButton");
+  assert.deepEqual(result, { ok: true, value: ["primaryAction"] });
+  if (result.ok) result.value.push("config");
+  assert.deepEqual(registry.getActionProperties("actions", "CustomButton"), { ok: true, value: ["primaryAction"] });
+});
+
 test("discovers only direct supported dynamic property references defensively", () => {
   const source = catalog("dynamic", {
     Metric: {

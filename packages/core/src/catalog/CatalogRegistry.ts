@@ -4,6 +4,7 @@ import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js"
 import type { CatalogRegistryError } from "./errors.js";
 import { A2UI_CATALOG_SCHEMA } from "./schema.js";
 import type {
+  CatalogActionPropertiesResult,
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
@@ -29,6 +30,7 @@ interface RegisteredCatalog {
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
+  actionProperties: ReadonlyMap<string, readonly string[]>;
   checkableComponents: ReadonlySet<string>;
   themeValidator: ValidateFunction;
 }
@@ -36,6 +38,7 @@ interface RegisteredCatalog {
 const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
 const CHILD_LIST_REF = "common_types.json#/$defs/ChildList";
 const CHECKABLE_REF = "common_types.json#/$defs/Checkable";
+const ACTION_REF = "common_types.json#/$defs/Action";
 const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
   "common_types.json#/$defs/DynamicString": "dynamicString",
   "common_types.json#/$defs/DynamicNumber": "dynamicNumber",
@@ -168,6 +171,14 @@ function discoverStructure(componentSchema: JsonObject): ComponentStructureDefin
   return structure;
 }
 
+function discoverActionProperties(componentSchema: JsonObject): string[] {
+  const properties = componentSchema.properties;
+  if (!isPlainObject(properties)) return [];
+  return Object.entries(properties).flatMap(([property, schema]) =>
+    isPlainObject(schema) && schema.$ref === ACTION_REF ? [property] : []
+  );
+}
+
 function isCheckable(componentSchema: JsonObject): boolean {
   return Array.isArray(componentSchema.allOf) && componentSchema.allOf.some((entry) =>
     isPlainObject(entry) && entry.$ref === CHECKABLE_REF
@@ -254,6 +265,7 @@ export class CatalogRegistry {
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
+    const actionProperties = new Map<string, readonly string[]>();
     const checkableComponents = new Set<string>();
     const functions = schema.functions === undefined ? {} : schema.functions;
     if (!isPlainObject(functions)) {
@@ -268,6 +280,7 @@ export class CatalogRegistry {
         if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
         dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
+        actionProperties.set(componentName, discoverActionProperties(componentSchema));
         if (isCheckable(componentSchema)) checkableComponents.add(componentName);
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
@@ -302,6 +315,7 @@ export class CatalogRegistry {
       functionDefinitions,
       structures,
       dynamicProperties,
+      actionProperties,
       checkableComponents,
       themeValidator,
     });
@@ -431,6 +445,25 @@ export class CatalogRegistry {
       };
     }
     return { ok: true, value: definitions.map((definition) => ({ ...definition })) };
+  }
+
+  /** Detects only direct common_types.json#/$defs/Action property references. */
+  getActionProperties(catalogId: string, componentName: string): CatalogActionPropertiesResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const properties = catalog.actionProperties.get(componentName);
+    if (properties === undefined) {
+      return {
+        ok: false,
+        error: {
+          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component action metadata is not available"),
+          component: componentName,
+        },
+      };
+    }
+    return { ok: true, value: [...properties] };
   }
 
   validateTheme(catalogId: string, theme: JsonObject): CatalogThemeValidationResult {

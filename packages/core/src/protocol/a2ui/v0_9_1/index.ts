@@ -10,5 +10,6 @@ export type {
   UpdateComponentsMessage,
   UpdateDataModelMessage,
 } from "./types.js";
+export type { A2UIClientActionMessage, A2UIClientDataModel } from "./client-types.js";
 export type { ValidationIssue, ValidationResult } from "./errors.js";
 export { validateA2UIServerMessage } from "./validation.js";
