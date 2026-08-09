@@ -99,6 +99,39 @@ component IDs within one update, and replaces an existing component in full
 when its ID is updated. It deliberately does not require a root or validate
 component references and catalog-specific properties.
 
+```text
+SurfaceStore
+    |
+    +-- surface metadata
+    +-- components
+    +-- future DataModel ownership
+```
+
+The independent `DataModel` provides local reactive JSON state. It is not yet
+attached to `SurfaceStore` and does not process A2UI message envelopes.
+
+```text
+DataModel
+    |
+    +-- JSON Pointer-like access
+    +-- local reactive state
+    +-- defensive ownership
+    +-- atomic mutations
+```
+
+DataModel paths decode JSON Pointer `~1` and `~0` escapes, but preserve A2UI's
+special `/` root behavior rather than RFC 6901's empty-string root. Missing
+containers are inferred by one deterministic rule: a missing container is an
+array when its next token is a canonical non-negative array index; otherwise it
+is an object. Arrays may replace existing indices or append exactly at their
+current length, but writes cannot create sparse arrays.
+
+Root deletion is a Weaver runtime decision: it resets the model to `{}` so the
+root remains serializable. Array-index deletion is rejected with
+`ARRAY_INDEX_DELETE_UNSUPPORTED`; v0.9.1 describes sparse deletion while an
+unresolved A2UI specification issue questions that behavior, so Weaver chooses
+neither splice nor `null` semantics yet.
+
 The protocol validator returns caller-owned values. The store establishes and
 protects its own ownership boundary:
 
@@ -118,8 +151,7 @@ defensive snapshot
 consumer or subscriber
 ```
 
-The A2UI DataModel and its JSON Pointer behavior remain pending. A future
-MessageProcessor will translate validated protocol messages into domain calls;
+A future MessageProcessor will translate validated protocol messages into domain calls;
 the store does not process protocol envelopes directly. Catalog validation is
 responsible for catalog membership and component-defined semantics.
 

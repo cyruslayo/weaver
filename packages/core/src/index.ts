@@ -1,3 +1,4 @@
+export * from "./data-model/index.js";
 export * from "./protocol/index.js";
 export * from "./surfaces/index.js";
 
