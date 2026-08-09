@@ -22,3 +22,4 @@ export type CatalogRegistryResult<T> =
   | { ok: false; error: CatalogRegistryError };
 
 export type CatalogComponentValidationResult = CatalogRegistryResult<A2UIComponent>;
+export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;

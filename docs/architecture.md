@@ -51,6 +51,9 @@ validateA2UIServerMessage
 typed message
       |
       v
+CatalogRegistry validation
+      |
+      v
 SurfaceStore
       +-- components
       +-- DataModel
@@ -96,6 +99,12 @@ invalid protocol
 PROTOCOL_VALIDATION_FAILED
 
 valid protocol
+invalid catalog trust
+      |
+      v
+CATALOG_REGISTRY_ERROR
+
+valid protocol and catalog trust
 invalid lifecycle/state
       |
       v
@@ -217,8 +226,9 @@ consumer or subscriber
 `A2UIMessageProcessor` validates unknown objects and translates typed messages
 into domain calls; the store does not process protocol envelopes directly. The
 processor applies messages immediately in caller-provided order and adds no
-queue, transport parsing, or subscription layer. Catalog validation remains
-responsible for catalog membership and component-defined semantics.
+queue, transport parsing, or subscription layer. The processor requires a `CatalogRegistry` and orchestrates it with the store.
+Catalog validation is mandatory for surface creation and component updates;
+applications explicitly register every trusted catalog during initialization.
 
 ## Trusted catalog boundary
 
@@ -226,23 +236,27 @@ Catalog trust is established only by application setup, never by incoming A2UI
 messages:
 
 ```text
-Trusted application setup
+Application initialization
         |
         v
 CatalogRegistry
         |
         v
-registered A2UI catalog JSON Schemas
+trusted registered A2UI catalog JSON Schemas
         +-- components
         +-- functions (preserved; execution deferred)
-        +-- themes (preserved; rendering deferred)
+        +-- $defs.theme (compiled for surface theme validation)
 ```
 
 The registry uses A2UI v0.9.1 Draft 2020-12 JSON Schema catalogs directly. It
 compiles component validators at atomic registration time, retains defensive
 schema copies, rejects duplicate IDs, and exposes only Weaver snapshots and
 normalized validation issues. Ajv and compiled validators remain internal.
-Catalog schemas are data and cannot provide executable code.
+Catalog schemas are data and cannot provide executable code. Registration must
+resolve and compile every schema reference; message processing never fetches
+external `$ref` resources. The official Basic Catalog's external references
+therefore require host-provided resolution before or during registration in a
+future integration—this milestone adds no network schema loader.
 
 The rendering pipeline is intentionally split:
 
@@ -264,23 +278,67 @@ The prototype `ComponentRegistry` supplied the useful trusted-allowlist idea;
 for that responsibility. DOM renderer registration remains future `@weaver/web`
 work.
 
-Surface orchestration is pending and is not implemented by either
-`A2UIMessageProcessor` or `SurfaceStore` in this milestone:
+Runtime trust orchestration is:
 
 ```text
-createSurface.catalogId
-       |
-       v
-selected registered catalog
-       |
-       v
-updateComponents validation
+A2UI JSON
+    |
+    v
+Protocol validation
+    |
+    v
+MessageProcessor
+   /          \
+  v            v
+Catalog       SurfaceStore
+validation      |
+                +-- components
+                +-- DataModel
 ```
 
-That future orchestration must reject unknown catalogs without fallback and
-validate each update against the surface's fixed catalog before rendering. It
-must continue allowing unresolved child references during progressive delivery;
-reference resolution and root completeness are separate surface/render checks.
+Surface creation selects its catalog for the surface lifetime:
+
+```text
+createSurface
+    |
+    v
+catalog must be registered
+    |
+    v
+surface lifecycle (duplicates rejected)
+    |
+    v
+present theme validated against $defs.theme
+    |
+    v
+surface created
+```
+
+The registry compiles `$defs.theme` during registration. A catalog without that
+schema is rejected with `THEME_SCHEMA_NOT_FOUND`; omitted `createSurface.theme`
+remains valid. Weaver neither silently installs the Basic Catalog nor accepts
+arbitrary themes.
+
+Component updates use only the selected surface catalog:
+
+```text
+updateComponents
+    |
+    v
+surface catalog selected
+    |
+    v
+all incoming components validated
+    |
+    v
+atomic storage
+```
+
+Unknown types and invalid properties never reach `SurfaceStore`. Validation is
+batch-wide and does not revalidate existing state. Unresolved child references
+remain allowed during progressive delivery; reference resolution and root
+completeness are separate future surface/render checks. Deleting and recreating
+a surface is the only way to select another catalog.
 
 ## Application boundary
 

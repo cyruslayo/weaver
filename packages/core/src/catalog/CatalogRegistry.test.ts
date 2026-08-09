@@ -142,6 +142,28 @@ test("rejects malformed, mismatched, and uncompileable catalog schemas atomicall
   assert.deepEqual(registry.getSupportedCatalogIds(), []);
 });
 
+test("compiles and applies $defs.theme validation", () => {
+  const registry = registered("themed");
+  assert.equal(registry.validateTheme("themed", { primaryColor: "blue" }).ok, true);
+  const invalid = registry.validateTheme("themed", { primaryColor: 42 });
+  assert.equal(invalid.ok, false);
+  if (!invalid.ok) {
+    assert.equal(invalid.error.code, "THEME_VALIDATION_FAILED");
+    assert.ok(invalid.error.issues?.some(({ path, keyword }) => path === "/primaryColor" && keyword === "type"));
+  }
+  const missing = registry.validateTheme("missing", {});
+  assert.equal(!missing.ok && missing.error.code, "CATALOG_NOT_FOUND");
+});
+
+test("rejects registration when $defs.theme is absent", () => {
+  const registry = new CatalogRegistry();
+  const schema = catalog("no-theme");
+  delete (schema.$defs as JsonObject).theme;
+  const result = registry.register({ catalogId: "no-theme", schema });
+  assert.equal(!result.ok && result.error.code, "THEME_SCHEMA_NOT_FOUND");
+  assert.equal(registry.has("no-theme"), false);
+});
+
 test("preserves function and theme definitions without executing them", () => {
   const registry = registered("preserved");
   const snapshot = registry.get("preserved");

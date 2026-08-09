@@ -21,11 +21,28 @@ implementation has been migrated into the new packages.
 - The assumption that an AI model directly emits the permanent Weaver wire format.
 - Prototype SSE endpoint and action payload shapes in `server.js` and `StateActionBus`.
 
-The prototype's useful idea was that only application-approved component names
-may cross into rendering. `@weaver/core` now implements that idea as a trusted
-`CatalogRegistry`: applications register A2UI v0.9.1 catalog JSON Schemas during
-initialization, and components are checked for catalog membership and schema
-conformance. It does not migrate the prototype's renderers, recursive DOM
-construction, actions, or replacement-on-register behavior.
+The prototype's `ComponentRegistry` supplied the original allowlist idea: only
+application-approved component names could cross into rendering. The new
+architecture separates two trust boundaries:
+
+```text
+CatalogRegistry
+    |
+    v
+schema trust
+
+future Web Renderer Registry
+    |
+    v
+implementation trust
+```
+
+`@weaver/core` implements schema trust with `CatalogRegistry`: applications
+register A2UI v0.9.1 catalog JSON Schemas during initialization, and components
+are checked for catalog membership and schema conformance before entering
+surface state. A future `@weaver/web` registry will decide which trusted renderer
+implementation corresponds to an already schema-trusted component. This work
+does not migrate recursive DOM construction, actions, or the prototype's
+replacement-on-register behavior.
 
 The remaining observations do not select or implement renderer or MCP behavior.

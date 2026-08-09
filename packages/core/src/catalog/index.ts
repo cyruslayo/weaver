@@ -5,5 +5,6 @@ export type {
   CatalogRegistration,
   CatalogRegistryResult,
   CatalogSnapshot,
+  CatalogThemeValidationResult,
   CatalogValidationIssue,
 } from "./types.js";

@@ -1,3 +1,4 @@
+import { CatalogRegistry, type CatalogRegistryError } from "../catalog/index.js";
 import {
   validateA2UIServerMessage,
   type A2UIServerMessage,
@@ -7,7 +8,10 @@ import { SurfaceStore, type SurfaceStoreResult, type SurfaceSnapshot } from "../
 import type { MessageProcessorResult, MessageProcessorSuccess } from "./types.js";
 
 export class A2UIMessageProcessor {
-  constructor(private readonly store: SurfaceStore) {}
+  constructor(
+    private readonly store: SurfaceStore,
+    private readonly catalogs: CatalogRegistry,
+  ) {}
 
   process(input: unknown): MessageProcessorResult {
     const validation = validateA2UIServerMessage(input);
@@ -24,6 +28,21 @@ export class A2UIMessageProcessor {
   private dispatch(message: A2UIServerMessage): MessageProcessorResult {
     if ("createSurface" in message) {
       const create = message.createSurface;
+      if (!this.catalogs.has(create.catalogId)) {
+        return this.catalogError({
+          code: "CATALOG_NOT_FOUND",
+          catalogId: create.catalogId,
+          message: "Catalog is not registered",
+        });
+      }
+      // Catalog existence precedes lifecycle; duplicate lifecycle precedes theme work.
+      if (this.store.has(create.surfaceId)) {
+        return this.storeError({ code: "SURFACE_ALREADY_EXISTS", surfaceId: create.surfaceId });
+      }
+      if (create.theme !== undefined) {
+        const validation = this.catalogs.validateTheme(create.catalogId, create.theme);
+        if (!validation.ok) return this.catalogError(validation.error);
+      }
       return this.withSurface(
         "surfaceCreated",
         create.surfaceId,
@@ -40,6 +59,14 @@ export class A2UIMessageProcessor {
 
     if ("updateComponents" in message) {
       const update = message.updateComponents;
+      const surface = this.store.get(update.surfaceId);
+      if (surface === undefined) {
+        return this.storeError({ code: "SURFACE_NOT_FOUND", surfaceId: update.surfaceId });
+      }
+      for (const component of update.components) {
+        const validation = this.catalogs.validateComponent(surface.catalogId, component);
+        if (!validation.ok) return this.catalogError(validation.error);
+      }
       return this.withSurface(
         "componentsUpdated",
         update.surfaceId,
@@ -79,5 +106,9 @@ export class A2UIMessageProcessor {
 
   private storeError(error: import("../surfaces/index.js").SurfaceStoreError): MessageProcessorResult {
     return { ok: false, error: { code: "SURFACE_STORE_ERROR", storeError: error } };
+  }
+
+  private catalogError(error: CatalogRegistryError): MessageProcessorResult {
+    return { ok: false, error: { code: "CATALOG_REGISTRY_ERROR", catalogError: error } };
   }
 }

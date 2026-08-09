@@ -1,12 +1,32 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { CatalogRegistry } from "../../catalog/index.js";
 import { A2UIMessageProcessor } from "../../message-processor/index.js";
 import { SurfaceStore } from "../../surfaces/index.js";
 import { JsonlDecoder } from "./JsonlDecoder.js";
 
 const successes = (events: ReturnType<JsonlDecoder["push"]>) =>
   events.filter((event) => event.ok).map((event) => event.value);
+
+function catalogs() {
+  const registry = new CatalogRegistry();
+  const result = registry.register({ catalogId: "basic", schema: {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    catalogId: "basic",
+    components: {
+      Text: {
+        type: "object",
+        properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
+        required: ["id", "component", "text"],
+        additionalProperties: false,
+      },
+    },
+    $defs: { theme: { type: "object" } },
+  } });
+  assert.equal(result.ok, true);
+  return registry;
+}
 
 test("decodes one LF frame in one chunk", () => {
   const decoder = new JsonlDecoder();
@@ -109,7 +129,7 @@ test("valid JSON remains separate from A2UI protocol validation", () => {
   const decoder = new JsonlDecoder();
   const [frame] = decoder.push('{"hello":"world"}\n');
   assert.ok(frame?.ok);
-  const result = new A2UIMessageProcessor(new SurfaceStore()).process(frame.value);
+  const result = new A2UIMessageProcessor(new SurfaceStore(), catalogs()).process(frame.value);
   assert.equal(result.ok, false);
   assert.equal(!result.ok && result.error.code, "PROTOCOL_VALIDATION_FAILED");
 });
@@ -120,7 +140,7 @@ test("malformed JSON does not poison a following valid A2UI frame", () => {
   assert.equal(events[0]?.ok, false);
   assert.equal(!events[0]?.ok && events[0]?.error.code, "INVALID_JSON");
   assert.ok(events[1]?.ok);
-  const result = new A2UIMessageProcessor(new SurfaceStore()).process(events[1].value);
+  const result = new A2UIMessageProcessor(new SurfaceStore(), catalogs()).process(events[1].value);
   assert.equal(result.ok, true);
 });
 
@@ -135,7 +155,7 @@ test("awkward JSONL chunks compose through a complete A2UI lifecycle", () => {
   const cuts = [1, 7, 19, 38, 61, 103, input.length];
   const decoder = new JsonlDecoder();
   const store = new SurfaceStore();
-  const processor = new A2UIMessageProcessor(store);
+  const processor = new A2UIMessageProcessor(store, catalogs());
   let start = 0;
   const results = [];
   for (const end of cuts) {

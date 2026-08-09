@@ -8,12 +8,14 @@ import type {
   CatalogRegistration,
   CatalogRegistryResult,
   CatalogSnapshot,
+  CatalogThemeValidationResult,
   CatalogValidationIssue,
 } from "./types.js";
 
 interface RegisteredCatalog {
   schema: JsonObject;
   validators: ReadonlyMap<string, ValidateFunction>;
+  themeValidator: ValidateFunction;
 }
 
 function cloneJson<T extends JsonValue>(value: T): T {
@@ -70,8 +72,17 @@ export class CatalogRegistry {
       };
     }
 
+    const themeSchema = (schema.$defs as JsonObject | undefined)?.theme;
+    if (themeSchema === undefined) {
+      return { ok: false, error: error("THEME_SCHEMA_NOT_FOUND", catalogId, "Catalog does not define $defs.theme") };
+    }
+    if (themeSchema === null || Array.isArray(themeSchema) || typeof themeSchema !== "object") {
+      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog theme schema is invalid") };
+    }
+
     const components = schema.components as JsonObject;
     const validators = new Map<string, ValidateFunction>();
+    let themeValidator: ValidateFunction;
     try {
       for (const [componentName, componentSchema] of Object.entries(components)) {
         if (componentSchema === null || Array.isArray(componentSchema) || typeof componentSchema !== "object") {
@@ -83,12 +94,16 @@ export class CatalogRegistry {
         compilationSchema.$ref = `#/components/${escapeJsonPointer(componentName)}`;
         validators.set(componentName, this.#ajv.compile(compilationSchema));
       }
+      const themeCompilationSchema = cloneJson(schema);
+      themeCompilationSchema.$id = `urn:weaver:catalog:${this.#registrationSequence}:theme`;
+      themeCompilationSchema.$ref = "#/$defs/theme";
+      themeValidator = this.#ajv.compile(themeCompilationSchema);
     } catch {
-      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog component schemas could not be compiled") };
+      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog schemas could not be compiled") };
     }
 
     this.#registrationSequence += 1;
-    this.#catalogs.set(catalogId, { schema, validators });
+    this.#catalogs.set(catalogId, { schema, validators, themeValidator });
     return { ok: true, value: { catalogId, schema: cloneJson(schema) } };
   }
 
@@ -107,6 +122,23 @@ export class CatalogRegistry {
 
   getSupportedCatalogIds(): string[] {
     return [...this.#catalogs.keys()];
+  }
+
+  validateTheme(catalogId: string, theme: JsonObject): CatalogThemeValidationResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    if (!catalog.themeValidator(theme)) {
+      return {
+        ok: false,
+        error: {
+          ...error("THEME_VALIDATION_FAILED", catalogId, "Theme does not satisfy the catalog schema"),
+          issues: normalizeErrors(catalog.themeValidator.errors),
+        },
+      };
+    }
+    return { ok: true, value: theme };
   }
 
   validateComponent(catalogId: string, component: A2UIComponent): CatalogComponentValidationResult {

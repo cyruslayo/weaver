@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { CatalogRegistry } from "../catalog/index.js";
+import type { JsonObject } from "../protocol/index.js";
 import { SurfaceStore } from "../surfaces/index.js";
 import { A2UIMessageProcessor } from "./A2UIMessageProcessor.js";
 
@@ -17,9 +19,52 @@ const components = (surfaceId: string, value: string, id = "root") =>
 const data = (surfaceId: string, update: Record<string, unknown> = {}) =>
   envelope({ updateDataModel: { surfaceId, ...update } });
 
-function setup() {
+function testCatalog(catalogId: string, components: JsonObject = {}): JsonObject {
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    catalogId,
+    components: {
+      Text: {
+        type: "object",
+        properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
+        required: ["id", "component", "text"],
+        additionalProperties: false,
+      },
+      Button: {
+        type: "object",
+        properties: { id: { type: "string" }, component: { const: "Button" }, label: { type: "string" } },
+        required: ["id", "component", "label"],
+        additionalProperties: false,
+      },
+      Column: {
+        type: "object",
+        properties: { id: { type: "string" }, component: { const: "Column" }, children: { type: "array", items: { type: "string" } } },
+        required: ["id", "component", "children"],
+        additionalProperties: false,
+      },
+      ...components,
+    },
+    $defs: {
+      theme: {
+        type: "object",
+        properties: { primary: { type: "string" }, color: { type: "string" } },
+        additionalProperties: false,
+      },
+    },
+  };
+}
+
+function createTestCatalogRegistry(...catalogIds: string[]) {
+  const catalogs = new CatalogRegistry();
+  for (const catalogId of catalogIds.length === 0 ? ["catalog"] : catalogIds) {
+    assert.equal(catalogs.register({ catalogId, schema: testCatalog(catalogId) }).ok, true);
+  }
+  return catalogs;
+}
+
+function setup(catalogs = createTestCatalogRegistry()) {
   const store = new SurfaceStore();
-  return { store, processor: new A2UIMessageProcessor(store) };
+  return { store, catalogs, processor: new A2UIMessageProcessor(store, catalogs) };
 }
 
 test("creates a surface and preserves theme and sendDataModel", () => {
@@ -186,4 +231,100 @@ test("does not retain caller input or expose mutable success state", () => {
     result.value.surface.theme.color = "green";
   }
   assert.equal(store.get("main")?.theme?.color, "blue");
+});
+
+test("requires a registered catalog before creating a surface", () => {
+  const catalogs = new CatalogRegistry();
+  const { store, processor } = setup(catalogs);
+  const result = processor.process(create());
+  assert.equal(!result.ok && result.error.code, "CATALOG_REGISTRY_ERROR");
+  if (!result.ok && result.error.code === "CATALOG_REGISTRY_ERROR") {
+    assert.equal(result.error.catalogError.code, "CATALOG_NOT_FOUND");
+  }
+  assert.equal(store.has("main"), false);
+});
+
+test("validates present themes, permits omission, and never stores invalid themes", () => {
+  const { store, processor } = setup();
+  assert.equal(processor.process(create("valid", { theme: { primary: "blue" } })).ok, true);
+  assert.equal(processor.process(create("omitted")).ok, true);
+  const invalid = processor.process(create("invalid", { theme: { primary: 123 } }));
+  assert.equal(!invalid.ok && invalid.error.code, "CATALOG_REGISTRY_ERROR");
+  if (!invalid.ok && invalid.error.code === "CATALOG_REGISTRY_ERROR") {
+    assert.equal(invalid.error.catalogError.code, "THEME_VALIDATION_FAILED");
+    assert.ok(invalid.error.catalogError.issues?.some(({ path }) => path === "/primary"));
+  }
+  assert.equal(store.has("invalid"), false);
+});
+
+test("stores a valid mixed component batch", () => {
+  const { store, processor } = setup();
+  processor.process(create());
+  const result = processor.process(envelope({ updateComponents: { surfaceId: "main", components: [
+    { id: "text", component: "Text", text: "Hello" },
+    { id: "button", component: "Button", label: "Continue" },
+    { id: "column", component: "Column", children: ["text", "button"] },
+  ] } }));
+  assert.equal(result.ok, true);
+  assert.deepEqual(Object.keys(store.get("main")?.components ?? {}), ["text", "button", "column"]);
+});
+
+test("rejects unknown and invalid components before storage", () => {
+  const { store, processor } = setup();
+  processor.process(create());
+  for (const [component, code] of [
+    [{ id: "danger", component: "ExecuteJavaScript" }, "COMPONENT_NOT_ALLOWED"],
+    [{ id: "title", component: "Text", text: 123 }, "COMPONENT_VALIDATION_FAILED"],
+  ] as const) {
+    const result = processor.process(envelope({ updateComponents: { surfaceId: "main", components: [component] } }));
+    assert.equal(!result.ok && result.error.code, "CATALOG_REGISTRY_ERROR");
+    if (!result.ok && result.error.code === "CATALOG_REGISTRY_ERROR") {
+      assert.equal(result.error.catalogError.code, code);
+    }
+    assert.deepEqual(store.get("main")?.components, {});
+  }
+});
+
+test("prevalidates a complete component batch atomically", () => {
+  const { store, processor } = setup();
+  processor.process(create());
+  const result = processor.process(envelope({ updateComponents: { surfaceId: "main", components: [
+    { id: "text", component: "Text", text: "valid" },
+    { id: "button", component: "Button", label: 42 },
+    { id: "column", component: "Column", children: ["text", "button"] },
+  ] } }));
+  assert.equal(!result.ok && result.error.code, "CATALOG_REGISTRY_ERROR");
+  assert.deepEqual(store.get("main")?.components, {});
+});
+
+test("preserves an existing component when its replacement is invalid", () => {
+  const { store, processor } = setup();
+  processor.process(create());
+  processor.process(components("main", "stable"));
+  processor.process(envelope({ updateComponents: { surfaceId: "main", components: [
+    { id: "root", component: "Text", text: false },
+  ] } }));
+  assert.deepEqual(store.get("main")?.components.root, { id: "root", component: "Text", text: "stable" });
+});
+
+test("uses only the surface-selected catalog and supports delete/recreate selection", () => {
+  const catalogs = new CatalogRegistry();
+  assert.equal(catalogs.register({ catalogId: "catalog-a", schema: testCatalog("catalog-a") }).ok, true);
+  assert.equal(catalogs.register({ catalogId: "catalog-b", schema: testCatalog("catalog-b", {
+    Chart: {
+      type: "object",
+      properties: { id: { type: "string" }, component: { const: "Chart" } },
+      required: ["id", "component"],
+      additionalProperties: false,
+    },
+  }) }).ok, true);
+  const { store, processor } = setup(catalogs);
+  processor.process(envelope({ createSurface: { surfaceId: "main", catalogId: "catalog-a" } }));
+  const chart = envelope({ updateComponents: { surfaceId: "main", components: [{ id: "chart", component: "Chart" }] } });
+  assert.equal(processor.process(chart).ok, false);
+  assert.deepEqual(store.get("main")?.components, {});
+  assert.equal(processor.process(envelope({ deleteSurface: { surfaceId: "main" } })).ok, true);
+  assert.equal(processor.process(envelope({ createSurface: { surfaceId: "main", catalogId: "catalog-b" } })).ok, true);
+  assert.equal(processor.process(chart).ok, true);
+  assert.equal(store.get("main")?.catalogId, "catalog-b");
 });

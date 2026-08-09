@@ -15,7 +15,6 @@ export const A2UI_CATALOG_SCHEMA: JsonObject = {
       additionalProperties: { type: "object" },
     },
     functions: { type: "object" },
-    themes: { type: "object" },
     $defs: { type: "object" },
   },
   additionalProperties: true,
