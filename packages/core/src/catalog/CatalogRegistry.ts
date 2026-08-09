@@ -29,11 +29,13 @@ interface RegisteredCatalog {
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
+  checkableComponents: ReadonlySet<string>;
   themeValidator: ValidateFunction;
 }
 
 const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
 const CHILD_LIST_REF = "common_types.json#/$defs/ChildList";
+const CHECKABLE_REF = "common_types.json#/$defs/Checkable";
 const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
   "common_types.json#/$defs/DynamicString": "dynamicString",
   "common_types.json#/$defs/DynamicNumber": "dynamicNumber",
@@ -166,6 +168,12 @@ function discoverStructure(componentSchema: JsonObject): ComponentStructureDefin
   return structure;
 }
 
+function isCheckable(componentSchema: JsonObject): boolean {
+  return Array.isArray(componentSchema.allOf) && componentSchema.allOf.some((entry) =>
+    isPlainObject(entry) && entry.$ref === CHECKABLE_REF
+  );
+}
+
 function discoverDynamicProperties(componentSchema: JsonObject): DynamicPropertyDefinition[] {
   const definitions: DynamicPropertyDefinition[] = [];
   const properties = componentSchema.properties;
@@ -246,6 +254,7 @@ export class CatalogRegistry {
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
+    const checkableComponents = new Set<string>();
     const functions = schema.functions === undefined ? {} : schema.functions;
     if (!isPlainObject(functions)) {
       return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog functions must be an object") };
@@ -259,6 +268,7 @@ export class CatalogRegistry {
         if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
         dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
+        if (isCheckable(componentSchema)) checkableComponents.add(componentName);
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
         compilationSchema.$ref = `#/components/${escapeJsonPointer(componentName)}`;
@@ -292,6 +302,7 @@ export class CatalogRegistry {
       functionDefinitions,
       structures,
       dynamicProperties,
+      checkableComponents,
       themeValidator,
     });
     return { ok: true, value: { catalogId, schema: cloneJson(schema) } };
@@ -316,6 +327,11 @@ export class CatalogRegistry {
 
   hasFunction(catalogId: string, functionName: string): boolean {
     return this.#catalogs.get(catalogId)?.functionValidators.has(functionName) ?? false;
+  }
+
+  /** Detects only the direct standard A2UI Checkable allOf mixin reference. */
+  isComponentCheckable(catalogId: string, componentName: string): boolean {
+    return this.#catalogs.get(catalogId)?.checkableComponents.has(componentName) ?? false;
   }
 
   getFunctionDefinition(catalogId: string, functionName: string): CatalogFunctionDefinitionResult {

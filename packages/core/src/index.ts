@@ -1,4 +1,5 @@
 export * from "./catalog/index.js";
+export * from "./checks/index.js";
 export * from "./component-tree/index.js";
 export * from "./component-instances/index.js";
 export * from "./component-properties/index.js";

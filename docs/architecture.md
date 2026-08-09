@@ -653,6 +653,72 @@ Like every preceding stage, hydration is defensive derived state. It is rebuilt
 from each current snapshot, has no cache or subscription API, and is never
 stored in `SurfaceStore`.
 
+## Derived component validation
+
+Validation is a separate derived branch from property hydration:
+
+```text
+Component Instance
+      │
+      ├── ComponentPropertyResolver
+      │      ↓
+      │ hydrated properties
+      │
+      └── CheckEvaluator
+             ↓
+       validation state
+
+CheckEvaluator
+      ├── DataContext
+      └── FunctionEvaluator
+```
+
+`CatalogRegistry` records checkability as behavior metadata when a component
+schema has a direct `allOf` entry whose `$ref` is exactly
+`common_types.json#/$defs/Checkable`. This is intentionally not a general JSON
+Schema composition engine: nested, wrapped, transitive, or differently spelled
+references are not interpreted. Metadata remains isolated by catalog and from
+structural, dynamic-property, and function metadata.
+
+A check condition is a `DynamicBoolean`: a boolean literal, a `DataContext`
+binding, or a catalog function evaluated by `FunctionEvaluator`. Checks read
+the trusted instance definition, not hydrated properties. Relative bindings use
+the instance's collection scope and absolute bindings remain rooted. Their
+runtime meanings are distinct:
+
+```text
+true                    = passed check
+false                   = failed check
+undefined               = pending check
+evaluation/type failure = error check
+```
+
+There is no coercion. In particular, `null`, strings, numbers, objects, and
+arrays are type errors rather than confirmed user invalidity. Function failures
+remain errors and preserve the typed `FunctionEvaluationError`; they do not
+expose the rule message as a confirmed failure.
+
+Every declared check is evaluated in source order. Component status uses the
+fixed Weaver precedence:
+
+```text
+invalid > error > pending > valid
+```
+
+A confirmed failure therefore wins, followed by evaluation errors and missing
+runtime data. A component with no checks is valid. A component without the
+Checkable mixin produces a normal non-checkable, valid result.
+
+Check results are temporary defensive snapshots. They are recomputed from each
+surface snapshot, are never written to `SurfaceStore` or `DataModel`, and have
+no cache or subscription API. `SurfaceStore` remains the notification owner.
+Core determines validity only. A renderer decides when to show messages, how
+many to show, and which visual error styling to apply.
+
+Validation computation, future interaction state (`touched`, `dirty`, and
+`submitted`), and future `ActionDispatcher` gating are independent concerns.
+This layer neither records interaction state nor blocks actions.
+
 ### Architecture decision: instance identity is positional
 
 A2UI component identity is its source component ID. Weaver render-instance
