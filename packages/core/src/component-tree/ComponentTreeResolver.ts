@@ -39,12 +39,18 @@ export class ComponentTreeResolver {
   constructor(private readonly catalogs: CatalogRegistry) {}
 
   resolve(surface: SurfaceSnapshot): ComponentTreeResult {
+    return this.resolveFrom(surface, "root");
+  }
+
+  /** Resolves structure beginning at a trusted component ID. */
+  resolveFrom(surface: SurfaceSnapshot, componentId: string): ComponentTreeResult {
     if (!this.catalogs.has(surface.catalogId)) {
-      const missing = this.catalogs.getComponentStructure(surface.catalogId, "root");
+      const missing = this.catalogs.getComponentStructure(surface.catalogId, componentId);
       if (!missing.ok) return { ok: false, error: resolverError(missing.error) };
     }
 
-    if (surface.components.root === undefined) {
+    const startingComponent = surface.components[componentId];
+    if (startingComponent === undefined) {
       return { ok: true, value: { ready: false, issues: [] } };
     }
 
@@ -123,7 +129,7 @@ export class ComponentTreeResolver {
       };
     };
 
-    const root = resolveNode(surface.components.root, []);
+    const root = resolveNode(startingComponent, []);
     if ("code" in root) return { ok: false, error: root };
     return { ok: true, value: { ready: true, root, issues } };
   }

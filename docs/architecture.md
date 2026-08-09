@@ -399,9 +399,15 @@ SurfaceSnapshot
              ↓
        scoped data reads
 
-Resolved tree + DataContext
+ComponentTree + DataContext
              ↓
-     future render model
+ ComponentInstanceResolver
+             ↓
+    scoped instance tree
+             ↓
+ future property resolver
+             ↓
+      future renderer
 ```
 
 `DataContext` is a framework-independent, immutable view over a defensively
@@ -428,6 +434,55 @@ including `~1` and `~0` escaping. Reads preserve JSON types and missing values,
 and return defensive copies. Path bindings expose both value resolution and an
 absolute path suitable for future two-way binding, but DataContext performs no
 writes.
+
+## Derived component instances
+
+```text
+SurfaceSnapshot
+      │
+      ├── components
+      │      ↓
+      │ ComponentTreeResolver
+      │
+      └── dataModel
+             ↓
+         DataContext
+              \
+
+ComponentTree + DataContext
+            ↓
+ComponentInstanceResolver
+            ↓
+scoped instance tree
+            ↓
+future property resolver
+            ↓
+future renderer
+```
+
+Static relationships inherit their current scope. A dynamic `ChildList` template
+creates one subtree per array item, in collection order; nested relative paths
+compose through immutable child `DataContext`s and absolute paths remain rooted.
+Missing collections and template components are progressive issues rather than
+fatal surface failures. Definitions and path bindings are not evaluated or
+mutated during instantiation.
+
+### Architecture decision: instance identity is positional
+
+A2UI component identity is its source component ID. Weaver render-instance
+identity is the pair of source component ID and scope path. Protocol component
+IDs are never rewritten or supplemented with synthetic IDs. In this version,
+collection scope uses array indices, so inserting, removing, or reordering items
+can change render-instance identity. A2UI v0.9.1 supplies no stable item key for
+Weaver to infer.
+
+### Architecture decision: derived state is rebuilt
+
+`SurfaceStore` owns durable runtime state. `ComponentTreeResolver` produces
+derived structure, `DataContext` produces derived scope, and
+`ComponentInstanceResolver` produces derived instances. No derived tree is
+stored as another mutable source of truth. Each snapshot is resolved into a new
+defensive instance tree; there is no instance cache or subscription API.
 
 ### Architecture decision: centralized reactivity
 
