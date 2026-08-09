@@ -1,6 +1,8 @@
 import type { CatalogRegistry, CatalogRegistryError, DynamicPropertyKind } from "../catalog/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext, isDataPathBinding } from "../data-context/index.js";
+import { FunctionEvaluator } from "../functions/index.js";
+import type { FunctionEvaluationError } from "../functions/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import type { ComponentPropertyError } from "./errors.js";
@@ -33,6 +35,19 @@ function isFunctionCall(value: JsonValue): value is JsonObject {
     !Array.isArray(value.args) && typeof value.args === "object";
 }
 
+function functionError(
+  sourceComponentId: string,
+  property: string,
+  error: FunctionEvaluationError,
+): ComponentPropertyIssue {
+  return {
+    code: "FUNCTION_EVALUATION_FAILED",
+    sourceComponentId,
+    property,
+    error,
+  };
+}
+
 function compatible(kind: DynamicPropertyKind, value: JsonValue): boolean {
   switch (kind) {
     case "dynamicString": return typeof value === "string";
@@ -46,9 +61,12 @@ function catalogFailure(cause: CatalogRegistryError): ComponentPropertyError {
   return { code: "CATALOG_PROPERTY_METADATA_FAILED", message: cause.message, cause };
 }
 
-/** Hydrates catalog-declared dynamic properties without executing functions. */
+/** Hydrates catalog-declared dynamic properties, evaluating catalog functions through the evaluator. */
 export class ComponentPropertyResolver {
-  constructor(private readonly catalogs: CatalogRegistry) {}
+  constructor(
+    private readonly catalogs: CatalogRegistry,
+    private readonly functionEvaluator: FunctionEvaluator,
+  ) {}
 
   resolve(
     instance: ResolvedComponentInstance,
@@ -74,24 +92,35 @@ export class ComponentPropertyResolver {
         continue;
       }
 
+      let value: JsonValue | undefined;
+      let functionOwned = false;
       if (isFunctionCall(original)) {
-        properties[property] = undefined;
-        unresolved.push({
-          property,
-          reason: "FUNCTION_CALL_NOT_EVALUATED",
-          functionCall: cloneJson(original),
-        });
-        continue;
-      }
-
-      let value: JsonValue | undefined = cloneJson(original);
-      if (isDataPathBinding(original)) {
-        const resolved = dataContext.resolveBinding(original);
-        if (!resolved.ok) {
-          // Components were catalog-valid; an invalid scoped path remains unavailable to rendering.
-          value = undefined;
-        } else {
-          value = resolved.value;
+        const evaluated = this.functionEvaluator.evaluate(catalogId, original, dataContext);
+        if (!evaluated.ok) {
+          properties[property] = undefined;
+          unresolved.push({
+            property,
+            reason: "FUNCTION_EVALUATION_FAILED",
+            functionCall: cloneJson(original),
+          });
+          issues.push(functionError(instance.sourceComponentId, property, evaluated.error));
+          continue;
+        }
+        // The evaluator already owns argument binding, nested calls, and return-contract
+        // validation and returns defensively cloned results; only the destination
+        // dynamic-property rules run here.
+        value = evaluated.value;
+        functionOwned = true;
+      } else {
+        value = cloneJson(original);
+        if (isDataPathBinding(original)) {
+          const resolved = dataContext.resolveBinding(original);
+          if (!resolved.ok) {
+            // Components were catalog-valid; an invalid scoped path remains unavailable to rendering.
+            value = undefined;
+          } else {
+            value = resolved.value;
+          }
         }
       }
 
@@ -105,7 +134,7 @@ export class ComponentPropertyResolver {
         // Explicit null remains distinguishable; other incompatible values are withheld.
         properties[property] = value === null ? null : undefined;
       } else {
-        properties[property] = value === undefined ? undefined : cloneJson(value);
+        properties[property] = value === undefined ? undefined : functionOwned ? value : cloneJson(value);
       }
     }
 

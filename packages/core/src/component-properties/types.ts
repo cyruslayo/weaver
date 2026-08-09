@@ -1,13 +1,14 @@
 import type { DynamicPropertyKind } from "../catalog/index.js";
 import type { ComponentInstanceIssue, ComponentInstanceSnapshot } from "../component-instances/index.js";
 import type { DataContextError } from "../data-context/index.js";
+import type { FunctionEvaluationError } from "../functions/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 
 export type ResolvedComponentProperties = Record<string, JsonValue | undefined>;
 
 export interface UnresolvedProperty {
   property: string;
-  reason: "FUNCTION_CALL_NOT_EVALUATED";
+  reason: "FUNCTION_EVALUATION_FAILED";
   functionCall: JsonObject;
 }
 
@@ -26,12 +27,19 @@ export type HydratedInstanceRelationship =
   | { kind: "list"; property: string; children: HydratedComponentInstance[] }
   | { kind: "template"; property: string; collectionPath: string; children: HydratedComponentInstance[] };
 
-export type ComponentPropertyIssue = {
-  code: "DYNAMIC_VALUE_TYPE_MISMATCH";
-  sourceComponentId: string;
-  property: string;
-  expected: DynamicPropertyKind;
-};
+export type ComponentPropertyIssue =
+  | {
+      code: "DYNAMIC_VALUE_TYPE_MISMATCH";
+      sourceComponentId: string;
+      property: string;
+      expected: DynamicPropertyKind;
+    }
+  | {
+      code: "FUNCTION_EVALUATION_FAILED";
+      sourceComponentId: string;
+      property: string;
+      error: FunctionEvaluationError;
+    };
 
 export interface ResolvedInstanceProperties {
   properties: ResolvedComponentProperties;

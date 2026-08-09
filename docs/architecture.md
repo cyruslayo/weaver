@@ -454,7 +454,9 @@ ComponentTree + DataContext
              ↓
     scoped instance tree
              ↓
- future property resolver
+ ComponentPropertyResolver
+             ↓
+   hydrated instance tree
              ↓
       future renderer
 ```
@@ -536,12 +538,11 @@ future renderer
 
 Responsibilities remain separate: `CatalogRegistry` defines property semantics,
 `DataContext` performs scoped lookup, `ComponentInstanceResolver` creates scoped
-UI instances, and `ComponentPropertyResolver` hydrates literals and path
-bindings. `FunctionEvaluator` now executes catalog functions through trusted
-host implementations, while a future Web renderer will own presentation.
-`ComponentPropertyResolver` remains deliberately unchanged: function calls are
-still preserved as explicit unresolved descriptors. Behavior definitions such as
-actions and checks remain defensively copied static properties for later layers.
+UI instances, and `ComponentPropertyResolver` hydrates literals, path bindings,
+and catalog functions. `FunctionEvaluator` owns function execution through
+trusted host implementations; a future Web renderer will own presentation.
+Behavior definitions such as actions and checks remain defensively copied static
+properties for later layers.
 
 Dynamic-property discovery follows the same narrow direct-reference policy as
 structural discovery. Only direct component-property `$ref` values naming the
@@ -550,11 +551,103 @@ v0.9.1 `DynamicString`, `DynamicNumber`, `DynamicBoolean`, and
 arbitrary nested objects are not interpreted. Structural fields are excluded
 from hydrated properties and remain represented only as relationships.
 
+### Architecture decision: function evaluation is injected
+
+`ComponentPropertyResolver` requires a `FunctionEvaluator`; there is no hidden
+default evaluator and no direct `FunctionRegistry` dependency. Execution stays
+behind one entry point: the resolver calls
+`functionEvaluator.evaluate(catalogId, functionCall, dataContext)` exactly once
+per catalog-declared dynamic function property and does not reimplement argument
+binding, nested calls, implementation lookup, or return-contract validation.
+Nested functions are the evaluator's responsibility, so the resolver never
+recurses into a `FunctionCall` itself.
+
+```text
+Component Instance
+      |
+      v
+ComponentPropertyResolver
+      |
+      +--- literal
+      |        |
+      |        v
+      |     resolved
+      |
+      +--- path binding
+      |        |
+      |        v
+      |   DataContext
+      |        |
+      |        v
+      |     resolved
+      |
+      +--- function call
+               |
+               v
+         FunctionEvaluator
+               |
+         FunctionRegistry (trusted implementations)
+               +
+         CatalogRegistry (function contracts)
+               |
+               v
+             resolved
+      |
+      v
+Hydrated Component
+```
+
+Function identity and permission come from the surface's catalog only. The
+resolver passes `surface.catalogId`; it never takes a catalog from the property,
+searches another catalog, or falls back to a global function table.
+
+Function evaluation is side-effect free: functions used during hydration are
+trusted synchronous local computations, and property hydration never performs
+network requests, navigation, surface store writes, DOM changes, or MCP calls.
+`FunctionExecutionContext` already enforces this boundary and the resolver does
+not widen it.
+
+Error policy: one property failure is not a whole component failure. A failed or
+unavailable function property is recorded as a `FUNCTION_EVALUATION_FAILED`
+property issue (carrying the typed `FunctionEvaluationError`) and withheld as
+`undefined`, while sibling properties and child instances continue hydrating.
+Missing implementations, execution exceptions, return-contract violations,
+argument-binding failures, and depth-limit violations all degrade to property
+issues rather than tree failures. The resolver keeps one property issue category
+and preserves the evaluator's typed error instead of copying every function
+error code.
+
+```text
+Dynamic property
+      |
+      v
+catalog semantics
+      |
+      v
+literal? path? function?
+      |
+      v
+resolve
+      |
+      v
+destination type check
+      |
+      v
+hydrated property
+```
+
+The destination type check is shared by literals, path results, and function
+results: a function's own return contract may be broader than the destination
+component property, so the final value is still checked against the destination
+dynamic kind. Successful function results replace the original `FunctionCall` in
+hydrated properties and are no longer reported as unresolved.
+
 Path-bound values preserve their JSON data types and are never coerced.
 `undefined` means progressive data is not available, while `null` is an explicit
 JSON value and remains distinguishable even when it produces a dynamic-type
-mismatch. Formatting and presentation fallback belong to future catalog
-functions or renderers.
+mismatch. An allowed `undefined` function result follows the same progressive
+missing-value behavior as a missing binding. Formatting and presentation
+fallback belong to future catalog functions or renderers.
 
 Like every preceding stage, hydration is defensive derived state. It is rebuilt
 from each current snapshot, has no cache or subscription API, and is never
