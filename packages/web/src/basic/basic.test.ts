@@ -100,7 +100,7 @@ test("Text uses textContent and renders missing or null text empty", () => {
 test("Row and Column preserve children and apply mapped layout defaults", () => {
   for (const [component, direction] of [["Row", "row"], ["Column", "column"]] as const) {
     const base = setup(component); const children = [child(base.document, "a"), child(base.document, "b")];
-    const rendered = setup(component, { relationships: [{ kind: "list", property: "children", children }] }).node;
+    const rendered = setup(component, { relationships: [{ kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children }] }).node;
     assert.equal(rendered.textContent, "ab"); assert.equal(rendered.style.display, "flex"); assert.equal(rendered.style.flexDirection, direction);
     assert.equal(rendered.style.justifyContent, "flex-start"); assert.equal(rendered.style.alignItems, "stretch");
     const mapped = setup(component, { properties: { justify: "spaceBetween", align: "end" } }).node;
@@ -110,7 +110,7 @@ test("Row and Column preserve children and apply mapped layout defaults", () => 
 
 test("List wraps ordered children with list semantics, direction, alignment, and empty support", () => {
   const base = setup("List"); const children = [child(base.document, "a"), child(base.document, "b")];
-  const list = setup("List", { properties: { direction: "horizontal", align: "center" }, relationships: [{ kind: "template", property: "children", children }] }).node;
+  const list = setup("List", { properties: { direction: "horizontal", align: "center" }, relationships: [{ kind: "template", property: "children", location: [{ kind: "property", name: "children" }], children }] }).node;
   assert.equal(list.getAttribute("role"), "list"); assert.equal(list.style.flexDirection, "row"); assert.equal(list.style.alignItems, "center");
   assert.deepEqual([...list.children].map((item) => [item.getAttribute("role"), item.textContent]), [["listitem", "a"], ["listitem", "b"]]);
   assert.equal(setup("List").node.children.length, 0);
@@ -118,7 +118,7 @@ test("List wraps ordered children with list semantics, direction, alignment, and
 
 test("Card appends one resolved child and tolerates a missing child", () => {
   const base = setup("Card"); const content = child(base.document, "content");
-  assert.equal(setup("Card", { relationships: [{ kind: "single", property: "child", child: content }] }).node.textContent, "content");
+  assert.equal(setup("Card", { relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: content }] }).node.textContent, "content");
   assert.equal(setup("Card").node.childNodes.length, 0);
 });
 
@@ -131,7 +131,7 @@ test("Divider uses native horizontal and semantic minimal vertical forms", () =>
 
 test("Button appends child, emits one action, and exposes only safe variant hooks", () => {
   const base = setup("Button"); const label = child(base.document, "Go");
-  const rendered = setup("Button", { properties: { variant: "primary" }, relationships: [{ kind: "single", property: "child", child: label }] });
+  const rendered = setup("Button", { properties: { variant: "primary" }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: label }] });
   assert.equal(rendered.node.tagName, "BUTTON"); assert.equal((rendered.node as HTMLButtonElement).type, "button"); assert.equal(rendered.node.textContent, "Go");
   assert.equal(rendered.node.getAttribute("data-a2ui-variant"), "primary"); rendered.node.click(); assert.deepEqual(rendered.calls, ["action"]);
   assert.equal(setup("Button", { properties: { variant: "anything" } }).node.getAttribute("data-a2ui-variant"), "default");
@@ -140,7 +140,7 @@ test("Button appends child, emits one action, and exposes only safe variant hook
 test("Button mirrors supplied checks and disables a progressively empty control", () => {
   for (const status of ["invalid", "pending", "error"] as const) assert.equal((setup("Button", { checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status, checks: [] } }).node as HTMLButtonElement).disabled, true);
   const base = setup("Button"); const label = child(base.document, "Go");
-  const valid = setup("Button", { checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status: "valid", checks: [] }, relationships: [{ kind: "single", property: "child", child: label }] }).node as HTMLButtonElement;
+  const valid = setup("Button", { checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status: "valid", checks: [] }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: label }] }).node as HTMLButtonElement;
   assert.equal(valid.disabled, false);
   assert.equal((setup("Button").node as HTMLButtonElement).disabled, true);
 });

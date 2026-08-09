@@ -101,13 +101,15 @@ export class ComponentInstanceResolver {
           const child = relationship.node === undefined
             ? undefined
             : instantiate(relationship.node, context, relationship.property);
-          relationships.push({ kind: "single", property: relationship.property, ...(child === undefined ? {} : { child }) });
+          relationships.push({ kind: "single", property: relationship.property,
+            location: relationship.location.map((segment) => ({ ...segment })), ...(child === undefined ? {} : { child }) });
           continue;
         }
         if (relationship.kind === "list") {
           relationships.push({
             kind: "list",
             property: relationship.property,
+            location: relationship.location.map((segment) => ({ ...segment })),
             children: relationship.nodes.flatMap((childNode) => {
               const child = instantiate(childNode, context, relationship.property);
               return child === undefined ? [] : [child];
@@ -120,6 +122,7 @@ export class ComponentInstanceResolver {
         relationships.push({
           kind: "template",
           property: relationship.property,
+          location: relationship.location.map((segment) => ({ ...segment })),
           collectionPath: relationship.path,
           children,
         });

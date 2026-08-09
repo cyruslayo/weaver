@@ -1,5 +1,6 @@
 import type {
   ComponentCheckSnapshot,
+  ComponentRelationshipLocationSegment,
   HydratedComponentInstance,
   HydratedValue,
   JsonValue,
@@ -27,9 +28,9 @@ export interface WebComponentInteractions {
 }
 
 export type WebRenderedRelationship =
-  | { kind: "single"; property: string; child?: Node }
-  | { kind: "list"; property: string; children: readonly Node[] }
-  | { kind: "template"; property: string; children: readonly Node[] };
+  | { kind: "single"; property: string; location: readonly ComponentRelationshipLocationSegment[]; child?: Node }
+  | { kind: "list"; property: string; location: readonly ComponentRelationshipLocationSegment[]; children: readonly Node[] }
+  | { kind: "template"; property: string; location: readonly ComponentRelationshipLocationSegment[]; children: readonly Node[] };
 
 export interface WebComponentRenderInput {
   document: Document;

@@ -148,6 +148,34 @@ test("preserves static child ordering and multiple structural properties", () =>
   if (list?.kind === "list") assert.deepEqual(list.nodes.map(({ id }) => id), ["a", "b", "c"]);
 });
 
+test("resolves ordered nested array relationships with locations, reuse, missing recovery, and cycles", () => {
+  const tabs = component("TabsLike", {}, {
+    tabs: { type: "array", items: { type: "object", properties: {
+      title: { type: "string" }, child: { $ref: componentIdRef },
+    }, required: ["title", "child"], additionalProperties: false } },
+  });
+  const { store, resolver } = setup("nested", { TabsLike: tabs, Leaf: component("Leaf", { child: { $ref: componentIdRef } }) });
+  store.updateComponents("surface", [
+    { id: "root", component: "TabsLike", tabs: [
+      { title: "A", child: "shared" }, { title: "B", child: "missing" }, { title: "C", child: "shared" },
+    ] },
+    { id: "shared", component: "Leaf" },
+  ]);
+  let tree = resolved(resolver.resolve(snapshot(store)));
+  assert.deepEqual(tree.root?.relationships.map(({ property, location }) => ({ property, location })), [
+    { property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }] },
+    { property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 1 }, { kind: "property", name: "child" }] },
+    { property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 2 }, { kind: "property", name: "child" }] },
+  ]);
+  assert.equal(tree.issues[0]?.code, "MISSING_COMPONENT_REFERENCE");
+  assert.equal(tree.issues[0]?.propertyPath, "/tabs/1/child");
+  assert.equal(tree.issues.some(({ code }) => code === "CIRCULAR_COMPONENT_REFERENCE"), false);
+  store.updateComponents("surface", [{ id: "missing", component: "Leaf", child: "root" }]);
+  tree = resolved(resolver.resolve(snapshot(store)));
+  assert.equal(tree.root?.relationships.every((relationship) => relationship.kind !== "single" || relationship.node !== undefined), true);
+  assert.equal(tree.issues.some(({ code }) => code === "CIRCULAR_COMPONENT_REFERENCE"), true);
+});
+
 test("records dynamic templates without instantiation and reports a missing template", () => {
   const { store, resolver } = setup();
   store.updateComponents("surface", [{
@@ -155,7 +183,8 @@ test("records dynamic templates without instantiation and reports a missing temp
   }, { id: "leaf", component: "Leaf" }]);
   const missing = resolved(resolver.resolve(snapshot(store)));
   assert.deepEqual(missing.root?.relationships[1], {
-    kind: "template", property: "sections", path: "/items", componentId: "template",
+    kind: "template", property: "sections", location: [{ kind: "property", name: "sections" }],
+    path: "/items", componentId: "template",
   });
   assert.equal(missing.issues[0]?.code, "MISSING_COMPONENT_REFERENCE");
   store.updateComponents("surface", [{ id: "template", component: "Leaf" }]);

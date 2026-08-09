@@ -428,13 +428,18 @@ metadata is fatal.
 ### Architecture decision: catalog-defined structure
 
 Weaver does not hard-code property names such as `children`, `child`, `content`,
-or `trigger`. At atomic catalog registration, `CatalogRegistry` inspects each
-component schema's direct properties and records fields whose `$ref` is exactly
+or `trigger`. At atomic catalog registration, `CatalogRegistry` discovers structural locations through direct object `properties` and array `items`, including top-level, nested-object, and nested-array-item locations, whose `$ref` is exactly
 `common_types.json#/$defs/ComponentId` or
 `common_types.json#/$defs/ChildList`. This deliberately narrow A2UI convention
 supports custom catalogs without becoming a general JSON Schema reasoning
-engine. The public structural query returns copied field arrays and does not
-expose Ajv or schema-walking helpers.
+engine. The legacy public structural query returns copied direct field arrays. `getComponentStructureLocations()` returns defensive path metadata compiled at registration. Discovery does not traverse `oneOf`, `anyOf`, conditionals, or other arbitrary composition and exposes neither Ajv nor schema-walking helpers.
+
+```text
+CatalogRegistry → structural locations → ComponentTreeResolver
+  → ComponentInstanceResolver → hydrated relationships → @weaver/web
+```
+
+A runtime location such as `/tabs/1/child` describes component-property structure, not DataModel scope. Nested static children inherit the current instance `scopePath`; only existing `ChildList` template expansion creates collection-item DataContexts. `ComponentId` and `ChildList` values are structural metadata, so hydration removes those leaves while preserving surrounding objects, arrays, indices, and nonstructural fields. Resolved children travel separately through relationships.
 
 A `ChildList` array becomes ordered static links. Its `{ path, componentId }`
 form remains a template descriptor only; DataContext and list instantiation are

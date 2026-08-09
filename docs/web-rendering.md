@@ -24,7 +24,7 @@
 
 `WebSurfaceRenderer` requires a host-owned runtime. It resolves the current
 surface, renders descendants before parents, and preserves each Core structural
-relationship's `property` and `kind`. Renderers receive hydrated properties,
+relationship's `property`, `kind`, and runtime structural `location`. Renderers receive hydrated properties,
 instance identity, resolved relationship nodes, and the check snapshot selected
 by the full `sourceComponentId + scopePath` identity.
 
@@ -32,7 +32,7 @@ Web renderers must not resolve `DataBinding` or `FunctionCall` values. Core
 hydrates supported direct, `allOf`-wrapped, and structurally nested Dynamic*
 locations before rendering, including array-item fields such as option labels.
 Progressively missing nested values may remain `undefined`. Browser-specific
-DateTime normalization and presentation fallback remain renderer concerns.
+DateTime normalization and presentation fallback remain renderer concerns. Structural ComponentId/ChildList leaves are absent from presentation properties; their already-rendered child Nodes arrive through relationships. `WebRenderedRelationship.property` is not unique within a parent: nested schemas may produce repeated leaves such as `child` at `/tabs/0/child` and `/tabs/1/child`, so composite renderers must associate them by `location`.
 
 ## Trust boundaries
 

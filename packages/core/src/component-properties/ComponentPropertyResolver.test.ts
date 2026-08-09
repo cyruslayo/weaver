@@ -48,7 +48,9 @@ function setup(data: JsonValue = {}, implementations: Record<string, (...args: a
         } } },
         min: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
         max: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
-        tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), id: { type: "string" } } } },
+        tabs: { type: "array", items: { type: "object", properties: {
+          title: ref("DynamicString"), id: { type: "string" }, child: ref("ComponentId"), metadata: { type: "string" },
+        } } },
       }),
     },
     functions: {
@@ -474,6 +476,20 @@ test("keeps null function results explicit with the destination mismatch recorde
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, null);
   assert.deepEqual(result.issues, [{ code: "DYNAMIC_VALUE_TYPE_MISMATCH", sourceComponentId: "root", property: "title", expected: "dynamicString" }]);
+});
+
+test("hydrates nested titles while removing only structural child leaves", () => {
+  const { properties, catalogId } = setup({ titles: { first: "First" } });
+  const definition: JsonObject = { id: "root", component: "Nested", tabs: [
+    { title: { path: "/titles/first" }, child: "panel-a", metadata: "keep" },
+    { title: "Second", child: "panel-b" },
+  ] };
+  const result = ok(properties.resolve(instance(definition), DataContext.root({ titles: { first: "First" } }), catalogId));
+  assert.deepEqual(result.properties.tabs, [
+    { title: "First", metadata: "keep" }, { title: "Second" },
+  ]);
+  (result.properties.tabs as any[])[0]!.metadata = "changed";
+  assert.equal(((definition.tabs as JsonObject[])[0] as JsonObject).metadata, "keep");
 });
 
 test("hydrates ChoicePicker-like labels, wrapped dates, and Tabs-like titles without touching static siblings", () => {

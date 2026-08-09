@@ -1,4 +1,4 @@
-import type { ComponentTreeIssue } from "../component-tree/index.js";
+import type { ComponentRelationshipLocationSegment, ComponentTreeIssue } from "../component-tree/index.js";
 import type { DataContextError } from "../data-context/index.js";
 import type { A2UIComponent } from "../protocol/index.js";
 
@@ -13,11 +13,12 @@ export interface ResolvedComponentInstance {
 }
 
 export type ResolvedInstanceRelationship =
-  | { kind: "single"; property: string; child?: ResolvedComponentInstance }
-  | { kind: "list"; property: string; children: ResolvedComponentInstance[] }
+  | { kind: "single"; property: string; location: ComponentRelationshipLocationSegment[]; child?: ResolvedComponentInstance }
+  | { kind: "list"; property: string; location: ComponentRelationshipLocationSegment[]; children: ResolvedComponentInstance[] }
   | {
       kind: "template";
       property: string;
+      location: ComponentRelationshipLocationSegment[];
       collectionPath: string;
       children: ResolvedComponentInstance[];
     };

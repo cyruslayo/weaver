@@ -94,16 +94,17 @@ export class ComponentPropertyResolver {
   ): ComponentPropertyResult {
     const structure = this.catalogs.getComponentStructure(catalogId, instance.component);
     if (!structure.ok) return { ok: false, error: catalogFailure(structure.error) };
+    const structuralMetadata = this.catalogs.getComponentStructureLocations(catalogId, instance.component);
+    if (!structuralMetadata.ok) return { ok: false, error: catalogFailure(structuralMetadata.error) };
     const metadata = this.catalogs.getDynamicValueLocations(catalogId, instance.component);
     if (!metadata.ok) return { ok: false, error: catalogFailure(metadata.error) };
 
-    const structural = new Set([...structure.value.singleChildFields, ...structure.value.childListFields]);
     const properties: ResolvedComponentProperties = {};
     const unresolved: UnresolvedProperty[] = [];
     const issues: ComponentPropertyIssue[] = [];
 
     for (const [property, original] of Object.entries(instance.definition)) {
-      if (property === "id" || property === "component" || structural.has(property)) continue;
+      if (property === "id" || property === "component") continue;
       properties[property] = cloneJson(original);
     }
 
@@ -174,10 +175,31 @@ export class ComponentPropertyResolver {
 
     for (const location of metadata.value) {
       const first = location.path[0];
-      if (first?.kind !== "property" || structural.has(first.name) || !Object.hasOwn(instance.definition, first.name)) continue;
+      if (first?.kind !== "property" || !Object.hasOwn(instance.definition, first.name)) continue;
       properties[first.name] = apply(location.path, 1, instance.definition[first.name]!, properties[first.name],
         [{ kind: "property", name: first.name }], location.valueKind);
     }
+
+    const removeStructural = (
+      target: HydratedValue,
+      path: readonly DynamicValueLocationSegment[],
+      offset: number,
+    ): void => {
+      const segment = path[offset];
+      if (segment === undefined) return;
+      if (segment.kind === "property") {
+        if (target === null || Array.isArray(target) || typeof target !== "object") return;
+        if (offset === path.length - 1) {
+          delete target[segment.name];
+          return;
+        }
+        if (Object.hasOwn(target, segment.name)) removeStructural(target[segment.name], path, offset + 1);
+        return;
+      }
+      if (!Array.isArray(target)) return;
+      for (const item of target) removeStructural(item, path, offset + 1);
+    };
+    for (const location of structuralMetadata.value) removeStructural(properties, location.path, 0);
 
     return { ok: true, value: { properties, unresolved, issues } };
   }
@@ -203,11 +225,13 @@ export class ComponentPropertyResolver {
       for (const relationship of instance.relationships) {
         if (relationship.kind === "single") {
           if (relationship.child === undefined) {
-            relationships.push({ kind: "single", property: relationship.property });
+            relationships.push({ kind: "single", property: relationship.property,
+              location: relationship.location.map((segment) => ({ ...segment })) });
           } else {
             const child = hydrate(relationship.child, context);
             if (!child.ok) return child;
-            relationships.push({ kind: "single", property: relationship.property, child: child.value });
+            relationships.push({ kind: "single", property: relationship.property,
+              location: relationship.location.map((segment) => ({ ...segment })), child: child.value });
           }
           continue;
         }
@@ -218,7 +242,8 @@ export class ComponentPropertyResolver {
             if (!child.ok) return child;
             children.push(child.value);
           }
-          relationships.push({ kind: "list", property: relationship.property, children });
+          relationships.push({ kind: "list", property: relationship.property,
+            location: relationship.location.map((segment) => ({ ...segment })), children });
           continue;
         }
 
@@ -249,6 +274,7 @@ export class ComponentPropertyResolver {
         relationships.push({
           kind: "template",
           property: relationship.property,
+          location: relationship.location.map((segment) => ({ ...segment })),
           collectionPath: relationship.collectionPath,
           children,
         });

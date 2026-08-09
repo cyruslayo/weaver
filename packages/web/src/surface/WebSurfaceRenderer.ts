@@ -160,12 +160,14 @@ export class WebSurfaceRenderer {
     for (const relationship of instance.relationships) {
       if (relationship.kind === "single") {
         if (relationship.child === undefined) {
-          relationships.push({ kind: "single", property: relationship.property });
+          relationships.push({ kind: "single", property: relationship.property,
+            location: relationship.location.map((segment) => ({ ...segment })) });
           continue;
         }
         const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent, controlMetadata, controls);
         if (!child.ok) return child;
-        relationships.push({ kind: "single", property: relationship.property, child: child.value });
+        relationships.push({ kind: "single", property: relationship.property,
+          location: relationship.location.map((segment) => ({ ...segment })), child: child.value });
         continue;
       }
       const children: Node[] = [];
@@ -174,7 +176,8 @@ export class WebSurfaceRenderer {
         if (!child.ok) return child;
         children.push(child.value);
       }
-      relationships.push({ kind: relationship.kind, property: relationship.property, children });
+      relationships.push({ kind: relationship.kind, property: relationship.property,
+        location: relationship.location.map((segment) => ({ ...segment })), children });
     }
 
     const renderer = this.#renderers.get(catalogId, instance.component);

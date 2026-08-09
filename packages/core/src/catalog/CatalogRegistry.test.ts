@@ -40,7 +40,12 @@ function catalog(catalogId: string, extraComponents: JsonObject = {}): JsonObjec
       ...extraComponents,
     },
     functions: { isPresent: { returnType: "boolean" } },
-    $defs: { theme: { type: "object", properties: { primaryColor: { type: "string" } } } },
+    $defs: {
+      theme: { type: "object", properties: { primaryColor: { type: "string" } } },
+      commonTypes: { $id: "common_types.json", $defs: {
+        ComponentId: { type: "string" }, ChildList: { type: "array", items: { type: "string" } },
+      } },
+    },
   };
 }
 
@@ -54,6 +59,38 @@ function expectCode(result: ReturnType<CatalogRegistry["validateComponent"]>, co
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, code);
 }
+
+test("discovers nested structural locations narrowly and defensively", () => {
+  const structural = {
+    type: "object",
+    properties: {
+      id: { type: "string" }, component: { const: "Nested" },
+      config: { type: "object", properties: { body: { type: "object", properties: {
+        child: { $ref: "common_types.json#/$defs/ComponentId" }, metadata: { type: "string" },
+      } } } },
+      groups: { type: "array", items: { type: "object", properties: {
+        sections: { type: "array", items: { type: "object", properties: {
+          child: { $ref: "common_types.json#/$defs/ComponentId" },
+          children: { $ref: "common_types.json#/$defs/ChildList" },
+        } } },
+      } } },
+      ignored: { oneOf: [{ $ref: "common_types.json#/$defs/ComponentId" }] },
+    },
+  };
+  const registry = new CatalogRegistry();
+  assert.equal(registry.register({ catalogId: "nested", schema: catalog("nested", { Nested: structural }) }).ok, true);
+  const result = registry.getComponentStructureLocations("nested", "Nested");
+  assert.ok(result.ok);
+  assert.deepEqual(result.value, [
+    { kind: "single", path: [{ kind: "property", name: "config" }, { kind: "property", name: "body" }, { kind: "property", name: "child" }] },
+    { kind: "single", path: [{ kind: "property", name: "groups" }, { kind: "arrayItems" }, { kind: "property", name: "sections" }, { kind: "arrayItems" }, { kind: "property", name: "child" }] },
+    { kind: "list", path: [{ kind: "property", name: "groups" }, { kind: "arrayItems" }, { kind: "property", name: "sections" }, { kind: "arrayItems" }, { kind: "property", name: "children" }] },
+  ]);
+  (result.value[0]!.path as { kind: "property" | "arrayItems"; name?: string }[])[0] = { kind: "arrayItems" };
+  const again = registry.getComponentStructureLocations("nested", "Nested");
+  assert.ok(again.ok);
+  assert.equal(again.value[0]!.path[0]!.kind, "property");
+});
 
 test("registers, finds, and lists catalogs in insertion order with fresh ID arrays", () => {
   const registry = new CatalogRegistry();

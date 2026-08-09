@@ -2,6 +2,7 @@ export { CatalogRegistry } from "./CatalogRegistry.js";
 export type { CatalogRegistryError, CatalogRegistryErrorCode } from "./errors.js";
 export type {
   CatalogActionPropertiesResult,
+  CatalogComponentStructureLocationsResult,
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
@@ -18,6 +19,8 @@ export type {
   CatalogThemeValidationResult,
   CatalogValidationIssue,
   ComponentStructureDefinition,
+  ComponentStructureLocation,
+  ComponentStructureLocationSegment,
   DynamicPropertyDefinition,
   DynamicPropertyKind,
   DynamicValueLocation,

@@ -5,6 +5,7 @@ import type { CatalogRegistryError } from "./errors.js";
 import { A2UI_CATALOG_SCHEMA } from "./schema.js";
 import type {
   CatalogActionPropertiesResult,
+  CatalogComponentStructureLocationsResult,
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
@@ -16,6 +17,8 @@ import type {
   CatalogFunctionValidationResult,
   CatalogRegistration,
   ComponentStructureDefinition,
+  ComponentStructureLocation,
+  ComponentStructureLocationSegment,
   DynamicPropertyDefinition,
   DynamicPropertyKind,
   DynamicValueLocation,
@@ -32,6 +35,7 @@ interface RegisteredCatalog {
   functionValidators: ReadonlyMap<string, ValidateFunction>;
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
+  structureLocations: ReadonlyMap<string, readonly ComponentStructureLocation[]>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
   dynamicValueLocations: ReadonlyMap<string, readonly DynamicValueLocation[]>;
   actionProperties: ReadonlyMap<string, readonly string[]>;
@@ -175,6 +179,32 @@ function discoverStructure(componentSchema: JsonObject): ComponentStructureDefin
   return structure;
 }
 
+function discoverStructureLocations(componentSchema: JsonObject): ComponentStructureLocation[] {
+  const locations: ComponentStructureLocation[] = [];
+  const visit = (schema: JsonObject, path: ComponentStructureLocationSegment[]): void => {
+    if (schema.$ref === COMPONENT_ID_REF) {
+      locations.push({ path: path.map((segment) => ({ ...segment })), kind: "single" });
+      return;
+    }
+    if (schema.$ref === CHILD_LIST_REF) {
+      locations.push({ path: path.map((segment) => ({ ...segment })), kind: "list" });
+      return;
+    }
+    if (isPlainObject(schema.properties)) {
+      for (const [name, child] of Object.entries(schema.properties)) {
+        if (isPlainObject(child)) visit(child, [...path, { kind: "property", name }]);
+      }
+    }
+    if (isPlainObject(schema.items)) visit(schema.items, [...path, { kind: "arrayItems" }]);
+  };
+  visit(componentSchema, []);
+  // Preserve the legacy direct traversal contract: all direct singles precede direct lists.
+  locations.sort((left, right) => left.path.length === 1 && right.path.length === 1
+    ? (left.kind === right.kind ? 0 : left.kind === "single" ? -1 : 1)
+    : 0);
+  return locations;
+}
+
 function discoverActionProperties(componentSchema: JsonObject): string[] {
   const properties = componentSchema.properties;
   if (!isPlainObject(properties)) return [];
@@ -299,6 +329,7 @@ export class CatalogRegistry {
     const functionValidators = new Map<string, ValidateFunction>();
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
+    const structureLocations = new Map<string, readonly ComponentStructureLocation[]>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
     const dynamicValueLocations = new Map<string, readonly DynamicValueLocation[]>();
     const actionProperties = new Map<string, readonly string[]>();
@@ -315,6 +346,7 @@ export class CatalogRegistry {
         }
         if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
+        structureLocations.set(componentName, discoverStructureLocations(componentSchema));
         dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
         dynamicValueLocations.set(componentName, discoverDynamicValueLocations(componentSchema));
         actionProperties.set(componentName, discoverActionProperties(componentSchema));
@@ -351,6 +383,7 @@ export class CatalogRegistry {
       functionValidators,
       functionDefinitions,
       structures,
+      structureLocations,
       dynamicProperties,
       dynamicValueLocations,
       actionProperties,
@@ -464,6 +497,33 @@ export class CatalogRegistry {
         singleChildFields: [...structure.singleChildFields],
         childListFields: [...structure.childListFields],
       },
+    };
+  }
+
+  getComponentStructureLocations(
+    catalogId: string,
+    componentName: string,
+  ): CatalogComponentStructureLocationsResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const locations = catalog.structureLocations.get(componentName);
+    if (locations === undefined) {
+      return {
+        ok: false,
+        error: {
+          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component structural metadata is not available"),
+          component: componentName,
+        },
+      };
+    }
+    return {
+      ok: true,
+      value: locations.map(({ path, kind }) => ({
+        path: path.map((segment) => ({ ...segment })),
+        kind,
+      })),
     };
   }
 

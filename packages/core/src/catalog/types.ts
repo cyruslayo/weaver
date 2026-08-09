@@ -64,6 +64,13 @@ export interface DynamicValueLocation {
   valueKind: DynamicPropertyKind;
 }
 
+export type ComponentStructureLocationSegment = DynamicValueLocationSegment;
+
+export interface ComponentStructureLocation {
+  path: readonly ComponentStructureLocationSegment[];
+  kind: "single" | "list";
+}
+
 export interface CatalogValidationIssue {
   path: string;
   message: string;
@@ -77,6 +84,7 @@ export type CatalogRegistryResult<T> =
 export type CatalogComponentValidationResult = CatalogRegistryResult<A2UIComponent>;
 export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;
 export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStructureDefinition>;
+export type CatalogComponentStructureLocationsResult = CatalogRegistryResult<ComponentStructureLocation[]>;
 export type CatalogDynamicPropertiesResult = CatalogRegistryResult<DynamicPropertyDefinition[]>;
 export type CatalogDynamicValueLocationsResult = CatalogRegistryResult<DynamicValueLocation[]>;
 export type CatalogActionPropertiesResult = CatalogRegistryResult<string[]>;

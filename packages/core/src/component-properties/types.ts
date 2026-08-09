@@ -1,5 +1,6 @@
 import type { DynamicPropertyKind } from "../catalog/index.js";
 import type { ComponentInstanceIssue, ComponentInstanceSnapshot } from "../component-instances/index.js";
+import type { ComponentRelationshipLocationSegment } from "../component-tree/index.js";
 import type { DataContextError } from "../data-context/index.js";
 import type { FunctionEvaluationError } from "../functions/index.js";
 import type { JsonObject, JsonPrimitive } from "../protocol/index.js";
@@ -13,9 +14,7 @@ export type HydratedValue =
 
 export type ResolvedComponentProperties = Record<string, HydratedValue>;
 
-export type ComponentPropertyLocationSegment =
-  | { kind: "property"; name: string }
-  | { kind: "arrayIndex"; index: number };
+export type ComponentPropertyLocationSegment = ComponentRelationshipLocationSegment;
 
 export interface UnresolvedProperty {
   property: string;
@@ -36,9 +35,9 @@ export interface HydratedComponentInstance {
 }
 
 export type HydratedInstanceRelationship =
-  | { kind: "single"; property: string; child?: HydratedComponentInstance }
-  | { kind: "list"; property: string; children: HydratedComponentInstance[] }
-  | { kind: "template"; property: string; collectionPath: string; children: HydratedComponentInstance[] };
+  | { kind: "single"; property: string; location: ComponentRelationshipLocationSegment[]; child?: HydratedComponentInstance }
+  | { kind: "list"; property: string; location: ComponentRelationshipLocationSegment[]; children: HydratedComponentInstance[] }
+  | { kind: "template"; property: string; location: ComponentRelationshipLocationSegment[]; collectionPath: string; children: HydratedComponentInstance[] };
 
 export type ComponentPropertyIssue =
   | {

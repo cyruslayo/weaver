@@ -20,6 +20,9 @@ function catalog(catalogId: string): JsonObject {
       Text: component("Text", { text: ref("DynamicString") }),
       Image: component("Image", { url: ref("DynamicString"), description: ref("DynamicString") }),
       Stack: component("Stack", { sections: ref("ChildList") }),
+      TabsLike: component("TabsLike", { tabs: { type: "array", items: { type: "object", properties: {
+        title: ref("DynamicString"), child: ref("ComponentId"),
+      }, required: ["title", "child"], additionalProperties: false } } }),
       CheckText: component("CheckText", { text: ref("DynamicString"), checks: { type: "array" } }, [ref("Checkable")]),
       Missing: component("Missing"), Throwing: component("Throwing"), Invalid: component("Invalid"),
     },
@@ -75,6 +78,30 @@ function mount(rt: WeaverRuntime, regs = registrations()) {
   const result = web.mount({ surfaceId: "s", target });
   return { target, result };
 }
+
+test("renders repeated nested child relationships by location without exposing component IDs", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "TabsLike", tabs: [
+      { title: { path: "/first" }, child: "a" }, { title: "Second", child: "b" },
+    ] },
+    { id: "a", component: "Text", text: "Panel A" }, { id: "b", component: "Text", text: "Panel B" },
+  ]));
+  rt.process(data({ first: "First" }));
+  const tabsRenderer: RendererRegistration = { catalogId: "test", component: "TabsLike", render: ({ document, properties, relationships }) => {
+    assert.deepEqual(properties.tabs, [{ title: "First" }, { title: "Second" }]);
+    assert.deepEqual(relationships.map(({ property, location }) => ({ property, location })), [
+      { property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }] },
+      { property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 1 }, { kind: "property", name: "child" }] },
+    ]);
+    const node = document.createElement("section");
+    for (const relationship of relationships) if (relationship.kind === "single" && relationship.child) node.append(relationship.child);
+    return node;
+  } };
+  const { target, result } = mount(rt, [...registrations(), tabsRenderer]);
+  assert.ok(result.ok);
+  assert.equal(target.textContent, "Panel APanel B");
+});
 
 test("mount renders hydrated nested values immediately and preserves host siblings", () => {
   const rt = runtime(); rt.process(create());
