@@ -77,12 +77,51 @@ array. The official schema does not impose `minLength` on `surfaceId`,
 structurally valid. Any future non-empty identifier policy belongs to the
 runtime and must be documented as a Weaver semantic rule.
 
-Runtime processing is responsible for lifecycle and reference rules such as
-whether a surface exists, duplicate component IDs, missing roots, invalid
-component references, and JSON Pointer behavior. Catalog validation is
-responsible for catalog membership and component-defined semantics. These are
-later milestones, as is explicit message ownership; the protocol validator
-currently returns references from the supplied object and does not clone it.
+Runtime responsibilities are layered so protocol messages do not become the
+state container's interface:
+
+```text
+Protocol validation
+      |
+      v
+future MessageProcessor
+      |
+      v
+SurfaceStore
+      |
+      v
+future renderer
+```
+
+`SurfaceStore` owns active surface metadata and progressively received
+components. It enforces creation and deletion lifecycle rules, rejects duplicate
+component IDs within one update, and replaces an existing component in full
+when its ID is updated. It deliberately does not require a root or validate
+component references and catalog-specific properties.
+
+The protocol validator returns caller-owned values. The store establishes and
+protects its own ownership boundary:
+
+```text
+Caller objects
+      |
+      v
+recursive JSON clone
+      |
+      v
+Weaver-owned state
+      |
+      v
+defensive snapshot
+      |
+      v
+consumer or subscriber
+```
+
+The A2UI DataModel and its JSON Pointer behavior remain pending. A future
+MessageProcessor will translate validated protocol messages into domain calls;
+the store does not process protocol envelopes directly. Catalog validation is
+responsible for catalog membership and component-defined semantics.
 
 ## Application boundary
 
