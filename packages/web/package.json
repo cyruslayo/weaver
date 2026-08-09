@@ -1,0 +1,21 @@
+{
+  "name": "@weaver/web",
+  "version": "0.0.0-dev",
+  "type": "module",
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "@weaver/core": "workspace:*"
+  }
+}

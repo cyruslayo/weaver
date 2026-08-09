@@ -1,0 +1,1648 @@
+Directory structure:
+└── cyruslayo-weaver/
+    ├── App.ts
+    ├── HANDOFF.md
+    ├── index.html
+    ├── package.json
+    ├── server.js
+    ├── .env.example
+    └── frontend/
+        ├── index.html
+        ├── package.json
+        ├── tsconfig.json
+        └── src/
+            ├── ComponentRegistry.ts
+            ├── main.ts
+            ├── StateActionBus.ts
+            ├── StreamingEngine.test.ts
+            ├── StreamingEngine.ts
+            └── style.css
+
+================================================
+FILE: App.ts
+================================================
+import { ComponentRegistry } from './ComponentRegistry';
+import { StateActionBus } from './StateActionBus';
+
+// 1. Initialize the State Bus (pointing to your Node.js MCP server)
+const bus = new StateActionBus('http://localhost:3000/ai-action');
+
+// 2. Initialize the Component Registry
+const registry = new ComponentRegistry();
+
+// ============================================================
+// TOKEN DICTIONARIES (The Design System Firewall)
+// AI tokens -> safe CSS values. Everything the AI can express
+// flows through here, so it can never inject raw CSS.
+// ============================================================
+const gapMap: Record<string, string> = { none: '0', sm: '8px', md: '16px', lg: '24px', xl: '32px' };
+const padMap: Record<string, string> = { none: '0', sm: '12px', md: '20px', lg: '32px', xl: '48px' };
+const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px', full: '9999px' };
+const sizeMap: Record<string, string> = { xs: '0.75rem', sm: '0.875rem', base: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' };
+
+// ============================================================
+// LAYER 1: STRUCTURE & ASSETS — Box, Text, Visual
+// ============================================================
+
+// 1. THE BOX (Layout Engine)
+registry.register('Box', (data, children) => {
+    const div = document.createElement('div');
+    div.style.display = data.layout === 'grid' ? 'grid' : 'flex';
+    div.style.boxSizing = 'border-box';
+
+    if (data.layout === 'grid') {
+        if (data.columns) div.style.gridTemplateColumns = `repeat(${data.columns}, 1fr)`;
+    } else {
+        div.style.flexDirection = data.direction === 'row' ? 'row' : 'column';
+        if (data.align) div.style.alignItems = data.align === 'start' ? 'flex-start' : data.align === 'end' ? 'flex-end' : data.align;
+        if (data.justify) div.style.justifyContent = data.justify === 'between' ? 'space-between' : data.justify;
+        if (data.wrap) div.style.flexWrap = 'wrap';
+    }
+
+    if (data.colSpan) div.style.gridColumn = `span ${data.colSpan}`;
+    if (data.flexGrow !== undefined) div.style.flexGrow = data.flexGrow.toString();
+
+    div.style.gap = gapMap[data.gap || 'md'];
+    div.style.padding = padMap[data.padding || 'none'];
+    div.style.backgroundColor = data.backgroundColor ? `var(--color-${data.backgroundColor})` : 'transparent';
+    div.style.borderRadius = radiusMap[data.borderRadius || 'none'];
+
+    children.forEach(child => div.appendChild(child));
+    return div;
+});
+
+// 2. THE TEXT (Typography)
+registry.register('Text', (data) => {
+    const el = document.createElement(data.as || 'p');
+    el.innerText = data.literalString || '';
+    el.style.fontSize = sizeMap[data.size || 'base'];
+    el.style.fontWeight = data.weight === 'bold' ? '700' : data.weight === 'semibold' ? '600' : '400';
+    el.style.color = data.color ? `var(--text-${data.color})` : 'inherit';
+    el.style.textAlign = data.align || 'left';
+    el.style.margin = '0';
+
+    if (data.truncate) {
+        el.style.overflow = 'hidden';
+        el.style.textOverflow = 'ellipsis';
+        el.style.whiteSpace = 'nowrap';
+    }
+    return el;
+});
+
+// 3. THE VISUAL (Media)
+registry.register('Visual', (data) => {
+    const isIcon = data.type === 'icon';
+    const el = document.createElement(isIcon ? 'span' : 'img');
+
+    if (!isIcon) {
+        (el as HTMLImageElement).src = data.src;
+        (el as HTMLImageElement).alt = data.alt || '';
+        el.style.objectFit = data.objectFit || 'cover';
+    } else {
+        // Assume using an icon font or SVG loader based on 'src' name
+        el.className = `icon icon-${data.src}`;
+    }
+
+    // Apply aspect ratio (standard CSS property)
+    if (data.aspectRatio && data.aspectRatio !== 'auto') {
+        el.style.aspectRatio = data.aspectRatio.replace(':', '/');
+    }
+
+    el.style.width = '100%';
+    el.style.maxWidth = '100%';
+    el.style.borderRadius = data.type === 'avatar' ? '50%' : radiusMap[data.borderRadius || 'none'];
+    return el;
+});
+
+// ============================================================
+// LAYER 2: INTERACTION — Field, Button
+// ============================================================
+
+// 4. THE FIELD (Input)
+registry.register('Field', (data) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.gap = '4px';
+
+    if (data.label) {
+        const label = document.createElement('label');
+        label.innerText = data.label;
+        label.style.fontSize = sizeMap.sm;
+        wrapper.appendChild(label);
+    }
+
+    const input = document.createElement('input');
+    input.type = data.type || 'text';
+    input.placeholder = data.placeholder || '';
+    input.disabled = !!data.disabled;
+    input.style.padding = padMap.sm;
+    input.style.border = data.state === 'error' ? '1px solid red' : '1px solid #ccc';
+    input.style.borderRadius = radiusMap.sm;
+
+    if (data.binding) {
+        input.oninput = (e) => bus.updateState(data.binding, (e.target as HTMLInputElement).value);
+    }
+    wrapper.appendChild(input);
+
+    if (data.description || data.errorMessage) {
+        const helper = document.createElement('span');
+        helper.innerText = (data.state === 'error' ? data.errorMessage : data.description) || '';
+        helper.style.fontSize = sizeMap.xs;
+        helper.style.color = data.state === 'error' ? 'red' : 'gray';
+        wrapper.appendChild(helper);
+    }
+    return wrapper;
+});
+
+// 5. THE BUTTON (Action)
+registry.register('Button', (data) => {
+    const btn = document.createElement('button');
+    btn.innerText = data.loading ? '...' : (data.label || 'Submit');
+    btn.disabled = !!data.disabled || !!data.loading;
+
+    btn.style.padding = `${padMap.sm} ${padMap.md}`;
+    btn.style.borderRadius = radiusMap.sm;
+    btn.style.border = data.variant === 'outline' ? '1px solid currentColor' : 'none';
+    btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer';
+
+    // Basic variant styling
+    if (data.variant === 'primary' || !data.variant) {
+        btn.style.backgroundColor = 'var(--brand-color, #007bff)';
+        btn.style.color = 'white';
+    } else if (data.variant === 'destructive') {
+        btn.style.backgroundColor = 'var(--critical-color, #dc3545)';
+        btn.style.color = 'white';
+    }
+
+    if (data.fullWidth) btn.style.width = '100%';
+
+    if (data.actionId) {
+        btn.onclick = () => bus.dispatch(data.actionId, data.context || {});
+    }
+    return btn;
+});
+
+// ============================================================
+// LAYER 3: THE Z-AXIS & INFINITY — DataGrid, Chart, Overlay
+// ============================================================
+
+// 6. THE DATAGRID (Infinity)
+registry.register('DataGrid', (data) => {
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+
+    // Table Header
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+    (data.columns || []).forEach((col: any) => {
+        const th = document.createElement('th');
+        th.innerText = col.label;
+        th.style.textAlign = col.type === 'number' ? 'right' : 'left';
+        th.style.padding = padMap.sm;
+        th.style.borderBottom = '2px solid #eee';
+        trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    // Table Body
+    const tbody = document.createElement('tbody');
+    (data.rows || []).forEach((row: any) => {
+        const tr = document.createElement('tr');
+        (data.columns || []).forEach((col: any) => {
+            const td = document.createElement('td');
+            td.innerText = row[col.key] || '';
+            td.style.textAlign = col.type === 'number' ? 'right' : 'left';
+            td.style.padding = padMap.sm;
+            td.style.borderBottom = '1px solid #eee';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+});
+
+// 7. THE CHART (Data Visualization)
+registry.register('Chart', (data) => {
+    // A placeholder wrapper: In a real app, you would pass this 'container'
+    // to a library like Chart.js or ECharts using 'data.type' and 'data.data'
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '200px';
+    container.style.display = 'flex';
+    container.style.alignItems = 'flex-end';
+    container.style.gap = '4px';
+
+    const max = Math.max(...(data.data || []).map((d: any) => d.value), 1);
+    (data.data || []).forEach((point: any) => {
+        const bar = document.createElement('div');
+        bar.style.height = `${(point.value / max) * 100}%`;
+        bar.style.flex = '1';
+        bar.style.backgroundColor = 'var(--brand-color, #007bff)';
+        container.appendChild(bar);
+    });
+    return container;
+});
+
+// 8. THE OVERLAY (The Z-Axis)
+registry.register('Overlay', (data, children) => {
+    // We use the incredibly powerful native HTML5 <dialog> element.
+    // No z-index wars, no manual focus trapping, no Escape handling — the browser does it all.
+    const dialog = document.createElement('dialog');
+    dialog.style.border = 'none';
+    dialog.style.padding = padMap[data.padding || 'lg'];
+    dialog.style.borderRadius = radiusMap[data.borderRadius || 'md'];
+
+    children.forEach(child => dialog.appendChild(child));
+
+    // Open on demand. The tree is detached during build, so defer until
+    // the engine has appended us to the live document.
+    if (data.open) {
+        setTimeout(() => dialog.showModal(), 0);
+    }
+
+    // Close via the AI contract: dispatch the action, let the model decide the next screen.
+    if (data.closeActionId) {
+        dialog.addEventListener('cancel', (e) => {
+            e.preventDefault(); // Don't auto-dismiss; the AI owns the next state.
+            bus.dispatch(data.closeActionId, data.context || {});
+        });
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                bus.dispatch(data.closeActionId, data.context || {});
+            }
+        });
+    }
+    return dialog;
+});
+
+
+
+================================================
+FILE: HANDOFF.md
+================================================
+# Handoff: A2UI Vite Migration + Unified Server
+
+## What was accomplished
+
+### Part 1 — Frontend file moves (complete)
+
+Moved from `C:\AI2026\a2ui\` → `C:\AI2026\a2ui\frontend\src\`:
+- `StreamingEngine.ts` (no changes)
+- `StateActionBus.ts` (no changes)
+- `ComponentRegistry.ts` (no changes)
+- `StreamingEngine.test.ts` (no changes)
+- `App.ts` → overwrote `frontend/src/main.ts` (see below)
+
+**New `frontend/src/main.ts`**: Contains the full ComponentRegistry wiring (all 8 renderers: Box, Text, Visual, Field, Button, DataGrid, Chart, Overlay) from the old `App.ts`, PLUS an SSE bootstrap at the bottom that:
+- Opens `EventSource('http://localhost:3000/api/ai-stream')`
+- Feeds chunks into a `StreamEngine` instance
+- Handles `beginRendering`, `surfaceUpdate`, `streamComplete` frames
+- Falls back to bare `{ rootId, components }` payloads
+- Mounts via `registry.buildNode(rootId, componentStore)` into `#ai-surface-container`
+
+**Updated `frontend/index.html`**: Replaced the Vite demo shell with an A2UI surface (`<div id="ai-surface-container">`), title "My A2UI Client".
+
+**Cleaned up**: Deleted `frontend/src/counter.ts`, `frontend/src/style.css`, and all `frontend/src/assets/` demo files.
+
+### Part 2 — Unified server.js (complete)
+
+Rewrote `C:\AI2026\a2ui\server.js` as an ES-module Express server with:
+- **CORS + JSON** middleware
+- **LLM**: `import { openai } from '@ai-sdk/openai'`, model `process.env.OPENAI_MODEL || 'gpt-4o'`
+- **MCP**: `import { createMCPClient } from '@ai-sdk/mcp'` (stable v2 API, NOT experimental), SSE transport, graceful degradation if unreachable
+- **GET `/api/ai-stream`**: Uses `streamText({ ... }).toTextStreamResponse()` to stream A2UI component trees as SSE frames (`beginRendering` → `surfaceUpdate`s → `streamComplete`)
+- **POST `/api/ai-action`**: Receives `{ action, state }` from the frontend, routes through the LLM, streams a new tree back
+- Both endpoints parse the LLM's JSON response and emit it as progressive SSE frames
+
+### Part 3 — Config + package.json (complete)
+
+- Added `"start": "node server.js"` and `"main": "server.js"` to root `package.json`
+- Updated test path to `frontend/src/StreamingEngine.test.ts`
+- Installed `dotenv` (added to root dependencies)
+- Created `.env.example` with `OPENAI_API_KEY`, `OPENAI_MODEL`, `MCP_SERVER_URL`, `PORT`
+- Root `package.json` already had `"type": "module"`
+
+### Root tests: PASSING
+All 7 StreamEngine tests pass from their new `frontend/src/` location.
+
+## What's blocked: frontend npm install
+
+The frontend Vite project at `C:\AI2026\a2ui\frontend\` cannot install its dependencies. npm resolves `typescript@~6.0.2` and `vite@^8.2.0` but fails to extract tarballs to `node_modules/` — directories are created but left empty.
+
+**What was tried:**
+- Cleared `.npmrc` (had stale `omit=dev`)
+- Deleted `node_modules/` + `package-lock.json` (multiple times)
+- Fresh npm cache `npm install --cache <empty-dir>`
+- Clean npm cache verify (3955 entries, healthy)
+- File write test (works fine in the directory)
+- Explicit `npm install vite@8.2.0 --loglevel=silly` — npm places vite in the ideal tree, marks packages for deletion in reify, but the ADD phase only adds rolldown native bindings (and those directories stay empty too)
+
+**Suspect**: npm 10.9.3 on Windows with `.package-lock.json`-based reify state that claims the tree is "up to date" despite no files on disk. Not a permissions issue — manual file writes work.
+
+**Likely fix**: Try pnpm or yarn, or upgrade npm to 12.x (`npm install -g npm@12`), or use `--install-strategy=nested` / `--prefer-online`. A fresh agent should start here.
+
+## What still needs to happen
+
+1. **Fix frontend dep install** — get `typescript` and `vite` into `frontend/node_modules`
+2. **Run `npm run build` in frontend** — verifies TypeScript compiles and Vite bundles
+3. **Smoke test the server**: `node server.js` (needs `OPENAI_API_KEY` set) + `cd frontend && npm run dev`
+4. **End-to-end**: Open Vite dev URL, confirm the A2UI surface renders from the stream, type in the Field, click Button, verify action loop
+
+## Reference files
+
+- Plan: `C:\Users\Cyrus\.commandcode\plans\a2ui-vite-migration.md`
+- Server: `C:\AI2026\a2ui\server.js`
+- Frontend entry: `C:\AI2026\a2ui\frontend\src\main.ts`
+- Frontend HTML: `C:\AI2026\a2ui\frontend\index.html`
+- Env template: `C:\AI2026\a2ui\.env.example`
+
+## Suggested skills
+
+- `diagnose` — if the npm install issue persists and needs deep debugging
+
+
+
+================================================
+FILE: index.html
+================================================
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My A2UI Client</title>
+    <style>
+        body { font-family: sans-serif; padding: 2rem; background-color: #f4f4f9; }
+        
+        /* This is our Trusted Catalog styling for a "Card" */
+        .ui-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 400px;
+            border: 1px solid #ddd;
+        }
+        
+        /* This is our Trusted Catalog styling for "Text" */
+        .ui-text {
+            color: #333;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>A2UI Protocol Test</h1>
+    
+    <!-- This empty div is the "Surface" where our AI UI will be rendered -->
+    <div id="ai-surface-container">
+        <p style="color: gray;">Waiting for AI stream...</p>
+    </div>
+
+    <script>
+        const surfaceContainer = document.getElementById('ai-surface-container');
+        
+        let componentStore = {};
+        let rootComponentId = null;
+        
+        // NEW: This dictionary holds all the data the user types in
+        let dataModel = {}; 
+
+        const eventSource = new EventSource('http://localhost:3000/a2ui-stream');
+
+        eventSource.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            if (message.beginRendering) {
+                rootComponentId = message.beginRendering.root;
+                surfaceContainer.innerHTML = ''; 
+            }
+            if (message.surfaceUpdate) {
+                message.surfaceUpdate.components.forEach(comp => {
+                    componentStore[comp.id] = comp.component;
+                });
+                drawUI();
+            }
+            if (message.streamComplete) eventSource.close();
+        };
+
+        function drawUI() {
+            if (!rootComponentId) return;
+            surfaceContainer.innerHTML = ''; 
+            const rootElement = buildHtmlNode(rootComponentId);
+            if (rootElement) surfaceContainer.appendChild(rootElement);
+        }
+
+        // THE UPDATED TRUSTED CATALOG
+        function buildHtmlNode(componentId) {
+            const compData = componentStore[componentId];
+            if (!compData) return null; 
+
+            if (compData.Box) {
+                const div = document.createElement('div');
+                div.style.display = compData.Box.layout === 'grid' ? 'grid' : 'flex';
+                div.style.flexDirection = compData.Box.direction === 'row' ? 'row' : 'column';
+                div.style.gap = compData.Box.gap || '16px';
+                div.style.padding = compData.Box.padding || '0px';
+                if (compData.Box.children) {
+                    compData.Box.children.forEach(childId => {
+                        const childNode = buildHtmlNode(childId);
+                        if (childNode) div.appendChild(childNode);
+                    });
+                }
+                return div;
+            }
+
+            // NEW CATALOG RULE: Text
+            if (compData.Text) {
+                const el = document.createElement(compData.Text.as || 'p');
+                el.innerText = compData.Text.literalString || '';
+                el.style.margin = '0';
+                return el;
+            }
+
+            // NEW CATALOG RULE: Field
+            if (compData.Field) {
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.flexDirection = 'column';
+                wrapper.style.gap = '4px';
+
+                if (compData.Field.label) {
+                    const label = document.createElement('label');
+                    label.innerText = compData.Field.label;
+                    wrapper.appendChild(label);
+                }
+
+                const input = document.createElement('input');
+                input.type = compData.Field.type || 'text';
+                input.placeholder = compData.Field.placeholder || '';
+                input.style.padding = '8px'; input.style.margin = '8px 0'; input.style.width = '90%';
+                
+                // When the user types, save it to our dataModel using the AI's requested binding key
+                const bindingKey = compData.Field.binding;
+                input.oninput = (e) => {
+                    dataModel[bindingKey] = e.target.value;
+                    console.log("Current Data Model:", dataModel); // Watch this in your browser console!
+                };
+                wrapper.appendChild(input);
+                return wrapper;
+            }
+
+            // NEW CATALOG RULE: Button
+            if (compData.Button) {
+                const btn = document.createElement('button');
+                btn.innerText = compData.Button.label;
+                btn.style.padding = '8px 16px'; btn.style.cursor = 'pointer';
+                
+                // When clicked, send the action name and all our dataModel back to the server
+                btn.onclick = () => {
+                    fetch('http://localhost:3000/ai-action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            action: compData.Button.actionId, 
+                            state: dataModel 
+                        })
+                    });
+                };
+                return btn;
+            }
+
+            console.warn("Ignoring unknown component type:", compData);
+            return null; 
+        }
+    </script>
+
+</body>
+</html>
+
+
+================================================
+FILE: package.json
+================================================
+{
+  "name": "a2ui",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --experimental-strip-types --test frontend/src/StreamingEngine.test.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ai-sdk/mcp": "^2.0.27",
+    "@ai-sdk/openai": "^4.0.33",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "ai": "^7.0.55",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
+
+
+
+================================================
+FILE: server.js
+================================================
+import express from 'express';
+import cors from 'cors';
+import 'dotenv/config';
+import { createMCPClient } from '@ai-sdk/mcp';
+import { openai } from '@ai-sdk/openai';
+import { streamText } from 'ai';
+
+const app = express();
+app.use(cors()); // CORS security: allow the Vite dev origin
+app.use(express.json());
+
+// ============================================================
+// LLM + MCP SETUP (graceful: mock stream still works without them)
+// ============================================================
+
+const model = openai(process.env.OPENAI_MODEL || 'gpt-4o');
+const useMock = !process.env.OPENAI_API_KEY || process.env.MOCK_AI === 'true';
+
+const MOCK_COMPONENTS = {
+    'comp-1': { Box: { children: ['comp-2', 'comp-3', 'comp-4', 'comp-5'], gap: 'lg', padding: 'lg', backgroundColor: 'surface-default', borderRadius: 'lg' } },
+    'comp-2': { Text: { literalString: 'A2Kit streaming demo', as: 'h1', size: '3xl', weight: 'bold', color: 'brand' } },
+    'comp-3': { Field: { label: 'Your name', binding: '/user/name', placeholder: 'Type your name' } },
+    'comp-4': { Text: { binding: '/user/name', prefix: 'Hello, ', fallback: 'stranger!', color: 'muted' } },
+    'comp-5': { Button: { label: 'Test Action Bus', variant: 'primary', actionId: 'test-action', context: { source: 'streaming-demo' } } },
+};
+
+const wait = (milliseconds) => new Promise(resolve => setTimeout(resolve, milliseconds));
+
+function mockFrames(components = MOCK_COMPONENTS) {
+    return [
+        { beginRendering: { root: 'comp-1' } },
+        ...Object.entries(components).map(([id, component]) => ({
+            surfaceUpdate: { components: { [id]: component } },
+        })),
+        { streamComplete: true },
+    ];
+}
+
+async function streamMockFrames(res, frames) {
+    for (const frame of frames) {
+        const json = JSON.stringify(frame);
+        // Deliberately split every protocol frame across SSE messages. The
+        // browser forwards each fragment to StreamEngine, which reassembles it.
+        for (let index = 0; index < json.length; index += 17) {
+            res.write(`data: ${json.slice(index, index + 17)}\n\n`);
+            await wait(35);
+        }
+    }
+    res.end();
+}
+
+let mcpTools = {};
+if (!useMock) {
+    try {
+        const mcpClient = await createMCPClient({
+            transport: {
+                type: 'sse',
+                url: process.env.MCP_SERVER_URL || 'http://localhost:8765/sse'
+            }
+        });
+        mcpTools = await mcpClient.tools();
+        console.log('Connected to MCP server, loaded tools:', Object.keys(mcpTools));
+    } catch (err) {
+        console.warn('MCP server not reachable — continuing without DB tools.', err?.message || err);
+    }
+} else {
+    console.log('MOCK_AI enabled; skipping OpenAI and MCP connections.');
+}
+
+// The A2UI component catalog the model is allowed to emit.
+const CATALOG_SYSTEM = `
+You are a UI generator using the A2UI protocol. You emit ONLY JSON.
+Allowed components: Box, Text, Visual, Field, Button, DataGrid, Chart, Overlay.
+Layout: Box supports layout:"flex"|"grid", direction, gap, padding, align, justify, wrap, columns, colSpan, flexGrow, backgroundColor, borderRadius.
+Text: literalString, as, size (xs|sm|base|lg|xl|2xl|3xl), weight (bold|semibold), color, align, truncate.
+Visual: src, alt, type (img|icon|avatar), aspectRatio, objectFit, borderRadius.
+Field: label, binding (a JSON pointer like "/user/name"), placeholder, type, disabled, state, description, errorMessage.
+Button: label, variant (primary|outline|destructive), disabled, loading, fullWidth, actionId, context.
+DataGrid: columns [{key,label,type}], rows [{key:value}]. Chart: type, data [{label,value}]. Overlay: open, padding, borderRadius, closeActionId, context.
+Use design tokens only. Emit your answer as a single flat JSON object:
+{"rootId":"comp-1","components":{"comp-1":{"Box":{"children":["comp-2",...]}},"comp-2":{...}}}
+The first component is the root. Never emit markdown, prose, or arrays of trees.
+`;
+
+// ============================================================
+// 1. THE STREAM ENDPOINT — initial AI-generated UI
+// ============================================================
+app.get('/api/ai-stream', async (req, res) => {
+    console.log('Frontend connected to stream...');
+
+    // SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const writeFrame = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+    if (useMock) {
+        console.log('Mock AI stream started; sending deliberately fragmented JSON.');
+        await streamMockFrames(res, mockFrames());
+        console.log('Mock stream complete.');
+        return;
+    }
+
+    try {
+        const result = streamText({
+            model,
+            system: CATALOG_SYSTEM,
+            prompt: 'Generate a welcome screen with a name Field, a greeting Text, and a Button labeled "Test Action Bus".',
+            tools: mcpTools,
+        });
+
+        const stream = result.toTextStreamResponse().body;
+        const reader = stream.getReader();
+        const decoder = new TextDecoder();
+
+        // The LLM streams a single JSON object; buffer until complete JSON.
+        let buffer = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            // Try to extract a complete JSON object as it forms
+            let parsed = null;
+            try {
+                parsed = JSON.parse(buffer);
+            } catch {
+                continue;
+            }
+            buffer = ''; // consumed
+
+            if (parsed?.rootId && parsed?.components) {
+                const rootId = parsed.rootId;
+                const components = parsed.components;
+
+                writeFrame({ beginRendering: { root: rootId } });
+
+                // Stream each component in its own surfaceUpdate frame so the
+                // frontend paints progressively as chunks arrive.
+                for (const [id, component] of Object.entries(components)) {
+                    writeFrame({ surfaceUpdate: { components: { [id]: component } } });
+                }
+
+                writeFrame({ streamComplete: true });
+                res.end();
+                console.log('Stream complete.');
+                return;
+            }
+        }
+
+        res.end();
+    } catch (err) {
+        console.error('Stream error:', err);
+        res.status(500).end();
+    }
+});
+
+// ============================================================
+// 2. THE ACTION ENDPOINT — user actions routed back through the LLM
+// ============================================================
+app.post('/api/ai-action', async (req, res) => {
+    console.log('Action Bus Triggered!');
+    console.log('Payload from Frontend:', req.body);
+
+    const { action, state } = req.body || {};
+    const eventName = action?.event?.name || 'unknown';
+    const context = action?.event?.context || {};
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const writeFrame = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);
+
+    if (useMock) {
+        console.log('Mock action received:', { eventName, context, state });
+        const mockActionComponents = structuredClone(MOCK_COMPONENTS);
+        mockActionComponents['comp-2'] = {
+            Text: {
+                literalString: `Action received: ${eventName}`,
+                as: 'h1',
+                size: '3xl',
+                weight: 'bold',
+                color: 'brand',
+            },
+        };
+        await streamMockFrames(res, mockFrames(mockActionComponents));
+        console.log('Mock action stream complete.');
+        return;
+    }
+
+    try {
+        const result = streamText({
+            model,
+            system: CATALOG_SYSTEM,
+            prompt: `User triggered action "${eventName}" with context ${JSON.stringify(context)}. Current state: ${JSON.stringify(state)}. Generate the next screen.`,
+            tools: mcpTools,
+        });
+
+        const stream = result.toTextStreamResponse().body;
+        const reader = stream.getReader();
+        const decoder = new TextDecoder();
+
+        let buffer = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let parsed = null;
+            try {
+                parsed = JSON.parse(buffer);
+            } catch {
+                continue;
+            }
+            buffer = '';
+
+            if (parsed?.rootId && parsed?.components) {
+                writeFrame({ beginRendering: { root: parsed.rootId } });
+                for (const [id, component] of Object.entries(parsed.components)) {
+                    writeFrame({ surfaceUpdate: { components: { [id]: component } } });
+                }
+                writeFrame({ streamComplete: true });
+                res.end();
+                return;
+            }
+        }
+
+        res.end();
+    } catch (err) {
+        console.error('Action stream error:', err);
+        res.status(500).end();
+    }
+});
+
+// ============================================================
+// 3. BOOT
+// ============================================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`A2UI Unified Server running on http://localhost:${PORT}`);
+});
+
+
+
+================================================
+FILE: .env.example
+================================================
+# OpenAI-compatible LLM API key (required for LLM-driven UI generation)
+OPENAI_API_KEY=sk-...
+
+# Model id used for UI generation
+OPENAI_MODEL=gpt-4o
+
+# URL of your local MCP server (Streamable HTTP / SSE transport)
+MCP_SERVER_URL=http://localhost:8765/sse
+
+# Port for this Express server
+PORT=3000
+
+
+
+================================================
+FILE: frontend/index.html
+================================================
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A2Kit - Dynamic Interface</title>
+  </head>
+  <body>
+    <main id="ai-surface-container" aria-live="polite">
+      <p>Awaiting AI stream...</p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+
+
+
+================================================
+FILE: frontend/package.json
+================================================
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2",
+    "vite": "^8.2.0"
+  }
+}
+
+
+
+================================================
+FILE: frontend/tsconfig.json
+================================================
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "module": "esnext",
+    "lib": ["ES2023", "DOM"],
+    "types": ["vite/client"],
+    "allowArbitraryExtensions": true,
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts"]
+}
+
+
+
+================================================
+FILE: frontend/src/ComponentRegistry.ts
+================================================
+// This is the shape of the function you will write in your actual app
+export type ComponentRenderer = (
+    componentData: any, 
+    builtChildren: HTMLElement[]
+) => HTMLElement | null;
+
+// This represents the flat dictionary of all components currently on screen
+export type ComponentStore = Record<string, any>;
+
+export class ComponentRegistry {
+    // Our secure dictionary mapping names (like 'Card') to functions
+    private renderers: Map<string, ComponentRenderer> = new Map();
+
+    /**
+     * THE DEVELOPER API: 
+     * Use this to teach the kit how to draw specific components.
+     */
+    public register(componentName: string, renderer: ComponentRenderer) {
+        this.renderers.set(componentName, renderer);
+    }
+
+    /**
+     * THE INTERNAL ENGINE: 
+     * Transforms a flat A2UI component ID into a real HTML tree.
+     */
+    public buildNode(componentId: string, flatStore: ComponentStore): HTMLElement | null {
+        const compNode = flatStore[componentId];
+        if (!compNode) return null; // Component hasn't streamed in yet
+
+        // In A2UI, the key is the component name (e.g., { "Card": { ... } })
+        const componentName = Object.keys(compNode)[0]; 
+        const componentData = compNode[componentName];
+
+        // 1. THE ZERO-TRUST FIREWALL
+        const renderer = this.renderers.get(componentName);
+        if (!renderer) {
+            console.warn(`[A2Kit Security] Blocked unregistered component: ${componentName}`);
+            return null; // The AI hallucinates, the kit ignores.
+        }
+
+        // 2. RECURSIVE RESOLUTION
+        const builtChildren: HTMLElement[] = [];
+        
+        // If the AI specified children, we build them first
+        if (componentData.children && Array.isArray(componentData.children)) {
+            componentData.children.forEach((childId: string) => {
+                const childElement = this.buildNode(childId, flatStore);
+                if (childElement) {
+                    builtChildren.push(childElement);
+                }
+            });
+        }
+
+        // 3. EXECUTE THE RENDERER
+        // We pass the data and the fully assembled children to your custom function
+        return renderer(componentData, builtChildren);
+    }
+} // End of class
+
+
+================================================
+FILE: frontend/src/main.ts
+================================================
+import './style.css';
+import { StreamEngine } from './StreamingEngine';
+import { StateActionBus } from './StateActionBus';
+import { ComponentRegistry } from './ComponentRegistry';
+
+// 1. Initialize the State Bus (pointing to your Node.js MCP server)
+let streamEngine: StreamEngine;
+const bus = new StateActionBus(
+    'http://localhost:3000/api/ai-action',
+    (chunk) => streamEngine.receiveChunk(chunk),
+);
+
+// 2. Initialize the Component Registry
+const registry = new ComponentRegistry();
+
+// ============================================================
+// TOKEN DICTIONARIES (The Design System Firewall)
+// AI tokens -> safe CSS values. Everything the AI can express
+// flows through here, so it can never inject raw CSS.
+// ============================================================
+const gapMap: Record<string, string> = { none: '0', sm: '8px', md: '16px', lg: '24px', xl: '32px' };
+const padMap: Record<string, string> = { none: '0', sm: '12px', md: '20px', lg: '32px', xl: '48px' };
+const radiusMap: Record<string, string> = { none: '0', sm: '4px', md: '8px', lg: '16px', full: '9999px' };
+const sizeMap: Record<string, string> = { xs: '0.75rem', sm: '0.875rem', base: '1rem', lg: '1.125rem', xl: '1.25rem', '2xl': '1.5rem', '3xl': '1.875rem' };
+
+// ============================================================
+// LAYER 1: STRUCTURE & ASSETS — Box, Text, Visual
+// ============================================================
+
+// 1. THE BOX (Layout Engine)
+registry.register('Box', (data, children) => {
+    const div = document.createElement('div');
+    div.style.display = data.layout === 'grid' ? 'grid' : 'flex';
+    div.style.boxSizing = 'border-box';
+
+    if (data.layout === 'grid') {
+        if (data.columns) div.style.gridTemplateColumns = `repeat(${data.columns}, 1fr)`;
+    } else {
+        div.style.flexDirection = data.direction === 'row' ? 'row' : 'column';
+        if (data.align) div.style.alignItems = data.align === 'start' ? 'flex-start' : data.align === 'end' ? 'flex-end' : data.align;
+        if (data.justify) div.style.justifyContent = data.justify === 'between' ? 'space-between' : data.justify;
+        if (data.wrap) div.style.flexWrap = 'wrap';
+    }
+
+    if (data.colSpan) div.style.gridColumn = `span ${data.colSpan}`;
+    if (data.flexGrow !== undefined) div.style.flexGrow = data.flexGrow.toString();
+
+    div.style.gap = gapMap[data.gap || 'md'];
+    div.style.padding = padMap[data.padding || 'none'];
+    div.style.backgroundColor = data.backgroundColor ? `var(--color-${data.backgroundColor})` : 'transparent';
+    div.style.borderRadius = radiusMap[data.borderRadius || 'none'];
+
+    children.forEach(child => div.appendChild(child));
+    return div;
+});
+
+// 2. THE TEXT (Typography)
+registry.register('Text', (data) => {
+    const el = document.createElement(data.as || 'p');
+    const renderText = (value?: unknown) => {
+        el.innerText = data.binding
+            ? `${data.prefix || ''}${value || data.fallback || ''}`
+            : (data.literalString || '');
+    };
+    renderText();
+    if (data.binding) bus.subscribe(data.binding, renderText);
+    el.style.fontSize = sizeMap[data.size || 'base'];
+    el.style.fontWeight = data.weight === 'bold' ? '700' : data.weight === 'semibold' ? '600' : '400';
+    el.style.color = data.color ? `var(--text-${data.color})` : 'inherit';
+    el.style.textAlign = data.align || 'left';
+    el.style.margin = '0';
+
+    if (data.truncate) {
+        el.style.overflow = 'hidden';
+        el.style.textOverflow = 'ellipsis';
+        el.style.whiteSpace = 'nowrap';
+    }
+    return el;
+});
+
+// 3. THE VISUAL (Media)
+registry.register('Visual', (data) => {
+    const isIcon = data.type === 'icon';
+    const el = document.createElement(isIcon ? 'span' : 'img');
+
+    if (!isIcon) {
+        (el as HTMLImageElement).src = data.src;
+        (el as HTMLImageElement).alt = data.alt || '';
+        el.style.objectFit = data.objectFit || 'cover';
+    } else {
+        // Assume using an icon font or SVG loader based on 'src' name
+        el.className = `icon icon-${data.src}`;
+    }
+
+    // Apply aspect ratio (standard CSS property)
+    if (data.aspectRatio && data.aspectRatio !== 'auto') {
+        el.style.aspectRatio = data.aspectRatio.replace(':', '/');
+    }
+
+    el.style.width = '100%';
+    el.style.maxWidth = '100%';
+    el.style.borderRadius = data.type === 'avatar' ? '50%' : radiusMap[data.borderRadius || 'none'];
+    return el;
+});
+
+// ============================================================
+// LAYER 2: INTERACTION — Field, Button
+// ============================================================
+
+// 4. THE FIELD (Input)
+registry.register('Field', (data) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.gap = '4px';
+
+    if (data.label) {
+        const label = document.createElement('label');
+        label.innerText = data.label;
+        label.style.fontSize = sizeMap.sm;
+        wrapper.appendChild(label);
+    }
+
+    const input = document.createElement('input');
+    input.type = data.type || 'text';
+    input.placeholder = data.placeholder || '';
+    input.value = data.binding ? (bus.getState(data.binding) || '') : '';
+    input.disabled = !!data.disabled;
+    input.style.padding = padMap.sm;
+    input.style.border = data.state === 'error' ? '1px solid red' : '1px solid #ccc';
+    input.style.borderRadius = radiusMap.sm;
+
+    if (data.binding) {
+        input.oninput = (e) => bus.updateState(data.binding, (e.target as HTMLInputElement).value);
+    }
+    wrapper.appendChild(input);
+
+    if (data.description || data.errorMessage) {
+        const helper = document.createElement('span');
+        helper.innerText = (data.state === 'error' ? data.errorMessage : data.description) || '';
+        helper.style.fontSize = sizeMap.xs;
+        helper.style.color = data.state === 'error' ? 'red' : 'gray';
+        wrapper.appendChild(helper);
+    }
+    return wrapper;
+});
+
+// 5. THE BUTTON (Action)
+registry.register('Button', (data) => {
+    const btn = document.createElement('button');
+    btn.innerText = data.loading ? '...' : (data.label || 'Submit');
+    btn.disabled = !!data.disabled || !!data.loading;
+
+    btn.style.padding = `${padMap.sm} ${padMap.md}`;
+    btn.style.borderRadius = radiusMap.sm;
+    btn.style.border = data.variant === 'outline' ? '1px solid currentColor' : 'none';
+    btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer';
+
+    // Basic variant styling
+    if (data.variant === 'primary' || !data.variant) {
+        btn.style.backgroundColor = 'var(--brand-color, #007bff)';
+        btn.style.color = 'white';
+    } else if (data.variant === 'destructive') {
+        btn.style.backgroundColor = 'var(--critical-color, #dc3545)';
+        btn.style.color = 'white';
+    }
+
+    if (data.fullWidth) btn.style.width = '100%';
+
+    if (data.actionId) {
+        btn.onclick = () => bus.dispatch(data.actionId, data.context || {});
+    }
+    return btn;
+});
+
+// ============================================================
+// LAYER 3: THE Z-AXIS & INFINITY — DataGrid, Chart, Overlay
+// ============================================================
+
+// 6. THE DATAGRID (Infinity)
+registry.register('DataGrid', (data) => {
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+
+    // Table Header
+    const thead = document.createElement('thead');
+    const trHead = document.createElement('tr');
+    (data.columns || []).forEach((col: any) => {
+        const th = document.createElement('th');
+        th.innerText = col.label;
+        th.style.textAlign = col.type === 'number' ? 'right' : 'left';
+        th.style.padding = padMap.sm;
+        th.style.borderBottom = '2px solid #eee';
+        trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    // Table Body
+    const tbody = document.createElement('tbody');
+    (data.rows || []).forEach((row: any) => {
+        const tr = document.createElement('tr');
+        (data.columns || []).forEach((col: any) => {
+            const td = document.createElement('td');
+            td.innerText = row[col.key] || '';
+            td.style.textAlign = col.type === 'number' ? 'right' : 'left';
+            td.style.padding = padMap.sm;
+            td.style.borderBottom = '1px solid #eee';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+});
+
+// 7. THE CHART (Data Visualization)
+registry.register('Chart', (data) => {
+    // A placeholder wrapper: In a real app, you would pass this 'container'
+    // to a library like Chart.js or ECharts using 'data.type' and 'data.data'
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '200px';
+    container.style.display = 'flex';
+    container.style.alignItems = 'flex-end';
+    container.style.gap = '4px';
+
+    const max = Math.max(...(data.data || []).map((d: any) => d.value), 1);
+    (data.data || []).forEach((point: any) => {
+        const bar = document.createElement('div');
+        bar.style.height = `${(point.value / max) * 100}%`;
+        bar.style.flex = '1';
+        bar.style.backgroundColor = 'var(--brand-color, #007bff)';
+        container.appendChild(bar);
+    });
+    return container;
+});
+
+// 8. THE OVERLAY (The Z-Axis)
+registry.register('Overlay', (data, children) => {
+    // We use the incredibly powerful native HTML5 <dialog> element.
+    // No z-index wars, no manual focus trapping, no Escape handling — the browser does it all.
+    const dialog = document.createElement('dialog');
+    dialog.style.border = 'none';
+    dialog.style.padding = padMap[data.padding || 'lg'];
+    dialog.style.borderRadius = radiusMap[data.borderRadius || 'md'];
+
+    children.forEach(child => dialog.appendChild(child));
+
+    // Open on demand. The tree is detached during build, so defer until
+    // the engine has appended us to the live document.
+    if (data.open) {
+        setTimeout(() => dialog.showModal(), 0);
+    }
+
+    // Close via the AI contract: dispatch the action, let the model decide the next screen.
+    if (data.closeActionId) {
+        dialog.addEventListener('cancel', (e) => {
+            e.preventDefault(); // Don't auto-dismiss; the AI owns the next state.
+            bus.dispatch(data.closeActionId, data.context || {});
+        });
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                bus.dispatch(data.closeActionId, data.context || {});
+            }
+        });
+    }
+    return dialog;
+});
+
+// ============================================================
+// THE SURFACE — where the AI's streamed UI gets mounted
+// ============================================================
+
+const surfaceContainer = document.getElementById('ai-surface-container')!;
+
+// The flat dictionary of every component currently on screen,
+// keyed by the ids the server assigns (e.g. "comp-1", "comp-2").
+let componentStore: Record<string, any> = {};
+let rootComponentId: string | null = null;
+
+function drawUI() {
+    if (!rootComponentId) return;
+    surfaceContainer.innerHTML = '';
+    const rootElement = registry.buildNode(rootComponentId, componentStore);
+    if (rootElement) surfaceContainer.appendChild(rootElement);
+}
+
+// The StreamEngine turns the server's raw character chunks into
+// complete JSON objects (repairing hallucinated JSON along the way).
+streamEngine = new StreamEngine((data) => {
+    if (data.beginRendering) {
+        rootComponentId = data.beginRendering.root;
+        componentStore = {};
+        surfaceContainer.innerHTML = '';
+        return;
+    }
+    if (data.surfaceUpdate) {
+        Object.assign(componentStore, data.surfaceUpdate.components);
+        drawUI();
+        return;
+    }
+    if (data.streamComplete) {
+        eventSource?.close();
+        return;
+    }
+    // Fallback: the server may emit the bare component tree
+    // (e.g. { "rootId": "comp-1", "components": {...} })
+    if (data.rootId && data.components) {
+        rootComponentId = data.rootId;
+        componentStore = data.components;
+        drawUI();
+    }
+});
+
+let eventSource: EventSource | null = null;
+const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+const frontendOnly = import.meta.env.VITE_FRONTEND_ONLY === 'true';
+
+if (!frontendOnly) {
+    eventSource = new EventSource(`${backendUrl}/api/ai-stream`);
+    eventSource.onmessage = (event) => streamEngine.receiveChunk(event.data);
+} else {
+    // Frontend-only mode: render a representative A2UI payload without a server.
+    streamEngine.receiveChunk(JSON.stringify({
+        rootId: 'comp-1',
+        components: {
+            'comp-1': { Box: { children: ['comp-2', 'comp-3', 'comp-4', 'comp-5'], gap: 'lg', padding: 'lg', backgroundColor: 'surface-default', borderRadius: 'lg' } },
+            'comp-2': { Text: { literalString: 'A2Kit frontend is working', as: 'h1', size: '3xl', weight: 'bold', color: 'brand' } },
+            'comp-3': { Field: { label: 'Your name', binding: '/user/name', placeholder: 'Type a name' } },
+            'comp-4': { Text: { binding: '/user/name', prefix: 'Hello, ', fallback: 'stranger!', color: 'muted' } },
+            'comp-5': { Button: { label: 'Test Action Bus', variant: 'primary', actionId: 'test-action' } },
+        },
+    }));
+}
+
+
+
+================================================
+FILE: frontend/src/StateActionBus.ts
+================================================
+export class StateActionBus {
+    // The central brain: stores all user input (e.g., { "/form/email": "cyrus@test.com" })
+    private dataModel: Record<string, any> = {};
+    
+    // The URL where we send user actions back to the LLM backend
+    private actionEndpoint: string;
+    private onStreamChunk?: (chunk: string) => void;
+    private subscribers = new Map<string, Set<(value: any) => void>>();
+
+    constructor(actionEndpoint: string, onStreamChunk?: (chunk: string) => void) {
+        this.actionEndpoint = actionEndpoint;
+        this.onStreamChunk = onStreamChunk;
+    }
+
+    /**
+     * THE STATE MUTATOR
+     * Input components (TextFields, Checkboxes) call this when the user types.
+     */
+    public updateState(path: string, value: any) {
+        // In A2UI, the path is usually a JSON Pointer like "/form/username"
+        this.dataModel[path] = value;
+        this.subscribers.get(path)?.forEach(listener => listener(value));
+        console.log(`[A2Kit State Updated] ${path}:`, value);
+    }
+
+    public getState(path: string) {
+        return this.dataModel[path];
+    }
+
+    public subscribe(path: string, listener: (value: any) => void) {
+        const listeners = this.subscribers.get(path) || new Set();
+        listeners.add(listener);
+        this.subscribers.set(path, listeners);
+        listener(this.dataModel[path]);
+        return () => listeners.delete(listener);
+    }
+    
+    /**
+     * THE ACTION DISPATCHER
+     * Button components call this to send events back to the AI.
+     */
+    public async dispatch(eventName: string, context: Record<string, any> = {}) {
+        console.log(`[A2Kit Dispatching Action] ${eventName}`);
+        
+        // We package the event name, any specific context, AND the entire user state
+        const payload = {
+            action: {
+                event: {
+                    name: eventName,
+                    context: context
+                }
+            },
+            // The AI needs the dataModel to know what the user typed!
+            state: this.dataModel 
+        };
+
+        try {
+            const response = await fetch(this.actionEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                console.error("Failed to send action to AI:", response.statusText);
+                return;
+            }
+
+            if (!response.body || !this.onStreamChunk) return;
+
+            const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+            let buffer = '';
+            while (true) {
+                const { value, done } = await reader.read();
+                buffer += value || '';
+
+                const events = buffer.split(/\r?\n\r?\n/);
+                buffer = events.pop() || '';
+                for (const event of events) {
+                    const data = event
+                        .split(/\r?\n/)
+                        .filter(line => line.startsWith('data:'))
+                        .map(line => line.slice(5).trimStart())
+                        .join('\n');
+                    if (data) this.onStreamChunk(data);
+                }
+
+                if (done) break;
+            }
+        } catch (error) {
+            console.error("Network error dispatching A2UI action:", error);
+        }
+    }
+} // End of class
+
+
+================================================
+FILE: frontend/src/StreamingEngine.test.ts
+================================================
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { StreamEngine } from './StreamingEngine.ts';
+
+test('parses JSON split across chunks', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('{"name":');
+    engine.receiveChunk('"Ada"}');
+
+    assert.deepEqual(values, [{ name: 'Ada' }]);
+});
+
+test('strips Markdown JSON fences', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('```json\n{"ok":true}\n```');
+
+    assert.deepEqual(values, [{ ok: true }]);
+});
+
+test('parses multiple objects from one chunk', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('{"id":1}{"id":2}');
+
+    assert.deepEqual(values, [{ id: 1 }, { id: 2 }]);
+});
+
+test('ignores braces and escaped quotes inside strings', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('{"text":"brace } and quote \\\"ok\\\""}');
+
+    assert.deepEqual(values, [{ text: 'brace } and quote "ok"' }]);
+});
+
+test('repairs trailing commas in objects and arrays', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('{"items":[1,2,],}');
+
+    assert.deepEqual(values, [{ items: [1, 2] }]);
+});
+
+test('repairs raw newlines inside string values', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('{"text":"first\nsecond"}');
+
+    assert.deepEqual(values, [{ text: 'first\nsecond' }]);
+});
+
+test('does not invoke the callback for unrecoverable JSON', () => {
+    const values: unknown[] = [];
+    const engine = new StreamEngine(value => values.push(value));
+
+    engine.receiveChunk('{"value": nope}');
+
+    assert.deepEqual(values, []);
+});
+
+
+
+================================================
+FILE: frontend/src/StreamingEngine.ts
+================================================
+export class StreamEngine {
+    // This holds the broken, incomplete chunks of text
+    private buffer: string = "";
+    
+    // This is the callback function we fire when we find a complete JSON object
+    private onValidObject: (data: any) => void;
+
+    constructor(onValidObject: (data: any) => void) {
+        this.onValidObject = onValidObject;
+    }
+
+    // The outside world (the SSE connection) pushes new chunks here
+    public receiveChunk(chunk: string) {
+        // Strip Markdown fences and optional `json` language declarations.
+        const sanitizedChunk = chunk.replace(/```json\r?\n?/gi, '').replace(/```\r?\n?/g, '');
+
+        this.buffer += sanitizedChunk;
+        this.processBuffer();
+    }
+
+    private processBuffer() {
+        let openBraces = 0;
+        let isInsideString = false;
+        let escapeNext = false;
+        let startIndex = -1;
+
+        for (let i = 0; i < this.buffer.length; i++) {
+            const char = this.buffer[i];
+
+            // 1. Handle escape characters (like \")
+            if (escapeNext) {
+                escapeNext = false;
+                continue;
+            }
+            if (char === '\\') {
+                escapeNext = true;
+                continue;
+            }
+
+            // 2. Toggle string state so we don't count brackets inside quotes
+            if (char === '"') {
+                isInsideString = !isInsideString;
+                continue;
+            }
+
+            // 3. Count the Brackets!
+            if (!isInsideString) {
+                if (char === '{') {
+                    // Mark the start of a new JSON object
+                    if (openBraces === 0) startIndex = i; 
+                    openBraces++;
+                } else if (char === '}') {
+                    openBraces--;
+                    
+                    // 4. WE FOUND A COMPLETE OBJECT
+                    if (openBraces === 0 && startIndex !== -1) {
+                        // Extract the complete JSON string from the buffer
+                        const jsonString = this.buffer.substring(startIndex, i + 1);
+                        
+                        try {
+                            const parsedData = JSON.parse(jsonString);
+                            this.onValidObject(parsedData); // Pass it to the UI!
+                        } catch (e) {
+                            try {
+                                const repairedString = this.repairJson(jsonString);
+                                const parsedData = JSON.parse(repairedString);
+                                this.onValidObject(parsedData);
+                                console.log("[StreamEngine] Successfully repaired hallucinated JSON.");
+                            } catch (repairError) {
+                                console.error("[StreamEngine] Fatal JSON error:", repairError);
+                            }
+                        }
+
+                        // Remove the processed object from our buffer
+                        this.buffer = this.buffer.substring(i + 1);
+                        
+                        // Recursively check if there are MORE objects hiding in the remaining buffer
+                        this.processBuffer(); 
+                        return; 
+                    }
+                }
+            }
+        }
+    }
+
+    private repairJson(jsonString: string): string {
+        let repaired = jsonString
+            .replace(/,\s*}/g, '}')
+            .replace(/,\s*]/g, ']');
+
+        // Escape literal line breaks only while inside a JSON string. Newlines
+        // outside strings are legal JSON whitespace and must be preserved.
+        let result = '';
+        let isInsideString = false;
+        let escapeNext = false;
+
+        for (const char of repaired) {
+            if (escapeNext) {
+                result += char;
+                escapeNext = false;
+                continue;
+            }
+
+            if (char === '\\') {
+                result += char;
+                escapeNext = true;
+                continue;
+            }
+
+            if (char === '"') {
+                result += char;
+                isInsideString = !isInsideString;
+                continue;
+            }
+
+            if (isInsideString && char === '\n') {
+                result += '\\n';
+            } else if (isInsideString && char === '\r') {
+                result += '\\r';
+            } else {
+                result += char;
+            }
+        }
+
+        return result;
+    }
+} // End of class
+
+
+
+================================================
+FILE: frontend/src/style.css
+================================================
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #213547;
+  background-color: #f9fafb;
+
+  /* A2Kit Design System Tokens */
+  --brand-color: #2563eb;
+  --critical-color: #dc2626;
+  --color-surface-default: #ffffff;
+  --color-surface-warning: #fef3c7;
+  --text-muted: #6b7280;
+  --text-brand: #2563eb;
+  --text-critical: #dc2626;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100vh;
+}
+
+#ai-surface-container {
+  max-inline-size: 48rem;
+  margin-inline: auto;
+  padding: 2rem;
+}
+
+input,
+button {
+  box-sizing: border-box;
+  min-block-size: 2.75rem;
+  font: inherit;
+}
+
+:where(input, button):focus-visible {
+  outline: 0.1875rem solid var(--brand-color);
+  outline-offset: 0.125rem;
+}
+
+

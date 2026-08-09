@@ -1,0 +1,19 @@
+{
+  "name": "@weaver/playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "@weaver/core": "workspace:*",
+    "@weaver/web": "workspace:*"
+  },
+  "devDependencies": {
+    "vite": "^8.2.0"
+  }
+}

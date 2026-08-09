@@ -1,23 +1,17 @@
 {
-  "name": "a2ui",
-  "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
+  "name": "weaver",
+  "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.15.0",
   "scripts": {
-    "start": "node server.js",
-    "test": "node --experimental-strip-types --test frontend/src/StreamingEngine.test.ts"
+    "build": "pnpm -r --workspace-concurrency=1 run build",
+    "test": "pnpm -r --workspace-concurrency=1 --if-present run test && pnpm run test:prototype",
+    "test:prototype": "node --experimental-strip-types --test frontend/src/StreamingEngine.test.ts",
+    "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
+    "clean": "pnpm -r --if-present run clean"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@ai-sdk/mcp": "^2.0.27",
-    "@ai-sdk/openai": "^4.0.33",
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "ai": "^7.0.55",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^6.0.2"
   }
 }

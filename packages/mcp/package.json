@@ -1,0 +1,20 @@
+{
+  "name": "@weaver/mcp",
+  "version": "0.0.0-dev",
+  "type": "module",
+  "files": ["dist"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "@weaver/core": "workspace:*"
+  }
+}

@@ -5,3 +5,6 @@ dist-ssr
 .commandcode
 nul
 .npm-cache-tmp
+.pnpm-store
+.corepack
+.pnpm-home
