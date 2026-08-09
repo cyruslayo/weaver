@@ -336,9 +336,53 @@ atomic storage
 
 Unknown types and invalid properties never reach `SurfaceStore`. Validation is
 batch-wide and does not revalidate existing state. Unresolved child references
-remain allowed during progressive delivery; reference resolution and root
-completeness are separate future surface/render checks. Deleting and recreating
-a surface is the only way to select another catalog.
+remain allowed during progressive delivery. Deleting and recreating a surface
+is the only way to select another catalog.
+
+## Derived component trees
+
+```text
+CatalogRegistry
+      │
+      └── structural metadata
+             │
+             v
+SurfaceSnapshot
+      │
+      v
+ComponentTreeResolver
+      │
+      ├── root
+      ├── static child links
+      ├── template descriptors
+      └── progressive issues
+```
+
+`SurfaceStore` remains the single source of truth: components stay in its flat
+A2UI adjacency-list map. `ComponentTreeResolver` is a pure, framework-independent
+`snapshot in → tree out` operation. It derives a temporary defensive tree from
+the current snapshot, starts only at component ID `root`, and does not subscribe,
+buffer, render DOM, resolve bindings, execute functions, or instantiate dynamic
+lists. A missing root is successful progressive state (`ready: false`). Missing
+children and cycles are non-fatal issues; missing catalog or component structural
+metadata is fatal.
+
+### Architecture decision: catalog-defined structure
+
+Weaver does not hard-code property names such as `children`, `child`, `content`,
+or `trigger`. At atomic catalog registration, `CatalogRegistry` inspects each
+component schema's direct properties and records fields whose `$ref` is exactly
+`common_types.json#/$defs/ComponentId` or
+`common_types.json#/$defs/ChildList`. This deliberately narrow A2UI convention
+supports custom catalogs without becoming a general JSON Schema reasoning
+engine. The public structural query returns copied field arrays and does not
+expose Ajv or schema-walking helpers.
+
+A `ChildList` array becomes ordered static links. Its `{ path, componentId }`
+form remains a template descriptor only; DataContext and list instantiation are
+later milestones. Official `web_core` renderer behavior should be used as a
+future conformance reference, but `@a2ui/web_core` is not a runtime dependency
+and Weaver will not maintain a second runtime implementation.
 
 ## Application boundary
 

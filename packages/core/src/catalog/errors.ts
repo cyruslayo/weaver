@@ -7,6 +7,7 @@ export type CatalogRegistryErrorCode =
   | "THEME_SCHEMA_NOT_FOUND"
   | "THEME_VALIDATION_FAILED"
   | "COMPONENT_NOT_ALLOWED"
+  | "COMPONENT_STRUCTURE_NOT_FOUND"
   | "COMPONENT_VALIDATION_FAILED";
 
 export interface CatalogRegistryError {

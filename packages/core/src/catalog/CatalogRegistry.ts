@@ -4,8 +4,10 @@ import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js"
 import type { CatalogRegistryError } from "./errors.js";
 import { A2UI_CATALOG_SCHEMA } from "./schema.js";
 import type {
+  CatalogComponentStructureResult,
   CatalogComponentValidationResult,
   CatalogRegistration,
+  ComponentStructureDefinition,
   CatalogRegistryResult,
   CatalogSnapshot,
   CatalogThemeValidationResult,
@@ -15,7 +17,24 @@ import type {
 interface RegisteredCatalog {
   schema: JsonObject;
   validators: ReadonlyMap<string, ValidateFunction>;
+  structures: ReadonlyMap<string, ComponentStructureDefinition>;
   themeValidator: ValidateFunction;
+}
+
+const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
+const CHILD_LIST_REF = "common_types.json#/$defs/ChildList";
+
+function discoverStructure(componentSchema: JsonObject): ComponentStructureDefinition {
+  const structure: ComponentStructureDefinition = { singleChildFields: [], childListFields: [] };
+  const properties = componentSchema.properties;
+  if (properties === null || Array.isArray(properties) || typeof properties !== "object") return structure;
+
+  for (const [property, propertySchema] of Object.entries(properties)) {
+    if (propertySchema === null || Array.isArray(propertySchema) || typeof propertySchema !== "object") continue;
+    if (propertySchema.$ref === COMPONENT_ID_REF) structure.singleChildFields.push(property);
+    if (propertySchema.$ref === CHILD_LIST_REF) structure.childListFields.push(property);
+  }
+  return structure;
 }
 
 function cloneJson<T extends JsonValue>(value: T): T {
@@ -82,6 +101,7 @@ export class CatalogRegistry {
 
     const components = schema.components as JsonObject;
     const validators = new Map<string, ValidateFunction>();
+    const structures = new Map<string, ComponentStructureDefinition>();
     let themeValidator: ValidateFunction;
     try {
       for (const [componentName, componentSchema] of Object.entries(components)) {
@@ -89,13 +109,14 @@ export class CatalogRegistry {
           throw new Error("invalid component schema");
         }
         if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
+        structures.set(componentName, discoverStructure(componentSchema));
         const compilationSchema = cloneJson(schema);
-        compilationSchema.$id = `urn:weaver:catalog:${this.#registrationSequence}:${encodeURIComponent(componentName)}`;
+        compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
         compilationSchema.$ref = `#/components/${escapeJsonPointer(componentName)}`;
         validators.set(componentName, this.#ajv.compile(compilationSchema));
       }
       const themeCompilationSchema = cloneJson(schema);
-      themeCompilationSchema.$id = `urn:weaver:catalog:${this.#registrationSequence}:theme`;
+      themeCompilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/theme/catalog.json`;
       themeCompilationSchema.$ref = "#/$defs/theme";
       themeValidator = this.#ajv.compile(themeCompilationSchema);
     } catch {
@@ -103,7 +124,7 @@ export class CatalogRegistry {
     }
 
     this.#registrationSequence += 1;
-    this.#catalogs.set(catalogId, { schema, validators, themeValidator });
+    this.#catalogs.set(catalogId, { schema, validators, structures, themeValidator });
     return { ok: true, value: { catalogId, schema: cloneJson(schema) } };
   }
 
@@ -122,6 +143,30 @@ export class CatalogRegistry {
 
   getSupportedCatalogIds(): string[] {
     return [...this.#catalogs.keys()];
+  }
+
+  getComponentStructure(catalogId: string, componentName: string): CatalogComponentStructureResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const structure = catalog.structures.get(componentName);
+    if (structure === undefined) {
+      return {
+        ok: false,
+        error: {
+          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component structural metadata is not available"),
+          component: componentName,
+        },
+      };
+    }
+    return {
+      ok: true,
+      value: {
+        singleChildFields: [...structure.singleChildFields],
+        childListFields: [...structure.childListFields],
+      },
+    };
   }
 
   validateTheme(catalogId: string, theme: JsonObject): CatalogThemeValidationResult {

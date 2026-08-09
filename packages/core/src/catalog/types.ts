@@ -11,6 +11,11 @@ export interface CatalogSnapshot {
   schema: JsonObject;
 }
 
+export interface ComponentStructureDefinition {
+  singleChildFields: string[];
+  childListFields: string[];
+}
+
 export interface CatalogValidationIssue {
   path: string;
   message: string;
@@ -23,3 +28,4 @@ export type CatalogRegistryResult<T> =
 
 export type CatalogComponentValidationResult = CatalogRegistryResult<A2UIComponent>;
 export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;
+export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStructureDefinition>;

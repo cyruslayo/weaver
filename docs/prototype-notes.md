@@ -45,4 +45,19 @@ implementation corresponds to an already schema-trusted component. This work
 does not migrate recursive DOM construction, actions, or the prototype's
 replacement-on-register behavior.
 
+The prototype's direct recursive DOM renderer is now replaced in the core design
+by a platform-neutral derived-state boundary:
+
+```text
+flat trusted state
+      ↓
+catalog-aware structure resolver
+      ↓
+future platform renderer
+```
+
+The prototype remains preserved as design evidence. `SurfaceStore` does not keep
+a second mutable nested tree, and the resolver does not implement DOM rendering,
+data binding, actions, or dynamic-list instances.
+
 The remaining observations do not select or implement renderer or MCP behavior.

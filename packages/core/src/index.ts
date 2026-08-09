@@ -1,4 +1,5 @@
 export * from "./catalog/index.js";
+export * from "./component-tree/index.js";
 export * from "./data-model/index.js";
 export * from "./message-processor/index.js";
 export * from "./protocol/index.js";
