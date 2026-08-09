@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createWeaverRuntime } from "./index.js";
+import { WEAVER_CORE_VERSION, createWeaverRuntime } from "./index.js";
 
-test("creates a ready Weaver runtime", () => {
-  assert.equal(createWeaverRuntime().status, "ready");
+test("exports the Weaver runtime facade", () => {
+  assert.equal(WEAVER_CORE_VERSION, "0.0.0-dev");
+  assert.deepEqual(createWeaverRuntime({ catalogs: [] }).ok, true);
 });

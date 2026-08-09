@@ -859,6 +859,86 @@ prepares transport-neutral `a2uiClientDataModel` metadata containing the current
 origin surface object. A non-object root cannot be synchronized and blocks that
 event. The dispatcher neither sends messages nor writes `SurfaceStore`.
 
+## WeaverRuntime facade
+
+`WeaverRuntime` is Core's composition and orchestration facade. It gives a host
+one coherent `CatalogRegistry`, `FunctionRegistry`, `FunctionEvaluator`,
+`SurfaceStore`, message processor, resolver pipeline, input writer, and action
+dispatcher. Services that depend on shared state receive those same instances;
+the runtime does not act as a service locator or expose mutable registries.
+
+```text
+                  WeaverRuntime
+                       │
+        ┌──────────────┼───────────────┐
+        ↓              ↓               ↓
+ message input     derived UI      interaction
+        │              │               │
+        ↓              ↓               ├── writeInput
+MessageProcessor  resolvers             └── dispatchAction
+        │              │
+        └──────→ SurfaceStore ←─────────┘
+```
+
+Runtime trust configuration is fixed during creation. Trusted catalogs and
+trusted function implementations are configured explicitly by the host, in
+that order. Any failed registration makes creation fail without exposing a
+partially usable runtime. Protocol messages cannot modify either trust set. No
+default catalog or built-in function implementation is installed. An empty
+catalog list is technically valid, but such a runtime cannot create a surface.
+
+`process()` delegates protocol handling to `A2UIMessageProcessor`.
+`processMany()` preserves input order and processes each message as its own
+mutation unit; failures do not roll back earlier inputs or stop later inputs.
+`resolveSurface()` rebuilds the hydrated tree and checks from the current store
+snapshot on every call. Progressive absence of `root` is `ready: false`, while
+an absent surface is `SURFACE_NOT_FOUND`. Derived structural, instance,
+property, and check issues retain their typed layer-specific forms.
+
+Interaction requests identify the current instance by exact
+`sourceComponentId + scopePath`. Before a write or action, the runtime rebuilds
+current instances and performs an exact lookup. It never retains or accepts a
+renderer's old instance object. Missing positional instances return
+`INSTANCE_NOT_FOUND`; v0.9.1 does not provide a stable collection item key.
+
+Surface subscriptions delegate to `SurfaceStore`, do not emit immediately, and
+resolve current state after each successful mutation. Subscriber exceptions
+remain isolated by the store. A deletion notification resolves current state
+and therefore delivers `SURFACE_NOT_FOUND`.
+
+The renderer boundary is:
+
+```text
+runtime.resolveSurface()
+        ↓
+@weaver/web renderer
+
+browser interaction
+        ↓
+runtime.writeInput()
+or
+runtime.dispatchAction()
+```
+
+`WeaverRuntime` does not define business rules, own network transport, own DOM
+rendering, execute MCP, or define catalogs. Action results remain
+transport-neutral and are never sent by Core.
+
+JSONL framing remains transport-session state outside runtime ownership, so one
+runtime can receive independently framed streams:
+
+```text
+transport decoder
+      ↓
+WeaverRuntime.process()
+```
+
+`runtime.getClientCapabilities()` returns only the A2UI capability value, with
+catalog IDs sourced defensively from `CatalogRegistry` in registration order.
+It does not advertise inline catalogs. A transport adapter decides where that
+value is attached; the runtime does not create HTTP, A2A, MCP, or JSON-RPC
+envelopes.
+
 ## Application boundary
 
 ```text

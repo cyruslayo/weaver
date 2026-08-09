@@ -10,7 +10,7 @@ if (!app) {
 
 app.innerHTML = `
   <h1>Weaver Playground</h1>
-  <p>Core runtime: ${runtime.status}</p>
+  <p>Core runtime: ${runtime.ok ? "ready" : "configuration error"}</p>
 `;
 
 app.dataset.coreVersion = WEAVER_CORE_VERSION;
