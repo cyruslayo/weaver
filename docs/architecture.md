@@ -989,7 +989,32 @@ successful?
 keep old DOM   replace mount subtree
 ```
 
-See [Web rendering](./web-rendering.md) for the renderer and mount boundaries.
+Trusted DOM renderers receive only component-bound interaction callbacks:
+
+```text
+                     WebSurfaceRenderer
+                            │
+               ┌────────────┴────────────┐
+               ↓                         ↓
+          DOM rendering             interactions
+                                         │
+                              ┌──────────┴──────────┐
+                              ↓                     ↓
+                         writeInput           dispatchAction
+                              │                     │
+                              └──────→ WeaverRuntime
+```
+
+Each mount invalidates its previous callback generation before every render
+attempt, including failed attempts, refresh, and unmount. Runtime current-instance
+lookup remains authoritative. Server events cross only an optional host handoff:
+
+```text
+server event result → optional onServerEvent → host → future transport
+```
+
+The handoff does not model delivery and Web performs no networking.
+See [Web rendering](./web-rendering.md) for the renderer, interaction, and mount boundaries.
 
 ## Application boundary
 

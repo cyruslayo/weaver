@@ -155,3 +155,129 @@ test("missing initial surface is a typed mount error", () => {
   assert.equal(!result.ok && result.error.code, "SURFACE_RESOLUTION_FAILED");
   assert.equal(!result.ok && result.error.code === "SURFACE_RESOLUTION_FAILED" && result.error.cause.code, "SURFACE_NOT_FOUND");
 });
+
+function interactionCatalog(): JsonObject {
+  const action: JsonObject = { oneOf: [
+    { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
+    { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
+  ] };
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: "interactive",
+    components: {
+      Stack: component("Stack", { sections: ref("ChildList") }),
+      Input: component("Input", { value: ref("DynamicString") }),
+      Rating: component("Rating", { rating: ref("DynamicNumber") }),
+      Display: component("Display", { text: ref("DynamicString") }),
+      Button: component("Button", { primaryAction: ref("Action"), checks: { type: "array" } }, [ref("Checkable")]),
+      Missing: component("Missing"),
+    },
+    functions: { local: { type: "object", properties: { call: { const: "local" }, args: { type: "object" }, returnType: { const: "void" } }, required: ["call", "args"], additionalProperties: false } },
+    $defs: { theme: { type: "object" }, common: { $id: "common_types.json", $defs: {
+      ComponentId: { type: "string" },
+      ChildList: { oneOf: [{ type: "array", items: ref("ComponentId") }, { type: "object", properties: { path: { type: "string" }, componentId: ref("ComponentId") }, required: ["path", "componentId"], additionalProperties: false }] },
+      PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
+      FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
+      DynamicString: dynamic({ type: "string" }), DynamicNumber: dynamic({ type: "number" }),
+      DynamicBoolean: dynamic({ type: "boolean" }), DynamicStringList: dynamic({ type: "array", items: { type: "string" } }),
+      Checkable: {}, Action: action,
+    } } },
+  };
+}
+
+function interactiveRuntime(local?: () => void): WeaverRuntime {
+  const made = createWeaverRuntime({
+    catalogs: [{ catalogId: "interactive", schema: interactionCatalog() }],
+    ...(local === undefined ? {} : { functions: [{ catalogId: "interactive", name: "local", implementation: local }] }),
+    now: () => new Date("2025-01-02T03:04:05.000Z"),
+  });
+  assert.ok(made.ok);
+  made.value.process({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId: "interactive", sendDataModel: true } });
+  return made.value;
+}
+
+function interactionRegistrations(results: unknown[] = []): RendererRegistration[] {
+  return [
+    { catalogId: "interactive", component: "Stack", render: ({ document, relationships }) => { const node = document.createElement("div"); const relation = relationships[0]; if (relation?.kind !== "single") node.append(...(relation?.children ?? [])); return node; } },
+    { catalogId: "interactive", component: "Input", render: ({ document, properties, interactions }) => { const node = document.createElement("input"); node.value = String(properties.value ?? ""); node.addEventListener("input", () => results.push(interactions.writeInput("value", node.value))); return node; } },
+    { catalogId: "interactive", component: "Rating", render: ({ document, properties, interactions }) => { const node = document.createElement("input"); node.value = String(properties.rating ?? ""); node.addEventListener("input", () => results.push(interactions.writeInput("rating", Number(node.value)))); return node; } },
+    { catalogId: "interactive", component: "Display", render: ({ document, properties }) => { const node = document.createElement("output"); node.textContent = String(properties.text ?? ""); return node; } },
+    { catalogId: "interactive", component: "Button", render: ({ document, interactions }) => { const node = document.createElement("button"); node.addEventListener("click", () => results.push(interactions.dispatchAction("primaryAction"))); return node; } },
+  ];
+}
+
+const interactiveComponents = (values: JsonObject[]) => ({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: values } });
+const interactiveData = (value: unknown) => ({ version: "v0.9.1", updateDataModel: { surfaceId: "s", value } });
+
+function dispatch(node: Element, type: string): void {
+  const EventConstructor = node.ownerDocument.defaultView!.Event;
+  node.dispatchEvent(new EventConstructor(type, { bubbles: true }));
+}
+
+test("input writes synchronously, rerenders, and a later action uses current model in handoff metadata", () => {
+  const rt = interactiveRuntime();
+  rt.process(interactiveComponents([
+    { id: "root", component: "Stack", sections: ["input", "display", "button"] },
+    { id: "input", component: "Input", value: { path: "/name" } },
+    { id: "display", component: "Display", text: { path: "/name" } },
+    { id: "button", component: "Button", primaryAction: { event: { name: "submit", context: { name: { path: "/name" } } } } },
+  ]));
+  rt.process(interactiveData({ name: "Ada" }));
+  const { target } = dom(); const handoffs: unknown[] = []; const results: unknown[] = [];
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)), onServerEvent: (event) => handoffs.push(event) }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  const input = target.querySelector("input")!; input.value = "Grace"; dispatch(input, "input");
+  assert.equal(rt.getSurface("s")?.dataModel && (rt.getSurface("s")!.dataModel as JsonObject).name, "Grace");
+  assert.equal(target.querySelector("output")?.textContent, "Grace");
+  dispatch(target.querySelector("button")!, "click");
+  const handoff = handoffs[0] as { message: { action: { context: JsonObject } }; metadata: { a2uiClientDataModel: { surfaces: Record<string, JsonObject> } } };
+  assert.equal(handoff.message.action.context.name, "Grace");
+  assert.equal(handoff.metadata.a2uiClientDataModel.surfaces.s?.name, "Grace");
+  assert.equal(results.length, 2);
+});
+
+test("custom input properties and nested template scopes delegate unchanged", () => {
+  const rt = interactiveRuntime();
+  rt.process(interactiveComponents([
+    { id: "root", component: "Stack", sections: { path: "/groups", componentId: "group" } },
+    { id: "group", component: "Stack", sections: { path: "members", componentId: "rating" } },
+    { id: "rating", component: "Rating", rating: { path: "rating" } },
+  ]));
+  rt.process(interactiveData({ groups: [{ members: [{ rating: 1 }, { rating: 2 }] }] }));
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations()) }).mount({ surfaceId: "s", target }); assert.ok(mounted.ok);
+  const second = target.querySelectorAll("input")[1]!; second.value = "4"; dispatch(second, "input");
+  assert.equal(((rt.getSurface("s")!.dataModel as JsonObject).groups as JsonObject[])[0]!.members instanceof Array && (((rt.getSurface("s")!.dataModel as JsonObject).groups as JsonObject[])[0]!.members as JsonObject[])[1]!.rating, 4);
+});
+
+test("local actions execute once, blocked actions do not hand off, and handoff failures are typed", () => {
+  let calls = 0; const rt = interactiveRuntime(() => { calls++; });
+  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { functionCall: { call: "local", args: {} } } }]));
+  const { target } = dom(); let handoffs = 0; const results: unknown[] = [];
+  const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)), onServerEvent: () => { handoffs++; } });
+  const mounted = web.mount({ surfaceId: "s", target }); assert.ok(mounted.ok); dispatch(target.querySelector("button")!, "click");
+  assert.equal(calls, 1); assert.equal(handoffs, 0);
+  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { event: { name: "blocked", context: {} } }, checks: [{ condition: false, message: "no" }] }]));
+  dispatch(target.querySelector("button")!, "click"); assert.equal(handoffs, 0);
+  assert.equal((results.at(-1) as { ok: false; error: { cause: { code: string } } }).error.cause.code, "ACTION_BLOCKED_BY_CHECKS");
+
+  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { event: { name: "ready", context: {} } } }]));
+  const failingResults: unknown[] = []; const secondTarget = dom().target;
+  const second = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(failingResults)), onServerEvent: () => { throw new Error("host secret"); } }).mount({ surfaceId: "s", target: secondTarget }); assert.ok(second.ok);
+  dispatch(secondTarget.querySelector("button")!, "click");
+  assert.deepEqual(failingResults.at(-1), { ok: false, error: { code: "SERVER_EVENT_HANDOFF_FAILED" } });
+});
+
+test("successful, failed, refresh, and unmount render attempts invalidate retained DOM interactions", () => {
+  const rt = interactiveRuntime(); const results: unknown[] = [];
+  rt.process(interactiveComponents([{ id: "root", component: "Input", value: { path: "/name" } }])); rt.process(interactiveData({ name: "Ada" }));
+  const { target } = dom(); const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)) }).mount({ surfaceId: "s", target }); assert.ok(mounted.ok);
+  const first = target.querySelector("input")!; rt.process(interactiveData({ name: "Grace" })); first.value = "stale-success"; dispatch(first, "input");
+  assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+  const visible = target.querySelector("input")!; rt.process(interactiveComponents([{ id: "root", component: "Missing" }])); visible.value = "stale-failure"; dispatch(visible, "input");
+  assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+  rt.process(interactiveComponents([{ id: "root", component: "Input", value: { path: "/name" } }]));
+  const beforeRefresh = target.querySelector("input")!; assert.equal(mounted.value.refresh().ok, true); dispatch(beforeRefresh, "input");
+  assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+  const beforeUnmount = target.querySelector("input")!; mounted.value.unmount(); dispatch(beforeUnmount, "input");
+  assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+});

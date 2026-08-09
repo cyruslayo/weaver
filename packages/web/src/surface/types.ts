@@ -1,10 +1,17 @@
-import type { WeaverRuntime } from "@weaver/core";
+import type { ActionTransportMetadata, A2UIClientActionMessage, WeaverRuntime } from "@weaver/core";
 import type { RendererRegistry } from "../renderers/index.js";
 import type { WebRenderError } from "./errors.js";
+
+export interface WebServerEventHandoff {
+  message: A2UIClientActionMessage;
+  metadata?: ActionTransportMetadata;
+}
 
 export interface WebSurfaceRendererConfig {
   runtime: WeaverRuntime;
   renderers: RendererRegistry;
+  /** Optional transport-neutral notification. Missing handlers do not fail dispatch. */
+  onServerEvent?: (event: WebServerEventHandoff) => void;
 }
 
 export interface WebSurfaceMountOptions {

@@ -1,4 +1,27 @@
-import type { ComponentCheckSnapshot, HydratedComponentInstance, JsonValue } from "@weaver/core";
+import type {
+  ComponentCheckSnapshot,
+  HydratedComponentInstance,
+  JsonValue,
+  WeaverActionResult,
+  WeaverInputResult,
+} from "@weaver/core";
+
+export type WebInteractionError =
+  | { code: "STALE_RENDER_INTERACTION" }
+  | { code: "SERVER_EVENT_HANDOFF_FAILED" };
+
+export type WebInputInteractionResult =
+  | WeaverInputResult
+  | { ok: false; error: Extract<WebInteractionError, { code: "STALE_RENDER_INTERACTION" }> };
+
+export type WebActionInteractionResult =
+  | WeaverActionResult
+  | { ok: false; error: WebInteractionError };
+
+export interface WebComponentInteractions {
+  writeInput(property: string, value: JsonValue): WebInputInteractionResult;
+  dispatchAction(actionProperty: string): WebActionInteractionResult;
+}
 
 export type WebRenderedRelationship =
   | { kind: "single"; property: string; child?: Node }
@@ -12,6 +35,7 @@ export interface WebComponentRenderInput {
   properties: Readonly<Record<string, JsonValue | undefined>>;
   relationships: readonly WebRenderedRelationship[];
   checks?: ComponentCheckSnapshot;
+  interactions: WebComponentInteractions;
 }
 
 export type WebComponentRenderer = (input: WebComponentRenderInput) => Node;
