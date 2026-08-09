@@ -273,13 +273,20 @@ Protocol validation (structural A2UI shape)
 Catalog validation (trusted type and properties)
         |
         v
-future renderer
+RendererRegistry
+        |
+        +-- Basic Catalog registrations: Text, Divider, Row, Column, List, Card, Button
+        +-- application/custom renderer registrations
+        |
+        v
+trusted native DOM
 ```
+
+Basic renderer registrations are a composable allowlist, not a global registry. The host injects the same catalog ID it registered with `WeaverRuntime`, keeping schema identity and browser implementation trust separate.
 
 The prototype `ComponentRegistry` supplied the useful trusted-allowlist idea;
 `CatalogRegistry` is the protocol-aligned, framework-independent replacement
-for that responsibility. DOM renderer registration remains future `@weaver/web`
-work.
+for schema trust. `@weaver/web` owns the separate trusted DOM renderer allowlist.
 
 ## Trusted function execution
 
@@ -964,7 +971,7 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. These are separate trust boundaries: a
+browser implementation code is allowed. The production Basic Catalog foundation registrations cover Text, Divider, Row, Column, List, Card, and Button; application/custom registrations remain alongside them. These are separate trust boundaries: a
 validated component still requires an exact `catalogId + component` renderer.
 A2UI data never loads renderer code; implementations are host application code
 registered during initialization. There are no cross-catalog or global

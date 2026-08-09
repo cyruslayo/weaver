@@ -133,3 +133,39 @@ mount remains active and its generated subtree is empty. Rendering constructs a
 complete detached tree before replacement, so a missing renderer, invalid
 renderer result, or trusted renderer exception leaves the previous successful
 DOM intact. Returned nodes become owned by the Weaver mount.
+
+## Basic Catalog foundation coverage
+
+Hosts compose the production foundation allowlist with application renderers:
+
+```ts
+const renderers = new RendererRegistry([
+  ...createBasicCatalogRendererRegistrations({ catalogId }),
+  ...applicationRenderers,
+]);
+```
+
+Basic renderer registrations do not own catalog schema identity. The host passes the `catalogId` used by `WeaverRuntime`; schema trust and renderer implementation trust remain separate.
+
+| Basic Catalog component | Task 22 status |
+| --- | --- |
+| Text | Implemented |
+| Divider | Implemented |
+| Row | Implemented |
+| Column | Implemented |
+| List | Implemented |
+| Card | Implemented |
+| Button | Implemented |
+| TextField, CheckBox, Slider, ChoicePicker, DateTimeInput | Deferred |
+| Image, Icon, Video, AudioPlayer | Deferred |
+| Modal, Tabs | Deferred |
+
+Unimplemented components remain absent from the registry and fail with `RENDERER_NOT_FOUND`; detached-tree construction preserves the last successful DOM, and a later supported update recovers normally.
+
+Task 22 Text renders strings with `textContent` and uses native headings, paragraph, and `small` semantics. Missing, mismatched, and explicit `null` values display as empty text. Task 22 outputs plain text only. Simple Markdown rendering remains a later conformance item.
+
+Task 22 provides native semantics, essential flex layout behavior, separator geometry, and stable `data-a2ui-component` / Button `data-a2ui-variant` host styling hooks. It does not provide theme translation, brand styling, spacing, typography styling, or a full visual design system. `surface.theme` is not consumed.
+
+Row and Column default to `justify = start` and `align = stretch`. List defaults to vertical direction and stretch alignment. Known enum values alone map to CSS; component property objects are never copied into styles. List children are wrapped in `role=listitem`; Card and Button consume the resolved `child` relationship.
+
+A Basic Button uses native `disabled` state to mirror Core's current check snapshot: `invalid`, `pending`, and `error` disable it, while `valid` enables it. No snapshot leaves normal behavior unchanged. An absent progressive child is a renderer-level reason to disable the otherwise empty button until rerender. Core `ActionDispatcher` remains the authoritative action gate; browser disabled state is not a security boundary. Clicks call only `interactions.dispatchAction("action")`, relying on the existing generation guard and local/server action paths.

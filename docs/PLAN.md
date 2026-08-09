@@ -26,12 +26,13 @@ Completed Web milestones:
 ```text
 RendererRegistry + minimal DOM rendering
 Web interaction bridge
+Basic Catalog foundation renderers
 ```
 
 The Core runtime facade is complete. Web consumes resolved surfaces through an
 immutable trusted renderer registry, reactively rebuilds mount-owned DOM
 subtrees, and delegates narrow input/action callbacks to current runtime state.
-The next milestone is production Basic Catalog rendering. Themes remain pending.
+The next milestone is Basic Catalog input renderers. Full Basic Catalog support and themes remain pending.
 Web must not duplicate Core state, protocol validation, catalog trust, checks,
 or action behavior.
 
