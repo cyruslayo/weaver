@@ -56,6 +56,37 @@ SurfaceStore
       +-- DataModel
 ```
 
+Incoming streaming data is layered before that runtime boundary:
+
+```text
+transport bytes
+      |
+      v
+future transport adapter
+      |
+      v
+text chunks
+      |
+      v
+JsonlDecoder
+      |
+      v
+unknown JSON values
+      |
+      v
+A2UIMessageProcessor
+      |
+      v
+SurfaceStore
+```
+
+`JsonlDecoder` owns framing and strict JSON parsing only. It accepts incremental
+JavaScript strings, supports LF and CRLF boundaries, and applies a configurable
+per-frame character limit. It does not validate or repair A2UI. The
+`A2UIMessageProcessor` owns protocol validation and dispatch, while
+`SurfaceStore` owns runtime state. Network transports and byte-to-text decoding
+remain pending; future adapters will supply text chunks to this boundary.
+
 The processor owns the boundary between structural and lifecycle failures:
 
 ```text

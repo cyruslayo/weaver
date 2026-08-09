@@ -12,7 +12,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test dist/index.test.js dist/data-model/DataModel.test.js dist/message-processor/A2UIMessageProcessor.test.js dist/protocol/a2ui/v0_9_1/validation.test.js dist/surfaces/SurfaceStore.test.js",
+    "test": "tsc -p tsconfig.json && node --test dist/index.test.js dist/data-model/DataModel.test.js dist/message-processor/A2UIMessageProcessor.test.js dist/protocol/a2ui/v0_9_1/validation.test.js dist/surfaces/SurfaceStore.test.js dist/transport/jsonl/JsonlDecoder.test.js",
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   }
 }
