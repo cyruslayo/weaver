@@ -146,7 +146,7 @@ Hosts compose the production foundation allowlist with application renderers:
 
 ```ts
 const renderers = new RendererRegistry([
-  ...createBasicCatalogRendererRegistrations({ catalogId }),
+  ...createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy }),
   ...applicationRenderers,
 ]);
 ```
@@ -163,10 +163,28 @@ Basic renderer registrations do not own catalog schema identity. The host passes
 | Card | Implemented |
 | Button | Implemented |
 | TextField, CheckBox, Slider, ChoicePicker, DateTimeInput | Implemented |
-| Image, Icon, Video, AudioPlayer | Deferred |
-| Modal, Tabs | Deferred |
+| Image, Video, AudioPlayer | Implemented |
+| Icon, Modal, Tabs | Deferred |
 
 Unimplemented components remain absent from the registry and fail with `RENDERER_NOT_FOUND`; detached-tree construction preserves the last successful DOM, and a later supported update recovers normally.
+
+## Basic media resource policy
+
+The media trust boundary is explicit:
+
+```text
+A2UI/Core = produces hydrated resource string
+      ↓
+Basic media renderer = requests host approval
+      ↓
+host resource policy = decides whether and how the browser loads the resource
+      ↓
+native browser element
+```
+
+`createBasicCatalogRendererRegistrations` accepts an optional synchronous `resourcePolicy`. A policy can allowlist domains, map asset identifiers, proxy resources by rewriting URLs, or deny resources. Its returned string is authoritative; `undefined` denies loading. No resource policy means no agent-supplied media URL is loaded. This deny-by-default behavior is a Weaver Web security decision, while non-media renderers continue normally. Missing and blank URLs do not invoke the policy.
+
+Image uses `<img>` with explicit schema-enum mappings for `object-fit`, safe variant hooks, and `alt=""` when no hydrated description exists. Video and AudioPlayer use native controls and do not autoplay. Audio description is rendered as plain figcaption text. Media loading and native load failures remain browser-local presentation behavior; Weaver adds no fetch, probing, retries, caching, or media events.
 
 Task 22 Text renders strings with `textContent` and uses native headings, paragraph, and `small` semantics. Missing, mismatched, and explicit `null` values display as empty text. Task 22 outputs plain text only. Simple Markdown rendering remains a later conformance item.
 

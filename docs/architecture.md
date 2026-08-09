@@ -275,8 +275,9 @@ Catalog validation (trusted type and properties)
         v
 RendererRegistry
         |
-        +-- Basic Catalog registrations: Text, Divider, Row, Column, List, Card, Button,
-        |                                TextField, CheckBox, Slider, ChoicePicker, DateTimeInput
+        +-- Basic Catalog registrations: Text, Image, Video, AudioPlayer, Divider, Row,
+        |                                Column, List, Card, Button, TextField, CheckBox,
+        |                                Slider, ChoicePicker, DateTimeInput
         +-- application/custom renderer registrations
         |
         v
@@ -993,7 +994,19 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Divider, Row, Column, List, Card, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; application/custom registrations remain alongside them. These are separate trust boundaries: a
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Video, AudioPlayer, Divider, Row, Column, List, Card, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; application/custom registrations remain alongside them. Media adds a Web-only trust boundary:
+
+```text
+hydrated media URL
+      ↓
+Basic media renderer
+      ↓
+host resource policy
+      ↓
+native browser element
+```
+
+Core only produces the hydrated string. The host policy synchronously denies, approves, or rewrites it before a native element receives `src`; with no policy, Web denies all agent-supplied media URLs. These are separate trust boundaries: a
 validated component still requires an exact `catalogId + component` renderer.
 A2UI data never loads renderer code; implementations are host application code
 registered during initialization. There are no cross-catalog or global

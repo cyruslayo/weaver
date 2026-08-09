@@ -34,7 +34,7 @@ The Core runtime facade is complete. Web consumes resolved surfaces through an
 immutable trusted renderer registry, reactively rebuilds mount-owned DOM
 subtrees, and delegates narrow input/action callbacks to current runtime state.
 Core now hydrates catalog-declared nested and `allOf`-wrapped dynamic values.
-Basic Catalog input renderers are now implemented. The next milestone is Basic Catalog function implementations or the remaining display/container components. Full Basic Catalog conformance and themes remain pending.
+Basic Catalog input renderers are complete. Basic Catalog media renderers and their host resource policy are now implemented. The next milestones address nested structural references for Tabs, Modal interaction, and Icon bindable-union support. Full Basic Catalog conformance and themes remain pending.
 Web must not duplicate Core state, protocol validation, catalog trust, checks,
 or action behavior.
 

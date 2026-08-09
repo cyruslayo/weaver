@@ -3,12 +3,13 @@ import { test } from "node:test";
 import { Window } from "happy-dom";
 import { RendererRegistry, type WebComponentRenderInput, type WebComponentRenderer } from "../renderers/index.js";
 import { createBasicCatalogRendererRegistrations } from "./createBasicCatalogRendererRegistrations.js";
+import type { BasicResourcePolicy } from "./media.js";
 
-function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}) {
+function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy) {
   const window = new Window();
   const document = window.document as unknown as Document;
   const calls: string[] = [];
-  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic" })
+  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy })
     .find((candidate) => candidate.component === component);
   assert.ok(registration);
   const input = {
@@ -26,7 +27,7 @@ const child = (document: Document, text: string) => { const node = document.crea
 
 test("factory registers exactly the foundation components under the supplied catalog ID", () => {
   const registrations = createBasicCatalogRendererRegistrations({ catalogId: "not-an-official-url" });
-  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Divider", "Row", "Column", "List", "Card", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
+  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Image", "Video", "AudioPlayer", "Divider", "Row", "Column", "List", "Card", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
   assert.ok(registrations.every(({ catalogId }) => catalogId === "not-an-official-url"));
 });
 
@@ -35,6 +36,51 @@ test("Basic registrations compose with application registrations", () => {
   const registry = new RendererRegistry([...createBasicCatalogRendererRegistrations({ catalogId: "basic" }), { catalogId: "app", component: "Shell", render: application }]);
   assert.ok(registry.get("basic", "Text"));
   assert.equal(registry.get("app", "Shell"), application);
+});
+
+test("media defaults to deny and allows, rewrites, and identifies hydrated non-empty URLs", () => {
+  for (const [component, selector] of [["Image", "img"], ["Video", "video"], ["AudioPlayer", "audio"]] as const) {
+    const blocked = setup(component, { properties: { url: "https://agent.example/media" } }).node.querySelector(selector) ?? setup(component, { properties: { url: "https://agent.example/media" } }).node;
+    assert.equal(blocked.hasAttribute("src"), false);
+  }
+  const requests: unknown[] = [];
+  const policy: BasicResourcePolicy = (request) => { requests.push(request); return request.kind === "image" ? "/proxy/media/123" : request.url; };
+  const image = setup("Image", { properties: { url: "https://agent.example/image.png" } }, policy).node;
+  const video = setup("Video", { properties: { url: "/video.mp4" } }, policy).node as HTMLVideoElement;
+  const audioFigure = setup("AudioPlayer", { properties: { url: "/audio.mp3" } }, policy).node;
+  assert.equal(image.getAttribute("src"), "/proxy/media/123");
+  assert.equal(video.getAttribute("src"), "/video.mp4");
+  assert.equal(audioFigure.querySelector("audio")?.getAttribute("src"), "/audio.mp3");
+  assert.deepEqual(requests, [{ kind: "image", url: "https://agent.example/image.png" }, { kind: "video", url: "/video.mp4" }, { kind: "audio", url: "/audio.mp3" }]);
+});
+
+test("media skips unavailable URLs and denied or empty rewrites", () => {
+  let calls = 0;
+  const policy: BasicResourcePolicy = () => { calls++; return undefined; };
+  assert.equal(setup("Image", { properties: { url: "" } }, policy).node.hasAttribute("src"), false);
+  assert.equal(setup("Video", { properties: { url: "  " } }, policy).node.hasAttribute("src"), false);
+  assert.equal(calls, 0);
+  assert.equal(setup("Image", { properties: { url: "/denied" } }, policy).node.getAttribute("data-a2ui-resource-state"), "blocked");
+  assert.equal(calls, 1);
+});
+
+test("Image maps native accessibility, fit, and variant behavior", () => {
+  const fits = { contain: "contain", cover: "cover", fill: "fill", none: "none", scaleDown: "scale-down" };
+  for (const [fit, css] of Object.entries(fits)) assert.equal(setup("Image", { properties: { fit } }).node.style.objectFit, css);
+  const unsafe = setup("Image", { properties: { description: "<script>x</script>", fit: "bad", variant: "avatar" } }).node as HTMLImageElement;
+  assert.equal(unsafe.tagName, "IMG"); assert.equal(unsafe.alt, "<script>x</script>"); assert.equal(unsafe.querySelector("script"), null);
+  assert.equal(unsafe.style.objectFit, "fill"); assert.equal(unsafe.getAttribute("data-a2ui-variant"), "avatar"); assert.equal(unsafe.style.borderRadius, "50%");
+  assert.equal((setup("Image").node as HTMLImageElement).alt, "");
+  for (const variant of ["icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header"]) assert.equal(setup("Image", { properties: { variant } }).node.getAttribute("data-a2ui-variant"), variant);
+});
+
+test("Video and AudioPlayer use native controls without autoplay and safe captions", () => {
+  const video = setup("Video").node as HTMLVideoElement;
+  assert.equal(video.tagName, "VIDEO"); assert.equal(video.controls, true); assert.equal(video.autoplay, false);
+  const figure = setup("AudioPlayer", { properties: { description: "<script>alert(1)</script>" } }).node;
+  const audio = figure.querySelector("audio")!;
+  assert.equal(audio.controls, true); assert.equal(audio.autoplay, false); assert.equal(figure.querySelector("figcaption")?.textContent, "<script>alert(1)</script>"); assert.equal(figure.querySelector("script"), null);
+  assert.equal(setup("AudioPlayer").node.querySelector("figcaption"), null);
 });
 
 test("Text selects native semantic elements and defaults to body", () => {

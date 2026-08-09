@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createWeaverRuntime, type JsonObject, type WeaverRuntime } from "@weaver/core";
 import { Window } from "happy-dom";
+import { createBasicCatalogRendererRegistrations } from "../basic/index.js";
 import { RendererRegistry, type RendererRegistration } from "../renderers/index.js";
 import { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
 
@@ -17,11 +18,14 @@ function catalog(catalogId: string): JsonObject {
     $schema: "https://json-schema.org/draft/2020-12/schema", catalogId,
     components: {
       Text: component("Text", { text: ref("DynamicString") }),
+      Image: component("Image", { url: ref("DynamicString"), description: ref("DynamicString") }),
       Stack: component("Stack", { sections: ref("ChildList") }),
       CheckText: component("CheckText", { text: ref("DynamicString"), checks: { type: "array" } }, [ref("Checkable")]),
       Missing: component("Missing"), Throwing: component("Throwing"), Invalid: component("Invalid"),
     },
-    functions: {},
+    functions: {
+      mediaUrl: { type: "object", properties: { call: { const: "mediaUrl" }, args: { type: "object" }, returnType: { const: "string" } }, required: ["call", "args"], additionalProperties: false },
+    },
     $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {
       ComponentId: { type: "string" },
       ChildList: { oneOf: [
@@ -138,6 +142,35 @@ test("rerender failure is atomic, reports errors, and later valid state recovers
   rt.process(components([{ id: "root", component: "Text", text: "recovered" }]));
   assert.equal(target.textContent, "recovered"); assert.notEqual(target.querySelector("span"), oldNode);
   void document;
+});
+
+test("Basic media policy receives bound hydrated URLs and policy exceptions preserve prior DOM", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([{ id: "root", component: "Image", url: { path: "/url" }, description: "cover" }]));
+  const seen: string[] = [];
+  const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({
+    catalogId: "test",
+    resourcePolicy: ({ url }) => { seen.push(url); if (url === "/throw") throw new Error("host policy failed"); return `/approved${url}`; },
+  }));
+  assert.ok(result.ok); assert.equal(target.querySelector("img")?.hasAttribute("src"), false); assert.deepEqual(seen, []);
+  rt.process(data({ url: "/one.png" }));
+  const previous = target.querySelector("img"); assert.equal(previous?.getAttribute("src"), "/approved/one.png"); assert.deepEqual(seen, ["/one.png"]);
+  rt.process(data({ url: "/throw" }));
+  assert.equal(result.value.getLastResult().ok, false);
+  const failed = result.value.getLastResult(); assert.equal(!failed.ok && failed.error.code, "RENDERER_EXECUTION_FAILED");
+  assert.equal(target.querySelector("img"), previous); assert.equal(target.querySelector("img")?.getAttribute("src"), "/approved/one.png");
+});
+
+test("Basic media policy receives trusted function-backed URL results", () => {
+  const made = createWeaverRuntime({
+    catalogs: [{ catalogId: "test", schema: catalog("test") }],
+    functions: [{ catalogId: "test", name: "mediaUrl", implementation: () => "/function.png" }],
+  });
+  assert.ok(made.ok); const rt = made.value; rt.process(create());
+  rt.process(components([{ id: "root", component: "Image", url: { call: "mediaUrl", args: {} } }]));
+  const seen: string[] = [];
+  const mounted = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test", resourcePolicy: ({ url }) => { seen.push(url); return url; } }));
+  assert.ok(mounted.result.ok); assert.deepEqual(seen, ["/function.png"]); assert.equal(mounted.target.querySelector("img")?.getAttribute("src"), "/function.png");
 });
 
 test("checks are matched by full template instance identity and mounts are independent", () => {
