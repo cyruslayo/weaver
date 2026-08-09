@@ -4,3 +4,4 @@ dist-ssr
 *.log
 .commandcode
 nul
+.npm-cache-tmp
