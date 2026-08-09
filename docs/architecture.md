@@ -743,6 +743,71 @@ Consumers rebuild DataContext after relevant surface updates. DataContext has
 no subscription API, preventing a duplicate reactive system and preserving the
 store as the single runtime source of truth.
 
+## Two-way input binding
+
+A2UI read and write paths remain separate and meet only in `SurfaceStore`:
+
+```text
+Model → View
+
+SurfaceStore
+      ↓
+current snapshot
+      ↓
+DataContext
+      ↓
+ComponentPropertyResolver
+      ↓
+renderer
+
+View → Model
+
+renderer
+   ↓
+InputBindingWriter
+   ↓
+SurfaceStore.setData()
+   ↓
+dataModelUpdated notification
+```
+
+User input changes local state only. It does not send a server message, invoke
+HTTP or MCP, or dispatch an action. A later explicit `ActionDispatcher` call
+reads a new current snapshot and sends selected current state. Store
+notifications similarly let consumers rebuild `DataContext`, checks, hydrated
+properties, and rendering after a write; `InputBindingWriter` does not evaluate
+checks or update other bound components itself.
+
+The trust boundary is intentionally generic:
+
+```text
+CatalogRegistry       = property type contract
+InputBindingWriter     = safe path/type mutation
+platform renderer      = decides which interactions are writable
+```
+
+Core does not identify input component names and the A2UI catalog gains no
+non-standard writable marker. A trusted renderer may request a write through
+any catalog-declared dynamic property whose current stored value is a strict
+path binding. Literal and function-backed properties cannot be written. The
+writer takes scope from the derived instance but takes the component definition
+and catalog selection from the current store snapshot, resolves the binding
+with `DataContext`, validates without coercion, and delegates exactly one
+mutation to `SurfaceStore`.
+
+Structure and state remain distinct:
+
+```text
+Component definition: value = { path: "/form/name" }
+DataModel:             form.name = "Ada"
+```
+
+Input changes only `DataModel`; neither relative template bindings nor component
+definitions are rewritten. Instance scope identity remains positional. A scope
+such as `/items/2` can refer to another item after array reordering, because
+A2UI v0.9.1 provides no stable item key. Renderers should rebuild instances
+from current snapshots and avoid writing from stale rendered instances.
+
 ## User action dispatch
 
 ```text

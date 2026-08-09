@@ -5,6 +5,7 @@ export * from "./component-tree/index.js";
 export * from "./component-instances/index.js";
 export * from "./component-properties/index.js";
 export * from "./functions/index.js";
+export * from "./input-binding/index.js";
 export * from "./data-context/index.js";
 export * from "./data-model/index.js";
 export * from "./message-processor/index.js";
