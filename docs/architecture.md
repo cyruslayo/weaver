@@ -384,6 +384,58 @@ later milestones. Official `web_core` renderer behavior should be used as a
 future conformance reference, but `@a2ui/web_core` is not a runtime dependency
 and Weaver will not maintain a second runtime implementation.
 
+## Derived data scopes
+
+```text
+SurfaceSnapshot
+      │
+      ├── components
+      │      ↓
+      │ ComponentTreeResolver
+      │
+      └── dataModel
+             ↓
+         DataContext
+             ↓
+       scoped data reads
+
+Resolved tree + DataContext
+             ↓
+     future render model
+```
+
+`DataContext` is a framework-independent, immutable view over a defensively
+owned DataModel snapshot. It does not live in `SurfaceStore` or
+`SurfaceSnapshot`, depend on component trees, mutate data, instantiate dynamic
+lists, evaluate functions, or render values.
+
+Scope rules are deliberately strict:
+
+```text
+Root scope (`/`)
+    └── absolute paths only
+
+Collection-item scope
+    ├── relative paths resolve below the item
+    └── absolute paths still resolve from the DataModel root
+```
+
+A relative path at root returns `RELATIVE_PATH_OUTSIDE_COLLECTION`; Weaver does
+not guess sender intent. Creating an item scope first resolves its collection
+path, which may itself be relative. Nested collections therefore compose paths
+such as `/groups/0/members/0`. All paths share DataModel's pointer token codec,
+including `~1` and `~0` escaping. Reads preserve JSON types and missing values,
+and return defensive copies. Path bindings expose both value resolution and an
+absolute path suitable for future two-way binding, but DataContext performs no
+writes.
+
+### Architecture decision: centralized reactivity
+
+DataContext is snapshot-based. `SurfaceStore` owns runtime notifications.
+Consumers rebuild DataContext after relevant surface updates. DataContext has
+no subscription API, preventing a duplicate reactive system and preserving the
+store as the single runtime source of truth.
+
 ## Application boundary
 
 ```text

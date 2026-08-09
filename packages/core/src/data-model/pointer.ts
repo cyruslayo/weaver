@@ -12,22 +12,36 @@ export function parsePointer(path: string): DataModelResult<string[]> {
 
   const tokens: string[] = [];
   for (const encoded of path.slice(1).split("/")) {
-    let token = "";
-    for (let index = 0; index < encoded.length; index += 1) {
-      const character = encoded[index];
-      if (character !== "~") {
-        token += character;
-        continue;
-      }
-      const escape = encoded[index + 1];
-      if (escape === "0") token += "~";
-      else if (escape === "1") token += "/";
-      else return { ok: false, error: { code: "INVALID_POINTER_ESCAPE", path } };
-      index += 1;
+    const decoded = decodePointerToken(encoded);
+    if (decoded === undefined) {
+      return { ok: false, error: { code: "INVALID_POINTER_ESCAPE", path } };
     }
-    tokens.push(token);
+    tokens.push(decoded);
   }
   return success(tokens);
+}
+
+/** Internal shared token codec; package barrels intentionally do not export it. */
+export function decodePointerToken(encoded: string): string | undefined {
+  let token = "";
+  for (let index = 0; index < encoded.length; index += 1) {
+    const character = encoded[index];
+    if (character !== "~") {
+      token += character;
+      continue;
+    }
+    const escape = encoded[index + 1];
+    if (escape === "0") token += "~";
+    else if (escape === "1") token += "/";
+    else return undefined;
+    index += 1;
+  }
+  return token;
+}
+
+export function formatPointer(tokens: readonly string[]): string {
+  if (tokens.length === 0) return "/";
+  return `/${tokens.map((token) => token.replaceAll("~", "~0").replaceAll("/", "~1")).join("/")}`;
 }
 
 export function readTokens(root: JsonValue, tokens: readonly string[]): JsonValue | undefined {
