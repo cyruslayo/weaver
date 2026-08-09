@@ -24,6 +24,7 @@ test("creates, finds, and defaults a surface", () => {
     catalogId: "catalog",
     sendDataModel: false,
     components: {},
+    dataModel: {},
   });
   assert.equal(store.get("missing"), undefined);
 });
@@ -39,15 +40,19 @@ test("rejects duplicate active surfaces without overwriting them", () => {
   assert.equal(store.get("main")?.catalogId, "catalog");
 });
 
-test("deletes, reports missing deletion, and permits recreation", () => {
+test("deletes, reports missing deletion, and recreates with empty state", () => {
   const store = new SurfaceStore();
   createMain(store);
+  store.setData("main", "/name", "Ada");
+  store.updateComponents("main", [text("old", "Old")]);
   assert.deepEqual(store.delete("main"), { ok: true, value: undefined });
   assert.deepEqual(store.delete("main"), {
     ok: false,
     error: { code: "SURFACE_NOT_FOUND", surfaceId: "main" },
   });
   assert.equal(createMain(store).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, {});
+  assert.deepEqual(store.get("main")?.components, {});
 });
 
 test("lists active surfaces in insertion order as snapshots", () => {
@@ -176,6 +181,130 @@ test("subscriber mutation cannot alter state or another subscriber event", () =>
   store.updateComponents("main", [text("title", "safe")]);
   assert.equal(observed, "safe");
   assert.equal(store.get("main")?.components.title.text, "safe");
+});
+
+test("every surface owns empty data regardless of sendDataModel metadata", () => {
+  const store = new SurfaceStore();
+  store.create({ surfaceId: "false", catalogId: "catalog", sendDataModel: false });
+  store.create({ surfaceId: "true", catalogId: "catalog", sendDataModel: true });
+  assert.deepEqual(store.get("false")?.dataModel, {});
+  assert.deepEqual(store.get("true")?.dataModel, {});
+});
+
+test("reads complete and nested data and distinguishes missing paths and surfaces", () => {
+  const store = new SurfaceStore();
+  createMain(store);
+  store.replaceData("main", { user: { name: "Ada" } });
+  assert.deepEqual(store.getData("main"), { ok: true, value: { user: { name: "Ada" } } });
+  assert.deepEqual(store.getData("main", "/user/name"), { ok: true, value: "Ada" });
+  assert.deepEqual(store.getData("main", "/user/missing"), { ok: true, value: undefined });
+  assert.deepEqual(store.getData("missing"), {
+    ok: false,
+    error: { code: "SURFACE_NOT_FOUND", surfaceId: "missing" },
+  });
+});
+
+test("supports delegated sets, upserts, arrays, deletes, and root reset", () => {
+  const store = new SurfaceStore();
+  createMain(store);
+  store.setData("main", "/user/name", "Ada");
+  store.setData("main", "/user/name", "Grace");
+  store.setData("main", "/items/0", "first");
+  assert.deepEqual(store.deleteData("main", "/user/name").ok, true);
+  assert.deepEqual(store.getData("main"), { ok: true, value: { user: {}, items: ["first"] } });
+  store.deleteData("main", "/");
+  assert.deepEqual(store.getData("main"), { ok: true, value: {} });
+});
+
+test("maps DataModel errors and missing-surface mutations without notifying", () => {
+  const store = new SurfaceStore();
+  createMain(store);
+  store.replaceData("main", { items: [1] });
+  let calls = 0;
+  store.subscribe("main", () => calls++);
+  assert.deepEqual(store.deleteData("main", "/items/0"), {
+    ok: false,
+    error: {
+      code: "DATA_MODEL_ERROR",
+      dataModelError: { code: "ARRAY_INDEX_DELETE_UNSUPPORTED", path: "/items/0" },
+    },
+  });
+  assert.equal(store.setData("main", "invalid", 1).ok, false);
+  assert.equal(store.setData("missing", "/x", 1).ok, false);
+  assert.equal(calls, 0);
+});
+
+test("data mutations notify once with defensive full snapshots and no-op delete does not", () => {
+  const store = new SurfaceStore();
+  createMain(store);
+  const changes: SurfaceChange[] = [];
+  store.subscribe("main", (change) => {
+    changes.push(change);
+    if (change.type === "dataModelUpdated") {
+      (change.surface.dataModel as { name?: string }).name = "subscriber mutation";
+    }
+  });
+  store.replaceData("main", { name: "Ada" });
+  store.setData("main", "/name", "Grace");
+  store.deleteData("main", "/name");
+  store.deleteData("main", "/missing");
+  assert.deepEqual(changes.map((change) => change.type), [
+    "dataModelUpdated", "dataModelUpdated", "dataModelUpdated",
+  ]);
+  assert.deepEqual(changes.map((change) => change.type === "dataModelUpdated" && change.path), [
+    "/", "/name", "/name",
+  ]);
+  assert.deepEqual(store.getData("main"), { ok: true, value: {} });
+});
+
+test("setting an equal value is a successful no-op with no notification", () => {
+  const store = new SurfaceStore();
+  createMain(store);
+  store.replaceData("main", { name: "Ada" });
+  let calls = 0;
+  store.subscribe("main", () => calls++);
+  assert.equal(store.setData("main", "/name", "Ada").ok, true);
+  assert.equal(store.replaceData("main", { name: "Ada" }).ok, true);
+  assert.equal(calls, 0);
+});
+
+test("data ownership is defensive for input, reads, and surface snapshots", () => {
+  const store = new SurfaceStore();
+  createMain(store);
+  const input = { nested: { value: "safe" } };
+  store.replaceData("main", input);
+  input.nested.value = "input mutation";
+  const read = store.getData("main");
+  assert.equal(read.ok, true);
+  if (read.ok) (read.value as typeof input).nested.value = "read mutation";
+  const snapshot = store.get("main");
+  assert.ok(snapshot);
+  (snapshot.dataModel as typeof input).nested.value = "snapshot mutation";
+  assert.deepEqual(store.getData("main"), { ok: true, value: { nested: { value: "safe" } } });
+});
+
+test("surface data is isolated and independent from components", () => {
+  const store = new SurfaceStore();
+  store.create({ surfaceId: "a", catalogId: "catalog" });
+  store.create({ surfaceId: "b", catalogId: "catalog" });
+  store.updateComponents("a", [text("title", "A")]);
+  store.setData("a", "/user/name", "Ada");
+  assert.deepEqual(store.getData("b"), { ok: true, value: {} });
+  assert.equal(store.get("a")?.components.title.text, "A");
+  store.setData("b", "/user/name", "Bob");
+  store.updateComponents("a", [text("button", "Go")]);
+  assert.deepEqual(store.getData("a"), { ok: true, value: { user: { name: "Ada" } } });
+  assert.deepEqual(store.getData("b"), { ok: true, value: { user: { name: "Bob" } } });
+});
+
+test("deleting a surface removes SurfaceStore subscriptions", () => {
+  const store = new SurfaceStore();
+  let calls = 0;
+  store.subscribe("main", () => calls++);
+  createMain(store);
+  store.delete("main");
+  createMain(store);
+  assert.equal(calls, 2);
 });
 
 test("subscriber exceptions do not prevent other callbacks or roll back state", () => {

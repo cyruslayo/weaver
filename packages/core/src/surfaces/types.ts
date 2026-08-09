@@ -1,4 +1,4 @@
-import type { A2UIComponent, JsonObject } from "../protocol/index.js";
+import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js";
 
 export interface SurfaceSnapshot {
   surfaceId: string;
@@ -6,6 +6,7 @@ export interface SurfaceSnapshot {
   theme?: JsonObject;
   sendDataModel: boolean;
   components: Record<string, A2UIComponent>;
+  dataModel: JsonValue;
 }
 
 export interface CreateSurfaceInput {
@@ -21,6 +22,12 @@ export type SurfaceChange =
       type: "componentsUpdated";
       surface: SurfaceSnapshot;
       componentIds: string[];
+    }
+  | {
+      type: "dataModelUpdated";
+      surface: SurfaceSnapshot;
+      /** A2UI pointer for the mutation; `/` denotes the complete model. */
+      path: string;
     }
   | { type: "deleted"; surfaceId: string };
 

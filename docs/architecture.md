@@ -81,13 +81,15 @@ Runtime responsibilities are layered so protocol messages do not become the
 state container's interface:
 
 ```text
-Protocol validation
+A2UI protocol validation
       |
       v
 future MessageProcessor
       |
       v
 SurfaceStore
+      +-- components
+      +-- DataModel
       |
       v
 future renderer
@@ -104,11 +106,18 @@ SurfaceStore
     |
     +-- surface metadata
     +-- components
-    +-- future DataModel ownership
+    +-- DataModel
 ```
 
-The independent `DataModel` provides local reactive JSON state. It is not yet
-attached to `SurfaceStore` and does not process A2UI message envelopes.
+Every active surface owns exactly one `DataModel`. Creation starts it at `{}`;
+deleting the surface discards it, and recreating the same ID creates fresh
+state. Component and data updates are independent channels. `sendDataModel` is
+metadata for future outbound communication only: it never controls whether a
+surface stores data.
+
+The independent `DataModel` provides local reactive JSON state. `SurfaceStore`
+orchestrates it through domain methods without exposing internal instances or
+processing A2UI message envelopes. `DataModel` remains usable on its own.
 
 ```text
 DataModel

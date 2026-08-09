@@ -1,4 +1,6 @@
-import type { A2UIComponent } from "../protocol/index.js";
+import { DataModel } from "../data-model/index.js";
+import type { DataModelChange, DataModelResult } from "../data-model/index.js";
+import type { A2UIComponent, JsonValue } from "../protocol/index.js";
 import { cloneJson } from "./clone.js";
 import type { SurfaceStoreResult } from "./errors.js";
 import type {
@@ -15,6 +17,7 @@ interface StoredSurface {
   theme?: SurfaceSnapshot["theme"];
   sendDataModel: boolean;
   components: Map<string, A2UIComponent>;
+  dataModel: DataModel;
 }
 
 const success = <T>(value: T): SurfaceStoreResult<T> => ({ ok: true, value });
@@ -37,6 +40,7 @@ export class SurfaceStore {
       ...(input.theme === undefined ? {} : { theme: cloneJson(input.theme) }),
       sendDataModel: input.sendDataModel ?? false,
       components: new Map(),
+      dataModel: new DataModel(),
     };
     this.#surfaces.set(input.surfaceId, surface);
     const snapshot = this.#snapshot(surface);
@@ -59,6 +63,30 @@ export class SurfaceStore {
 
   hasRoot(surfaceId: string): boolean {
     return this.#surfaces.get(surfaceId)?.components.has("root") ?? false;
+  }
+
+  getData(surfaceId: string, path = "/"): SurfaceStoreResult<JsonValue | undefined> {
+    const surface = this.#surfaces.get(surfaceId);
+    if (surface === undefined) {
+      return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };
+    }
+    return this.#mapDataModelResult(surface.dataModel.get(path));
+  }
+
+  replaceData(surfaceId: string, value: JsonValue): SurfaceStoreResult<SurfaceSnapshot> {
+    return this.#mutateData(surfaceId, "/", (dataModel) => dataModel.replace(value));
+  }
+
+  setData(
+    surfaceId: string,
+    path: string,
+    value: JsonValue,
+  ): SurfaceStoreResult<SurfaceSnapshot> {
+    return this.#mutateData(surfaceId, path, (dataModel) => dataModel.set(path, value));
+  }
+
+  deleteData(surfaceId: string, path: string): SurfaceStoreResult<SurfaceSnapshot> {
+    return this.#mutateData(surfaceId, path, (dataModel) => dataModel.delete(path));
   }
 
   updateComponents(
@@ -103,6 +131,7 @@ export class SurfaceStore {
       return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };
     }
     this.#notify(surfaceId, () => ({ type: "deleted", surfaceId }));
+    this.#subscribers.delete(surfaceId);
     return success(undefined);
   }
 
@@ -131,7 +160,50 @@ export class SurfaceStore {
       ...(surface.theme === undefined ? {} : { theme: cloneJson(surface.theme) }),
       sendDataModel: surface.sendDataModel,
       components,
+      dataModel: this.#dataSnapshot(surface.dataModel),
     };
+  }
+
+  #dataSnapshot(dataModel: DataModel): JsonValue {
+    const result = dataModel.get();
+    if (!result.ok || result.value === undefined) {
+      throw new Error("DataModel root invariant violated");
+    }
+    return result.value;
+  }
+
+  #mapDataModelResult<T>(result: DataModelResult<T>): SurfaceStoreResult<T> {
+    return result.ok
+      ? success(result.value)
+      : { ok: false, error: { code: "DATA_MODEL_ERROR", dataModelError: result.error } };
+  }
+
+  #mutateData(
+    surfaceId: string,
+    path: string,
+    mutate: (dataModel: DataModel) => DataModelResult<DataModelChange | undefined>,
+  ): SurfaceStoreResult<SurfaceSnapshot> {
+    const surface = this.#surfaces.get(surfaceId);
+    if (surface === undefined) {
+      return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };
+    }
+    const mutation = this.#mapDataModelResult(mutate(surface.dataModel));
+    if (!mutation.ok) return mutation;
+
+    const snapshot = this.#snapshot(surface);
+    // DataModel delete returns undefined for a missing target. DataModel also
+    // suppresses subscriptions when a successful set leaves JSON unchanged.
+    const change = mutation.value;
+    const changed = change !== undefined
+      && JSON.stringify(change.previousValue) !== JSON.stringify(change.value);
+    if (changed) {
+      this.#notify(surfaceId, () => ({
+        type: "dataModelUpdated",
+        surface: this.#snapshot(surface),
+        path,
+      }));
+    }
+    return success(snapshot);
   }
 
   #notify(surfaceId: string, createChange: () => SurfaceChange): void {
