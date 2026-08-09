@@ -455,7 +455,9 @@ ComponentInstanceResolver
             ↓
 scoped instance tree
             ↓
-future property resolver
+ComponentPropertyResolver
+            ↓
+hydrated instance tree
             ↓
 future renderer
 ```
@@ -466,6 +468,47 @@ compose through immutable child `DataContext`s and absolute paths remain rooted.
 Missing collections and template components are progressive issues rather than
 fatal surface failures. Definitions and path bindings are not evaluated or
 mutated during instantiation.
+
+## Derived component properties
+
+```text
+SurfaceSnapshot
+      ↓
+ComponentTreeResolver + DataContext
+      ↓
+ComponentInstanceResolver
+      ↓
+ComponentPropertyResolver
+      ↓
+hydrated instance tree
+      ↓
+future renderer
+```
+
+Responsibilities remain separate: `CatalogRegistry` defines property semantics,
+`DataContext` performs scoped lookup, `ComponentInstanceResolver` creates scoped
+UI instances, and `ComponentPropertyResolver` hydrates literals and path
+bindings. A future trusted `FunctionRegistry` will execute catalog functions,
+and a future Web renderer will own presentation. Function calls are currently
+preserved as explicit unresolved descriptors; behavior definitions such as
+actions and checks remain defensively copied static properties for later layers.
+
+Dynamic-property discovery follows the same narrow direct-reference policy as
+structural discovery. Only direct component-property `$ref` values naming the
+v0.9.1 `DynamicString`, `DynamicNumber`, `DynamicBoolean`, and
+`DynamicStringList` common types are recorded. Wrapped schema compositions and
+arbitrary nested objects are not interpreted. Structural fields are excluded
+from hydrated properties and remain represented only as relationships.
+
+Path-bound values preserve their JSON data types and are never coerced.
+`undefined` means progressive data is not available, while `null` is an explicit
+JSON value and remains distinguishable even when it produces a dynamic-type
+mismatch. Formatting and presentation fallback belong to future catalog
+functions or renderers.
+
+Like every preceding stage, hydration is defensive derived state. It is rebuilt
+from each current snapshot, has no cache or subscription API, and is never
+stored in `SurfaceStore`.
 
 ### Architecture decision: instance identity is positional
 

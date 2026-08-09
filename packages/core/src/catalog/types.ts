@@ -16,6 +16,17 @@ export interface ComponentStructureDefinition {
   childListFields: string[];
 }
 
+export type DynamicPropertyKind =
+  | "dynamicString"
+  | "dynamicNumber"
+  | "dynamicBoolean"
+  | "dynamicStringList";
+
+export interface DynamicPropertyDefinition {
+  property: string;
+  valueKind: DynamicPropertyKind;
+}
+
 export interface CatalogValidationIssue {
   path: string;
   message: string;
@@ -29,3 +40,4 @@ export type CatalogRegistryResult<T> =
 export type CatalogComponentValidationResult = CatalogRegistryResult<A2UIComponent>;
 export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;
 export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStructureDefinition>;
+export type CatalogDynamicPropertiesResult = CatalogRegistryResult<DynamicPropertyDefinition[]>;

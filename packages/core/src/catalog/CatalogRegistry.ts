@@ -6,8 +6,11 @@ import { A2UI_CATALOG_SCHEMA } from "./schema.js";
 import type {
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
+  CatalogDynamicPropertiesResult,
   CatalogRegistration,
   ComponentStructureDefinition,
+  DynamicPropertyDefinition,
+  DynamicPropertyKind,
   CatalogRegistryResult,
   CatalogSnapshot,
   CatalogThemeValidationResult,
@@ -18,11 +21,18 @@ interface RegisteredCatalog {
   schema: JsonObject;
   validators: ReadonlyMap<string, ValidateFunction>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
+  dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
   themeValidator: ValidateFunction;
 }
 
 const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
 const CHILD_LIST_REF = "common_types.json#/$defs/ChildList";
+const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
+  "common_types.json#/$defs/DynamicString": "dynamicString",
+  "common_types.json#/$defs/DynamicNumber": "dynamicNumber",
+  "common_types.json#/$defs/DynamicBoolean": "dynamicBoolean",
+  "common_types.json#/$defs/DynamicStringList": "dynamicStringList",
+};
 
 function discoverStructure(componentSchema: JsonObject): ComponentStructureDefinition {
   const structure: ComponentStructureDefinition = { singleChildFields: [], childListFields: [] };
@@ -35,6 +45,18 @@ function discoverStructure(componentSchema: JsonObject): ComponentStructureDefin
     if (propertySchema.$ref === CHILD_LIST_REF) structure.childListFields.push(property);
   }
   return structure;
+}
+
+function discoverDynamicProperties(componentSchema: JsonObject): DynamicPropertyDefinition[] {
+  const definitions: DynamicPropertyDefinition[] = [];
+  const properties = componentSchema.properties;
+  if (properties === null || Array.isArray(properties) || typeof properties !== "object") return definitions;
+  for (const [property, propertySchema] of Object.entries(properties)) {
+    if (propertySchema === null || Array.isArray(propertySchema) || typeof propertySchema !== "object") continue;
+    const valueKind = typeof propertySchema.$ref === "string" ? DYNAMIC_PROPERTY_REFS[propertySchema.$ref] : undefined;
+    if (valueKind !== undefined) definitions.push({ property, valueKind });
+  }
+  return definitions;
 }
 
 function cloneJson<T extends JsonValue>(value: T): T {
@@ -102,6 +124,7 @@ export class CatalogRegistry {
     const components = schema.components as JsonObject;
     const validators = new Map<string, ValidateFunction>();
     const structures = new Map<string, ComponentStructureDefinition>();
+    const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
     let themeValidator: ValidateFunction;
     try {
       for (const [componentName, componentSchema] of Object.entries(components)) {
@@ -110,6 +133,7 @@ export class CatalogRegistry {
         }
         if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
+        dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
         compilationSchema.$ref = `#/components/${escapeJsonPointer(componentName)}`;
@@ -124,7 +148,7 @@ export class CatalogRegistry {
     }
 
     this.#registrationSequence += 1;
-    this.#catalogs.set(catalogId, { schema, validators, structures, themeValidator });
+    this.#catalogs.set(catalogId, { schema, validators, structures, dynamicProperties, themeValidator });
     return { ok: true, value: { catalogId, schema: cloneJson(schema) } };
   }
 
@@ -167,6 +191,24 @@ export class CatalogRegistry {
         childListFields: [...structure.childListFields],
       },
     };
+  }
+
+  getDynamicProperties(catalogId: string, componentName: string): CatalogDynamicPropertiesResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) {
+      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    }
+    const definitions = catalog.dynamicProperties.get(componentName);
+    if (definitions === undefined) {
+      return {
+        ok: false,
+        error: {
+          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component property metadata is not available"),
+          component: componentName,
+        },
+      };
+    }
+    return { ok: true, value: definitions.map((definition) => ({ ...definition })) };
   }
 
   validateTheme(catalogId: string, theme: JsonObject): CatalogThemeValidationResult {

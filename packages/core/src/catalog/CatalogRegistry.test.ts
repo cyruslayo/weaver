@@ -178,3 +178,37 @@ test("does not resolve progressive component references or require a root ID", (
   const registry = registered();
   assert.equal(registry.validateComponent("test", { id: "not-root", component: "Button", child: "missing" }).ok, true);
 });
+
+test("discovers only direct supported dynamic property references defensively", () => {
+  const source = catalog("dynamic", {
+    Metric: {
+      type: "object",
+      properties: {
+        id: { type: "string" }, component: { const: "Metric" },
+        primaryValue: { $ref: "common_types.json#/$defs/DynamicNumber" },
+        unusualLabel: { $ref: "common_types.json#/$defs/DynamicString" },
+        wrapped: { oneOf: [{ $ref: "common_types.json#/$defs/DynamicBoolean" }] },
+        metadata: { type: "object", properties: { path: { type: "string" } } },
+      },
+      required: ["id", "component"], additionalProperties: false,
+    },
+  });
+  (source.$defs as JsonObject).commonTypes = {
+    $id: "common_types.json",
+    $defs: {
+      DynamicNumber: { oneOf: [{ type: "number" }, { type: "object" }] },
+      DynamicString: { oneOf: [{ type: "string" }, { type: "object" }] },
+      DynamicBoolean: { oneOf: [{ type: "boolean" }, { type: "object" }] },
+    },
+  };
+  const registry = new CatalogRegistry();
+  assert.equal(registry.register({ catalogId: "dynamic", schema: source }).ok, true);
+  const result = registry.getDynamicProperties("dynamic", "Metric");
+  assert.deepEqual(result, { ok: true, value: [
+    { property: "primaryValue", valueKind: "dynamicNumber" },
+    { property: "unusualLabel", valueKind: "dynamicString" },
+  ] });
+  if (result.ok) result.value[0]!.property = "changed";
+  const again = registry.getDynamicProperties("dynamic", "Metric");
+  assert.equal(again.ok && again.value[0]?.property, "primaryValue");
+});
