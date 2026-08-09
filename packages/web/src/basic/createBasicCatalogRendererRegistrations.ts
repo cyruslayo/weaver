@@ -8,6 +8,7 @@ import {
   renderRow,
   renderText,
 } from "./renderers.js";
+import { createBasicInputRenderers } from "./inputs.js";
 
 export interface BasicCatalogRendererRegistrationOptions {
   catalogId: string;
@@ -17,6 +18,7 @@ export interface BasicCatalogRendererRegistrationOptions {
 export function createBasicCatalogRendererRegistrations(
   options: BasicCatalogRendererRegistrationOptions,
 ): RendererRegistration[] {
+  const inputs = createBasicInputRenderers();
   return [
     { catalogId: options.catalogId, component: "Text", render: renderText },
     { catalogId: options.catalogId, component: "Divider", render: renderDivider },
@@ -25,5 +27,10 @@ export function createBasicCatalogRendererRegistrations(
     { catalogId: options.catalogId, component: "List", render: renderList },
     { catalogId: options.catalogId, component: "Card", render: renderCard },
     { catalogId: options.catalogId, component: "Button", render: renderButton },
+    { catalogId: options.catalogId, component: "TextField", render: inputs.TextField },
+    { catalogId: options.catalogId, component: "CheckBox", render: inputs.CheckBox },
+    { catalogId: options.catalogId, component: "Slider", render: inputs.Slider },
+    { catalogId: options.catalogId, component: "ChoicePicker", render: inputs.ChoicePicker },
+    { catalogId: options.catalogId, component: "DateTimeInput", render: inputs.DateTimeInput },
   ];
 }

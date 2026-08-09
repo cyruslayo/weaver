@@ -275,7 +275,8 @@ Catalog validation (trusted type and properties)
         v
 RendererRegistry
         |
-        +-- Basic Catalog registrations: Text, Divider, Row, Column, List, Card, Button
+        +-- Basic Catalog registrations: Text, Divider, Row, Column, List, Card, Button,
+        |                                TextField, CheckBox, Slider, ChoicePicker, DateTimeInput
         +-- application/custom renderer registrations
         |
         v
@@ -992,11 +993,13 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog foundation registrations cover Text, Divider, Row, Column, List, Card, and Button; application/custom registrations remain alongside them. These are separate trust boundaries: a
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Divider, Row, Column, List, Card, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; application/custom registrations remain alongside them. These are separate trust boundaries: a
 validated component still requires an exact `catalogId + component` renderer.
 A2UI data never loads renderer code; implementations are host application code
 registered during initialization. There are no cross-catalog or global
 fallbacks and no dynamic code or HTML-string execution.
+
+Basic inputs use native controls and normalize browser values before calling the Web interaction bridge, which delegates to `WeaverRuntime.writeInput()`, mutates the DataModel, and triggers a full rerender. Registered controls are identified mount-locally by source component, scope path, and a renderer-local key; after successful replacement Web restores matching focus and supported text selection. No composite identity or scope path is serialized into markup.
 
 Task 20 uses full derived DOM subtree rebuilds for every surface mutation.
 Incremental reconciliation is deferred until profiling demonstrates a need.

@@ -16,7 +16,7 @@ function setup(component: string, overrides: Partial<WebComponentRenderInput> = 
     catalogId: "test-basic",
     instance: { sourceComponentId: "root", component, scopePath: "/", definition: {}, properties: {}, relationships: [] },
     properties: {}, relationships: [],
-    interactions: { writeInput: () => ({ ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }), dispatchAction: (property: string) => { calls.push(property); return { ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }; } },
+    interactions: { registerControl: () => {}, writeInput: () => ({ ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }), dispatchAction: (property: string) => { calls.push(property); return { ok: false, error: { code: "STALE_RENDER_INTERACTION" as const } }; } },
     ...overrides,
   } as WebComponentRenderInput;
   return { document, calls, node: registration.render(input) as HTMLElement };
@@ -26,7 +26,7 @@ const child = (document: Document, text: string) => { const node = document.crea
 
 test("factory registers exactly the foundation components under the supplied catalog ID", () => {
   const registrations = createBasicCatalogRendererRegistrations({ catalogId: "not-an-official-url" });
-  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Divider", "Row", "Column", "List", "Card", "Button"]);
+  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Divider", "Row", "Column", "List", "Card", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
   assert.ok(registrations.every(({ catalogId }) => catalogId === "not-an-official-url"));
 });
 
@@ -98,3 +98,56 @@ test("Button mirrors supplied checks and disables a progressively empty control"
   assert.equal(valid.disabled, false);
   assert.equal((setup("Button").node as HTMLButtonElement).disabled, true);
 });
+
+test("Basic inputs use native controls and normalized writes", () => {
+  const cases = [
+    ["TextField", { label: "Name", value: "42.5", variant: "number" }, "input", "input"],
+    ["CheckBox", { label: "Ready", value: true }, "input", "change"],
+    ["Slider", { max: 10, value: 2.5 }, "input", "input"],
+  ] as const;
+  for (const [component, properties, selector, event] of cases) {
+    const writes: unknown[] = [];
+    const rendered = setup(component, { properties, interactions: interactions(writes) }).node;
+    const control = rendered.querySelector(selector) as HTMLInputElement;
+    if (component === "TextField") { assert.equal(control.type, "number"); control.value = "7.5"; }
+    if (component === "CheckBox") { assert.equal(control.checked, true); control.checked = false; }
+    if (component === "Slider") { assert.equal(control.min, "0"); assert.equal(control.max, "10"); assert.equal(control.step, "any"); control.value = "4.25"; }
+    fire(control, event);
+    assert.deepEqual(writes[0], ["value", component === "CheckBox" ? false : component === "Slider" ? 4.25 : "7.5"]);
+  }
+  assert.equal((setup("Slider", { properties: { max: 10 } }).node.querySelector("input") as HTMLInputElement).disabled, true);
+});
+
+test("TextField defers writes until IME composition ends", () => {
+  const writes: unknown[] = [];
+  const control = setup("TextField", { properties: { label: undefined }, interactions: interactions(writes) }).node.querySelector("input")!;
+  fire(control, "compositionstart"); control.value = "に"; fire(control, "input"); control.value = "日本"; fire(control, "input"); fire(control, "compositionend");
+  assert.deepEqual(writes, [["value", "日本"]]);
+});
+
+test("ChoicePicker filters labels ephemerally and writes string arrays", () => {
+  const writes: unknown[] = [];
+  const node = setup("ChoicePicker", { properties: { value: ["a"], filterable: true, displayStyle: "chips", options: [{ label: "Alpha", value: "a" }, { label: undefined, value: "b" }, { label: "Beta", value: "c" }] }, interactions: interactions(writes) }).node;
+  assert.equal(node.getAttribute("data-a2ui-display-style"), "chips");
+  const filter = node.querySelector('input[type="search"]') as HTMLInputElement; filter.value = "BET"; fire(filter, "input");
+  assert.deepEqual([...node.querySelectorAll('fieldset > label:has(input[type="radio"])')].map((row) => (row as HTMLElement).hidden), [true, true, false]); assert.deepEqual(writes, []);
+  const radio = node.querySelectorAll('input[type="radio"]')[2] as HTMLInputElement; radio.checked = true; fire(radio, "change"); assert.deepEqual(writes, [["value", ["c"]]]);
+});
+
+test("DateTimeInput applies safe native date/time policy", () => {
+  const writes: unknown[] = [];
+  const date = setup("DateTimeInput", { properties: { enableDate: true, value: "2026-08-09", min: "2026-01-01", max: "bad" }, interactions: interactions(writes) }).node.querySelector("input") as HTMLInputElement;
+  assert.equal(date.type, "date"); assert.equal(date.value, "2026-08-09"); assert.equal(date.min, "2026-01-01"); assert.equal(date.hasAttribute("max"), false);
+  date.value = "2026-08-10"; fire(date, "change"); assert.deepEqual(writes, [["value", "2026-08-10"]]);
+  const invalid = setup("DateTimeInput", { properties: { enableDate: true, enableTime: true, value: "bad" } }).node.querySelector("input") as HTMLInputElement; assert.equal(invalid.value, "");
+  const disabled = setup("DateTimeInput", { properties: { value: "opaque" } }).node.querySelector("input") as HTMLInputElement; assert.equal(disabled.disabled, true); assert.equal(disabled.value, "opaque");
+});
+
+test("invalid inputs remain editable and expose only failed validation messages", () => {
+  const checks = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Required", issues: [] }, { index: 1, status: "pending" as const, message: "Wait", issues: [] }] };
+  const node = setup("TextField", { properties: { label: "Name" }, checks }).node; const control = node.querySelector("input") as HTMLInputElement;
+  assert.equal(control.disabled, false); assert.equal(control.getAttribute("aria-invalid"), "true"); assert.ok(control.getAttribute("aria-describedby")); assert.equal(node.textContent?.includes("Required"), true); assert.equal(node.textContent?.includes("Wait"), false);
+});
+
+function interactions(writes: unknown[]) { return { registerControl: () => {}, writeInput: (property: string, value: unknown) => { writes.push([property, value]); return { ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }; }, dispatchAction: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }) }; }
+function fire(node: Element, type: string): void { node.dispatchEvent(new node.ownerDocument.defaultView!.Event(type, { bubbles: true })); }

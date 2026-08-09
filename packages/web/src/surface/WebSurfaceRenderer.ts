@@ -20,6 +20,15 @@ import type {
 
 const identityKey = (sourceComponentId: string, scopePath: string): string =>
   JSON.stringify([sourceComponentId, scopePath]);
+const controlIdentityKey = (sourceComponentId: string, scopePath: string, localKey: string): string =>
+  JSON.stringify([sourceComponentId, scopePath, localKey]);
+
+type SelectionSnapshot = {
+  identity: string;
+  start?: number;
+  end?: number;
+  direction?: "forward" | "backward" | "none";
+};
 
 /** Framework-free renderer. Task 20 intentionally rebuilds the complete derived subtree. */
 export class WebSurfaceRenderer {
@@ -40,15 +49,28 @@ export class WebSurfaceRenderer {
 
     let mounted = true;
     let generation = 0;
+    let controlMetadata = new WeakMap<Element, string>();
+    let controls = new Map<string, Element>();
     const render = (): WebSurfaceRenderResult => {
+      const focus = captureFocus(container, document, controlMetadata);
       const renderGeneration = ++generation;
-      return this.#render(
+      const nextControlMetadata = new WeakMap<Element, string>();
+      const nextControls = new Map<string, Element>();
+      const result = this.#render(
         options.surfaceId,
         container,
         document,
         renderGeneration,
         () => mounted && generation === renderGeneration,
+        nextControlMetadata,
+        nextControls,
       );
+      if (result.ok) {
+        controlMetadata = nextControlMetadata;
+        controls = nextControls;
+        if (mounted) restoreFocus(focus, controls);
+      }
+      return result;
     };
     let lastResult: WebSurfaceRenderResult = render();
     if (!lastResult.ok) {
@@ -92,6 +114,8 @@ export class WebSurfaceRenderer {
     document: Document,
     generation: number,
     isCurrent: () => boolean,
+    controlMetadata: WeakMap<Element, string>,
+    controls: Map<string, Element>,
   ): WebSurfaceRenderResult {
     const resolved = this.#runtime.resolveSurface(surfaceId);
     if (!resolved.ok) return { ok: false, error: { code: "SURFACE_RESOLUTION_FAILED", cause: resolved.error } };
@@ -100,20 +124,25 @@ export class WebSurfaceRenderer {
       return { ok: true, value: { ready: false } };
     }
 
-    const rendered = this.#renderTree(resolved.value, document, generation, isCurrent);
+    const rendered = this.#renderTree(resolved.value, document, generation, isCurrent, controlMetadata, controls);
     if (!rendered.ok) return rendered;
     container.replaceChildren(rendered.value);
     return { ok: true, value: { ready: true } };
   }
 
-  #renderTree(surface: WeaverResolvedSurface, document: Document, generation: number, isCurrent: () => boolean):
-    | { ok: true; value: Node }
-    | { ok: false; error: WebRenderError } {
+  #renderTree(
+    surface: WeaverResolvedSurface,
+    document: Document,
+    generation: number,
+    isCurrent: () => boolean,
+    controlMetadata: WeakMap<Element, string>,
+    controls: Map<string, Element>,
+  ): { ok: true; value: Node } | { ok: false; error: WebRenderError } {
     const checks = new Map<string, ComponentCheckSnapshot>();
     for (const snapshot of surface.checks.components) {
       checks.set(identityKey(snapshot.sourceComponentId, snapshot.scopePath), snapshot);
     }
-    return this.#renderInstance(surface.surfaceId, surface.catalogId, surface.tree.root!, checks, document, generation, isCurrent);
+    return this.#renderInstance(surface.surfaceId, surface.catalogId, surface.tree.root!, checks, document, generation, isCurrent, controlMetadata, controls);
   }
 
   #renderInstance(
@@ -124,6 +153,8 @@ export class WebSurfaceRenderer {
     document: Document,
     generation: number,
     isCurrent: () => boolean,
+    controlMetadata: WeakMap<Element, string>,
+    controls: Map<string, Element>,
   ): { ok: true; value: Node } | { ok: false; error: WebRenderError } {
     const relationships: WebRenderedRelationship[] = [];
     for (const relationship of instance.relationships) {
@@ -132,14 +163,14 @@ export class WebSurfaceRenderer {
           relationships.push({ kind: "single", property: relationship.property });
           continue;
         }
-        const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent);
+        const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent, controlMetadata, controls);
         if (!child.ok) return child;
         relationships.push({ kind: "single", property: relationship.property, child: child.value });
         continue;
       }
       const children: Node[] = [];
       for (const childInstance of relationship.children) {
-        const child = this.#renderInstance(surfaceId, catalogId, childInstance, checks, document, generation, isCurrent);
+        const child = this.#renderInstance(surfaceId, catalogId, childInstance, checks, document, generation, isCurrent, controlMetadata, controls);
         if (!child.ok) return child;
         children.push(child.value);
       }
@@ -165,6 +196,11 @@ export class WebSurfaceRenderer {
           property,
           value,
         });
+      },
+      registerControl: (element, localKey) => {
+        const identity = controlIdentityKey(instance.sourceComponentId, instance.scopePath, localKey);
+        controlMetadata.set(element, identity);
+        controls.set(identity, element);
       },
       dispatchAction: (actionProperty) => {
         if (!isCurrent()) return { ok: false, error: { code: "STALE_RENDER_INTERACTION" } };
@@ -215,6 +251,35 @@ function isNode(value: unknown, document: Document): value is Node {
   if ((typeof value !== "object" && typeof value !== "function") || value === null) return false;
   const probe = document.createDocumentFragment();
   return Object.getPrototypeOf(probe).isPrototypeOf(value);
+}
+
+function captureFocus(container: Element, document: Document, metadata: WeakMap<Element, string>): SelectionSnapshot | undefined {
+  const active = document.activeElement;
+  if (active === null || !container.contains(active)) return undefined;
+  const identity = metadata.get(active);
+  if (identity === undefined) return undefined;
+  const snapshot: SelectionSnapshot = { identity };
+  try {
+    const control = active as HTMLInputElement | HTMLTextAreaElement;
+    if (typeof control.selectionStart === "number" && typeof control.selectionEnd === "number") {
+      snapshot.start = control.selectionStart;
+      snapshot.end = control.selectionEnd;
+      if (control.selectionDirection !== null) snapshot.direction = control.selectionDirection;
+    }
+  } catch { /* Some native input types reject selection access. */ }
+  return snapshot;
+}
+
+function restoreFocus(snapshot: SelectionSnapshot | undefined, controls: ReadonlyMap<string, Element>): void {
+  if (snapshot === undefined) return;
+  const replacement = controls.get(snapshot.identity);
+  if (replacement === undefined || !("focus" in replacement)) return;
+  const focusable = replacement as HTMLElement;
+  try { focusable.focus({ preventScroll: true }); } catch { return; }
+  if (snapshot.start === undefined || snapshot.end === undefined) return;
+  try {
+    (replacement as HTMLInputElement | HTMLTextAreaElement).setSelectionRange(snapshot.start, snapshot.end, snapshot.direction);
+  } catch { /* Selection is unsupported for controls such as date and number inputs. */ }
 }
 
 function cloneResult(result: WebSurfaceRenderResult): WebSurfaceRenderResult {

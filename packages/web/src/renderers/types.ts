@@ -22,6 +22,8 @@ export type WebActionInteractionResult =
 export interface WebComponentInteractions {
   writeInput(property: string, value: JsonValue): WebInputInteractionResult;
   dispatchAction(actionProperty: string): WebActionInteractionResult;
+  /** Registers a component-local native control identity for mount-local focus continuity. */
+  registerControl(element: Element, localKey: string): void;
 }
 
 export type WebRenderedRelationship =

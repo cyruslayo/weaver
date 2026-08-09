@@ -153,7 +153,7 @@ const renderers = new RendererRegistry([
 
 Basic renderer registrations do not own catalog schema identity. The host passes the `catalogId` used by `WeaverRuntime`; schema trust and renderer implementation trust remain separate.
 
-| Basic Catalog component | Task 22 status |
+| Basic Catalog component | Status |
 | --- | --- |
 | Text | Implemented |
 | Divider | Implemented |
@@ -162,7 +162,7 @@ Basic renderer registrations do not own catalog schema identity. The host passes
 | List | Implemented |
 | Card | Implemented |
 | Button | Implemented |
-| TextField, CheckBox, Slider, ChoicePicker, DateTimeInput | Deferred |
+| TextField, CheckBox, Slider, ChoicePicker, DateTimeInput | Implemented |
 | Image, Icon, Video, AudioPlayer | Deferred |
 | Modal, Tabs | Deferred |
 
@@ -175,3 +175,27 @@ Task 22 provides native semantics, essential flex layout behavior, separator geo
 Row and Column default to `justify = start` and `align = stretch`. List defaults to vertical direction and stretch alignment. Known enum values alone map to CSS; component property objects are never copied into styles. List children are wrapped in `role=listitem`; Card and Button consume the resolved `child` relationship.
 
 A Basic Button uses native `disabled` state to mirror Core's current check snapshot: `invalid`, `pending`, and `error` disable it, while `valid` enables it. No snapshot leaves normal behavior unchanged. An absent progressive child is a renderer-level reason to disable the otherwise empty button until rerender. Core `ActionDispatcher` remains the authoritative action gate; browser disabled state is not a security boundary. Clicks call only `interactions.dispatchAction("action")`, relying on the existing generation guard and local/server action paths.
+
+## Basic input policy
+
+Web owns native browser normalization before delegating every write through `WeaverRuntime.writeInput()`; Core remains authoritative for binding paths and value types:
+
+```text
+TextField     → string
+CheckBox      → boolean
+Slider        → finite number
+ChoicePicker  → string[]
+DateTimeInput → string (ISO policy below)
+```
+
+`TextField` uses text, textarea, number, and password controls. The number variant provides native numeric editing UX, but its A2UI model value remains a string (unlike Slider). During IME composition, intermediate input events do not write; `compositionend` writes the final composed string once. `TextField.validationRegexp` is not executed by Weaver Web yet. Core `CheckRule` validation remains the authoritative implemented path.
+
+ChoicePicker uses native radio controls for `mutuallyExclusive` and checkboxes for `multipleSelection`; both store `string[]`. Its optional case-insensitive label filter is ephemeral Web-only state and never writes the DataModel.
+
+Date-only values use `YYYY-MM-DD`; time-only values use the native ISO-compatible time string and permit seconds. Combined date/time values populate `datetime-local` using browser-local wall time and write `Date.toISOString()` UTC values. Invalid or unrepresentable values and constraints render empty or are omitted without failing the surface. When both enable flags are false, Web renders a disabled, non-writing text representation.
+
+All five inputs render only failed-check messages when component status is `invalid`, associate them with native controls, and set `aria-invalid=true`. Pending/error checks are not presented as confirmed validation failures. Validation never disables an input by itself; users can edit invalid values.
+
+## Focus continuity
+
+Weaver Web still performs full subtree replacement. Renderers register controls using component-local keys; each mount internally combines the key with `sourceComponentId + scopePath` in Weak DOM metadata. Before every render attempt Web captures a registered active control and supported text selection, invalidates the old interaction generation, and builds detached DOM. After successful replacement only, it focuses the matching control with `preventScroll` and restores its selection range where supported. Failed renders preserve visible but stale old DOM without reactivation. This is interactive-rendering correctness, not reconciliation or a virtual DOM.
