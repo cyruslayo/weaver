@@ -276,7 +276,7 @@ Catalog validation (trusted type and properties)
 RendererRegistry
         |
         +-- Basic Catalog registrations: Text, Image, Video, AudioPlayer, Divider, Row,
-        |                                Column, List, Card, Tabs, Button, TextField,
+        |                                Column, List, Card, Tabs, Modal, Button, TextField,
         |                                CheckBox, Slider, ChoicePicker, DateTimeInput
         +-- application/custom renderer registrations
         |
@@ -986,7 +986,7 @@ The first framework-free browser layer consumes only Core's public derived API:
        Core-derived UI             mount-local state
                                          │
                                          ↓
-                                  Tabs selectedIndex
+                         Tabs selectedIndex / Modal open
                                          │
                                          ↓
                                   mount refresh
@@ -1013,7 +1013,21 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; application/custom registrations remain alongside them. Media adds a Web-only trust boundary:
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; only Icon remains pending. Application/custom registrations remain alongside them.
+
+```text
+Modal trigger
+     ↓
+capture interception
+     ↓
+mount-local open state
+     ↓
+full mount rerender
+     ↓
+dialog/content
+```
+
+Modal presentation remains inside its Weaver mount and reuses generation safety and registered-control focus continuity; it creates no portal or global dialog state. Media adds a Web-only trust boundary:
 
 ```text
 hydrated media URL

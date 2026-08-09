@@ -99,8 +99,8 @@ or failed actions are not handed off. Host callback exceptions are isolated as
 Renderer-local state is ephemeral Web presentation state. It is mount-local,
 component-instance-local (`sourceComponentId + scopePath`), non-protocol, and
 non-DataModel. It never enters `SurfaceStore`, `WeaverRuntime`, A2UI messages, or
-server events. Tabs uses it for `selectedIndex`; a future Modal may reuse the
-same narrow facility for open state.
+server events. Tabs uses it for `selectedIndex`; Modal uses it for `open`. Modal open state is
+mount-local renderer presentation state, not DataModel, protocol, or action state.
 
 ```text
 DOM interaction
@@ -190,7 +190,8 @@ Basic renderer registrations do not own catalog schema identity. The host passes
 | TextField, CheckBox, Slider, ChoicePicker, DateTimeInput | Implemented |
 | Image, Video, AudioPlayer | Implemented |
 | Tabs | Implemented |
-| Icon, Modal | Deferred |
+| Modal | Implemented |
+| Icon | Deferred |
 
 Tabs uses native button headers in a `tablist`, one live `tabpanel`,
 `aria-selected`, ARIA ID associations, and roving tabindex. ArrowLeft and
@@ -202,12 +203,11 @@ Missing titles render empty and missing selected children produce an empty
 panel. `selectedIndex` is positional: reordering preserves the numeric index,
 not semantic tab identity; an out-of-range index renders as zero.
 
-Only the selected Tabs child is inserted into the live DOM. The current generic
-child-first renderer may still construct inactive descendant Nodes off-DOM.
-This can initiate policy-approved native media resource loading when `src` is
-assigned. This milestone does not claim lazy rendering or weaken the resource
-policy; selective relationship construction remains a future optimization if
-profiling or security requirements justify it.
+Only the selected Tabs child is inserted into the live DOM. A closed Modal likewise inserts only its direct `/trigger` relationship; an open Modal inserts only `/content` in its dialog. The current generic child-first renderer may still construct inactive descendants off-DOM. This can initiate policy-approved native media resource loading when `src` is assigned. These milestones do not claim lazy rendering or weaken the resource policy; selective relationship construction remains a future optimization if profiling or security requirements justify it.
+
+Modal wraps its trigger in a neutral capture listener. Activation opens it locally before an actionable trigger Button can dispatch; non-interactive triggers receive `role=button`, `tabIndex=0`, Enter, and Space behavior. Actions and inputs inside content retain normal A2UI behavior and never close the Modal automatically. The open presentation contains an in-mount backdrop and `role=dialog` / `aria-modal=true` dialog with a generic accessible name because the Basic schema supplies no title. Close button, backdrop click, and Escape dismiss locally.
+
+Opening maps registered trigger focus to the close control; closing maps the close control back to the trigger. Tab and Shift+Tab wrap inside the open dialog, while normal registered input focus and caret restoration continue across full rerenders. The Modal remains inside the Weaver mount: it uses no portal and mutates neither `document.body` nor host-owned siblings.
 
 Unimplemented components remain absent from the registry and fail with `RENDERER_NOT_FOUND`; detached-tree construction preserves the last successful DOM, and a later supported update recovers normally.
 

@@ -26,6 +26,8 @@ function catalog(catalogId: string): JsonObject {
       Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: {
         title: ref("DynamicString"), child: ref("ComponentId"),
       }, required: ["title", "child"], additionalProperties: false } } }),
+      Modal: component("Modal", { trigger: ref("ComponentId"), content: ref("ComponentId") }),
+      Button: component("Button", { child: ref("ComponentId"), action: ref("Action") }),
       Local: component("Local"),
       CheckText: component("CheckText", { text: ref("DynamicString"), checks: { type: "array" } }, [ref("Checkable")]),
       Missing: component("Missing"), Throwing: component("Throwing"), Invalid: component("Invalid"),
@@ -43,7 +45,10 @@ function catalog(catalogId: string): JsonObject {
       FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
       DynamicString: dynamic({ type: "string" }), DynamicNumber: dynamic({ type: "number" }),
       DynamicBoolean: dynamic({ type: "boolean" }), DynamicStringList: dynamic({ type: "array", items: { type: "string" } }),
-      Checkable: {},
+      Checkable: {}, Action: { oneOf: [
+        { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
+        { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
+      ] },
     } } },
   };
 }
@@ -287,6 +292,28 @@ test("Basic Tabs selects by structural location, persists locally, restores keyb
   rt.process(components([{ id: "root", component: "Tabs", tabs: [{ title: "Only", child: "a" }] }]));
   assert.equal(tabs(one.target)[0]?.getAttribute("aria-selected"), "true");
   assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Changed");
+});
+
+test("Basic Modal intercepts a real Button trigger, persists open state, restores focus, and keeps content actions normal", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Modal", trigger: "trigger", content: "content" },
+    { id: "trigger", component: "Button", child: "trigger-label", action: { event: { name: "leak", context: {} } } },
+    { id: "trigger-label", component: "Text", text: "Open" },
+    { id: "content", component: "Button", child: "content-label", action: { event: { name: "inside", context: {} } } },
+    { id: "content-label", component: "Text", text: "Run" },
+  ]));
+  const { target } = dom(); target.ownerDocument.body.append(target); const handoffs: unknown[] = [];
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId: "test" })), onServerEvent: (event) => handoffs.push(event) }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok); const oldTrigger = target.querySelector<HTMLButtonElement>("button")!; oldTrigger.focus(); oldTrigger.click();
+  assert.equal(handoffs.length, 0); assert.ok(target.querySelector('[role="dialog"]')); assert.equal(target.ownerDocument.activeElement?.getAttribute("aria-label"), "Close");
+  const contentButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Run")!; contentButton.click();
+  assert.equal(handoffs.length, 1); assert.ok(target.querySelector('[role="dialog"]'));
+  rt.process(data({ unrelated: true })); assert.ok(target.querySelector('[role="dialog"]'));
+  const oldClose = target.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!; oldClose.click();
+  assert.equal(target.querySelector('[role="dialog"]'), null); assert.equal(target.ownerDocument.activeElement?.textContent, "Open");
+  oldClose.click(); assert.equal(target.querySelector('[role="dialog"]'), null);
+  oldTrigger.click(); assert.equal(target.querySelector('[role="dialog"]'), null, "old trigger is stale");
 });
 
 function interactionCatalog(): JsonObject {

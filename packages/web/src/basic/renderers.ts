@@ -150,6 +150,121 @@ export const renderTabs: WebComponentRenderer = ({ document, properties, relatio
   return container;
 };
 
+function directRelationship(relationships: readonly WebRenderedRelationship[], name: "trigger" | "content"): Node | undefined {
+  for (const relationship of relationships) {
+    const segment = relationship.location[0];
+    if (relationship.kind === "single" && relationship.location.length === 1
+      && segment?.kind === "property" && segment.name === name) return relationship.child;
+  }
+  return undefined;
+}
+
+const focusableSelector = "button,input,select,textarea,a[href],[tabindex]";
+
+function usableFocusable(element: Element): element is HTMLElement {
+  if (!("focus" in element) || element.getAttribute("tabindex") === "-1") return false;
+  if ("disabled" in element && (element as HTMLButtonElement).disabled) return false;
+  return !(element as HTMLElement).hidden;
+}
+
+function findFocusable(root: Element): HTMLElement[] {
+  const elements: HTMLElement[] = [];
+  if (root.matches(focusableSelector) && usableFocusable(root)) elements.push(root as HTMLElement);
+  for (const element of root.querySelectorAll(focusableSelector)) if (usableFocusable(element)) elements.push(element);
+  return elements;
+}
+
+export const renderModal: WebComponentRenderer = ({ document, relationships, interactions }) => {
+  const container = document.createElement("div");
+  applyBasicHook(container, "Modal");
+  const trigger = directRelationship(relationships, "trigger");
+  if (trigger === undefined) return container;
+
+  const storedOpen = interactions.getLocalState("open", false);
+  const open = typeof storedOpen === "boolean" ? storedOpen : false;
+  if (!open) {
+    const wrapper = document.createElement("div");
+    wrapper.setAttribute("data-a2ui-modal-trigger", "");
+    wrapper.append(trigger);
+    const triggerControl = findFocusable(wrapper)[0];
+    const openModal = () => { interactions.setLocalState("open", true); };
+    wrapper.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openModal();
+    }, true);
+    if (triggerControl === undefined) {
+      wrapper.setAttribute("role", "button");
+      wrapper.tabIndex = 0;
+      wrapper.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { event.preventDefault(); openModal(); }
+        else if (event.key === " ") event.preventDefault();
+      });
+      wrapper.addEventListener("keyup", (event) => {
+        if (event.key !== " ") return;
+        event.preventDefault();
+        openModal();
+      });
+      interactions.registerControl(wrapper, "modal-focus");
+    } else interactions.registerControl(triggerControl, "modal-focus");
+    container.append(wrapper);
+    return container;
+  }
+
+  const backdrop = document.createElement("div");
+  backdrop.setAttribute("data-a2ui-modal-backdrop", "");
+  backdrop.style.position = "fixed";
+  backdrop.style.inset = "0";
+  backdrop.style.zIndex = "1000";
+  backdrop.style.display = "flex";
+  backdrop.style.alignItems = "center";
+  backdrop.style.justifyContent = "center";
+  backdrop.style.background = "rgba(0, 0, 0, 0.45)";
+  const dialog = document.createElement("div");
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-label", "Modal dialog");
+  dialog.style.background = "Canvas";
+  dialog.style.color = "CanvasText";
+  dialog.style.maxHeight = "calc(100% - 2rem)";
+  dialog.style.maxWidth = "calc(100% - 2rem)";
+  dialog.style.overflow = "auto";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.setAttribute("aria-label", "Close");
+  close.textContent = "Close";
+  interactions.registerControl(close, "modal-focus");
+  const closeModal = () => { interactions.setLocalState("open", false); };
+  close.addEventListener("click", closeModal);
+  const content = directRelationship(relationships, "content");
+  dialog.append(close);
+  if (content !== undefined) dialog.append(content);
+  backdrop.append(dialog);
+  backdrop.addEventListener("click", (event) => { if (event.target === backdrop) closeModal(); });
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeModal();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = findFocusable(dialog);
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (first === undefined || last === undefined) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  container.append(backdrop);
+  return container;
+};
+
 export const renderButton: WebComponentRenderer = ({ document, properties, relationships, checks, interactions }) => {
   const button = document.createElement("button");
   applyBasicHook(button, "Button");
