@@ -167,10 +167,10 @@ test("capabilities are ordered and defensive, resolved state is defensive, and r
   const made = createWeaverRuntime({ catalogs: [{ catalogId: "catalog-a", schema: catalog("catalog-a") }, { catalogId: "catalog-b", schema: catalog("catalog-b") }] });
   assert.ok(made.ok);
   const capabilities = made.value.getClientCapabilities();
-  assert.deepEqual(capabilities, { "v0.9.1": { supportedCatalogIds: ["catalog-a", "catalog-b"] } });
-  assert.equal("inlineCatalogs" in capabilities["v0.9.1"], false);
-  capabilities["v0.9.1"].supportedCatalogIds.push("bad");
-  assert.deepEqual(made.value.getClientCapabilities()["v0.9.1"].supportedCatalogIds, ["catalog-a", "catalog-b"]);
+  assert.deepEqual(capabilities, { "v0.9": { supportedCatalogIds: ["catalog-a", "catalog-b"] } });
+  assert.equal("inlineCatalogs" in capabilities["v0.9"], false);
+  capabilities["v0.9"].supportedCatalogIds.push("bad");
+  assert.deepEqual(made.value.getClientCapabilities()["v0.9"].supportedCatalogIds, ["catalog-a", "catalog-b"]);
 
   const a = runtime(); const b = runtime(); assert.ok(a.ok && b.ok);
   a.value.process(create("only-a"));

@@ -7,7 +7,13 @@ import { ComponentTreeResolver } from "../component-tree/index.js";
 import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
 import { InputBindingWriter } from "../input-binding/index.js";
 import { A2UIMessageProcessor } from "../message-processor/index.js";
-import type { A2UIClientCapabilitiesV0_9_1 } from "../protocol/index.js";
+import {
+  buildA2UIClientCapabilities,
+  mapA2UIValidationFailure,
+  type A2UIClientCapabilities,
+  type A2UIValidationFailureMappingInput,
+  type A2UIValidationFailureMappingResult,
+} from "../protocol/index.js";
 import { SurfaceStore } from "../surfaces/index.js";
 import type {
   WeaverActionRequest,
@@ -111,8 +117,16 @@ export class WeaverRuntime {
     return this.#services.store.subscribe(surfaceId, () => subscriber(this.resolveSurface(surfaceId)));
   }
 
-  getClientCapabilities(): A2UIClientCapabilitiesV0_9_1 {
-    return { "v0.9.1": { supportedCatalogIds: this.#services.catalogs.getSupportedCatalogIds() } };
+  getClientCapabilities(): A2UIClientCapabilities {
+    return buildA2UIClientCapabilities({
+      supportedCatalogIds: this.#services.catalogs.getSupportedCatalogIds(),
+    });
+  }
+
+  mapProcessFailureToValidationMessage(
+    input: A2UIValidationFailureMappingInput,
+  ): A2UIValidationFailureMappingResult {
+    return mapA2UIValidationFailure(input);
   }
 
   #resolveCurrentInstance(identity: { surfaceId: string; sourceComponentId: string; scopePath: string }):

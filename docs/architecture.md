@@ -1046,11 +1046,50 @@ transport decoder
 WeaverRuntime.process()
 ```
 
-`runtime.getClientCapabilities()` returns only the A2UI capability value, with
-catalog IDs sourced defensively from `CatalogRegistry` in registration order.
-It does not advertise inline catalogs. A transport adapter decides where that
-value is attached; the runtime does not create HTTP, A2A, MCP, or JSON-RPC
-envelopes.
+`runtime.getClientCapabilities()` returns only the exact official A2UI
+capability-file value (`v0.9.supportedCatalogIds`), with catalog IDs sourced
+defensively from `CatalogRegistry` in registration order. It does not advertise
+inline catalogs. A transport adapter decides where that value is attached; the
+runtime does not create HTTP, A2A, MCP, or JSON-RPC envelopes.
+
+The outbound boundary is transport-neutral:
+
+```text
+WeaverRuntime / Core result
+        ↓
+A2UI outbound builders
+        ├── capabilities
+        ├── existing action
+        ├── validation error
+        └── existing client data model
+        ↓
+transport / host adapter
+```
+
+Core owns exact A2UI outbound JSON objects. A transport owns delivery, routing,
+metadata placement, and retries. The host/orchestrator owns surface/server
+identity and ownership. Builders perform no sending and `process()` retains its
+ordinary processing result and side-effect behavior.
+
+Validation-failure mapping is deliberately narrower than generic runtime-error
+mapping. Protocol schema failures and catalog-governed component/theme failures
+are eligible; lifecycle, DataModel, function, checks, stale-interaction, and
+renderer errors retain their internal typed meanings. The first issue in
+existing deterministic validation order supplies the concise normalized path
+and message. `/` is the protocol-safe root-path representation.
+
+Surface identity is never fabricated:
+
+```text
+usable surfaceId in invalid inbound envelope
+        ↓ otherwise
+trusted transport/session surfaceId supplied by caller
+        ↓ otherwise
+VALIDATION_ERROR_SURFACE_ID_REQUIRED (no CTS object)
+```
+
+This lets future transports use trusted routing context without weakening the
+official required `surfaceId` wire shape.
 
 ## Browser rendering
 

@@ -50,13 +50,16 @@ Complete. The canonical requirement-by-requirement tracker is
 [`conformance-v0.9.1.md`](conformance-v0.9.1.md). It supersedes the prior roadmap
 ordering for remaining conformance work.
 
+## Task 36 — protocol outbound conformance
+
+Complete. Core now owns exact transport-neutral A2UI capability and validation-error objects, including typed process-failure mapping and pinned official outbound-schema tests. No transport or delivery adapter was added.
+
 ## Next milestones
 
-1. protocol outbound conformance
-2. Basic functional/accessibility hardening
-3. Basic visual hardening
-4. trusted surface attribution/chrome
-5. final v0.9.1 conformance fixtures
+1. Basic functional/accessibility hardening (List scrolling, `justify=stretch`, validation announcement/association verification, nested Modal regression coverage)
+2. Basic visual hardening
+3. trusted surface attribution/chrome
+4. final v0.9.1 conformance fixtures
 
 Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, the opt-in surface theme bridge, parent-aware component weight, and safe Text Markdown plus TextField `validationRegexp` are complete. Full Basic Catalog conformance remains incomplete until the audit's required and hardening backlogs are addressed.
 

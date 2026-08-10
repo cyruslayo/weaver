@@ -20,7 +20,7 @@
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 119 | 18 | 11 | 3 | 2 | 3 | **156** |
+| 123 | 16 | 11 | 1 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -38,7 +38,7 @@ Only first-party A2UI sources were used. Locations below are repository paths at
 | G | `specification/v0_9_1/docs/basic_catalog_implementation_guide.md` | implementation guidance/recommendation, except its explicitly mandatory `openUrl` security rules |
 | C | `docs/public/guides/renderer-development.md`, v0.9.1 checklists | renderer checklist requirement |
 
-Important source discrepancy: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and capability key strings containing `v0_9`/`v0.9`; CAP requires key **`v0.9`**, while Weaver emits **`v0.9.1`**. This is not inferred away.
+Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and capability key strings containing `v0_9`/`v0.9`; CAP requires key **`v0.9`**. Weaver emits that exact official capability-file key.
 
 ## 1. Protocol, lifecycle, progressive rendering
 
@@ -127,11 +127,11 @@ Important source discrepancy: the v0.9.1 files retain `$id`, `$ref`, `catalogId`
 | R071 | `sendDataModel` metadata on actions (P synchronization; protocol) | Transport-neutral metadata emitted when true; action/runtime/Web tests | PASS | Targeted delivery is adapter-owned |
 | R072 | CDM exact `version` + `surfaces` shape (CDM root; schema) | Exact shape; each Weaver model is constrained to JSON object; action tests | PASS | None |
 | R073 | Send only current surface owner (P Targeted Delivery; protocol) | Core has no server identity/routing; returns metadata to caller | DEFERRED-BY-ARCHITECTURE | Host/transport adapter must route only to owner |
-| R074 | CAP `supportedCatalogIds` (CAP path `/v0.9/supportedCatalogIds`; schema) | Weaver emits IDs but beneath `v0.9.1` | PARTIAL | Outbound conformance adapter must emit official `v0.9` key |
+| R074 | CAP `supportedCatalogIds` (CAP path `/v0.9/supportedCatalogIds`; schema) | Shared outbound builder and runtime emit exact `v0.9` shape; ordering/ownership/schema tests in `outbound.test.ts` | PASS | None |
 | R075 | CAP `inlineCatalogs` optional (CAP path `/v0.9/inlineCatalogs`; schema) | Intentionally omitted and no inline trust path | PASS | None; optional and unsupported |
-| R076 | Validation failure outbound `error` envelope (CTS `/error`; checklist) | Typed internal issues only; no transport-neutral protocol message | NOT-IMPLEMENTED | Build explicit error-message mapper, without coupling transport |
-| R077 | Error code exactly `VALIDATION_FAILED` (CTS error oneOf; schema) | Internal error codes differ and are not outbound CTS | NOT-IMPLEMENTED | Same as R076 |
-| R078 | Error `surfaceId/path/message` (CTS Validation Failed; schema) | Internal issues usually have path/message and optional surface ID, not full required shape | PARTIAL | Define mapping/fallback ownership |
+| R076 | Validation failure outbound `error` envelope (CTS `/error`; checklist) | Transport-neutral exact builder and eligible process-failure mapper; pinned CTS tests in `outbound.test.ts` | PASS | Transport decides delivery |
+| R077 | Error code exactly `VALIDATION_FAILED` (CTS error oneOf; schema) | Builder fixes the outbound code to `VALIDATION_FAILED`; official-schema tested | PASS | None |
+| R078 | Error `surfaceId/path/message` (CTS Validation Failed; schema) | Deterministic first normalized issue; inbound ID then trusted caller fallback; typed failure if unavailable | PASS | Host/transport may supply trusted routing context; never fabricate identity |
 
 ## 4. Transport and JSONL
 
@@ -183,12 +183,12 @@ All schema-property validation is delegated to the registered official Basic sch
 | R110 | Column | static/template children, column, justify/align/order/weight | zero spacing; same `justify=stretch` issue | PARTIAL | Same |
 | R111 | List | static/template, direction/align, list/listitem semantics, weight isolation | Does not implement required vertical/horizontal scrolling or horizontal item constraints | NOT-IMPLEMENTED | Basic visual hardening milestone |
 | R112 | Card | one nested child; missing child progressive; weight | boundary/padding hooks exist; rounded/background/outline/shadow/nesting distinction/external margin incomplete | PARTIAL | Choose one officially acceptable border/elevation strategy |
-| R113 | Tabs | dynamic titles/nested child, local selected index, selected child only, click, progressive | active hooks; ARIA and keyboard arrow navigation absent; index is positional on reorder; weight works | PARTIAL | Accessibility + reorder hardening |
+| R113 | Tabs | dynamic titles/nested child, local selected index, selected child only, click, progressive | tablist/tab/tabpanel ARIA, roving tabindex, ArrowLeft/Right/Home/End are implemented and tested; index remains positional on reorder; weight works | PARTIAL | Reorder hardening |
 | R114 | Modal | trigger/content, interception, local open/close, backdrop, Escape, semantics, focus trap/return | accessible dialog and focus wrapping tested; nested behavior not directly covered; weight works | PARTIAL | Add nested Modal regression tests |
 | R115 | Divider | axis, line hooks, weight | semantic separator/orientation; exact 1px/full-span visual incomplete | PARTIAL | Visual hardening |
 | R116 | Button | child/action/checks/variants/theme/weight | native button, check disable; primary inherits contrast; default/borderless are primarily data/style hooks | PARTIAL | Implement guide visual treatments |
 | R117 | TextField | dynamic label/value; four variants; writes/checks/regexp/IME/focus-caret/weight | native labelled controls, invalid state/messages; number model remains string; schema/guide conflict prevents one unambiguous requirement | SPEC-AMBIGUOUS | Preserve support for both checks and trusted-host regexp |
-| R118 | CheckBox | dynamic label/boolean; writes/checks/weight | native labelled checkbox; theme accent not implemented | PARTIAL | Theme/visual hardening |
+| R118 | CheckBox | dynamic label/boolean; writes/checks/weight | native labelled checkbox; theme-aware native `accent-color` is implemented and tested; broader guide visuals remain incomplete | PARTIAL | Visual hardening |
 | R119 | ChoicePicker | dynamic labels, stable values, both variants/styles/filter, string[] writes/checks/weight | labelled native radio/checkbox + filter; functional, but guide prefers dropdown/expander and true chips | PARTIAL | Visual implementation, separately from function |
 | R120 | Slider | min/max/dynamic number/decimal writes/checks/weight | native range and label | PASS | Optional visual value display not required |
 | R121 | DateTimeInput | dynamic value/min/max; date/time/both; ISO writes/checks/weight | native controls/labels; local browser timezone policy; both false → disabled non-writing representation | PASS | Document timezone interoperability |
@@ -294,7 +294,7 @@ Every PASS row above cites at least a test file/group or, for negative source sc
 | Catalog trust | `catalog/CatalogRegistry.test.ts` |
 | Web/Basic/accessibility/security | `web/src/basic/basic.test.ts`, `surface/WebSurfaceRenderer.test.ts`, `basic-functions/openUrl.test.ts`, `renderers/RendererRegistry.test.ts` |
 
-No audit-only tests were needed. Coverage gaps are deliberately represented as PARTIAL/NOT-IMPLEMENTED: CAP schema-key mismatch, outbound validation errors, array append/delete edge semantics, generic-Core negative coupling proof, visual component behavior, Tabs ARIA/keyboard, Modal focus trap, validation announcement, and detached construction.
+Pinned outbound tests validate capabilities, validation errors, actions, and client-data-model metadata against official schemas. Remaining gaps include array-delete ambiguity, generic-Core negative coupling proof, List and visual behavior, Tabs reorder identity, nested Modal coverage, validation announcement, and detached construction.
 
 ## 13. Prioritized backlogs
 
@@ -302,10 +302,8 @@ No audit-only tests were needed. Coverage gaps are deliberately represented as P
 
 | Priority | Finding | Severity | Scope | Architectural risk |
 |---:|---|---|---|---|
-| 1 | Emit official client capabilities shape with `v0.9` key (R074) | high | Core / transport adapter | low |
-| 2 | Map validation failures to full CTS `{version,error:{code:'VALIDATION_FAILED',surfaceId,path,message}}` (R076–R078) | high | Core | medium |
-| 3 | Implement List vertical/horizontal scrolling and horizontal sizing (R111) | medium | Web | low |
-| 4 | Retain explicit array-delete divergence pending spec resolution (R035) | medium | Core | medium |
+| 1 | Implement List vertical/horizontal scrolling and horizontal sizing (R111) | medium | Web | low |
+| 2 | Retain explicit array-delete divergence pending spec resolution (R035) | medium | Core | medium |
 
 ### Hardening / recommended visual behavior
 
@@ -332,7 +330,7 @@ No audit-only tests were needed. Coverage gaps are deliberately represented as P
 
 ## 14. Proposed milestones derived from this audit
 
-1. **Task 36 — protocol outbound conformance:** correct capabilities serialization; add transport-neutral CTS validation-error mapping and schema fixtures; define array append behavior. No network adapter.
+1. **Task 36 — protocol outbound conformance (complete):** exact capabilities serialization; transport-neutral CTS validation-error mapping; pinned outbound schema fixtures; locked existing array behavior. No network adapter.
 2. **Task 37 — Basic functional/accessibility hardening:** List scrolling/sizing, validation association, nested-Modal coverage, and `justify=stretch` resolution.
 3. **Task 38 — Basic visual hardening:** leaf margins, component variants, Card/Button/ChoicePicker/Divider visuals, inherited contrast and nested-card visual tests.
 4. **Task 39 — trusted surface attribution boundary:** host/orchestrator-authenticated chrome for `iconUrl`/`agentDisplayName`; never render unverified identity directly.
@@ -343,9 +341,9 @@ No audit-only tests were needed. Coverage gaps are deliberately represented as P
 
 Reconsider only these boundaries before integration:
 
-1. Decide where outbound capability/error schema objects live (Core serializer versus each transport adapter). Prefer one transport-neutral Core builder to prevent drift.
+1. Keep outbound capability/error objects in the transport-neutral Core builders; adapters must not duplicate their wire construction.
 2. Define authenticated surface-owner identity/routing so `sendDataModel` cannot cross agent boundaries and attribution cannot be spoofed.
 3. Decide whether detached full-subtree construction is acceptable for approved media and modal/tab content; this is the highest-risk renderer limitation, but does not justify replacing working architecture merely to resemble another renderer.
 4. Establish stable host policy contracts (resource, URL, regex, icon) before exposing remote agents.
 
-No production behavior was changed by this audit.
+Task 36 changed the pre-1.0 runtime capability public shape from incorrect `v0.9.1` to official `v0.9` and added pure outbound builders/mapping. It added no transport or automatic delivery behavior.

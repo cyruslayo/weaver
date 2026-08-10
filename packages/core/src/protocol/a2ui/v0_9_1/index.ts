@@ -12,8 +12,8 @@ export type {
 } from "./types.js";
 export type {
   A2UIClientActionMessage,
-  A2UIClientCapabilitiesV0_9_1,
   A2UIClientDataModel,
 } from "./client-types.js";
+export * from "./outbound/index.js";
 export type { ValidationIssue, ValidationResult } from "./errors.js";
 export { validateA2UIServerMessage } from "./validation.js";

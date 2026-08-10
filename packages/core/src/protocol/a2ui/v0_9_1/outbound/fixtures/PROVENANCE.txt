@@ -1,0 +1,6 @@
+A2UI repository: google/A2UI
+Commit: ec97cb0d7499932e67003ffe5b709a3db7e7033a
+Sources:
+  specification/v0_9_1/json/client_capabilities.json
+  specification/v0_9_1/json/client_to_server.json
+  specification/v0_9_1/json/client_data_model.json

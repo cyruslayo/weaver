@@ -66,6 +66,9 @@ test("rejects invalid, sparse, and deleted array indices", () => {
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.error.code, "INVALID_ARRAY_INDEX");
   }
+  const sparse = model.set("/items/2", "x");
+  assert.equal(sparse.ok, false);
+  if (!sparse.ok) assert.equal(sparse.error.code, "ARRAY_INDEX_TOO_LARGE");
   const oversized = model.set("/items/50000", "x");
   assert.equal(oversized.ok, false);
   if (!oversized.ok) assert.equal(oversized.error.code, "ARRAY_INDEX_TOO_LARGE");
