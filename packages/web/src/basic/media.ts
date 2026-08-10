@@ -1,5 +1,6 @@
 import type { WebComponentRenderer } from "../renderers/index.js";
 import { applyBasicHook } from "./layout.js";
+import { applyBasicMargin } from "./styles.js";
 
 export type BasicResourceKind = "image" | "video" | "audio";
 
@@ -59,14 +60,19 @@ export function createBasicMediaRenderers(
       ? properties.fit as keyof typeof imageFits
       : "fill";
     image.style.objectFit = imageFits[fit];
+    image.style.display = "block";
     const variant = typeof properties.variant === "string" && imageVariants.has(properties.variant)
       ? properties.variant
       : "mediumFeature";
     image.setAttribute("data-a2ui-variant", variant);
     image.style.maxWidth = "100%";
-    if (variant === "icon" || variant === "avatar") image.style.aspectRatio = "1 / 1";
-    if (variant === "avatar") image.style.borderRadius = "50%";
-    if (variant === "header") image.style.width = "100%";
+    if (variant === "icon") { image.style.width = "24px"; image.style.height = "24px"; }
+    else if (variant === "avatar") { image.style.width = "40px"; image.style.height = "40px"; image.style.borderRadius = "50%"; }
+    else if (variant === "smallFeature") { image.style.width = "100px"; image.style.height = "100px"; }
+    else if (variant === "mediumFeature") { image.style.width = "100%"; image.style.maxWidth = "300px"; }
+    else if (variant === "largeFeature") { image.style.width = "100%"; image.style.maxHeight = "400px"; }
+    else { image.style.width = "100%"; image.style.height = "200px"; }
+    applyBasicMargin(image);
     applyResource(image, "image", properties.url, resourcePolicy);
     return image;
   };
@@ -75,7 +81,9 @@ export function createBasicMediaRenderers(
     const video = document.createElement("video");
     applyBasicHook(video, "Video");
     video.controls = true;
+    video.style.width = "100%";
     video.style.maxWidth = "100%";
+    applyBasicMargin(video);
     applyResource(video, "video", properties.url, resourcePolicy);
     return video;
   };
@@ -83,6 +91,7 @@ export function createBasicMediaRenderers(
   const AudioPlayer: WebComponentRenderer = ({ document, properties }) => {
     const figure = document.createElement("figure");
     applyBasicHook(figure, "AudioPlayer");
+    applyBasicMargin(figure);
     const audio = document.createElement("audio");
     audio.controls = true;
     applyResource(audio, "audio", properties.url, resourcePolicy);

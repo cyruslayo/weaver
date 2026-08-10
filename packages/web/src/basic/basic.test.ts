@@ -100,6 +100,20 @@ test("Image maps native accessibility, fit, and variant behavior", () => {
   for (const variant of ["icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header"]) assert.equal(setup("Image", { properties: { variant } }).node.getAttribute("data-a2ui-variant"), variant);
 });
 
+test("Image variants retain explicit geometry even when resources are denied", () => {
+  const expected = {
+    icon: ["24px", "24px", "100%", ""], avatar: ["40px", "40px", "100%", ""],
+    smallFeature: ["100px", "100px", "100%", ""], mediumFeature: ["100%", "", "300px", ""],
+    largeFeature: ["100%", "", "100%", "400px"], header: ["100%", "200px", "100%", ""],
+  } as const;
+  for (const [variant, geometry] of Object.entries(expected)) {
+    const image = setup("Image", { properties: { variant, url: "/denied" } }).node;
+    assert.deepEqual([image.style.width, image.style.height, image.style.maxWidth, image.style.maxHeight], geometry);
+    assert.equal(image.hasAttribute("src"), false); assert.equal(image.style.display, "block"); assert.match(image.getAttribute("style") ?? "", /margin: var\(--a2ui-space, 8px\)/);
+  }
+  assert.equal(setup("Image", { properties: { variant: "avatar" } }).node.style.borderRadius, "50%");
+});
+
 test("Video and AudioPlayer use native controls without autoplay and safe captions", () => {
   const video = setup("Video").node as HTMLVideoElement;
   assert.equal(video.tagName, "VIDEO"); assert.equal(video.controls, true); assert.equal(video.autoplay, false);
@@ -113,6 +127,16 @@ test("Text selects native semantic elements and defaults to body", () => {
   const variants = { h1: "H1", h2: "H2", h3: "H3", h4: "H4", h5: "H5", caption: "SMALL", body: "P" };
   for (const [variant, tag] of Object.entries(variants)) assert.equal(setup("Text", { properties: { text: "x", variant } }).node.tagName, tag);
   assert.equal(setup("Text", { properties: { text: "x" } }).node.tagName, "P");
+});
+
+test("Text variants own deterministic typography, margin, and inherited color", () => {
+  const sizes = { h1: "2.5em", h2: "2em", h3: "1.75em", h4: "1.5em", h5: "1.25em", caption: "0.8em", body: "1em" };
+  for (const [variant, size] of Object.entries(sizes)) {
+    const node = setup("Text", { properties: { variant, text: "x" } }).node;
+    assert.equal(node.style.fontSize, size); assert.match(node.getAttribute("style") ?? "", /margin: var\(--a2ui-space, 8px\)/); assert.equal(node.style.color, "");
+  }
+  const caption = setup("Text", { properties: { variant: "caption", text: "x" } }).node;
+  assert.equal(caption.style.fontStyle, "italic"); assert.equal(caption.style.fontWeight, "normal");
 });
 
 test("Text safely renders the supported inline Markdown subset", () => {
@@ -235,6 +259,21 @@ test("Card appends one resolved child and tolerates a missing child", () => {
   assert.equal(setup("Card").node.childNodes.length, 0);
 });
 
+test("Basic leaf spacing excludes structural containers and outlined roots own one margin", () => {
+  for (const component of ["Row", "Column", "List"]) { const node = setup(component).node; assert.equal(node.style.margin, ""); assert.equal(node.style.padding, ""); }
+  for (const component of ["Text", "Image", "Icon", "Video", "AudioPlayer", "Divider", "Slider", "Card", "Button", "TextField", "CheckBox", "ChoicePicker", "DateTimeInput"]) {
+    assert.match(setup(component).node.getAttribute("style") ?? "", /margin: var\(--a2ui-space, 8px\)/, component);
+  }
+  const field = setup("TextField").node;
+  for (const child of field.children) assert.doesNotMatch(child.getAttribute("style") ?? "", /margin: var\(--a2ui-space/);
+});
+
+test("Card uses a transparent repeatable boundary without overwriting weight", () => {
+  const inner = setup("Card").node; const outer = setup("Card", { relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: inner }] }).node;
+  for (const card of [outer, inner]) { const style = card.getAttribute("style") ?? ""; assert.match(style, /--a2ui-color-outline/); assert.match(style, /--a2ui-radius/); assert.equal(card.style.padding, "16px"); assert.equal(card.style.background, "transparent"); assert.match(style, /--a2ui-card-shadow/); }
+  outer.style.flexGrow = "2"; assert.equal(outer.style.flexGrow, "2");
+});
+
 test("Tabs maps repeated structural child locations and exposes accessible positional headers", () => {
   const base = setup("Tabs");
   const first = child(base.document, "first");
@@ -308,11 +347,12 @@ test("open Modal has accessible dialog, local dismissal, content isolation, and 
   states.length = 0; close.click(); assert.deepEqual(states, [false]); states.length = 0; input.focus(); fireKey(dialog, "keydown", "Escape"); assert.deepEqual(states, [false]);
 });
 
-test("Divider uses native horizontal and semantic minimal vertical forms", () => {
-  assert.equal(setup("Divider").node.tagName, "HR");
-  assert.equal(setup("Divider", { properties: { axis: "horizontal" } }).node.tagName, "HR");
+test("Divider uses explicit one-pixel full-span geometry and separator semantics", () => {
+  const horizontal = setup("Divider", { properties: { axis: "horizontal" } }).node;
+  assert.equal(horizontal.tagName, "HR"); assert.match(horizontal.getAttribute("style") ?? "", /border-block-start: 1px solid var\(--a2ui-color-outline/); assert.equal(horizontal.style.width, "auto");
   const vertical = setup("Divider", { properties: { axis: "vertical" } }).node;
   assert.equal(vertical.tagName, "DIV"); assert.equal(vertical.getAttribute("role"), "separator"); assert.equal(vertical.getAttribute("aria-orientation"), "vertical");
+  assert.equal(vertical.style.alignSelf, "stretch"); assert.equal(vertical.style.width, "0px"); assert.match(vertical.getAttribute("style") ?? "", /border-inline-start: 1px solid var\(--a2ui-color-outline/);
 });
 
 test("Button appends child, emits one action, and exposes only safe variant hooks", () => {
@@ -324,8 +364,19 @@ test("Button appends child, emits one action, and exposes only safe variant hook
   assert.match(rendered.node.getAttribute("style") ?? "", /color: var\(--a2ui-color-on-primary, white\)/);
   rendered.node.click(); assert.deepEqual(rendered.calls, ["action"]);
   const fallback = setup("Button", { properties: { variant: "anything" } }).node;
-  assert.equal(fallback.getAttribute("data-a2ui-variant"), "default"); assert.equal(fallback.style.backgroundColor, "");
-  assert.equal(setup("Button", { properties: { variant: "borderless" } }).node.style.backgroundColor, "");
+  assert.equal(fallback.getAttribute("data-a2ui-variant"), "default"); assert.match(fallback.getAttribute("style") ?? "", /--a2ui-color-control/);
+  assert.equal(setup("Button", { properties: { variant: "borderless" } }).node.style.backgroundColor, "transparent");
+});
+
+test("Button variants have closed visual treatments and preserve child color inheritance", () => {
+  const base = setup("Button");
+  for (const variant of ["default", "primary", "borderless"] as const) {
+    const text = setup("Text", { properties: { text: "Go" } }).node;
+    const button = setup("Button", { properties: { variant }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: text }] }).node;
+    const style = button.getAttribute("style") ?? ""; assert.match(style, /--a2ui-space/); assert.match(style, /--a2ui-radius/); assert.equal(text.style.color, "");
+    if (variant === "primary") { assert.match(style, /--a2ui-color-primary/); assert.match(style, /--a2ui-color-on-primary/); }
+    if (variant === "borderless") { assert.equal(button.style.backgroundColor, "transparent"); assert.match(button.style.border, /transparent/); }
+  }
 });
 
 test("Button mirrors supplied checks and disables a progressively empty control", () => {
@@ -408,10 +459,23 @@ test("ChoicePicker filters labels ephemerally and writes string arrays", () => {
   const node = setup("ChoicePicker", { properties: { value: ["a"], filterable: true, displayStyle: "chips", options: [{ label: "Alpha", value: "a" }, { label: undefined, value: "b" }, { label: "Beta", value: "c" }] }, interactions: interactions(writes) }).node;
   assert.equal(node.getAttribute("data-a2ui-display-style"), "chips");
   const filter = node.querySelector('input[type="search"]') as HTMLInputElement; filter.value = "BET"; fire(filter, "input");
-  assert.deepEqual([...node.querySelectorAll('fieldset > label:has(input[type="radio"])')].map((row) => (row as HTMLElement).hidden), [true, true, false]); assert.deepEqual(writes, []);
+  assert.deepEqual([...node.querySelectorAll('[data-a2ui-choice-options] > label:has(input[type="radio"])')].map((row) => (row as HTMLElement).hidden), [true, true, false]); assert.deepEqual(writes, []);
   const radio = node.querySelectorAll('input[type="radio"]')[2] as HTMLInputElement;
   assert.equal(radio.style.accentColor, "var(--a2ui-color-primary, #17e)");
   radio.checked = true; fire(radio, "change"); assert.deepEqual(writes, [["value", ["c"]]]);
+});
+
+test("ChoicePicker gives native list and chip styles distinct safe presentation", () => {
+  const properties = { options: [{ label: "A", value: "a" }, { label: "B", value: "b" }], value: ["a"] };
+  const list = setup("ChoicePicker", { properties }).node;
+  assert.match(list.querySelector("fieldset")!.getAttribute("style") ?? "", /--a2ui-color-outline/);
+  assert.equal(list.querySelectorAll('input[type="radio"]').length, 2);
+  const chips = setup("ChoicePicker", { properties: { ...properties, displayStyle: "chips" } }).node;
+  const options = chips.querySelector<HTMLElement>("[data-a2ui-choice-options]")!;
+  assert.equal(options.style.display, "flex"); assert.equal(options.style.flexWrap, "wrap");
+  const labels = [...options.querySelectorAll<HTMLElement>("label")];
+  assert.match(labels[0]!.getAttribute("style") ?? "", /--a2ui-color-primary/); assert.match(labels[1]!.getAttribute("style") ?? "", /--a2ui-color-outline/);
+  assert.equal(labels.every((label) => label.querySelector("input") !== null), true);
 });
 
 test("DateTimeInput applies safe native date/time policy", () => {

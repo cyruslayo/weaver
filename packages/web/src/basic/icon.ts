@@ -1,4 +1,5 @@
 import type { WebComponentRenderer } from "../renderers/index.js";
+import { applyBasicMargin } from "./styles.js";
 
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
@@ -17,6 +18,7 @@ function createSvg(document: Document, svgPath: string | undefined): SVGSVGEleme
   svg.setAttribute("focusable", "false");
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("data-a2ui-component", "Icon");
+  applyBasicMargin(svg);
   if (svgPath === undefined) {
     svg.setAttribute("data-a2ui-icon-state", "unresolved");
     return svg;

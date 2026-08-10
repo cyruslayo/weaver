@@ -1,6 +1,7 @@
 import type { WebComponentRenderer, WebRenderedRelationship } from "../renderers/index.js";
 import { applyBasicHook, mapAlign, mapJustify, relationshipChildren } from "./layout.js";
 import { renderBasicInlineMarkdown } from "./markdown.js";
+import { appendBasicStyle, applyBasicMargin, applyControlShape, basicCardShadow, basicControl, basicOutline, basicRadius, basicSpace } from "./styles.js";
 
 const textElements = {
   h1: "h1",
@@ -18,6 +19,11 @@ export const renderText: WebComponentRenderer = ({ document, properties }) => {
     : "body";
   const element = document.createElement(textElements[variant]);
   applyBasicHook(element, "Text");
+  element.style.fontSize = variant === "body" ? "1em" : variant === "caption" ? "0.8em" : ({ h1: "2.5em", h2: "2em", h3: "1.75em", h4: "1.5em", h5: "1.25em" } as const)[variant];
+  element.style.fontWeight = variant === "body" || variant === "caption" ? "normal" : "700";
+  if (variant === "caption") element.style.fontStyle = "italic";
+  if (variant !== "body" && variant !== "caption") element.style.lineHeight = "1.2";
+  applyBasicMargin(element);
   if (typeof properties.text === "string") {
     try {
       element.append(...renderBasicInlineMarkdown(document, properties.text));
@@ -32,6 +38,10 @@ export const renderDivider: WebComponentRenderer = ({ document, properties }) =>
   if (properties.axis !== "vertical") {
     const element = document.createElement("hr");
     applyBasicHook(element, "Divider");
+    element.style.border = "0";
+    element.style.width = "auto";
+    appendBasicStyle(element, `border-block-start: 1px solid ${basicOutline}`);
+    applyBasicMargin(element);
     return element;
   }
   const element = document.createElement("div");
@@ -41,7 +51,8 @@ export const renderDivider: WebComponentRenderer = ({ document, properties }) =>
   element.style.alignSelf = "stretch";
   element.style.minHeight = "1em";
   element.style.width = "0px";
-  element.style.borderInlineStart = "1px solid";
+  appendBasicStyle(element, `border-inline-start: 1px solid ${basicOutline}`);
+  applyBasicMargin(element);
   return element;
 };
 
@@ -117,6 +128,11 @@ export const renderList: WebComponentRenderer = ({ document, properties, relatio
 export const renderCard: WebComponentRenderer = ({ document, relationships }) => {
   const element = document.createElement("div");
   applyBasicHook(element, "Card");
+  element.style.background = "transparent";
+  element.style.padding = "16px";
+  applyControlShape(element);
+  appendBasicStyle(element, `box-shadow: ${basicCardShadow}`);
+  applyBasicMargin(element);
   element.append(...relationshipChildren(relationships, "child"));
   return element;
 };
@@ -326,13 +342,17 @@ export const renderButton: WebComponentRenderer = ({ document, properties, relat
     ? properties.variant
     : "default";
   button.setAttribute("data-a2ui-variant", variant);
-  if (variant === "primary") {
-    button.setAttribute("style", "background-color: var(--a2ui-color-primary, #17e); color: var(--a2ui-color-on-primary, white)");
-  }
+  button.style.cursor = "pointer";
+  if (variant === "primary") appendBasicStyle(button, "background-color: var(--a2ui-color-primary, #17e); color: var(--a2ui-color-on-primary, white); border: 1px solid transparent");
+  else if (variant === "borderless") appendBasicStyle(button, "background-color: transparent; color: inherit; border: 1px solid transparent");
+  else appendBasicStyle(button, `background-color: ${basicControl}; color: inherit; border: 1px solid ${basicOutline}`);
+  appendBasicStyle(button, `padding: ${basicSpace} calc(${basicSpace} * 1.5); border-radius: ${basicRadius}`);
+  applyBasicMargin(button);
   const children = relationshipChildren(relationships, "child");
   button.append(...children);
   button.disabled = children.length === 0
     || (checks !== undefined && checks.status !== "valid");
+  if (button.disabled) appendBasicStyle(button, "opacity: 0.6");
   button.addEventListener("click", () => {
     interactions.dispatchAction("action");
   });

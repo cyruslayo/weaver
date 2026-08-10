@@ -19,6 +19,7 @@ strict: `@weaver/core` has no Web or MCP dependency; adapters depend on Core.
 - Basic Catalog component weight
 - safe Text Markdown + TextField `validationRegexp`
 - Basic functional/accessibility hardening
+- Basic visual hardening
 
 `WeaverRuntime` is now the recommended application entry point. Lower-level Core
 classes remain public for advanced composition. Runtime creation fixes the host's
@@ -59,11 +60,14 @@ Complete. Core now owns exact transport-neutral A2UI capability and validation-e
 
 Complete. Web now owns directional List scrolling and horizontal item constraints, explicit Row/Column `justify=stretch` semantics, visible validation-message association (including a renderer-owned TextField regexp mismatch message), and nested Modal keyboard/focus regression behavior.
 
+## Task 38 — Basic visual hardening
+
+Complete. Basic Web now owns deterministic leaf margins, Text and Image variants, transparent outlined Cards, explicit Divider geometry, three Button treatments, and native ChoicePicker list/chip presentation. Host visual variables remain independent from the narrow agent primary-color bridge.
+
 ## Next milestones
 
-1. Basic visual hardening (leaf-margin strategy, Card treatment, Button variants, Divider and Image geometry, ChoicePicker presentation, Text variants, and nested Card distinction)
-2. trusted surface attribution/chrome
-3. final v0.9.1 conformance fixtures
+1. trusted surface attribution/chrome
+2. final v0.9.1 conformance fixtures
 
 Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, the opt-in surface theme bridge, parent-aware component weight, and safe Text Markdown plus TextField `validationRegexp` are complete. Full Basic Catalog conformance remains incomplete until the audit's required and hardening backlogs are addressed.
 

@@ -1,6 +1,7 @@
 import type { BasicRegexMatcher, ComponentCheckSnapshot, HydratedValue } from "@weaver/core";
 import type { WebComponentRenderInput, WebComponentRenderer } from "../renderers/index.js";
 import { applyBasicHook } from "./layout.js";
+import { appendBasicStyle, applyBasicMargin, basicControl, basicOutline, basicRadius, basicSpace } from "./styles.js";
 
 type NativeControl = HTMLInputElement | HTMLTextAreaElement;
 type Option = { label?: unknown; value: string };
@@ -83,6 +84,13 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Rec
     fieldset.append(legend);
     const displayStyle = properties.displayStyle === "chips" ? "chips" : "checkbox";
     wrapper.setAttribute("data-a2ui-display-style", displayStyle);
+    appendBasicStyle(fieldset, `border: 1px solid ${basicOutline}; border-radius: ${basicRadius}; padding: ${basicSpace}`);
+    const optionsContainer = document.createElement("div");
+    optionsContainer.setAttribute("data-a2ui-choice-options", "");
+    if (displayStyle === "chips") {
+      optionsContainer.style.display = "flex";
+      optionsContainer.style.flexWrap = "wrap";
+    }
     const options = optionList(properties.options);
     const selected = stringList(properties.value);
     const multiple = properties.variant === "multipleSelection";
@@ -114,6 +122,14 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Rec
       const text = document.createElement("span");
       text.textContent = stringOrEmpty(option.label);
       row.append(control, text);
+      if (displayStyle === "chips") {
+        row.style.display = "inline-flex";
+        row.style.alignItems = "center";
+        appendBasicStyle(row, `border: 1px solid ${control.checked ? "var(--a2ui-color-primary, #17e)" : basicOutline}; border-radius: 999px; padding: calc(${basicSpace} / 2) ${basicSpace}; background: ${control.checked ? "var(--a2ui-color-control, rgba(127, 127, 127, 0.16))" : basicControl}`);
+      } else {
+        row.style.display = "block";
+        appendBasicStyle(row, `padding: calc(${basicSpace} / 2)`);
+      }
       optionRows.push(row);
       controls.push(control);
       interactions.registerControl(control, `option:${index}`);
@@ -124,8 +140,9 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Rec
         else { const position = current.indexOf(option.value); if (position >= 0) current.splice(position, 1); }
         interactions.writeInput("value", current);
       });
-      fieldset.append(row);
+      optionsContainer.append(row);
     });
+    fieldset.append(optionsContainer);
     applyValidation(document, wrapper, controls, input.checks, nextId);
     wrapper.append(fieldset);
     return wrapper;
@@ -166,6 +183,7 @@ function applyPrimaryAccent(control: HTMLInputElement): void {
 function componentWrapper(document: Document, component: string, variant?: HydratedValue): HTMLDivElement {
   const wrapper = document.createElement("div");
   applyBasicHook(wrapper, component);
+  applyBasicMargin(wrapper);
   if (typeof variant === "string") wrapper.setAttribute("data-a2ui-variant", variant);
   return wrapper;
 }

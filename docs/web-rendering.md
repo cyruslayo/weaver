@@ -277,6 +277,18 @@ Basic `weight` belongs to the child component schema, but its layout meaning is 
 
 A Basic Button uses native `disabled` state to mirror Core's current check snapshot: `invalid`, `pending`, and `error` disable it, while `valid` enables it. No snapshot leaves normal behavior unchanged. An absent progressive child is a renderer-level reason to disable the otherwise empty button until rerender. Core `ActionDispatcher` remains the authoritative action gate; browser disabled state is not a security boundary. Clicks call only `interactions.dispatchAction("action")`, relying on the existing generation guard and local/server action paths.
 
+## Basic visual defaults
+
+Basic Web owns a small, deterministic presentation layer; these values are renderer defaults, not protocol data. `Row`, `Column`, and `List` remain spacing-neutral (no renderer margin or padding). Visual leaves and outlined controls instead receive one external `var(--a2ui-space, 8px)` margin on their renderer-owned component root. Tabs and Modal do not receive this generic margin, and internal labels, controls, options, and validation messages do not receive additional component margins.
+
+Text preserves native semantic roots and inherited color. Body is `1em` normal weight; headings h1–h5 are respectively `2.5em`, `2em`, `1.75em`, `1.5em`, and `1.25em`, with 700 weight and 1.2 line height; caption is `0.8em`, normal weight, and italic. Safe inline Markdown remains on the semantic root.
+
+Image is block-level and responsive with `max-width:100%`. Geometry is: icon 24×24px; avatar 40×40px and circular; smallFeature 100×100px; mediumFeature width 100% up to 300px; largeFeature width 100% with 400px maximum height; header width 100% and height 200px. The independent closed `fit` property remains authoritative for `object-fit`, including denied or missing sources.
+
+Cards use a transparent surface, outline, radius, 16px padding, and subtle shadow. Every Card applies the same treatment, so nested boundaries remain distinct without depth state. Buttons share spacing, padding, and radius: default uses a neutral control surface and outline, primary uses the primary/on-primary variables, and borderless stays transparent. ChoicePicker's `checkbox` display style is a native expanding vertical option list; `chips` is a wrapping chip-like group whose native radio/checkbox controls remain visible.
+
+Hosts may override the inherited `--a2ui-space`, `--a2ui-radius`, `--a2ui-color-outline`, `--a2ui-color-control`, and `--a2ui-card-shadow` properties. These optional visual hooks are not mapped from agent theme data; the Basic theme adapter continues to map only `theme.primaryColor` to `--a2ui-color-primary`.
+
 ## Basic input policy
 
 Web owns native browser normalization before delegating every write through `WeaverRuntime.writeInput()`; Core remains authoritative for binding paths and value types:

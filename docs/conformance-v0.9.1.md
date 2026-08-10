@@ -20,7 +20,7 @@
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 128 | 12 | 11 | 0 | 2 | 3 | **156** |
+| 137 | 3 | 11 | 0 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -174,29 +174,29 @@ All schema-property validation is delegated to the registered official Basic sch
 
 | ID | Component | Supported schema/dynamic/structure/interaction | Accessibility / security / visual-guide state | Status | Action |
 |---|---|---|---|---|---|
-| R104 | Text | `text` dynamic, variants; safe simple Markdown | h1–h5 elements, body/caption hooks; no HTML/link/image parsing; inherits color; visual sizing incomplete | PARTIAL | Visual hardening; direct semantic/caption tests |
-| R105 | Image | dynamic `url`,`description`; fit/variant hooks | `alt`, deny-by-default URL policy, responsive width; exact variant geometry incomplete | PARTIAL | Visual geometry/margins tests |
+| R104 | Text | `text` dynamic, variants; safe simple Markdown | h1–h5/body/caption semantic roots, deterministic relative typography and margin, inherited color; direct variant/Markdown tests | PASS | None |
+| R105 | Image | dynamic `url`,`description`; fit/variant hooks | `alt`, deny-by-default URL policy, responsive block base, explicit geometry for all six variants including denied-source tests | PASS | None |
 | R106 | Icon | named, `svgPath`, binding; host resolver; 24×24 viewBox/currentColor | decorative `aria-hidden`; resolver/path trusted after schema; fixed viewBox is Weaver choice | PASS | Document custom paths must target 24×24 |
 | R107 | Video | dynamic URL, native controls, width, no autoplay | resource policy; detached approved resource may load; no schema description | PASS | Detached loading is known hardening issue |
 | R108 | AudioPlayer | URL/description dynamic, native controls, width, no autoplay | accessible label/description; policy; detached loading limitation | PASS | Same |
 | R109 | Row | static/template children, row, justify/align, width, order, weight | `justify=stretch` uses start packing plus default child growth; explicit usable weight wins; direct tests cover edge cases | PASS | None |
 | R110 | Column | static/template children, column, justify/align/order/weight | Same tested main-axis stretch policy as Row | PASS | None |
 | R111 | List | static/template, direction/align, list/listitem semantics, weight isolation | Vertical/horizontal native scrolling, nowrap horizontal layout, and List-owned item constraints directly tested | PASS | None |
-| R112 | Card | one nested child; missing child progressive; weight | boundary/padding hooks exist; rounded/background/outline/shadow/nesting distinction/external margin incomplete | PARTIAL | Choose one officially acceptable border/elevation strategy |
+| R112 | Card | one nested child; missing child progressive; weight | transparent outlined surface, radius, padding, shadow and margin; nested and weighted regressions tested | PASS | None |
 | R113 | Tabs | dynamic titles/nested child, local selected index, selected child only, click, progressive | tablist/tab/tabpanel ARIA, roving tabindex, ArrowLeft/Right/Home/End are implemented and tested; index remains positional on reorder; weight works | PARTIAL | Reorder hardening |
 | R114 | Modal | trigger/content, interception, local open/close, backdrop, Escape, semantics, focus trap/return | Nested production-renderer tests cover open state, closest-dialog Tab/Escape containment, backdrop, trigger/content actions, and focus return | PASS | None |
-| R115 | Divider | axis, line hooks, weight | semantic separator/orientation; exact 1px/full-span visual incomplete | PARTIAL | Visual hardening |
-| R116 | Button | child/action/checks/variants/theme/weight | native button, check disable; primary inherits contrast; default/borderless are primarily data/style hooks | PARTIAL | Implement guide visual treatments |
+| R115 | Divider | axis, line hooks, weight | semantic separator/orientation with explicit host-overridable 1px horizontal/full-span and vertical/stretch geometry | PASS | None |
+| R116 | Button | child/action/checks/variants/theme/weight | native button with shared shape and distinct default, primary and borderless treatments; child contrast inheritance tested | PASS | None |
 | R117 | TextField | dynamic label/value; four variants; writes/checks/regexp/IME/focus-caret/weight | native labelled controls, invalid state/messages; number model remains string; schema/guide conflict prevents one unambiguous requirement | SPEC-AMBIGUOUS | Preserve support for both checks and trusted-host regexp |
-| R118 | CheckBox | dynamic label/boolean; writes/checks/weight | native labelled checkbox; theme-aware native `accent-color` is implemented and tested; broader guide visuals remain incomplete | PARTIAL | Visual hardening |
-| R119 | ChoicePicker | dynamic labels, stable values, both variants/styles/filter, string[] writes/checks/weight | labelled native radio/checkbox + filter; functional, but guide prefers dropdown/expander and true chips | PARTIAL | Visual implementation, separately from function |
+| R118 | CheckBox | dynamic label/boolean; writes/checks/weight | native labelled checkbox; theme-aware `accent-color` and component-root margin are implemented and tested | PASS | None |
+| R119 | ChoicePicker | dynamic labels, stable values, both variants/styles/filter, string[] writes/checks/weight | outlined native vertical list and wrapping native chip controls; selected/neutral treatments plus behavior/validation tested | PASS | None |
 | R120 | Slider | min/max/dynamic number/decimal writes/checks/weight | native range and label | PASS | Optional visual value display not required |
 | R121 | DateTimeInput | dynamic value/min/max; date/time/both; ISO writes/checks/weight | native controls/labels; local browser timezone policy; both false → disabled non-writing representation | PASS | Document timezone interoperability |
 
 ### Component-specific findings
 
-- **Text/Markdown:** Weaver deliberately supports emphasis, strong, code, paragraphs, and safe heading text through DOM node creation. HTML, links, and images remain literal; malformed input falls back to raw text. This meets the schema’s “simple Markdown … without HTML, images, or links” more closely than a full parser. G only recommends a parser “when possible.” Heading semantics exist; visual weights/sizes are not hardened.
-- **Image:** `fit` is a closed mapping; variant is exposed as a trusted dataset hook, but suggested geometry is not complete. Width is responsive. Policy denial creates no browser request.
+- **Text/Markdown:** Weaver deliberately supports emphasis, strong, code, paragraphs, and safe heading text through DOM node creation. HTML, links, and images remain literal; malformed input falls back to raw text. This meets the schema’s “simple Markdown … without HTML, images, or links” more closely than a full parser. G only recommends a parser “when possible.” Semantic variants now have deterministic relative typography.
+- **Image:** `fit` is a closed mapping independent of explicit geometry for all six variants. Width remains responsive where specified, and policy denial creates no browser request or geometry collapse.
 - **Icon:** Named icons require a trusted host resolver; `svgPath` uses SVG DOM APIs. The 24×24 `viewBox` is Weaver-specific, consistent with G’s suggested size but potentially unsuitable for arbitrary-coordinate custom paths.
 - **Media:** controls provide scrubbing where the browser supports it. No autoplay property is set. Approved `src` assignment while building the detached subtree can start a request before mount.
 - **Layout:** CSS Flexbox cannot represent main-axis `justify=stretch` with `justify-content:stretch` usefully, so Weaver Web interprets it as start packing plus growth for direct children without a usable explicit weight.
@@ -205,7 +205,7 @@ All schema-property validation is delegated to the registered official Basic sch
 - **Tabs:** only active content is mounted, but descendants may already have been constructed in the detached full subtree before selection pruning.
 - **Modal:** trigger is visible and intercepted; close button/backdrop/Escape work. Focus enters, wraps, and returns. Nested production-renderer coverage verifies closest-dialog keyboard ownership and independent open state.
 - **TextField ambiguity:** S includes `validationRegexp`; G v0.9.1 checklist says `checks` (and contrasts old regexp), while the current Basic implementation guide omits regexp. Weaver supports both, using only a trusted host matcher. Classification: **SPEC-AMBIGUOUS** (R117).
-- **ChoicePicker:** functional conformance and visual recommendation are deliberately separate.
+- **ChoicePicker:** the checkbox presentation remains a native expanding vertical list rather than a dropdown; chips wrap while retaining visible native controls.
 - **DateTimeInput:** both flags false is unspecified. Weaver’s disabled non-writing representation is an explicit safe decision.
 
 ## 7. Basic function matrix
@@ -242,10 +242,10 @@ Implementations are opt-in trusted registrations. Tests: `packages/core/src/basi
 | R138 | Render `iconUrl` attribution (P Identity; protocol) | Validated/stored, never rendered or fetched | DEFERRED-BY-ARCHITECTURE | Host-authenticated surface chrome |
 | R139 | Render `agentDisplayName` attribution (P Identity; protocol) | Validated/stored, not rendered | DEFERRED-BY-ARCHITECTURE | Same |
 | R140 | Orchestrator validates attribution in multi-agent systems (P Identity; protocol) | Renderer cannot authenticate origin | DEFERRED-BY-ARCHITECTURE | Host/orchestrator owns verified override |
-| R141 | Leaf-margin strategy (G §3; recommendation) | Structural zero spacing mostly; uniform margins absent across leaves/outlined controls | PARTIAL | Visual hardening, not protocol validity |
+| R141 | Leaf-margin strategy (G §3; recommendation) | Direct tests verify zero Row/Column/List spacing and one shared host-overridable root margin across leaves/outlined controls | PASS | None |
 | R142 | Weight on layout children (C component checklist; checklist) | Parent-aware flex mapping and isolation; Basic/Web tests | PASS | None |
 | R143 | Primary Button sets inherited contrast color (G §4; recommendation) | Button sets CSS `color`; Text inherits; Icon `currentColor`; basic tests | PASS | Add nested end-to-end contrast assertion if desired |
-| R144 | Nested Cards distinguishable (G §4; recommendation) | No dependable nested distinction yet | PARTIAL | Border/elevation hardening |
+| R144 | Nested Cards distinguishable (G §4; recommendation) | Every transparent Card owns an independently tested outline/radius/shadow boundary without depth metadata | PASS | None |
 
 ## 9. Web security and effects
 
@@ -294,7 +294,7 @@ Every PASS row above cites at least a test file/group or, for negative source sc
 | Catalog trust | `catalog/CatalogRegistry.test.ts` |
 | Web/Basic/accessibility/security | `web/src/basic/basic.test.ts`, `surface/WebSurfaceRenderer.test.ts`, `basic-functions/openUrl.test.ts`, `renderers/RendererRegistry.test.ts` |
 
-Pinned outbound tests validate capabilities, validation errors, actions, and client-data-model metadata against official schemas. Remaining gaps include array-delete ambiguity, generic-Core negative coupling proof, visual behavior, Tabs reorder identity, and detached construction.
+Pinned outbound tests validate capabilities, validation errors, actions, and client-data-model metadata against official schemas. Remaining gaps include array-delete ambiguity, generic-Core negative coupling proof, Tabs reorder identity, and detached construction.
 
 ## 13. Prioritized backlogs
 
@@ -308,10 +308,8 @@ Pinned outbound tests validate capabilities, validation errors, actions, and cli
 
 | Priority | Finding | Severity | Scope | Risk |
 |---:|---|---|---|---|
-| 1 | Basic leaf margins, visual variants, Button/Card/Divider/ChoicePicker treatments | medium | Web | medium |
-| 2 | Avoid detached construction/loading for inactive Tabs/closed Modal/media | medium | Web | high |
-| 3 | Nested Card distinction and theme accent consistency | low | Web | low |
-| 4 | Browser-level accessibility and visual regression suite | low | Web | low |
+| 1 | Avoid detached construction/loading for inactive Tabs/closed Modal/media | medium | Web | high |
+| 2 | Browser-level accessibility and visual regression suite | low | Web | low |
 
 ### Deliberate Weaver deviations (not defects)
 
@@ -329,7 +327,7 @@ Pinned outbound tests validate capabilities, validation errors, actions, and cli
 
 1. **Task 36 — protocol outbound conformance (complete):** exact capabilities serialization; transport-neutral CTS validation-error mapping; pinned outbound schema fixtures; locked existing array behavior. No network adapter.
 2. **Task 37 — Basic functional/accessibility hardening (complete):** List scrolling/sizing, validation association, nested-Modal coverage, and `justify=stretch` resolution.
-3. **Task 38 — Basic visual hardening:** leaf margins, component variants, Card/Button/ChoicePicker/Divider visuals, inherited contrast and nested-card visual tests.
+3. **Task 38 — Basic visual hardening (complete):** leaf margins, component variants, Card/Button/ChoicePicker/Divider visuals, inherited contrast and nested-card visual tests.
 4. **Task 39 — trusted surface attribution boundary:** host/orchestrator-authenticated chrome for `iconUrl`/`agentDisplayName`; never render unverified identity directly.
 5. **Task 40 — final v0.9.1 conformance fixtures:** validate outbound objects against pinned official schemas, accessibility/browser regressions, and close tracker rows.
 6. Later, independently: HTTP/SSE and A2A transport adapters, then `@weaver/mcp`; do not pull these into Core.
