@@ -20,7 +20,7 @@
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 137 | 3 | 11 | 0 | 2 | 3 | **156** |
+| 139 | 3 | 9 | 0 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -239,9 +239,9 @@ Implementations are opt-in trusted registrations. Tests: `packages/core/src/basi
 |---|---|---|---|---|
 | R136 | Validate `primaryColor`, `iconUrl`, `agentDisplayName`, reject unknown (S `$defs/theme`; schema) | Registered Basic schema validates all/unknowns; processor/theme tests | PASS | None |
 | R137 | Apply primary color (S theme; schema/G visuals) | Opt-in trusted Web theme adapter CSS variable | PASS | Broader visual use is hardening |
-| R138 | Render `iconUrl` attribution (P Identity; protocol) | Validated/stored, never rendered or fetched | DEFERRED-BY-ARCHITECTURE | Host-authenticated surface chrome |
-| R139 | Render `agentDisplayName` attribution (P Identity; protocol) | Validated/stored, not rendered | DEFERRED-BY-ARCHITECTURE | Same |
-| R140 | Orchestrator validates attribution in multi-agent systems (P Identity; protocol) | Renderer cannot authenticate origin | DEFERRED-BY-ARCHITECTURE | Host/orchestrator owns verified override |
+| R138 | Render `iconUrl` attribution (P Identity; protocol) | Trusted Web attribution provider output alone may load a decorative chrome icon; raw claim remains inert; Web surface tests | PASS | None; host approves or rewrites URL |
+| R139 | Render `agentDisplayName` attribution (P Identity; protocol) | Trusted Web attribution provider output renders as safe visible text outside the A2UI tree; raw claim remains inert; Web surface tests | PASS | None |
+| R140 | Orchestrator validates attribution in multi-agent systems (P Identity; protocol) | Provider admits trusted host knowledge, but Weaver does not authenticate origin | DEFERRED-BY-ARCHITECTURE | Host/orchestrator owns authentication and verified override |
 | R141 | Leaf-margin strategy (G §3; recommendation) | Direct tests verify zero Row/Column/List spacing and one shared host-overridable root margin across leaves/outlined controls | PASS | None |
 | R142 | Weight on layout children (C component checklist; checklist) | Parent-aware flex mapping and isolation; Basic/Web tests | PASS | None |
 | R143 | Primary Button sets inherited contrast color (G §4; recommendation) | Button sets CSS `color`; Text inherits; Icon `currentColor`; basic tests | PASS | Add nested end-to-end contrast assertion if desired |
@@ -256,7 +256,7 @@ Implementations are opt-in trusted registrations. Tests: `packages/core/src/basi
 | R147 | No arbitrary agent CSS path | Closed mappings for weight, fit, layout, variant hooks; opt-in theme maps validated primary color only | PASS | None |
 | R148 | Effect functions only through direct local action | Root/effect gate; evaluator/action/openUrl tests | PASS | None |
 
-External-request inventory: approved Image `src`, Video `src`, Audio `src`, and `openUrl` navigation can request/network. Named Icon resolution is host code; `svgPath` is inline. Markdown never creates links/images/HTML. `theme.iconUrl` is validated/stored but inert. Theme, weight, fit, layout, and variant values flow through closed maps/attributes; there is no `agent property → arbitrary CSS` bridge.
+External-request inventory: approved Image `src`, Video `src`, Audio `src`, trusted attribution-provider icon `src`, and `openUrl` navigation can request/network. Named Icon resolution is host code; `svgPath` is inline. Markdown never creates links/images/HTML. Raw `theme.iconUrl` is validated/stored but inert. Theme, weight, fit, layout, and variant values flow through closed maps/attributes; there is no `agent property → arbitrary CSS` bridge.
 
 ## 10. Accessibility matrix
 
@@ -318,7 +318,7 @@ Pinned outbound tests validate capabilities, validation errors, actions, and cli
 | Host regex matcher; unavailable without matcher | low | Core/host | low; prevents agent-controlled native regex execution |
 | Deny-by-default media resource policy | low | Web/host | low; no unapproved network requests |
 | Action-effect functions only at direct local action root | low | Core | low; blocks side effects during render/check/nesting |
-| Attribution deferred to authenticated host chrome | medium | host/orchestrator | medium; avoids spoofed agent identity |
+| Attribution authentication remains host-owned behind Web provider | medium | host/orchestrator | medium; raw claims stay inert and Weaver does not authenticate |
 | Array-index deletion rejected | medium | Core | medium; JSON has no `undefined`, official behavior is unresolved |
 | Fixed 24×24 SVG icon viewBox | low | Web/host | low; predictable icon contract |
 | Both DateTime flags false → disabled/non-writing control | low | Web | low; safe behavior where spec is silent |
@@ -328,7 +328,7 @@ Pinned outbound tests validate capabilities, validation errors, actions, and cli
 1. **Task 36 — protocol outbound conformance (complete):** exact capabilities serialization; transport-neutral CTS validation-error mapping; pinned outbound schema fixtures; locked existing array behavior. No network adapter.
 2. **Task 37 — Basic functional/accessibility hardening (complete):** List scrolling/sizing, validation association, nested-Modal coverage, and `justify=stretch` resolution.
 3. **Task 38 — Basic visual hardening (complete):** leaf margins, component variants, Card/Button/ChoicePicker/Divider visuals, inherited contrast and nested-card visual tests.
-4. **Task 39 — trusted surface attribution boundary:** host/orchestrator-authenticated chrome for `iconUrl`/`agentDisplayName`; never render unverified identity directly.
+4. **Task 39 — trusted surface attribution boundary (complete):** trusted host provider output renders in Weaver-owned chrome; raw identity claims remain inert.
 5. **Task 40 — final v0.9.1 conformance fixtures:** validate outbound objects against pinned official schemas, accessibility/browser regressions, and close tracker rows.
 6. Later, independently: HTTP/SSE and A2A transport adapters, then `@weaver/mcp`; do not pull these into Core.
 

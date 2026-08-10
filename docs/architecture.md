@@ -1149,6 +1149,24 @@ Basic renderers
 
 The generic renderer knows neither Basic catalog identity nor `primaryColor`. No adapter means no agent-theme styling. Adapter output is validated as CSS custom properties and scoped to each Weaver-owned mount.
 
+Surface attribution crosses a separate Web-only trusted host boundary:
+
+```text
+createSurface.theme claims
+        ↓
+WebSurfaceAttributionProvider
+        ↑
+trusted host ownership knowledge
+        ↓
+verified attribution
+        ↓
+Weaver surface chrome
+        ↓
+A2UI root
+```
+
+Core stores only existing surface metadata and performs no authentication or ownership routing. Raw `agentDisplayName` and `iconUrl` claims remain inert. The host/orchestrator authenticates or validates ownership; Web displays only the provider's verified name and optional host-approved icon. Chrome is inside the Weaver mount but outside the A2UI component tree, and participates in the same detached build and atomic replacement.
+
 Parent-owned Basic layout metadata follows a separate derived path:
 
 ```text

@@ -189,7 +189,33 @@ Hosts opt in with `themeAdapter: createBasicCatalogThemeAdapter({ catalogId })`.
 
 Hosts may independently provide inherited `--a2ui-color-primary` and `--a2ui-color-on-primary` values without enabling agent translation. Precedence is: an agent primary color translated onto the mount; otherwise an inherited host variable; otherwise the Basic renderer fallback. Adapter properties are applied only to the ordinary Weaver-owned mount container, never document-global styles. Each mount tracks and removes only its own stale adapter properties.
 
-`iconUrl` and `agentDisplayName` are attribution metadata and are intentionally neither loaded nor rendered. Verified attribution requires a later host-controlled surface-chrome boundary that can authenticate or replace agent claims.
+`theme.agentDisplayName` and `theme.iconUrl` are untrusted attribution claims. Catalog validation establishes only their structural validity; it does not make them verified identity. The theme adapter does not render or load them.
+
+## Trusted surface attribution
+
+`WebSurfaceAttributionProvider` is the explicit trusted host boundary:
+
+```text
+createSurface.theme claims
+        ↓
+surfaceId + catalogId + defensive theme snapshot
+        ↓
+trusted host attribution provider
+        ↓
+verified displayName + optional iconUrl
+        ↓
+Weaver-owned surface chrome
+        ↓
+A2UI component root
+```
+
+The host or orchestrator authenticates or validates the actual surface owner and may ignore the raw claims, compare them with trusted identity, or replace them from a registry. Weaver does not authenticate agents and does not prescribe the verification algorithm. The provider receives only ordinary `surfaceId`, `catalogId`, and a defensive theme copy—never runtime, stores, registries, data contexts, or evaluators. Provider mutation cannot affect Core, the theme adapter, or later renders.
+
+Without a provider, no attribution DOM or attribution image is created. A provider returning `undefined` likewise removes attribution on the next successful atomic render. A successful result requires a non-whitespace `displayName`; an invalid result or provider exception is a typed Web rendering failure and leaves the previous successful DOM and theme intact. Exception text is not exposed.
+
+Only the provider-returned `iconUrl` may become the chrome image `src`. Raw `theme.iconUrl` is inert. The returned URL is treated as a host-approved browser resource and may already be rewritten, proxied, signed, local, or CDN-hosted; this does not change the independent Basic media resource policy.
+
+Attribution is plain native DOM inside the existing Weaver-owned mount and outside the A2UI component tree: an optional static `data-weaver-surface-attribution` row, optional decorative 24×24 `img` with `alt=""` and `object-fit:contain`, and a `span` populated with `textContent`. It has inherited text color, uses `var(--a2ui-space, 8px)` for gap and bottom separation, exposes no surface/catalog/claim identity attributes, and adds no interaction or focus target. It is rebuilt and replaced atomically with the A2UI root. Each mount invokes the provider independently and owns its own chrome.
 
 ## Basic Catalog foundation coverage
 

@@ -14,6 +14,7 @@ import type {
 import type { WebRenderError } from "./errors.js";
 import type {
   WebServerEventHandoff,
+  WebSurfaceAttributionProvider,
   WebSurfaceMountOptions,
   WebSurfaceMountResult,
   WebSurfaceRendererConfig,
@@ -38,12 +39,14 @@ export class WebSurfaceRenderer {
   readonly #runtime: WeaverRuntime;
   readonly #renderers: RendererRegistry;
   readonly #themeAdapter?: WebSurfaceThemeAdapter;
+  readonly #attributionProvider?: WebSurfaceAttributionProvider;
   readonly #onServerEvent?: (event: WebServerEventHandoff) => void;
 
   constructor(config: WebSurfaceRendererConfig) {
     this.#runtime = config.runtime;
     this.#renderers = config.renderers;
     this.#themeAdapter = config.themeAdapter;
+    this.#attributionProvider = config.attributionProvider;
     this.#onServerEvent = config.onServerEvent;
   }
 
@@ -142,6 +145,8 @@ export class WebSurfaceRenderer {
 
     const theme = this.#resolveTheme(resolved.value);
     if (!theme.ok) return theme;
+    const attribution = this.#resolveAttribution(resolved.value, document);
+    if (!attribution.ok) return attribution;
 
     let renderedNode: Node | undefined;
     const ready = resolved.value.tree.ready && resolved.value.tree.root !== undefined;
@@ -152,8 +157,56 @@ export class WebSurfaceRenderer {
     }
 
     applyThemeProperties(container as HTMLElement, appliedThemeProperties, theme.value);
-    container.replaceChildren(...(renderedNode === undefined ? [] : [renderedNode]));
+    container.replaceChildren(...[
+      attribution.value,
+      renderedNode,
+    ].filter((node): node is Node => node !== undefined));
     return { ok: true, value: { ready } };
+  }
+
+  #resolveAttribution(
+    surface: WeaverResolvedSurface,
+    document: Document,
+  ): { ok: true; value: HTMLElement | undefined } | { ok: false; error: WebRenderError } {
+    if (this.#attributionProvider === undefined) return { ok: true, value: undefined };
+    let result: unknown;
+    try {
+      result = this.#attributionProvider(Object.freeze({
+        surfaceId: surface.surfaceId,
+        catalogId: surface.catalogId,
+        theme: surface.theme === undefined ? undefined : structuredClone(surface.theme),
+      }));
+    } catch {
+      return { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } };
+    }
+    if (result === undefined) return { ok: true, value: undefined };
+    if (result === null || typeof result !== "object"
+      || typeof (result as { displayName?: unknown }).displayName !== "string"
+      || (result as { displayName: string }).displayName.trim() === ""
+      || ("iconUrl" in result && typeof (result as { iconUrl?: unknown }).iconUrl !== "string")) {
+      return { ok: false, error: { code: "INVALID_VERIFIED_ATTRIBUTION" } };
+    }
+
+    const verified = result as { displayName: string; iconUrl?: string };
+    const chrome = document.createElement("div");
+    chrome.setAttribute("data-weaver-surface-attribution", "");
+    chrome.style.display = "flex";
+    chrome.style.alignItems = "center";
+    chrome.style.gap = "var(--a2ui-space, 8px)";
+    chrome.style.marginBottom = "var(--a2ui-space, 8px)";
+    if (verified.iconUrl !== undefined) {
+      const icon = document.createElement("img");
+      icon.alt = "";
+      icon.width = 24;
+      icon.height = 24;
+      icon.style.objectFit = "contain";
+      icon.src = verified.iconUrl;
+      chrome.append(icon);
+    }
+    const name = document.createElement("span");
+    name.textContent = verified.displayName;
+    chrome.append(name);
+    return { ok: true, value: chrome };
   }
 
   #resolveTheme(surface: WeaverResolvedSurface):

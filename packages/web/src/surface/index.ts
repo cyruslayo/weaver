@@ -2,6 +2,8 @@ export { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
 export type { WebRenderError } from "./errors.js";
 export type {
   WebServerEventHandoff,
+  WebSurfaceAttributionInput,
+  WebSurfaceAttributionProvider,
   WebSurfaceMount,
   WebSurfaceMountOptions,
   WebSurfaceMountResult,
@@ -10,4 +12,5 @@ export type {
   WebSurfaceThemeAdapter,
   WebSurfaceThemeInput,
   WebSurfaceThemeResult,
+  WebVerifiedSurfaceAttribution,
 } from "./types.js";

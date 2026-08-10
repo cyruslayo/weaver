@@ -111,6 +111,116 @@ test("surface theme translation is opt-in, catalog-isolated, allowlisted, and mo
   assert.ok(mismatchMount.ok); assert.equal((mismatchTarget.firstElementChild as HTMLElement).style.length, 0);
 });
 
+test("raw attribution claims are inert without a trusted provider", () => {
+  const rt = runtime();
+  rt.process(create("test", { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/icon.png" }));
+  rt.process(components([{ id: "root", component: "Text", text: "content" }]));
+  const { target, result } = mount(rt); assert.ok(result.ok);
+  assert.equal(target.querySelector("[data-weaver-surface-attribution]"), null);
+  assert.equal(target.querySelector("img"), null);
+  assert.equal(target.textContent, "content");
+});
+
+test("trusted attribution overrides raw claims and uses safe accessible chrome", () => {
+  const rt = runtime();
+  rt.process(create("test", { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/a.png" }));
+  rt.process(components([{ id: "root", component: "Text", text: "tree" }]));
+  const seen: unknown[] = [];
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({
+    runtime: rt,
+    renderers: new RendererRegistry(registrations()),
+    attributionProvider: (input) => {
+      seen.push(input);
+      if (input.theme !== undefined) input.theme.agentDisplayName = "mutated provider copy";
+      return { displayName: "<img src=x onerror=attack>", iconUrl: "https://trusted.example/verified.png" };
+    },
+  }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  const container = target.firstElementChild!;
+  const chrome = container.querySelector<HTMLElement>("[data-weaver-surface-attribution]")!;
+  assert.equal(container.firstElementChild, chrome);
+  assert.equal(chrome.textContent, "<img src=x onerror=attack>");
+  assert.equal(chrome.querySelectorAll("img").length, 1);
+  assert.equal(chrome.querySelector("img")?.getAttribute("src"), "https://trusted.example/verified.png");
+  assert.equal(chrome.querySelector("img")?.alt, "");
+  assert.equal(chrome.querySelector("img")?.width, 24); assert.equal(chrome.querySelector("img")?.height, 24);
+  assert.equal(chrome.querySelector("img")?.style.objectFit, "contain");
+  assert.equal(chrome.querySelector("button,a,[tabindex]"), null);
+  assert.equal(chrome.attributes.length, 2, "only the static hook and style are serialized");
+  assert.equal(target.textContent, "<img src=x onerror=attack>tree");
+  assert.deepEqual(rt.getSurface("s")?.theme, { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/a.png" });
+  assert.equal((seen[0] as { surfaceId: string; catalogId: string }).surfaceId, "s");
+  assert.equal((seen[0] as { surfaceId: string; catalogId: string }).catalogId, "test");
+});
+
+test("attribution supports name-only, undefined, independent mounts, updates, and delete/recreate", () => {
+  const rt = runtime(); rt.process(create("test", { agentDisplayName: "raw" }));
+  rt.process(components([{ id: "root", component: "Text", text: "one" }]));
+  let verified: string | undefined = "Registry One"; let calls = 0;
+  const provider = ({ surfaceId, catalogId }: { surfaceId: string; catalogId: string }) => {
+    calls++; return verified === undefined ? undefined : { displayName: `${verified}:${surfaceId}:${catalogId}` };
+  };
+  const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), attributionProvider: provider });
+  const oneTarget = dom().target; const twoTarget = dom().target;
+  const one = web.mount({ surfaceId: "s", target: oneTarget }); const two = web.mount({ surfaceId: "s", target: twoTarget });
+  assert.ok(one.ok && two.ok); assert.equal(calls, 2);
+  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]")?.textContent, "Registry One:s:test");
+  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution] img"), null);
+  verified = "Registry Two"; rt.process(data({ changed: true }));
+  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]")?.textContent, "Registry Two:s:test");
+  assert.equal(twoTarget.querySelector("[data-weaver-surface-attribution]")?.textContent, "Registry Two:s:test");
+  verified = undefined; rt.process(components([{ id: "root", component: "Text", text: "two" }]));
+  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]"), null);
+  one.value.unmount(); assert.equal(oneTarget.childNodes.length, 0); assert.equal(twoTarget.textContent, "two");
+
+  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process(create("test", { agentDisplayName: "new raw" }));
+  rt.process(components([{ id: "root", component: "Text", text: "new tree" }]));
+  verified = "Recreated"; const refreshed = two.value.refresh(); assert.ok(refreshed.ok);
+  assert.equal(twoTarget.textContent, "Recreated:s:testnew tree");
+});
+
+test("invalid or throwing attribution providers preserve the prior chrome, tree, and theme", () => {
+  const rt = runtime(); rt.process(create("test", { primaryColor: "#112233" }));
+  rt.process(components([{ id: "root", component: "Text", text: "old" }]));
+  let mode: "valid" | "empty" | "throw" = "valid";
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({
+    runtime: rt,
+    renderers: new RendererRegistry(registrations()),
+    themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }),
+    attributionProvider: () => {
+      if (mode === "throw") throw new Error("provider secret");
+      return { displayName: mode === "empty" ? "   " : "Verified" };
+    },
+  }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement;
+  const oldChildren = [...container.childNodes];
+  mode = "empty"; rt.process(components([{ id: "root", component: "Text", text: "new" }]));
+  let failure = mounted.value.getLastResult(); assert.deepEqual(failure, { ok: false, error: { code: "INVALID_VERIFIED_ATTRIBUTION" } });
+  assert.deepEqual([...container.childNodes], oldChildren); assert.equal(container.textContent, "Verifiedold");
+  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
+  mode = "throw"; mounted.value.refresh(); failure = mounted.value.getLastResult();
+  assert.deepEqual(failure, { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } });
+  assert.equal(JSON.stringify(failure).includes("secret"), false); assert.deepEqual([...container.childNodes], oldChildren);
+});
+
+test("theme adapter and attribution provider receive independent defensive theme copies", () => {
+  const rt = runtime(); rt.process(create("test", { primaryColor: "#445566", agentDisplayName: "raw" }));
+  rt.process(components([{ id: "root", component: "Text", text: "tree" }]));
+  const adapter = createBasicCatalogThemeAdapter({ catalogId: "test" });
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({
+    runtime: rt, renderers: new RendererRegistry(registrations()),
+    themeAdapter: (input) => { const result = adapter(input); if (input.theme) input.theme.agentDisplayName = "adapter mutation"; return result; },
+    attributionProvider: (input) => ({ displayName: String(input.theme?.agentDisplayName) }),
+  }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  assert.equal(target.querySelector("[data-weaver-surface-attribution]")?.textContent, "raw");
+  assert.equal((target.firstElementChild as HTMLElement).style.getPropertyValue("--a2ui-color-primary"), "#445566");
+});
+
 test("theme updates clean only mount-owned properties and delete/recreate does not leak", () => {
   const rt = runtime(); rt.process(create("test", { primaryColor: "#ff0000" })); rt.process(components([{ id: "root", component: "Text", text: "red" }]));
   const { target } = dom();

@@ -25,7 +25,7 @@ const schema: JsonObject = {
     ChoicePicker: component("ChoicePicker", { label: ref("DynamicString"), value: ref("DynamicStringList"), options: { type: "array", items: { type: "object", properties: { label: ref("DynamicString"), value: { type: "string" } }, required: ["label", "value"], additionalProperties: false } }, variant: { enum: ["mutuallyExclusive", "multipleSelection"] }, displayStyle: { enum: ["checkbox", "chips"] }, filterable: { type: "boolean" }, checks: { type: "array" } }, ["options", "value"], [ref("Checkable")]),
   },
   functions: {},
-  $defs: { theme: { type: "object", properties: { primaryColor: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" } }, additionalProperties: false }, commonTypes: { $id: "common_types.json", $defs: {
+  $defs: { theme: { type: "object", properties: { primaryColor: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" }, agentDisplayName: { type: "string" }, iconUrl: { type: "string" } }, additionalProperties: false }, commonTypes: { $id: "common_types.json", $defs: {
     ComponentId: { type: "string" }, ChildList: { type: "array", items: ref("ComponentId") },
     PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
     DataBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
@@ -54,7 +54,7 @@ const regexMatcher = ({ value, pattern }: { value: string; pattern: string }): b
   throw new Error("Unsupported playground regex pattern");
 };
 const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId, iconResolver: ({ name }) => iconPaths[name], regexMatcher }));
-created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId, theme: { primaryColor: "#6750a4" }, sendDataModel: true } });
+created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId, theme: { primaryColor: "#6750a4", agentDisplayName: "Untrusted Playground Claim" }, sendDataModel: true } });
 created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main", components: [
   { id: "root", component: "Tabs", tabs: [{ title: "Overview", child: "overview" }, { title: "Form", child: "form" }, { title: "Event", child: "event" }, { title: "Modal", child: "modal" }] },
   { id: "overview", component: "Column", children: ["title", "markdown", "bound-icon", "greeting", "weight-demo"] },
@@ -90,6 +90,6 @@ created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main"
   { id: "modal-action-text", component: "Text", text: "Run content action" },
 ] } });
 created.value.process({ version: "v0.9.1", updateDataModel: { surfaceId: "main", value: { form: { name: "Ada", ready: false, volume: 5, mode: ["careful"] }, ui: { icon: "home" } } } });
-const mounted = new WebSurfaceRenderer({ runtime: created.value, renderers, themeAdapter: createBasicCatalogThemeAdapter({ catalogId }), onServerEvent: (event) => { debug.textContent = JSON.stringify(event, null, 2); } }).mount({ surfaceId: "main", target: app });
+const mounted = new WebSurfaceRenderer({ runtime: created.value, renderers, themeAdapter: createBasicCatalogThemeAdapter({ catalogId }), attributionProvider: () => ({ displayName: "Playground Agent" }), onServerEvent: (event) => { debug.textContent = JSON.stringify(event, null, 2); } }).mount({ surfaceId: "main", target: app });
 if (!mounted.ok) throw new Error(`Playground mount failed: ${mounted.error.code}`);
 app.append(debug);

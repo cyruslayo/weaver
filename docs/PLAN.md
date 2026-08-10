@@ -36,6 +36,7 @@ Completed Web milestones:
 RendererRegistry + minimal DOM rendering
 Web interaction bridge
 Basic Catalog foundation renderers
+trusted surface attribution boundary
 ```
 
 The Core runtime facade is complete. Web consumes resolved surfaces through an
@@ -64,10 +65,13 @@ Complete. Web now owns directional List scrolling and horizontal item constraint
 
 Complete. Basic Web now owns deterministic leaf margins, Text and Image variants, transparent outlined Cards, explicit Divider geometry, three Button treatments, and native ChoicePicker list/chip presentation. Host visual variables remain independent from the narrow agent primary-color bridge.
 
-## Next milestones
+## Task 39 — trusted surface attribution boundary
 
-1. trusted surface attribution/chrome
-2. final v0.9.1 conformance fixtures
+Complete. Web now accepts an optional trusted host attribution provider and renders only its verified display name and optional host-approved icon in Weaver-owned chrome outside the A2UI tree. Raw theme identity claims remain inert.
+
+## Next milestone
+
+1. final A2UI v0.9.1 conformance fixtures and hardening: re-run the complete tracker, close trivial test-only partials, verify pinned official schemas, review deliberate deferrals, and decide whether detached rendering needs redesign before Zynra V2.
 
 Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, the opt-in surface theme bridge, parent-aware component weight, and safe Text Markdown plus TextField `validationRegexp` are complete. Full Basic Catalog conformance remains incomplete until the audit's required and hardening backlogs are addressed.
 
