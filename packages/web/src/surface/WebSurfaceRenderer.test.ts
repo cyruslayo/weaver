@@ -19,7 +19,19 @@ function catalog(catalogId: string): JsonObject {
     components: {
       Text: component("Text", { text: ref("DynamicString"), weight: { type: "number" } }),
       Row: component("Row", { children: ref("ChildList") }),
+      Column: component("Column", { children: ref("ChildList") }),
       Image: component("Image", { url: ref("DynamicString"), description: ref("DynamicString") }),
+      Video: component("Video", { url: ref("DynamicString") }),
+      AudioPlayer: component("AudioPlayer", { url: ref("DynamicString"), description: ref("DynamicString") }),
+      Probe: component("Probe"),
+      Icon: component("Icon", { name: {} }),
+      List: component("List", { children: ref("ChildList"), direction: { type: "string" }, align: { type: "string" } }),
+      Card: component("Card", { child: ref("ComponentId") }), Divider: component("Divider", { axis: { type: "string" } }),
+      TextField: component("TextField", { label: ref("DynamicString"), value: ref("DynamicString") }),
+      CheckBox: component("CheckBox", { label: ref("DynamicString"), value: ref("DynamicBoolean") }),
+      Slider: component("Slider", { value: ref("DynamicNumber"), min: { type: "number" }, max: { type: "number" } }),
+      ChoicePicker: component("ChoicePicker", { options: { type: "array" }, value: ref("DynamicStringList") }),
+      DateTimeInput: component("DateTimeInput", { value: ref("DynamicString"), enableDate: { type: "boolean" }, enableTime: { type: "boolean" } }),
       Stack: component("Stack", { sections: ref("ChildList") }),
       TabsLike: component("TabsLike", { tabs: { type: "array", items: { type: "object", properties: {
         title: ref("DynamicString"), child: ref("ComponentId"),
@@ -510,11 +522,79 @@ test("Basic Tabs selects by structural location, persists locally, restores keyb
   rt.process(data({ titles: ["Overview", "Account updated"], content: "Changed", unrelated: 1 }));
   assert.equal(tabs(one.target)[1]?.textContent, "Account updated"); assert.equal(tabs(one.target)[1]?.getAttribute("aria-selected"), "true");
   oldFirst.click(); assert.equal(tabs(one.target)[1]?.getAttribute("aria-selected"), "true", "stale button cannot select");
+  rt.process(components([{ id: "root", component: "Tabs", tabs: [
+    { title: "Gamma", child: "missing" }, { title: "Alpha", child: "a" }, { title: "Beta", child: "b" },
+  ] }]));
+  assert.equal(tabs(one.target)[1]?.getAttribute("aria-selected"), "true", "reorder preserves selectedIndex 1");
+  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Changed", "logical content follows the new occupant of position 1");
   tabs(one.target)[2]?.click();
-  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "");
+  assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Details");
   rt.process(components([{ id: "root", component: "Tabs", tabs: [{ title: "Only", child: "a" }] }]));
-  assert.equal(tabs(one.target)[0]?.getAttribute("aria-selected"), "true");
+  assert.equal(tabs(one.target)[0]?.getAttribute("aria-selected"), "true", "out-of-range selectedIndex renders index 0");
   assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Changed");
+});
+
+test("official Basic all-18-component surface validates, resolves, and mounts", () => {
+  const catalogId = "test";
+  const rt = runtime();
+  assert.ok(rt.process({ version: "v0.9.1", createSurface: { surfaceId: "all", catalogId, theme: { primaryColor: "#123456" } } }).ok);
+  const all = [
+    { id: "root", component: "Column", children: ["text", "image", "icon", "video", "audio", "row", "list", "card", "tabs", "modal", "divider", "button", "field", "checkbox", "slider", "choice", "date"] },
+    { id: "text", component: "Text", text: "All components" }, { id: "image", component: "Image", url: "/image.png" },
+    { id: "icon", component: "Icon", name: "home" }, { id: "video", component: "Video", url: "/video.mp4" }, { id: "audio", component: "AudioPlayer", url: "/audio.mp3" },
+    { id: "row", component: "Row", children: ["row-text"] }, { id: "row-text", component: "Text", text: "Row" },
+    { id: "list", component: "List", children: ["list-text"] }, { id: "list-text", component: "Text", text: "List" },
+    { id: "card", component: "Card", child: "card-text" }, { id: "card-text", component: "Text", text: "Card" },
+    { id: "tabs", component: "Tabs", tabs: [{ title: "One", child: "tab-one" }, { title: "Two", child: "tab-two" }] }, { id: "tab-one", component: "Text", text: "Tab one" }, { id: "tab-two", component: "Text", text: "Tab two" },
+    { id: "modal", component: "Modal", trigger: "modal-trigger", content: "modal-content" }, { id: "modal-trigger", component: "Text", text: "Open modal" }, { id: "modal-content", component: "Text", text: "Modal content" },
+    { id: "divider", component: "Divider" }, { id: "button", component: "Button", child: "button-text", action: { event: { name: "submit", context: {} } } }, { id: "button-text", component: "Text", text: "Submit" },
+    { id: "field", component: "TextField", label: "Field", value: { path: "/field" } }, { id: "checkbox", component: "CheckBox", label: "Check", value: { path: "/checked" } },
+    { id: "slider", component: "Slider", max: 10, value: { path: "/slider" } }, { id: "choice", component: "ChoicePicker", options: [{ label: "A", value: "a" }], value: { path: "/choice" } },
+    { id: "date", component: "DateTimeInput", value: { path: "/date" }, enableDate: true },
+  ];
+  const update = rt.process({ version: "v0.9.1", updateComponents: { surfaceId: "all", components: all } }); assert.ok(update.ok);
+  assert.ok(rt.process({ version: "v0.9.1", updateDataModel: { surfaceId: "all", value: { field: "x", checked: true, slider: 2, choice: ["a"], date: "2026-08-10" } } }).ok);
+  const resolved = rt.resolveSurface("all"); assert.ok(resolved.ok); assert.equal(resolved.value.tree.ready, true); assert.deepEqual(resolved.value.issues, { tree: [], instances: [], properties: [] });
+  const registrations = createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy: () => undefined, iconResolver: () => "M0 0", regexMatcher: () => true });
+  assert.equal(registrations.length, 18); assert.equal(new Set(registrations.map(({ component }) => component)).size, 18);
+  const { target } = dom(); const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations), themeAdapter: createBasicCatalogThemeAdapter({ catalogId }), attributionProvider: () => ({ displayName: "Trusted test host" }) }).mount({ surfaceId: "all", target });
+  assert.ok(mounted.ok); assert.equal(target.querySelectorAll("[data-a2ui-component]").length >= 18, true); assert.equal(target.querySelector("img")?.hasAttribute("src"), false);
+});
+
+test("closed Modal and inactive Tabs descendants are safely constructed detached", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Column", children: ["modal", "tabs"] },
+    { id: "modal", component: "Modal", trigger: "trigger", content: "media" },
+    { id: "trigger", component: "Text", text: "Open" },
+    { id: "media", component: "Column", children: ["image", "video", "audio", "modal-probe"] },
+    { id: "image", component: "Image", url: "/approved.png" },
+    { id: "video", component: "Video", url: "/approved.mp4" },
+    { id: "audio", component: "AudioPlayer", url: "/approved.mp3" },
+    { id: "modal-probe", component: "Probe" },
+    { id: "tabs", component: "Tabs", tabs: [{ title: "Alpha", child: "alpha" }, { title: "Beta", child: "beta" }, { title: "Gamma", child: "gamma" }] },
+    { id: "alpha", component: "Probe" }, { id: "beta", component: "Probe" }, { id: "gamma", component: "Probe" },
+  ]));
+  const constructed: string[] = []; const approved: string[] = []; const assigned: string[] = [];
+  const probe: RendererRegistration = { catalogId: "test", component: "Probe", render: ({ document, instance }) => { constructed.push(instance.sourceComponentId); return document.createElement("span"); } };
+  const mediaAudit: RendererRegistration[] = createBasicCatalogRendererRegistrations({ catalogId: "test", resourcePolicy: ({ url }) => { approved.push(url); return url; } }).map((registration) => {
+    if (!["Image", "Video", "AudioPlayer"].includes(registration.component)) return registration;
+    return { ...registration, render: (input) => {
+      const node = registration.render(input);
+      const media = node instanceof input.document.defaultView!.Element && node.matches("img,video,audio") ? node : (node as Element).querySelector?.("img,video,audio");
+      if (media?.hasAttribute("src")) assigned.push(`${registration.component}:${media.getAttribute("src")}`);
+      return node;
+    } };
+  });
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry([...mediaAudit, probe]) }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  assert.deepEqual(constructed, ["modal-probe", "alpha", "beta", "gamma"]);
+  assert.deepEqual(approved, ["/approved.png", "/approved.mp4", "/approved.mp3"]);
+  assert.deepEqual(assigned, ["Image:/approved.png", "Video:/approved.mp4", "AudioPlayer:/approved.mp3"]);
+  assert.equal(target.textContent, "OpenAlphaBetaGamma");
+  assert.equal(target.querySelector("img,video,audio"), null, "approved media was assigned only in the discarded detached branch");
+  assert.deepEqual(rt.getSurface("s")?.dataModel, {});
 });
 
 test("nested Basic Modals keep the closest dialog open, focused, and keyboard-contained", () => {

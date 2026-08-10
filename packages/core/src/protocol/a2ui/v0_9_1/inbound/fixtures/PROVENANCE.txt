@@ -1,0 +1,7 @@
+A2UI repository: a2ui-project/a2ui
+Commit: ec97cb0d7499932e67003ffe5b709a3db7e7033a
+Sources:
+- specification/v0_9_1/json/common_types.json
+- specification/v0_9_1/json/server_to_client.json
+- specification/v0_9_1/catalogs/basic/catalog.json
+Test-only exact copies. Not exported or copied to dist.

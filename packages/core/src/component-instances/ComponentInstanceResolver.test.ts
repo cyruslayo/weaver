@@ -147,6 +147,17 @@ test("preserves static and dynamic relationship properties without flattening", 
   assert.deepEqual(value(resolver.resolve(snapshot())).root?.relationships.map(({ property }) => property), ["before", "after", "children"]);
 });
 
+test("template identity follows collection positions after replacement and reorder", () => {
+  const { store, resolver, snapshot } = setup({ items: [{ id: "alpha" }, { id: "beta" }] });
+  store.updateComponents("s", [{ id: "root", component: "Container", children: { path: "/items", componentId: "item" } }, { id: "item", component: "Leaf" }]);
+  const before = templateChildren(value(resolver.resolve(snapshot())).root!);
+  assert.deepEqual(before.map(({ sourceComponentId, scopePath }) => [sourceComponentId, scopePath]), [["item", "/items/0"], ["item", "/items/1"]]);
+  store.replaceData("s", { items: [{ id: "beta" }, { id: "alpha" }] });
+  const after = templateChildren(value(resolver.resolve(snapshot())).root!);
+  assert.deepEqual(after.map(({ sourceComponentId, scopePath }) => [sourceComponentId, scopePath]), [["item", "/items/0"], ["item", "/items/1"]]);
+  assert.deepEqual(snapshot().dataModel, { items: [{ id: "beta" }, { id: "alpha" }] });
+});
+
 test("rebuilds after additions and removals and accepts primitive items", () => {
   const { store, resolver, snapshot } = setup({ items: ["a", 2] });
   store.updateComponents("s", [{ id: "root", component: "Container", children: { path: "/items", componentId: "item" } }, { id: "item", component: "Leaf" }]);

@@ -28,7 +28,7 @@ but no surface can be created until a trusted catalog exists; because runtime
 configuration is immutable, such a runtime is useful only for hosts that do not
 process surfaces.
 
-## Current phase: `@weaver/web`
+## Completed phase: A2UI v0.9.1 Core/Web foundation
 
 Completed Web milestones:
 
@@ -69,11 +69,15 @@ Complete. Basic Web now owns deterministic leaf margins, Text and Image variants
 
 Complete. Web now accepts an optional trusted host attribution provider and renders only its verified display name and optional host-approved icon in Weaver-owned chrome outside the A2UI tree. Raw theme identity claims remain inert.
 
-## Next milestone
+## Task 40 — final A2UI v0.9.1 conformance gate
 
-1. final A2UI v0.9.1 conformance fixtures and hardening: re-run the complete tracker, close trivial test-only partials, verify pinned official schemas, review deliberate deferrals, and decide whether detached rendering needs redesign before Zynra V2.
+Complete. The release gate pins official inbound and outbound schemas, adds architecture/security regressions, locks positional Tabs/template behavior, records detached-construction evidence, and smoke-tests all 18 Basic components and all 14 Basic functions. R155 remains an accepted renderer hardening limitation; it is not a wire-conformance failure.
 
-Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, the opt-in surface theme bridge, parent-aware component weight, and safe Text Markdown plus TextField `validationRegexp` are complete. Full Basic Catalog conformance remains incomplete until the audit's required and hardening backlogs are addressed.
+The A2UI v0.9.1 Core/Web foundation phase is complete.
+
+## Next phase: transport and MCP integration
+
+The next concrete milestone will be selected from the final Task 40 report. Transport, MCP, and Zynra integration are not complete and were not implemented by Task 40.
 
 ## Deferred work
 

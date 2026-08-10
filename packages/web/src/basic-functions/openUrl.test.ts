@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CatalogRegistry, DataContext, FunctionEvaluator, FunctionRegistry, type JsonObject } from "@weaver/core";
+import { CatalogRegistry, DataContext, FunctionEvaluator, FunctionRegistry, createBasicCatalogFunctionImplementations, type JsonObject } from "@weaver/core";
 import { Window } from "happy-dom";
 import { createBasicCatalogBrowserFunctionImplementations } from "./index.js";
 
@@ -31,6 +31,18 @@ function installWindow(open: (...args: unknown[]) => unknown) {
   Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
   return () => prior === undefined ? delete (globalThis as { window?: unknown }).window : Object.defineProperty(globalThis, "window", prior);
 }
+
+test("composed trusted Basic factories register all 14 functions with exact effects", () => {
+  const registrations = [
+    ...createBasicCatalogFunctionImplementations({ catalogId: "basic", regexMatcher: () => true }),
+    ...createBasicCatalogBrowserFunctionImplementations({ catalogId: "basic", baseUrl: "https://example.test/" }),
+  ];
+  const expected = ["required", "regex", "length", "numeric", "email", "formatString", "formatNumber", "formatCurrency", "formatDate", "pluralize", "openUrl", "and", "or", "not"];
+  assert.equal(registrations.length, 14);
+  assert.deepEqual(new Set(registrations.map(({ name }) => name)), new Set(expected));
+  assert.equal(registrations.find(({ name }) => name === "openUrl")?.effect, "action");
+  assert.equal(registrations.filter(({ name }) => name !== "openUrl").every(({ effect }) => effect === "pure"), true);
+});
 
 test("factory registers catalog-scoped action-effect openUrl", () => {
   const { registration } = setup({ baseUrl: "https://example.com/app/page" });

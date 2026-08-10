@@ -1184,7 +1184,7 @@ child flex-grow
 The relationship metadata describes the rendered target child and is defensively owned. Row and Column alone interpret direct-child `weight`; child renderers and other flex-based parents do not infer ancestry or apply it.
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage, including Task 34's safe inline Text Markdown and TextField-local `validationRegexp`; broader visual hardening and the full conformance audit remain pending. Application/custom registrations remain alongside them.
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components have renderer coverage, including safe inline Text Markdown and TextField-local `validationRegexp`; visual hardening and the final v0.9.1 conformance audit are complete. Application/custom registrations remain alongside them.
 
 ```text
 Text → hydrated string → safe non-recursive Markdown scanner → allowlisted native DOM nodes

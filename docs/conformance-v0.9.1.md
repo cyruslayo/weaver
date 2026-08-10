@@ -1,6 +1,12 @@
 # Weaver conformance with A2UI v0.9.1
 
-> Canonical conformance tracker. Audit date: **2026-08-10**. Official repository snapshot: `google/A2UI@ec97cb0d7499932e67003ffe5b709a3db7e7033a` (`main` at audit time).
+## Weaver v0.9.1 baseline decision
+
+**CONFORMANCE BASELINE ACCEPTED.** Weaver Core/Web has no known `NOT-IMPLEMENTED` v0.9.1 requirement. Remaining statuses are architecture-owned transport/host work, specification ambiguities, and one accepted renderer hardening limitation. Weaver Core/Web is not by itself an A2A, HTTP/SSE, or MCP transport implementation.
+
+Detached descendant/resource construction is **ACCEPTED FOR WEAVER V0.9.1 BASELINE**. Focused tests show closed Modal content and inactive Tabs descendants are constructed off-DOM, and approved Image/Video/AudioPlayer elements receive `src` before live mount. Construction does not dispatch A2UI actions, write the DataModel, execute action effects, call `openUrl`, bypass resource approval, or commit stale DOM. A browser may begin loading already host-approved media early; avoiding that would require lazy branch construction and is an accepted renderer hardening limitation, not an A2UI wire-conformance failure.
+
+> Canonical conformance tracker. Release-gate date: **2026-08-10**. Official repository snapshot: `a2ui-project/a2ui@ec97cb0d7499932e67003ffe5b709a3db7e7033a`.
 
 | Field | Value |
 |---|---|
@@ -20,7 +26,7 @@
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 139 | 3 | 9 | 0 | 2 | 3 | **156** |
+| 141 | 1 | 9 | 0 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -126,7 +132,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R070 | CTS top-level version/action exact shape (CTS root/action; schema) | Exact `{version:'v0.9.1',action:{...}}`; action tests | PASS | None |
 | R071 | `sendDataModel` metadata on actions (P synchronization; protocol) | Transport-neutral metadata emitted when true; action/runtime/Web tests | PASS | Targeted delivery is adapter-owned |
 | R072 | CDM exact `version` + `surfaces` shape (CDM root; schema) | Exact shape; each Weaver model is constrained to JSON object; action tests | PASS | None |
-| R073 | Send only current surface owner (P Targeted Delivery; protocol) | Core has no server identity/routing; returns metadata to caller | DEFERRED-BY-ARCHITECTURE | Host/transport adapter must route only to owner |
+| R073 | Send only current surface owner (P Targeted Delivery; protocol) | Core has no server identity/routing; returns metadata to caller | DEFERRED-BY-ARCHITECTURE | Host/orchestrator must route only to owner |
 | R074 | CAP `supportedCatalogIds` (CAP path `/v0.9/supportedCatalogIds`; schema) | Shared outbound builder and runtime emit exact `v0.9` shape; ordering/ownership/schema tests in `outbound.test.ts` | PASS | None |
 | R075 | CAP `inlineCatalogs` optional (CAP path `/v0.9/inlineCatalogs`; schema) | Intentionally omitted and no inline trust path | PASS | None; optional and unsupported |
 | R076 | Validation failure outbound `error` envelope (CTS `/error`; checklist) | Transport-neutral exact builder and eligible process-failure mapper; pinned CTS tests in `outbound.test.ts` | PASS | Transport decides delivery |
@@ -137,10 +143,10 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 
 | ID | Requirement (source; class) | Weaver / evidence | Status | Owner/action |
 |---|---|---|---|---|
-| R079 | Ordered reliable delivery (P Transport contract; protocol) | Core processes call order but provides no network delivery | DEFERRED-BY-ARCHITECTURE | HTTP/SSE, A2A, MCP, or host adapter |
+| R079 | Ordered reliable delivery (P Transport contract; protocol) | Core processes call order but provides no network delivery | DEFERRED-BY-ARCHITECTURE | Transport adapter |
 | R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available | PASS | Other transports own own framing |
-| R081 | Metadata carriage (P Transport contract; protocol) | Core creates metadata but does not carry it | DEFERRED-BY-ARCHITECTURE | Future A2A/HTTP/MCP/host adapter |
-| R082 | Bidirectional action channel (P optional contract; protocol) | Web callback exposes handoff; no channel | DEFERRED-BY-ARCHITECTURE | Host/transport adapter |
+| R081 | Metadata carriage (P Transport contract; protocol) | Core creates metadata but does not carry it | DEFERRED-BY-ARCHITECTURE | Transport adapter |
+| R082 | Bidirectional action channel (P optional contract; protocol) | Web callback exposes handoff; no channel | DEFERRED-BY-ARCHITECTURE | Transport adapter |
 | R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | No HTTP/content-type layer | DEFERRED-BY-ARCHITECTURE | Future HTTP/SSE adapter |
 | R084 | A2A mapping/capability metadata (P A2A binding; protocol) | No A2A adapter by design | DEFERRED-BY-ARCHITECTURE | Future A2A adapter |
 | R085 | MCP delivery (P Other transports; protocol) | `@weaver/mcp` placeholder only | DEFERRED-BY-ARCHITECTURE | `@weaver/mcp` |
@@ -149,7 +155,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R088 | Unterminated final frame (reasonable stream completion behavior) | `finish()` parses/tested | PASS | None |
 | R089 | Empty frame and malformed JSON recovery | Empty is INVALID_JSON; malformed frame does not poison next; tests | PASS | None |
 | R090 | Maximum frame and recovery (Weaver hardening) | 1,048,576-char configurable limit/discard mode; tests | PASS | None |
-| R091 | UTF-8 byte decoding boundary | Decoder accepts JS text, not bytes | DEFERRED-BY-ARCHITECTURE | Fetch/stream adapter owns `TextDecoder` and byte limits |
+| R091 | UTF-8 byte decoding boundary | Decoder accepts JS text, not bytes | DEFERRED-BY-ARCHITECTURE | Transport adapter owns `TextDecoder` and byte limits |
 
 ## 5. Catalog trust and custom catalogs
 
@@ -164,7 +170,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R098 | Theme schema validation | Create validates catalog theme; processor tests | PASS | None |
 | R099 | Function contract/checkability/structure metadata | Catalog-derived metadata; catalog tests | PASS | None |
 | R100 | Dynamic/bindable metadata | Recursive trusted schema analysis; catalog/property tests | PASS | None |
-| R101 | Generic Core has no Basic component names | Core generic registries/resolvers; source inspection | PARTIAL | Add architecture regression test if practical |
+| R101 | Generic Core has no Basic component names | `architecture-independence.test.ts` scans generic production Core (excluding the intentional `basic-functions` adapter) for component-name branching/lookup and Web imports | PASS | None |
 | R102 | Generic Web renderer/registry has no Basic logic | Basic is separate adapter; registry tests | PASS | None |
 | R103 | Deliberate exceptions | `basic-functions` in Core and `web/basic` are opt-in named adapters, not generic leakage | NOT-APPLICABLE | Keep package boundaries explicit |
 
@@ -183,7 +189,7 @@ All schema-property validation is delegated to the registered official Basic sch
 | R110 | Column | static/template children, column, justify/align/order/weight | Same tested main-axis stretch policy as Row | PASS | None |
 | R111 | List | static/template, direction/align, list/listitem semantics, weight isolation | Vertical/horizontal native scrolling, nowrap horizontal layout, and List-owned item constraints directly tested | PASS | None |
 | R112 | Card | one nested child; missing child progressive; weight | transparent outlined surface, radius, padding, shadow and margin; nested and weighted regressions tested | PASS | None |
-| R113 | Tabs | dynamic titles/nested child, local selected index, selected child only, click, progressive | tablist/tab/tabpanel ARIA, roving tabindex, ArrowLeft/Right/Home/End are implemented and tested; index remains positional on reorder; weight works | PARTIAL | Reorder hardening |
+| R113 | Tabs | dynamic titles/nested child, local selected index, selected child only, click, progressive | ARIA/keyboard behavior plus reorder, shrink, and empty-safe behavior are tested; `selectedIndex` remains positional by catalog design | PASS | None |
 | R114 | Modal | trigger/content, interception, local open/close, backdrop, Escape, semantics, focus trap/return | Nested production-renderer tests cover open state, closest-dialog Tab/Escape containment, backdrop, trigger/content actions, and focus return | PASS | None |
 | R115 | Divider | axis, line hooks, weight | semantic separator/orientation with explicit host-overridable 1px horizontal/full-span and vertical/stretch geometry | PASS | None |
 | R116 | Button | child/action/checks/variants/theme/weight | native button with shared shape and distinct default, primary and borderless treatments; child contrast inheritance tested | PASS | None |
@@ -202,7 +208,7 @@ All schema-property validation is delegated to the registered official Basic sch
 - **Layout:** CSS Flexbox cannot represent main-axis `justify=stretch` with `justify-content:stretch` usefully, so Weaver Web interprets it as start packing plus growth for direct children without a usable explicit weight.
 - **List:** list semantics, directional native scrolling, nested flex minimum sizing, horizontal nowrap, and List-owned item constraints are covered.
 - **Card:** G first suggests distinct background + corners + shadow; later recommends transparent + outline for nesting, while C says rounded corners and shadows. These are guidance/checklist tensions with multiple defensible strategies, not a single wire rule.
-- **Tabs:** only active content is mounted, but descendants may already have been constructed in the detached full subtree before selection pruning.
+- **Tabs:** `selectedIndex` is intentionally positional. Reordering preserves its numeric value, shrinking falls back to render index 0 when out of range, and no index is invented for an empty renderer input. Only active content is mounted, though all descendants may first be constructed detached.
 - **Modal:** trigger is visible and intercepted; close button/backdrop/Escape work. Focus enters, wraps, and returns. Nested production-renderer coverage verifies closest-dialog keyboard ownership and independent open state.
 - **TextField ambiguity:** S includes `validationRegexp`; G v0.9.1 checklist says `checks` (and contrasts old regexp), while the current Basic implementation guide omits regexp. Weaver supports both, using only a trusted host matcher. Classification: **SPEC-AMBIGUOUS** (R117).
 - **ChoicePicker:** the checkbox presentation remains a native expanding vertical list rather than a dropdown; chips wrap while retaining visible native controls.
@@ -275,10 +281,10 @@ Accessibility semantics are principally Weaver enhancements because the wire sch
 |---|---|---|---|---|
 | R153 | Reactive rendering without stale commits | Full detached subtree build, generation invalidation, atomic `replaceChildren`; Web tests | PASS | Preserve generation guard |
 | R154 | Focus/caret continuity | Captures active input identity/selection and restores after rebuild; Web tests | PASS | Native edge cases remain |
-| R155 | Inactive/closed descendants and detached resources | Inactive Tabs and closed Modal descendants may be constructed detached; approved media may load detached | PARTIAL | Future lazy construction without architecture rewrite |
-| R156 | Template identity and resolver cost | Positional identities can stale on reorder; relationship child-property cloning can be costly | SPEC-AMBIGUOUS | A2UI has no stable item key; benchmark before redesign |
+| R155 | Inactive/closed descendants and detached resources | Focused production-renderer tests prove eager detached construction and approved media `src` assignment; security/effect/state/generation boundaries remain intact | PARTIAL | Accepted renderer hardening limitation; lazy construction requires separate evidence and architecture work |
+| R156 | Template identity and resolver cost | Explicit reorder evidence shows `sourceComponentId + scopePath` identities remain `/items/0`, `/items/1` and follow positions | SPEC-AMBIGUOUS | v0.9.1 defines positional scopes and no stable template-key contract; benchmark before redesign |
 
-Additional known limitation: mount-local Tabs selection is index-based and may follow position rather than logical tab after reorder. This is not solved in Task 35.
+Tabs selection is deliberately index-based: after reorder, the same numeric `selectedIndex` selects the new occupant of that position. Logical-tab identity is not inferred from child IDs, titles, or arbitrary data keys.
 
 ## 12. Coverage rule and evidence map
 
@@ -294,7 +300,7 @@ Every PASS row above cites at least a test file/group or, for negative source sc
 | Catalog trust | `catalog/CatalogRegistry.test.ts` |
 | Web/Basic/accessibility/security | `web/src/basic/basic.test.ts`, `surface/WebSurfaceRenderer.test.ts`, `basic-functions/openUrl.test.ts`, `renderers/RendererRegistry.test.ts` |
 
-Pinned outbound tests validate capabilities, validation errors, actions, and client-data-model metadata against official schemas. Remaining gaps include array-delete ambiguity, generic-Core negative coupling proof, Tabs reorder identity, and detached construction.
+Pinned inbound tests validate canonical create/update/delete messages and invalid envelopes/components against the official server schema and exact Basic catalog. Pinned outbound tests validate capabilities, validation errors, actions, and client-data-model metadata. Architecture, security, positional identity, Tabs reorder, detached construction, all-18-renderer, and all-14-function gates are repeatable tests.
 
 ## 13. Prioritized backlogs
 
@@ -329,7 +335,7 @@ Pinned outbound tests validate capabilities, validation errors, actions, and cli
 2. **Task 37 — Basic functional/accessibility hardening (complete):** List scrolling/sizing, validation association, nested-Modal coverage, and `justify=stretch` resolution.
 3. **Task 38 — Basic visual hardening (complete):** leaf margins, component variants, Card/Button/ChoicePicker/Divider visuals, inherited contrast and nested-card visual tests.
 4. **Task 39 — trusted surface attribution boundary (complete):** trusted host provider output renders in Weaver-owned chrome; raw identity claims remain inert.
-5. **Task 40 — final v0.9.1 conformance fixtures:** validate outbound objects against pinned official schemas, accessibility/browser regressions, and close tracker rows.
+5. **Task 40 — final v0.9.1 conformance gate (complete):** pinned inbound/outbound schemas, architecture/security boundaries, full Basic smoke coverage, positional-state evidence, and final classification.
 6. Later, independently: HTTP/SSE and A2A transport adapters, then `@weaver/mcp`; do not pull these into Core.
 
 ## 15. Decisions before Zynra V2
@@ -342,3 +348,9 @@ Reconsider only these boundaries before integration:
 4. Establish stable host policy contracts (resource, URL, regex, icon) before exposing remote agents.
 
 Task 36 changed the pre-1.0 runtime capability public shape from incorrect `v0.9.1` to official `v0.9` and added pure outbound builders/mapping. It added no transport or automatic delivery behavior.
+
+## Final unresolved classification
+
+- **DEFERRED-BY-ARCHITECTURE:** R073 — host/orchestrator; R079 — transport adapter; R081 — transport adapter; R082 — transport adapter; R083 — future HTTP/SSE adapter; R084 — future A2A adapter; R085 — `@weaver/mcp`; R091 — transport adapter; R140 — host/orchestrator.
+- **SPEC-AMBIGUOUS:** R035 — protocol requests array deletion to JavaScript `undefined`, which JSON cannot represent; R117 — Basic schema exposes `validationRegexp` while guide/checklist sources disagree in emphasis/shape; R156 — v0.9.1 scopes are positional and `ChildList` provides no stable item key.
+- **Accepted implementation limitation:** R155 — safe and correct but eager detached descendant/resource construction; approved media may begin loading before live mount.

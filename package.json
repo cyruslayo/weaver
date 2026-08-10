@@ -8,6 +8,7 @@
     "test": "pnpm -r --workspace-concurrency=1 --if-present run test && pnpm run test:prototype",
     "test:prototype": "node --experimental-strip-types --test frontend/src/StreamingEngine.test.ts",
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
+    "conformance:v0.9.1": "pnpm --filter @weaver/core test && pnpm --filter @weaver/web test && pnpm typecheck",
     "clean": "pnpm -r --if-present run clean"
   },
   "devDependencies": {

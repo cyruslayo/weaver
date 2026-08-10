@@ -261,7 +261,7 @@ Modal wraps its trigger in a neutral capture listener. Activation opens it local
 
 Opening maps registered trigger focus to the close control; every dismissal path maps focus through the close control and back to the trigger. Tab and Shift+Tab wrap inside the open dialog, while normal registered input focus and caret restoration continue across full rerenders. Nested Modals require no global stack: the closest active dialog consumes handled Tab/Escape events, so its keyboard containment, dismissal, and focus return do not affect its open parent. The Modal remains inside the Weaver mount: it uses no portal and mutates neither `document.body` nor host-owned siblings.
 
-All Basic Catalog components now have renderer coverage, including Task 34 safe Text Markdown and TextField `validationRegexp`. This does not yet imply full Basic Catalog conformance: visual/conformance hardening, trusted surface attribution/chrome, and a full v0.9.1 audit remain pending.
+All 18 Basic Catalog components have renderer coverage and a complete-surface smoke gate. Visual/functional hardening, trusted attribution, and the final v0.9.1 conformance audit are complete. Detached inactive/closed descendants remain eagerly constructed as the accepted R155 hardening limitation.
 
 ## Basic Icon policy
 
