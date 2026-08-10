@@ -4,7 +4,9 @@ import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js"
 import type { CatalogRegistryError } from "./errors.js";
 import { A2UI_CATALOG_SCHEMA } from "./schema.js";
 import type {
+  BindableValueLocation,
   CatalogActionPropertiesResult,
+  CatalogBindableValueLocationsResult,
   CatalogComponentStructureLocationsResult,
   CatalogComponentStructureResult,
   CatalogComponentValidationResult,
@@ -38,6 +40,8 @@ interface RegisteredCatalog {
   structureLocations: ReadonlyMap<string, readonly ComponentStructureLocation[]>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
   dynamicValueLocations: ReadonlyMap<string, readonly DynamicValueLocation[]>;
+  bindableValueLocations: ReadonlyMap<string, readonly BindableValueLocation[]>;
+  bindableValueValidators: ReadonlyMap<string, ValidateFunction>;
   actionProperties: ReadonlyMap<string, readonly string[]>;
   checkableComponents: ReadonlySet<string>;
   themeValidator: ValidateFunction;
@@ -47,6 +51,17 @@ const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
 const CHILD_LIST_REF = "common_types.json#/$defs/ChildList";
 const CHECKABLE_REF = "common_types.json#/$defs/Checkable";
 const ACTION_REF = "common_types.json#/$defs/Action";
+const DATA_BINDING_REFS = new Set([
+  "common_types.json#/$defs/DataBinding",
+  "common_types.json#/$defs/PathBinding",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DataBinding",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DataBinding",
+]);
+const FUNCTION_CALL_REFS = new Set([
+  "common_types.json#/$defs/FunctionCall",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/FunctionCall",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/FunctionCall",
+]);
 const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
   "common_types.json#/$defs/DynamicString": "dynamicString",
   "common_types.json#/$defs/DynamicNumber": "dynamicNumber",
@@ -250,6 +265,44 @@ function discoverDynamicValueLocations(componentSchema: JsonObject): DynamicValu
   return locations;
 }
 
+interface DiscoveredBindableValue extends BindableValueLocation {
+  literalSchemas: JsonObject[];
+}
+
+function discoverBindableValues(componentSchema: JsonObject): DiscoveredBindableValue[] {
+  const locations: DiscoveredBindableValue[] = [];
+  const visit = (schema: JsonObject, path: DynamicValueLocationSegment[]): void => {
+    if (Array.isArray(schema.oneOf)) {
+      const branches = schema.oneOf.filter(isPlainObject);
+      const bindingBranches = branches.filter((branch) =>
+        typeof branch.$ref === "string" && DATA_BINDING_REFS.has(branch.$ref)
+      );
+      const hasFunctionCall = branches.some((branch) =>
+        typeof branch.$ref === "string" && FUNCTION_CALL_REFS.has(branch.$ref)
+      );
+      if (branches.length === schema.oneOf.length && bindingBranches.length === 1 && !hasFunctionCall) {
+        locations.push({
+          path: path.map((segment) => ({ ...segment })),
+          literalSchemas: branches.filter((branch) => branch !== bindingBranches[0]).map(cloneJson),
+        });
+        return;
+      }
+    }
+    if (isPlainObject(schema.properties)) {
+      for (const [name, child] of Object.entries(schema.properties)) {
+        if (isPlainObject(child)) visit(child, [...path, { kind: "property", name }]);
+      }
+    }
+    if (isPlainObject(schema.items)) visit(schema.items, [...path, { kind: "arrayItems" }]);
+  };
+  visit(componentSchema, []);
+  return locations.filter(({ literalSchemas }) => literalSchemas.length > 0);
+}
+
+function bindableLocationKey(path: readonly DynamicValueLocationSegment[]): string {
+  return JSON.stringify(path);
+}
+
 function discoverDynamicProperties(componentSchema: JsonObject): DynamicPropertyDefinition[] {
   const definitions: DynamicPropertyDefinition[] = [];
   const properties = componentSchema.properties;
@@ -332,6 +385,8 @@ export class CatalogRegistry {
     const structureLocations = new Map<string, readonly ComponentStructureLocation[]>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
     const dynamicValueLocations = new Map<string, readonly DynamicValueLocation[]>();
+    const bindableValueLocations = new Map<string, readonly BindableValueLocation[]>();
+    const bindableValueValidators = new Map<string, ValidateFunction>();
     const actionProperties = new Map<string, readonly string[]>();
     const checkableComponents = new Set<string>();
     const functions = schema.functions === undefined ? {} : schema.functions;
@@ -349,6 +404,15 @@ export class CatalogRegistry {
         structureLocations.set(componentName, discoverStructureLocations(componentSchema));
         dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
         dynamicValueLocations.set(componentName, discoverDynamicValueLocations(componentSchema));
+        const bindableValues = discoverBindableValues(componentSchema);
+        bindableValueLocations.set(componentName, bindableValues.map(({ path }) => ({ path })));
+        for (const [index, bindable] of bindableValues.entries()) {
+          const compilationSchema = cloneJson(schema);
+          compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/bindable-${index}/catalog.json`;
+          (compilationSchema.$defs as JsonObject)[`weaverBindable${index}`] = { oneOf: bindable.literalSchemas };
+          compilationSchema.$ref = `#/$defs/weaverBindable${index}`;
+          bindableValueValidators.set(`${componentName}:${bindableLocationKey(bindable.path)}`, this.#ajv.compile(compilationSchema));
+        }
         actionProperties.set(componentName, discoverActionProperties(componentSchema));
         if (isCheckable(componentSchema)) checkableComponents.add(componentName);
         const compilationSchema = cloneJson(schema);
@@ -386,6 +450,8 @@ export class CatalogRegistry {
       structureLocations,
       dynamicProperties,
       dynamicValueLocations,
+      bindableValueLocations,
+      bindableValueValidators,
       actionProperties,
       checkableComponents,
       themeValidator,
@@ -567,6 +633,22 @@ export class CatalogRegistry {
         valueKind,
       })),
     };
+  }
+
+  getBindableValueLocations(catalogId: string, componentName: string): CatalogBindableValueLocationsResult {
+    const catalog = this.#catalogs.get(catalogId);
+    if (catalog === undefined) return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    const locations = catalog.bindableValueLocations.get(componentName);
+    if (locations === undefined) return { ok: false, error: { ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component property metadata is not available"), component: componentName } };
+    return { ok: true, value: locations.map(({ path }) => ({ path: path.map((segment) => ({ ...segment })) })) };
+  }
+
+  /** Validates a hydrated bindable value without exposing the compiled Ajv validator. */
+  validateBindableValue(catalogId: string, componentName: string, location: BindableValueLocation, value: unknown): boolean {
+    const validator = this.#catalogs.get(catalogId)?.bindableValueValidators.get(
+      `${componentName}:${bindableLocationKey(location.path)}`,
+    );
+    return validator?.(value) ?? false;
   }
 
   /** Detects only direct common_types.json#/$defs/Action property references. */

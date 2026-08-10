@@ -42,6 +42,11 @@ function setup(data: JsonValue = {}, implementations: Record<string, (...args: a
       }),
       Metric: component("Metric", { primaryValue: ref("DynamicNumber"), name: ref("DynamicString"), sections: ref("ChildList") }),
       Leaf: component("Leaf", { name: ref("DynamicString") }),
+      Icon: component("Icon", { name: { oneOf: [
+        { enum: ["home", "search"] },
+        { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false },
+        ref("DataBinding"),
+      ] }, metadata: { type: "object" } }),
       Nested: component("Nested", {
         options: { type: "array", items: { type: "object", properties: {
           label: ref("DynamicString"), value: { type: "string" }, metadata: { type: "object" },
@@ -77,6 +82,7 @@ function setup(data: JsonValue = {}, implementations: Record<string, (...args: a
         { type: "object", properties: { path: { type: "string" }, componentId: ref("ComponentId") }, required: ["path", "componentId"], additionalProperties: false },
       ] },
       PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
+      DataBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
       FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
       DynamicString: dynamic({ type: "string" }),
       DynamicNumber: dynamic({ type: "number" }),
@@ -125,6 +131,35 @@ test("preserves typed dynamic literals and defensively clones arrays", () => {
   (result.properties.tags as string[]).push("changed");
   const again = ok(properties.resolve(instance({ id: "root", component: "Display", tags: ["A", "B"] }), DataContext.root({}), catalogId));
   assert.deepEqual(again.properties.tags, ["A", "B"]);
+});
+
+test("hydrates bindable unions as literals, absolute/relative bindings, missing state, and isolated mismatches", () => {
+  const data = { icon: "search", explicit: { svgPath: "M1 1" }, bad: 42, items: [{ icon: "home" }] };
+  const { properties, catalogId } = setup(data);
+  const literalObject = { svgPath: "M0 0" };
+  const literal = ok(properties.resolve(instance({ id: "literal", component: "Icon", name: literalObject, metadata: { path: "literal" } }), DataContext.root(data), catalogId));
+  assert.deepEqual(literal.properties, { name: literalObject, metadata: { path: "literal" } });
+  assert.notEqual(literal.properties.name, literalObject);
+  assert.equal(ok(properties.resolve(instance({ id: "absolute", component: "Icon", name: { path: "/icon" } }), DataContext.root(data), catalogId)).properties.name, "search");
+  const boundObject = ok(properties.resolve(instance({ id: "object", component: "Icon", name: { path: "/explicit" } }), DataContext.root(data), catalogId));
+  assert.deepEqual(boundObject.properties.name, { svgPath: "M1 1" });
+  (boundObject.properties.name as { svgPath: string }).svgPath = "changed";
+  assert.deepEqual(data.explicit, { svgPath: "M1 1" });
+  const context = ok(DataContext.root(data).createCollectionItemContext("/items", 0));
+  assert.equal(ok(properties.resolve(instance({ id: "relative", component: "Icon", name: { path: "icon" } }, "/items/0", 0), context, catalogId)).properties.name, "home");
+  const missing = ok(properties.resolve(instance({ id: "missing", component: "Icon", name: { path: "/missing" } }), DataContext.root(data), catalogId));
+  assert.equal(missing.properties.name, undefined); assert.deepEqual(missing.issues, []);
+  const invalid = ok(properties.resolve(instance({ id: "bad", component: "Icon", name: { path: "/bad" }, metadata: { keep: true } }), DataContext.root(data), catalogId));
+  assert.equal(invalid.properties.name, undefined); assert.deepEqual(invalid.properties.metadata, { keep: true });
+  assert.equal(invalid.issues[0]?.code, "BINDABLE_VALUE_TYPE_MISMATCH"); assert.equal(invalid.issues[0]?.path, "/name");
+});
+
+test("reports bindable relative-scope resolution failure with its typed cause", () => {
+  const { properties, catalogId } = setup();
+  const result = ok(properties.resolve(instance({ id: "root", component: "Icon", name: { path: "icon" } }), DataContext.root({}), catalogId));
+  assert.equal(result.properties.name, undefined);
+  const issue = result.issues[0]; assert.equal(issue?.code, "BINDABLE_VALUE_RESOLUTION_FAILED");
+  if (issue?.code === "BINDABLE_VALUE_RESOLUTION_FAILED") assert.equal(issue.error.code, "RELATIVE_PATH_OUTSIDE_COLLECTION");
 });
 
 test("resolves absolute, relative, and item-scope absolute bindings", () => {

@@ -171,7 +171,7 @@ Hosts compose the production foundation allowlist with application renderers:
 
 ```ts
 const renderers = new RendererRegistry([
-  ...createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy }),
+  ...createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy, iconResolver }),
   ...applicationRenderers,
 ]);
 ```
@@ -191,7 +191,7 @@ Basic renderer registrations do not own catalog schema identity. The host passes
 | Image, Video, AudioPlayer | Implemented |
 | Tabs | Implemented |
 | Modal | Implemented |
-| Icon | Deferred |
+| Icon | Implemented |
 
 Tabs uses native button headers in a `tablist`, one live `tabpanel`,
 `aria-selected`, ARIA ID associations, and roving tabindex. ArrowLeft and
@@ -209,7 +209,17 @@ Modal wraps its trigger in a neutral capture listener. Activation opens it local
 
 Opening maps registered trigger focus to the close control; closing maps the close control back to the trigger. Tab and Shift+Tab wrap inside the open dialog, while normal registered input focus and caret restoration continue across full rerenders. The Modal remains inside the Weaver mount: it uses no portal and mutates neither `document.body` nor host-owned siblings.
 
-Unimplemented components remain absent from the registry and fail with `RENDERER_NOT_FOUND`; detached-tree construction preserves the last successful DOM, and a later supported update recovers normally.
+All Basic Catalog components now have renderer coverage. This does not yet imply full Basic Catalog conformance: trusted Basic functions, theme translation, Text Markdown, and `validationRegexp` remain pending.
+
+## Basic Icon policy
+
+A catalog bindable union is narrowly defined as direct `oneOf` literal/value branches plus exactly one direct `DataBinding` branch. Core resolves that binding through the instance `DataContext` and validates the result against the compiled literal branches. There is no general `oneOf` interpretation, `anyOf` bindable-union support, or bindable `FunctionCall` union support.
+
+A standard named Icon is passed to the optional synchronous resolver configured on that Basic registration factory. The resolver may use the host's own icon set or static map and returns SVG path data. No resolver, or an `undefined` result, produces a safe empty SVG marked unresolved; there is no global registry, icon dependency, network fallback, name conversion, or warning.
+
+Explicit `{ svgPath }` values bypass the resolver. Web creates `<svg>` and `<path>` with native namespaced DOM APIs and sets only the path `d` attribute; no SVG markup parsing occurs. Icons use `fill=currentColor`, are decorative by default (`aria-hidden=true`, `focusable=false`), and add no interaction. Semantic and accessibility meaning belongs to the surrounding component.
+
+Weaver Basic Web renders path data at 24×24 in a `0 0 24 24` viewBox. This is a Web rendering decision because the Basic schema supplies no separate viewBox metadata.
 
 ## Basic media resource policy
 

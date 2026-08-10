@@ -3,13 +3,14 @@ import { test } from "node:test";
 import { Window } from "happy-dom";
 import { RendererRegistry, type WebComponentInteractions, type WebComponentRenderInput, type WebComponentRenderer } from "../renderers/index.js";
 import { createBasicCatalogRendererRegistrations } from "./createBasicCatalogRendererRegistrations.js";
+import type { BasicIconResolver } from "./icon.js";
 import type { BasicResourcePolicy } from "./media.js";
 
-function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy) {
+function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy, iconResolver?: BasicIconResolver) {
   const window = new Window();
   const document = window.document as unknown as Document;
   const calls: string[] = [];
-  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy })
+  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy, iconResolver })
     .find((candidate) => candidate.component === component);
   assert.ok(registration);
   const input = {
@@ -27,7 +28,7 @@ const child = (document: Document, text: string) => { const node = document.crea
 
 test("factory registers exactly the foundation components under the supplied catalog ID", () => {
   const registrations = createBasicCatalogRendererRegistrations({ catalogId: "not-an-official-url" });
-  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Image", "Video", "AudioPlayer", "Divider", "Row", "Column", "List", "Card", "Tabs", "Modal", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
+  assert.deepEqual(registrations.map(({ component }) => component), ["Text", "Image", "Icon", "Video", "AudioPlayer", "Divider", "Row", "Column", "List", "Card", "Tabs", "Modal", "Button", "TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"]);
   assert.ok(registrations.every(({ catalogId }) => catalogId === "not-an-official-url"));
 });
 
@@ -36,6 +37,30 @@ test("Basic registrations compose with application registrations", () => {
   const registry = new RendererRegistry([...createBasicCatalogRendererRegistrations({ catalogId: "basic" }), { catalogId: "app", component: "Shell", render: application }]);
   assert.ok(registry.get("basic", "Text"));
   assert.equal(registry.get("app", "Shell"), application);
+});
+
+test("Icon renders explicit paths with inert native SVG DOM and fixed geometry", () => {
+  const hostile = `M0 0 <script onclick="bad()">`;
+  const svg = setup("Icon", { properties: { name: { svgPath: hostile } } }).node as unknown as SVGSVGElement;
+  const path = svg.querySelector("path")!;
+  assert.equal(svg.namespaceURI, "http://www.w3.org/2000/svg");
+  assert.equal(path.namespaceURI, "http://www.w3.org/2000/svg");
+  assert.equal(path.getAttribute("d"), hostile); assert.equal(path.getAttribute("fill"), "currentColor");
+  assert.equal(svg.getAttribute("viewBox"), "0 0 24 24"); assert.equal(svg.getAttribute("width"), "24"); assert.equal(svg.getAttribute("height"), "24");
+  assert.equal(svg.getAttribute("aria-hidden"), "true"); assert.equal(svg.getAttribute("focusable"), "false");
+  assert.equal(svg.querySelector("script"), null); assert.equal(path.hasAttribute("onclick"), false);
+});
+
+test("Icon resolves names through its local host resolver and fails soft", () => {
+  const requests: unknown[] = [];
+  const resolver: BasicIconResolver = (request) => { requests.push(request); return request.name === "home" ? "M2 2" : undefined; };
+  const named = setup("Icon", { properties: { name: "home" } }, undefined, resolver).node;
+  assert.equal(named.querySelector("path")?.getAttribute("d"), "M2 2"); assert.deepEqual(requests, [{ name: "home" }]);
+  const direct = setup("Icon", { properties: { name: { svgPath: "M3 3" } } }, undefined, resolver).node;
+  assert.equal(direct.querySelector("path")?.getAttribute("d"), "M3 3"); assert.equal(requests.length, 1);
+  for (const unresolved of [setup("Icon", { properties: { name: "home" } }).node, setup("Icon", { properties: { name: "unknown" } }, undefined, resolver).node, setup("Icon", { properties: { name: undefined } }).node]) {
+    assert.equal(unresolved.getAttribute("data-a2ui-icon-state"), "unresolved"); assert.equal(unresolved.querySelector("path"), null);
+  }
 });
 
 test("media defaults to deny and allows, rewrites, and identifies hydrated non-empty URLs", () => {

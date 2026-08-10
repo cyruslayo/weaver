@@ -98,6 +98,8 @@ export class ComponentPropertyResolver {
     if (!structuralMetadata.ok) return { ok: false, error: catalogFailure(structuralMetadata.error) };
     const metadata = this.catalogs.getDynamicValueLocations(catalogId, instance.component);
     if (!metadata.ok) return { ok: false, error: catalogFailure(metadata.error) };
+    const bindableMetadata = this.catalogs.getBindableValueLocations(catalogId, instance.component);
+    if (!bindableMetadata.ok) return { ok: false, error: catalogFailure(bindableMetadata.error) };
 
     const properties: ResolvedComponentProperties = {};
     const unresolved: UnresolvedProperty[] = [];
@@ -178,6 +180,50 @@ export class ComponentPropertyResolver {
       if (first?.kind !== "property" || !Object.hasOwn(instance.definition, first.name)) continue;
       properties[first.name] = apply(location.path, 1, instance.definition[first.name]!, properties[first.name],
         [{ kind: "property", name: first.name }], location.valueKind);
+    }
+
+    const applyBindable = (
+      schemaPath: readonly DynamicValueLocationSegment[], offset: number, original: JsonValue,
+      target: HydratedValue, runtimePath: ComponentPropertyLocationSegment[],
+    ): HydratedValue => {
+      if (offset === schemaPath.length) {
+        if (!isDataPathBinding(original)) return cloneJson(original);
+        const property = runtimePath[0]?.kind === "property" ? runtimePath[0].name : "";
+        const resolved = dataContext.resolveBinding(original);
+        if (!resolved.ok) {
+          issues.push({ code: "BINDABLE_VALUE_RESOLUTION_FAILED", sourceComponentId: instance.sourceComponentId,
+            property, error: { ...resolved.error }, location: runtimePath.map((segment) => ({ ...segment })), path: readablePath(runtimePath) });
+          return undefined;
+        }
+        if (resolved.value === undefined) return undefined;
+        if (!this.catalogs.validateBindableValue(catalogId, instance.component, { path: schemaPath }, resolved.value)) {
+          issues.push({ code: "BINDABLE_VALUE_TYPE_MISMATCH", sourceComponentId: instance.sourceComponentId,
+            property, location: runtimePath.map((segment) => ({ ...segment })), path: readablePath(runtimePath) });
+          return resolved.value === null ? null : undefined;
+        }
+        return cloneJson(resolved.value);
+      }
+      const segment = schemaPath[offset]!;
+      if (segment.kind === "property") {
+        if (original === null || Array.isArray(original) || typeof original !== "object" ||
+          target === null || Array.isArray(target) || typeof target !== "object" || !Object.hasOwn(original, segment.name)) return target;
+        const targetObject = target as { [key: string]: HydratedValue };
+        targetObject[segment.name] = applyBindable(schemaPath, offset + 1, original[segment.name]!, targetObject[segment.name],
+          [...runtimePath, { kind: "property", name: segment.name }]);
+        return target;
+      }
+      if (!Array.isArray(original) || !Array.isArray(target)) return target;
+      for (let index = 0; index < original.length; index += 1) {
+        target[index] = applyBindable(schemaPath, offset + 1, original[index]!, target[index],
+          [...runtimePath, { kind: "arrayIndex", index }]);
+      }
+      return target;
+    };
+    for (const location of bindableMetadata.value) {
+      const first = location.path[0];
+      if (first?.kind !== "property" || !Object.hasOwn(instance.definition, first.name)) continue;
+      properties[first.name] = applyBindable(location.path, 1, instance.definition[first.name]!, properties[first.name],
+        [{ kind: "property", name: first.name }]);
     }
 
     const removeStructural = (

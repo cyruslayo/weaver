@@ -92,6 +92,37 @@ test("discovers nested structural locations narrowly and defensively", () => {
   assert.equal(again.value[0]!.path[0]!.kind, "property");
 });
 
+test("discovers only the narrow direct oneOf bindable union and owns its metadata", () => {
+  const source = catalog("bindable", {
+    Icon: { type: "object", properties: {
+      id: { type: "string" }, component: { const: "Icon" },
+      name: { oneOf: [{ enum: ["home", "search"] }, { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false }, { $ref: "common_types.json#/$defs/DataBinding" }] },
+      nested: { type: "array", items: { type: "object", properties: { value: { oneOf: [{ type: "string" }, { $ref: "common_types.json#/$defs/DataBinding" }] } } } },
+      ordinary: { oneOf: [{ type: "string" }, { type: "number" }] },
+      any: { anyOf: [{ type: "string" }, { $ref: "common_types.json#/$defs/DataBinding" }] },
+      ambiguous: { oneOf: [{ type: "string" }, { $ref: "common_types.json#/$defs/DataBinding" }, { $ref: "common_types.json#/$defs/DataBinding" }] },
+    } },
+  });
+  ((source.$defs as JsonObject).commonTypes as JsonObject).$defs = {
+    ComponentId: { type: "string" }, ChildList: { type: "array" },
+    DataBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
+  };
+  const registry = new CatalogRegistry();
+  assert.equal(registry.register({ catalogId: "bindable", schema: source }).ok, true);
+  const result = registry.getBindableValueLocations("bindable", "Icon");
+  assert.ok(result.ok);
+  assert.deepEqual(result.value, [
+    { path: [{ kind: "property", name: "name" }] },
+    { path: [{ kind: "property", name: "nested" }, { kind: "arrayItems" }, { kind: "property", name: "value" }] },
+  ]);
+  assert.equal(registry.validateBindableValue("bindable", "Icon", result.value[0]!, "home"), true);
+  assert.equal(registry.validateBindableValue("bindable", "Icon", result.value[0]!, { svgPath: "M0 0" }), true);
+  assert.equal(registry.validateBindableValue("bindable", "Icon", result.value[0]!, 42), false);
+  (result.value[0]!.path as { kind: "arrayItems" }[])[0] = { kind: "arrayItems" };
+  const again = registry.getBindableValueLocations("bindable", "Icon");
+  assert.ok(again.ok); assert.equal(again.value[0]!.path[0]!.kind, "property");
+});
+
 test("registers, finds, and lists catalogs in insertion order with fresh ID arrays", () => {
   const registry = new CatalogRegistry();
   assert.equal(registry.register({ catalogId: "a", schema: catalog("a") }).ok, true);

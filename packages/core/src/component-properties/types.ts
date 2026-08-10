@@ -49,6 +49,21 @@ export type ComponentPropertyIssue =
       path?: string;
     }
   | {
+      code: "BINDABLE_VALUE_TYPE_MISMATCH";
+      sourceComponentId: string;
+      property: string;
+      location: ComponentPropertyLocationSegment[];
+      path: string;
+    }
+  | {
+      code: "BINDABLE_VALUE_RESOLUTION_FAILED";
+      sourceComponentId: string;
+      property: string;
+      error: DataContextError;
+      location: ComponentPropertyLocationSegment[];
+      path: string;
+    }
+  | {
       code: "FUNCTION_EVALUATION_FAILED";
       sourceComponentId: string;
       property: string;

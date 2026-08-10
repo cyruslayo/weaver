@@ -275,7 +275,7 @@ Catalog validation (trusted type and properties)
         v
 RendererRegistry
         |
-        +-- Basic Catalog registrations: Text, Image, Video, AudioPlayer, Divider, Row,
+        +-- Basic Catalog registrations: Text, Image, Icon, Video, AudioPlayer, Divider, Row,
         |                                Column, List, Card, Tabs, Modal, Button, TextField,
         |                                CheckBox, Slider, ChoicePicker, DateTimeInput
         +-- application/custom renderer registrations
@@ -578,10 +578,18 @@ properties and array items; runtime hydration supplies actual array indices.
 The existing direct top-level dynamic-property metadata remains separate for
 `InputBindingWriter`.
 
-This is deliberately not general JSON Schema evaluation. Discovery does not
-traverse `oneOf` or `anyOf`, merge arbitrary `allOf` schemas, evaluate
-conditionals, or support Icon's custom bindable union. Unsupported but valid
-schema compositions simply produce no hydration metadata; catalog validation
+A separate bindable-union discovery path recognizes one narrow schema shape: a direct
+`oneOf` containing exactly one direct `DataBinding` reference and one or more
+literal/value branches. It records the location, stops before those branches,
+and compiles their union with Ajv during atomic catalog registration. Core resolves
+strict path bindings through the current `DataContext` and validates resolved values
+against those literal branches. Literal strings and objects remain defensive literals.
+
+This is deliberately not general JSON Schema evaluation. Dynamic* discovery does not
+traverse `oneOf` or `anyOf`, merge arbitrary `allOf` schemas, or evaluate
+conditionals. Bindable unions do not support `anyOf`, multiple binding branches,
+recursive union interpretation, or `FunctionCall`. Unsupported but valid schema
+compositions simply produce no hydration metadata; catalog validation
 remains independent. Date/time format constraints are likewise not interpreted
 by Core. Structural fields are excluded from hydrated properties and remain
 represented only as relationships.
@@ -1013,7 +1021,25 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput; only Icon remains pending. Application/custom registrations remain alongside them.
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage; functions,
+theme translation, Markdown, and other conformance details remain pending. Application/custom registrations remain alongside them.
+
+```text
+Icon.name
+   ↓
+Core bindable-union hydration
+   ↓
+string | { svgPath }
+   ↓
+Basic Icon renderer
+   ├── named → trusted host resolver
+   └── path → direct
+   ↓
+safe native SVG DOM
+```
+
+The catalog permits the icon value, Core resolves bindings, the host resolver maps
+known names to trusted path data, and Web creates inert SVG elements.
 
 ```text
 Modal trigger

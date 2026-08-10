@@ -10,12 +10,14 @@ import {
   renderTabs,
   renderText,
 } from "./renderers.js";
+import { createBasicIconRenderer, type BasicIconResolver } from "./icon.js";
 import { createBasicInputRenderers } from "./inputs.js";
 import { createBasicMediaRenderers, type BasicResourcePolicy } from "./media.js";
 
 export interface BasicCatalogRendererRegistrationOptions {
   catalogId: string;
   resourcePolicy?: BasicResourcePolicy;
+  iconResolver?: BasicIconResolver;
 }
 
 /** Creates the trusted, foundation-only A2UI Basic Catalog renderer allowlist. */
@@ -27,6 +29,7 @@ export function createBasicCatalogRendererRegistrations(
   return [
     { catalogId: options.catalogId, component: "Text", render: renderText },
     { catalogId: options.catalogId, component: "Image", render: media.Image },
+    { catalogId: options.catalogId, component: "Icon", render: createBasicIconRenderer(options.iconResolver) },
     { catalogId: options.catalogId, component: "Video", render: media.Video },
     { catalogId: options.catalogId, component: "AudioPlayer", render: media.AudioPlayer },
     { catalogId: options.catalogId, component: "Divider", render: renderDivider },

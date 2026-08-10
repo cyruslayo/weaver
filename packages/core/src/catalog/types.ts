@@ -64,6 +64,11 @@ export interface DynamicValueLocation {
   valueKind: DynamicPropertyKind;
 }
 
+/** A location whose direct oneOf combines literal values with one DataBinding. */
+export interface BindableValueLocation {
+  path: readonly DynamicValueLocationSegment[];
+}
+
 export type ComponentStructureLocationSegment = DynamicValueLocationSegment;
 
 export interface ComponentStructureLocation {
@@ -87,6 +92,7 @@ export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStr
 export type CatalogComponentStructureLocationsResult = CatalogRegistryResult<ComponentStructureLocation[]>;
 export type CatalogDynamicPropertiesResult = CatalogRegistryResult<DynamicPropertyDefinition[]>;
 export type CatalogDynamicValueLocationsResult = CatalogRegistryResult<DynamicValueLocation[]>;
+export type CatalogBindableValueLocationsResult = CatalogRegistryResult<BindableValueLocation[]>;
 export type CatalogActionPropertiesResult = CatalogRegistryResult<string[]>;
 export type CatalogFunctionDefinitionResult = CatalogRegistryResult<CatalogFunctionDefinition>;
 export type CatalogFunctionValidationResult = CatalogRegistryResult<unknown>;

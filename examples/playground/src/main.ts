@@ -12,6 +12,7 @@ const schema: JsonObject = {
   $schema: "https://json-schema.org/draft/2020-12/schema", catalogId,
   components: {
     Text: component("Text", { text: ref("DynamicString"), variant: { enum: ["h1", "h2", "h3", "h4", "h5", "caption", "body"] } }, ["text"]),
+    Icon: component("Icon", { name: { oneOf: [{ enum: ["home", "search", "check", "close"] }, { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false }, ref("DataBinding")] } }, ["name"]),
     Column: component("Column", { children: ref("ChildList"), justify: { enum: ["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch"] }, align: { enum: ["start", "center", "end", "stretch"] } }, ["children"]),
     Card: component("Card", { child: ref("ComponentId") }, ["child"]),
     Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), child: ref("ComponentId") }, required: ["title", "child"], additionalProperties: false } } }, ["tabs"]),
@@ -26,6 +27,7 @@ const schema: JsonObject = {
   $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {
     ComponentId: { type: "string" }, ChildList: { type: "array", items: ref("ComponentId") },
     PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
+    DataBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
     FunctionCall: { type: "object" }, DynamicString: { oneOf: [{ type: "string" }, ref("PathBinding"), ref("FunctionCall")] },
     DynamicNumber: { oneOf: [{ type: "number" }, ref("PathBinding"), ref("FunctionCall")] }, DynamicBoolean: { oneOf: [{ type: "boolean" }, ref("PathBinding"), ref("FunctionCall")] }, DynamicStringList: { oneOf: [{ type: "array", items: { type: "string" } }, ref("PathBinding"), ref("FunctionCall")] }, Checkable: {},
     Action: { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
@@ -40,12 +42,19 @@ app.dataset.coreVersion = WEAVER_CORE_VERSION;
 const debug = document.createElement("pre");
 debug.textContent = "Outbound events appear here.";
 
-const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId }));
+const iconPaths: Readonly<Record<string, string>> = {
+  home: "M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z",
+  search: "M10 4a6 6 0 1 0 3.7 10.7L19 20l1-1-5.3-5.3A6 6 0 0 0 10 4z",
+  check: "m4 12 5 5L20 6l-1.5-1.5L9 14 5.5 10.5z",
+  close: "M6 6l12 12m0-12L6 18",
+};
+const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId, iconResolver: ({ name }) => iconPaths[name] }));
 created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId, sendDataModel: true } });
 created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main", components: [
   { id: "root", component: "Tabs", tabs: [{ title: "Overview", child: "overview" }, { title: "Form", child: "form" }, { title: "Event", child: "event" }, { title: "Modal", child: "modal" }] },
-  { id: "overview", component: "Column", children: ["title", "greeting"] },
+  { id: "overview", component: "Column", children: ["title", "bound-icon", "greeting"] },
   { id: "title", component: "Text", variant: "h1", text: "Weaver Basic Tabs playground" },
+  { id: "bound-icon", component: "Icon", name: { path: "/ui/icon" } },
   { id: "greeting", component: "Text", text: { path: "/form/name" } },
   { id: "form", component: "Column", children: ["name", "ready", "volume", "choice"] },
   { id: "name", component: "TextField", label: "Name", value: { path: "/form/name" } },
@@ -65,7 +74,7 @@ created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main"
   { id: "modal-action", component: "Button", child: "modal-action-text", action: { event: { name: "playground.modal", context: { name: { path: "/form/name" } } } } },
   { id: "modal-action-text", component: "Text", text: "Run content action" },
 ] } });
-created.value.process({ version: "v0.9.1", updateDataModel: { surfaceId: "main", value: { form: { name: "Ada", ready: false, volume: 5, mode: ["careful"] } } } });
+created.value.process({ version: "v0.9.1", updateDataModel: { surfaceId: "main", value: { form: { name: "Ada", ready: false, volume: 5, mode: ["careful"] }, ui: { icon: "home" } } } });
 const mounted = new WebSurfaceRenderer({ runtime: created.value, renderers, onServerEvent: (event) => { debug.textContent = JSON.stringify(event, null, 2); } }).mount({ surfaceId: "main", target: app });
 if (!mounted.ok) throw new Error(`Playground mount failed: ${mounted.error.code}`);
 app.append(debug);
