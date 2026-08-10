@@ -35,6 +35,9 @@ export type FunctionImplementation = (
 export interface FunctionExecutionContext {
   catalogId: string;
   dataContext: DataContext;
+  evaluateFunctionCall(call: FunctionCall): FunctionEvaluationResult;
+  /** Re-throws a recursive typed failure through the current evaluator boundary. */
+  propagateFunctionFailure(error: import("./errors.js").FunctionEvaluationError): never;
 }
 
 export interface FunctionRegistration {

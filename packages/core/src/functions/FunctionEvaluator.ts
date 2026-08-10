@@ -18,6 +18,10 @@ import type { FunctionEvaluationError } from "./errors.js";
 
 const MAX_DEFAULT_DEPTH = 32;
 
+class RecursiveFunctionFailure {
+  constructor(readonly error: FunctionEvaluationError) {}
+}
+
 type InternalResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: FunctionEvaluationError };
@@ -201,9 +205,15 @@ export class FunctionEvaluator {
 
     let result: unknown;
     try {
-      const context: FunctionExecutionContext = { catalogId, dataContext };
+      const context: FunctionExecutionContext = {
+        catalogId,
+        dataContext,
+        evaluateFunctionCall: (nestedCall) => this.#evaluate(catalogId, nestedCall, dataContext, depth + 1),
+        propagateFunctionFailure: (error) => { throw new RecursiveFunctionFailure(error); },
+      };
       result = implementation(resolvedArgs, context);
-    } catch {
+    } catch (cause) {
+      if (cause instanceof RecursiveFunctionFailure) return { ok: false, error: cause.error };
       return {
         ok: false,
         error: {

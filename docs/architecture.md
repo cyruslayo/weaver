@@ -336,6 +336,54 @@ future actions or transport mechanisms. Function evaluation, action dispatch,
 and renderer effects remain separate lifecycles. Evaluation also applies a
 configurable nesting limit (32 by default) as a Weaver safety boundary.
 
+### Opt-in Basic Catalog pure functions
+
+```text
+Basic Catalog function declaration
+        ↓
+host opts into createBasicCatalogFunctionImplementations()
+        ↓
+FunctionRegistry
+        ↓
+FunctionEvaluator
+        ↓
+pure implementation
+```
+
+The catalog declares the allowed function contract; the host chooses trusted
+implementations; the agent chooses a declared call; and `FunctionEvaluator`
+validates and executes the trusted catalog-scoped registration. The factory is
+not installed automatically, has no singleton state, and keys every registration
+to its caller-supplied catalog ID.
+
+Task 30 covers `required`, `length`, `numeric`, `email`, `formatString`,
+`formatNumber`, `formatCurrency`, `formatDate`, `pluralize`, `and`, `or`, and
+`not`. These implementations perform validation, logic, formatting, and
+interpolation only. They do not perform network access, navigation, DOM or
+DataModel mutation, or MCP work. `regex` is deferred until agent-controlled
+pattern execution has a deliberate safety policy. `openUrl` is deferred because
+it is a browser/platform side effect.
+
+`FunctionExecutionContext` exposes the current catalog ID, immutable
+`DataContext`, and a safe recursive function-call callback. Recursive calls stay
+in the same evaluator and catalog, retain the current scope, and consume the
+same depth budget. Implementations never receive `FunctionRegistry` or a
+platform capability. Nested function arguments to `and` and `or` are currently
+resolved before the boolean implementation executes; iteration over the already
+resolved booleans may short-circuit, but nested calls are not semantically lazy.
+
+`formatString` uses a data-only scanner/parser for literals, scoped paths, named
+arguments, and nested `FunctionCall` values. Parsed calls return through the
+normal evaluator; there is no built-in bypass or code compilation. Weaver's
+reactivity remains snapshot-derived: official implementations may use signals,
+but Weaver reevaluates interpolation on the next derived render after current
+surface state changes rather than adding another reactive system.
+
+Date formatting uses `Date` and `Intl.DateTimeFormat`. Weaver Task 30 supports
+the Basic Catalog's documented TR35 token subset (`yy`, `yyyy`, `M`, `MM`,
+`MMM`, `MMMM`, `d`, `dd`, `E`, `EEEE`, `h`, `hh`, `H`, `HH`, `mm`, `ss`,
+`a`). It is not a complete Unicode TR35 implementation.
+
 Runtime trust orchestration is:
 
 ```text
