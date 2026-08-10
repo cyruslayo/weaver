@@ -44,13 +44,21 @@ Basic Catalog input and media renderers (including their host resource policy) a
 Web must not duplicate Core state, protocol validation, catalog trust, checks,
 or action behavior.
 
+## Task 35 — A2UI v0.9.1 conformance audit
+
+Complete. The canonical requirement-by-requirement tracker is
+[`conformance-v0.9.1.md`](conformance-v0.9.1.md). It supersedes the prior roadmap
+ordering for remaining conformance work.
+
 ## Next milestones
 
-1. Basic component visual/conformance hardening
-2. surface attribution/chrome
-3. full v0.9.1 conformance audit
+1. protocol outbound conformance
+2. Basic functional/accessibility hardening
+3. Basic visual hardening
+4. trusted surface attribution/chrome
+5. final v0.9.1 conformance fixtures
 
-Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, the opt-in surface theme bridge, parent-aware component weight, and safe Text Markdown plus TextField `validationRegexp` are complete. Full Basic Catalog conformance remains incomplete until the remaining audit and hardening work is finished.
+Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, the opt-in surface theme bridge, parent-aware component weight, and safe Text Markdown plus TextField `validationRegexp` are complete. Full Basic Catalog conformance remains incomplete until the audit's required and hardening backlogs are addressed.
 
 ## Deferred work
 
