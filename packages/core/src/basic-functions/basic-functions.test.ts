@@ -28,6 +28,7 @@ function schema(catalogId = "basic", included = names): JsonObject {
     length: fn("length", "boolean", optionalBounds, ["value"]),
     numeric: fn("numeric", "boolean", optionalBounds, ["value"]),
     email: fn("email", "boolean", { value: dynamic }, ["value"]),
+    regex: fn("regex", "boolean", { value: ref("DynamicString"), pattern: { type: "string" } }, ["value", "pattern"]),
     formatString: fn("formatString", "string", { template: { type: "string" } }, ["template"]),
     formatNumber: fn("formatNumber", "string", { value: ref("DynamicNumber"), decimals: { type: "number" }, grouping: { type: "boolean" } }, ["value"]),
     formatCurrency: fn("formatCurrency", "string", { value: ref("DynamicNumber"), currency: { type: "string" }, decimals: { type: "number" }, grouping: { type: "boolean" } }, ["value", "currency"]),
@@ -46,15 +47,16 @@ function schema(catalogId = "basic", included = names): JsonObject {
       PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
       FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
       DynamicValue: { oneOf: [{ type: ["string", "number", "boolean", "array", "null"] }, ref("PathBinding"), ref("FunctionCall")] },
+      DynamicString: { oneOf: [{ type: "string" }, ref("PathBinding"), ref("FunctionCall")] },
       DynamicNumber: { oneOf: [{ type: "number" }, ref("PathBinding"), ref("FunctionCall")] },
       DynamicBoolean: { oneOf: [{ type: "boolean" }, ref("PathBinding"), ref("FunctionCall")] },
     },
   };
 }
 
-function setup(options: { locale?: string; timeZone?: string; maxDepth?: number } = {}, data: JsonObject = {}) {
+function setup(options: { locale?: string; timeZone?: string; maxDepth?: number; regexMatcher?: (request: Readonly<{ value: string; pattern: string }>) => boolean } = {}, data: JsonObject = {}) {
   const catalogs = new CatalogRegistry();
-  assert.equal(catalogs.register({ catalogId: "basic", schema: schema() }).ok, true);
+  assert.equal(catalogs.register({ catalogId: "basic", schema: schema("basic", options.regexMatcher === undefined ? names : [...names, "regex"]) }).ok, true);
   const functions = new FunctionRegistry(catalogs);
   for (const registration of createBasicCatalogFunctionImplementations({ catalogId: "basic", ...options })) {
     assert.equal(functions.register(registration).ok, true);
@@ -75,6 +77,24 @@ test("factory is catalog-scoped and excludes deferred functions", () => {
   assert.deepEqual(registrations.map(({ name }) => name), names);
   assert.ok(registrations.every(({ catalogId }) => catalogId === "chosen"));
   assert.ok(!registrations.some(({ name }) => name === "regex" || name === "openUrl"));
+});
+
+test("regex is conditionally registered as pure and delegates to the trusted matcher", () => {
+  const absent = createBasicCatalogFunctionImplementations({ catalogId: "basic" });
+  assert.equal(absent.some(({ name }) => name === "regex"), false);
+  const requests: unknown[] = [];
+  const runtime = setup({ regexMatcher: (request) => { requests.push(request); return request.value === "Ada" && request.pattern === "safe"; } }, { name: "Ada" });
+  assert.equal(value(runtime, "regex", { value: { path: "/name" }, pattern: "safe" }), true);
+  assert.equal(value(runtime, "regex", { value: "other", pattern: "safe" }), false);
+  assert.deepEqual(requests, [{ value: "Ada", pattern: "safe" }, { value: "other", pattern: "safe" }]);
+  assert.equal(runtime.functions.list("basic").find(({ name }) => name === "regex")?.effect, "pure");
+});
+
+test("regex matcher exceptions and invalid results are controlled execution failures", () => {
+  const throwing = setup({ regexMatcher: () => { throw new Error("unsupported pattern"); } });
+  assert.equal(code(throwing.evaluator.evaluate("basic", call("regex", { value: "x", pattern: "[" }), throwing.data)), "FUNCTION_EXECUTION_FAILED");
+  const invalid = setup({ regexMatcher: (() => "yes") as unknown as () => boolean });
+  assert.equal(code(invalid.evaluator.evaluate("basic", call("regex", { value: "x", pattern: "x" }), invalid.data)), "FUNCTION_EXECUTION_FAILED");
 });
 
 test("FunctionRegistry still enforces catalog permission", () => {

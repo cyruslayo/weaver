@@ -15,6 +15,7 @@ export type FunctionEvaluationError =
   | {
       code:
         | "FUNCTION_IMPLEMENTATION_NOT_FOUND"
+        | "FUNCTION_EFFECT_NOT_ALLOWED"
         | "FUNCTION_ARGUMENT_RESOLUTION_FAILED"
         | "FUNCTION_EXECUTION_FAILED"
         | "FUNCTION_RETURN_TYPE_MISMATCH"

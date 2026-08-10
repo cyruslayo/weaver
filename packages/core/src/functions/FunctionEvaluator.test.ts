@@ -52,13 +52,15 @@ function catalogSchema(catalogId: string): JsonObject {
       unsafeClass: fn("unsafeClass", "any"),
       throwing: fn("throwing", "string"),
       allowedButUnimplemented: fn("allowedButUnimplemented", "string"),
+      actionEffect: fn("actionEffect", "void"),
+      actionOuter: fn("actionOuter", "void", { value: dynamic("DynamicValue") }),
     },
     $defs: {
       theme: { type: "object" },
       DynamicString: { oneOf: [{ type: "string" }, ref("PathBinding"), ref("FunctionCall")] },
       DynamicNumber: { oneOf: [{ type: "number" }, ref("PathBinding"), ref("FunctionCall")] },
       DynamicBoolean: { oneOf: [{ type: "boolean" }, ref("PathBinding"), ref("FunctionCall")] },
-      DynamicValue: { oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }, { type: "array" }, { type: "object" }] },
+      DynamicValue: { oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }, { type: "array" }, ref("FunctionCall")] },
       PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
       FunctionCall: {
         type: "object",
@@ -75,7 +77,7 @@ function setup(implementations: Record<string, (...args: any[]) => unknown> = {}
   assert.equal(catalogs.register({ catalogId: "test", schema: catalogSchema("test") }).ok, true);
   const functions = new FunctionRegistry(catalogs);
   for (const [name, implementation] of Object.entries(implementations)) {
-    assert.equal(functions.register({ catalogId: "test", name, implementation: implementation as any }).ok, true);
+    assert.equal(functions.register({ catalogId: "test", name, effect: "pure", implementation: implementation as any }).ok, true);
   }
   return { evaluator: new FunctionEvaluator(catalogs, functions), data: DataContext.root({ user: { name: "Ada" }, items: [{ name: "one" }, { name: "two" }], checks: [true, false] }) };
 }
@@ -180,11 +182,38 @@ test("propagates nested failures and enforces the depth limit", () => {
   assert.equal(errorCode(failure), "FUNCTION_NOT_ALLOWED");
 });
 
+test("action permission applies only to the root and recursive context remains pure", () => {
+  const catalogs = new CatalogRegistry();
+  assert.equal(catalogs.register({ catalogId: "test", schema: catalogSchema("test") }).ok, true);
+  const functions = new FunctionRegistry(catalogs);
+  let effects = 0;
+  assert.equal(functions.register({ catalogId: "test", name: "actionEffect", effect: "action", implementation: () => { effects++; } }).ok, true);
+  assert.equal(functions.register({
+    catalogId: "test", name: "actionOuter", effect: "action",
+    implementation: (_args, context) => {
+      const nested = context.evaluateFunctionCall({ call: "actionEffect", args: {} });
+      if (!nested.ok) context.propagateFunctionFailure(nested.error);
+    },
+  }).ok, true);
+  const evaluator = new FunctionEvaluator(catalogs, functions);
+  const data = DataContext.root({});
+  assert.equal(errorCode(evaluator.evaluate("test", { call: "actionEffect", args: {} }, data)), "FUNCTION_EFFECT_NOT_ALLOWED");
+  assert.equal(effects, 0);
+  assert.deepEqual(evaluator.evaluateAction("test", { call: "actionEffect", args: {} }, data), { ok: true, value: undefined });
+  assert.equal(effects, 1);
+  assert.equal(errorCode(evaluator.evaluateAction("test", {
+    call: "actionOuter", args: { value: { call: "actionEffect", args: {} } },
+  }, data)), "FUNCTION_EFFECT_NOT_ALLOWED");
+  assert.equal(effects, 1);
+  assert.equal(errorCode(evaluator.evaluateAction("test", { call: "actionOuter", args: { value: "x" } }, data)), "FUNCTION_EFFECT_NOT_ALLOWED");
+  assert.equal(effects, 1);
+});
+
 test("supports a configurable depth limit", () => {
   const catalogs = new CatalogRegistry();
   assert.equal(catalogs.register({ catalogId: "test", schema: catalogSchema("test") }).ok, true);
   const functions = new FunctionRegistry(catalogs);
-  assert.equal(functions.register({ catalogId: "test", name: "outer", implementation: (args) => String(args.value) }).ok, true);
+  assert.equal(functions.register({ catalogId: "test", name: "outer", effect: "pure", implementation: (args) => String(args.value) }).ok, true);
   const evaluator = new FunctionEvaluator(catalogs, functions, { maxDepth: 1 });
   const result = evaluator.evaluate("test", { call: "outer", args: { value: { call: "outer", args: { value: "x" } } } }, DataContext.root({}));
   assert.equal(errorCode(result), "FUNCTION_MAX_DEPTH_EXCEEDED");

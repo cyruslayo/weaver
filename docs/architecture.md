@@ -303,14 +303,17 @@ CatalogRegistry
                  v
 FunctionRegistry
       │
-      └── trusted host implementations
+      └── trusted host implementations + effect = pure | action
                  │
                  v
 FunctionEvaluator
-      │
-      ├── DataContext bindings
-      ├── nested function calls
-      └── return validation
+       ┌─────────┴─────────┐
+       ↓                   ↓
+ pure evaluation      action-root evaluation
+       │                   │
+properties/checks/     ActionDispatcher
+context/formatString        ↓
+                       trusted side effect
 ```
 
 The agent chooses a function name and JSON arguments. The registered catalog
@@ -356,13 +359,30 @@ validates and executes the trusted catalog-scoped registration. The factory is
 not installed automatically, has no singleton state, and keys every registration
 to its caller-supplied catalog ID.
 
-Task 30 covers `required`, `length`, `numeric`, `email`, `formatString`,
+The Core factory covers `required`, `length`, `numeric`, `email`, `formatString`,
 `formatNumber`, `formatCurrency`, `formatDate`, `pluralize`, `and`, `or`, and
-`not`. These implementations perform validation, logic, formatting, and
-interpolation only. They do not perform network access, navigation, DOM or
-DataModel mutation, or MCP work. `regex` is deferred until agent-controlled
-pattern execution has a deliberate safety policy. `openUrl` is deferred because
-it is a browser/platform side effect.
+`not` as explicitly pure functions. It conditionally registers pure `regex` only
+when the host supplies a trusted synchronous matcher. Weaver never executes an
+agent-supplied pattern with JavaScript's native `RegExp` engine. No matcher means
+no regex implementation. The host matcher owns execution complexity, supported
+pattern features, and resource bounds; Core validates inputs and its boolean
+result but does not sandbox trusted host code.
+
+Every trusted `FunctionRegistration` explicitly classifies its effect as `pure`
+or `action`; catalog/protocol data cannot choose or alter that classification.
+Normal `evaluate()` permits only pure functions. `evaluateAction()` permits a
+pure or action root only when called for a direct local A2UI action by
+`ActionDispatcher`. Argument calls and `FunctionExecutionContext.evaluateFunctionCall()`
+always return to pure evaluation and retain the same depth budget. Therefore:
+
+```text
+Action effects may execute only as the root FunctionCall
+of a direct local A2UI action.
+Nested calls always use pure evaluation.
+```
+
+This root-only rule keeps property hydration, checks, event context, and
+`formatString` interpolation effect-free.
 
 `FunctionExecutionContext` exposes the current catalog ID, immutable
 `DataContext`, and a safe recursive function-call callback. Recursive calls stay
@@ -932,8 +952,8 @@ current `DataContext`. Only `status = valid` dispatches. `invalid`, `pending`,
 and `error` all block dispatch. This conservative gating is a Weaver runtime
 decision. Components without checks remain valid.
 
-Local actions execute through `FunctionEvaluator` and produce no message or
-transport metadata. Event context resolves literals, bindings, and non-void
+Local actions execute through `FunctionEvaluator.evaluateAction()` and produce no message or
+transport metadata. Pure local-action roots remain valid; action-effect permission applies only to the root call. Event context resolves literals, bindings, and non-void
 catalog functions atomically. Missing values and resolution failures block the
 event; arrays remain literal JSON and are not recursively interpreted.
 
@@ -1165,6 +1185,16 @@ server event result → optional onServerEvent → host → future transport
 ```
 
 The handoff does not model delivery and Web performs no networking.
+The Basic Catalog declares `openUrl`, but only a host can explicitly install
+Web's separate browser-function factory. Its registration is action-effect, so
+`ActionDispatcher` is its only allowed execution path. It resolves relative URLs
+against the explicit factory base or current browser location, parses and
+requires HTTP/HTTPS, applies an optional host policy, reparses and revalidates any
+rewrite, then opens a new tab with `noopener,noreferrer`. It never mutates the
+current Weaver window. Policy denial, policy/browser exceptions, malformed URLs,
+and disallowed schemes become controlled function failures; a popup-blocker
+`null` result counts as completed because browser delivery cannot be guaranteed.
+
 See [Web rendering](./web-rendering.md) for the renderer, interaction, and mount boundaries.
 
 ## Application boundary

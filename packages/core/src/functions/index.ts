@@ -3,6 +3,7 @@ export { FunctionRegistry } from "./FunctionRegistry.js";
 export { isFunctionCall } from "./types.js";
 export type {
   FunctionCall,
+  FunctionEffect,
   FunctionEvaluationResult,
   FunctionExecutionContext,
   FunctionImplementation,

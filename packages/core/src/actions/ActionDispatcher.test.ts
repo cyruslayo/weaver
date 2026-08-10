@@ -27,7 +27,7 @@ function setup(id = "test", implementations: Record<string, () => unknown> = {})
   const catalogs = new CatalogRegistry();
   assert.equal(catalogs.register({ catalogId: id, schema: schema(id) }).ok, true);
   const functions = new FunctionRegistry(catalogs);
-  for (const [name, implementation] of Object.entries(implementations)) assert.equal(functions.register({ catalogId: id, name, implementation }).ok, true);
+  for (const [name, implementation] of Object.entries(implementations)) assert.equal(functions.register({ catalogId: id, name, effect: "pure", implementation }).ok, true);
   const evaluator = new FunctionEvaluator(catalogs, functions);
   return { catalogs, dispatcher: new ActionDispatcher(catalogs, evaluator, new CheckEvaluator(catalogs, evaluator), { now: () => new Date("2025-01-02T03:04:05.000Z") }) };
 }

@@ -97,7 +97,7 @@ function setup(data: JsonValue = {}, implementations: Record<string, (...args: a
   assert.equal(store.replaceData("s", data).ok, true);
   const functions = new FunctionRegistry(registry);
   for (const [name, implementation] of Object.entries(implementations)) {
-    assert.equal(functions.register({ catalogId, name, implementation: implementation as any }).ok, true);
+    assert.equal(functions.register({ catalogId, name, effect: "pure", implementation: implementation as any }).ok, true);
   }
   const properties = new ComponentPropertyResolver(registry, new FunctionEvaluator(registry, functions));
   const instances = new ComponentInstanceResolver(new ComponentTreeResolver(registry));
@@ -228,7 +228,7 @@ test("evaluates nested functions through a single top-level evaluator call", () 
   const { registry, catalogId } = setup();
   const functions = new FunctionRegistry(registry);
   for (const [name, implementation] of Object.entries(implementations)) {
-    assert.equal(functions.register({ catalogId, name, implementation: implementation as any }).ok, true);
+    assert.equal(functions.register({ catalogId, name, effect: "pure", implementation: implementation as any }).ok, true);
   }
   const counting = new CountingEvaluator(registry, functions);
   const properties = new ComponentPropertyResolver(registry, counting);
@@ -299,7 +299,7 @@ test("preserves function return contract violations without reaching hydrated pr
 test("controls runaway nesting with a bounded evaluator and keeps hydration non-fatal", () => {
   const { registry, catalogId } = setup();
   const functions = new FunctionRegistry(registry);
-  assert.equal(functions.register({ catalogId, name: "outer", implementation: (args) => String(args.value) }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "outer", effect: "pure", implementation: (args) => String(args.value) }).ok, true);
   const bounded = new ComponentPropertyResolver(registry, new FunctionEvaluator(registry, functions, { maxDepth: 1 }));
   const call: JsonObject = { call: "outer", args: { value: { call: "outer", args: { value: "x" } } } };
   const result = ok(bounded.resolve(instance({ id: "root", component: "Display", title: call }), DataContext.root({}), catalogId));
@@ -449,7 +449,7 @@ test("rebuilds after function registration without caching failure state", () =>
   let first = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
   assert.equal(first.root?.properties.name, undefined);
   assert.deepEqual(first.root?.unresolved, [{ property: "name", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { call: "echo", args: { value: { path: "/name" } } } }]);
-  assert.equal(functions.register({ catalogId, name: "echo", implementation: (args) => String(args.value) }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "echo", effect: "pure", implementation: (args) => String(args.value) }).ok, true);
   surface = snapshot();
   const second = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
   assert.equal(second.root?.properties.name, "Ada");

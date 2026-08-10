@@ -67,24 +67,24 @@ test("finds only functions declared by the selected catalog", () => {
 test("registers declared implementations and exposes metadata only in list", () => {
   const { functions } = registry();
   const implementation = () => "ok";
-  const result = functions.register({ catalogId: "catalog-a", name: "echo", implementation });
+  const result = functions.register({ catalogId: "catalog-a", name: "echo", effect: "pure", implementation });
   assert.equal(result.ok, true);
-  assert.deepEqual(functions.list("catalog-a"), [{ catalogId: "catalog-a", name: "echo", returnType: "string" }]);
+  assert.deepEqual(functions.list("catalog-a"), [{ catalogId: "catalog-a", name: "echo", returnType: "string", effect: "pure" }]);
   assert.equal(functions.list("catalog-a")[0] && "implementation" in functions.list("catalog-a")[0]!, false);
 });
 
 test("rejects undeclared and duplicate implementations", () => {
   const { functions } = registry();
-  assert.equal(code(functions.register({ catalogId: "catalog-a", name: "mystery", implementation: () => null })), "FUNCTION_NOT_ALLOWED");
-  assert.equal(functions.register({ catalogId: "catalog-a", name: "echo", implementation: () => "first" }).ok, true);
-  assert.equal(code(functions.register({ catalogId: "catalog-a", name: "echo", implementation: () => "second" })), "FUNCTION_IMPLEMENTATION_ALREADY_REGISTERED");
+  assert.equal(code(functions.register({ catalogId: "catalog-a", name: "mystery", effect: "pure", implementation: () => null })), "FUNCTION_NOT_ALLOWED");
+  assert.equal(functions.register({ catalogId: "catalog-a", name: "echo", effect: "pure", implementation: () => "first" }).ok, true);
+  assert.equal(code(functions.register({ catalogId: "catalog-a", name: "echo", effect: "pure", implementation: () => "second" })), "FUNCTION_IMPLEMENTATION_ALREADY_REGISTERED");
 });
 
 test("keeps same-named implementations isolated by catalog", () => {
   const first = registry("catalog-a");
   const second = registry("catalog-b");
-  assert.equal(first.functions.register({ catalogId: "catalog-a", name: "echo", implementation: () => "a" }).ok, true);
-  assert.equal(second.functions.register({ catalogId: "catalog-b", name: "echo", implementation: () => "b" }).ok, true);
+  assert.equal(first.functions.register({ catalogId: "catalog-a", name: "echo", effect: "pure", implementation: () => "a" }).ok, true);
+  assert.equal(second.functions.register({ catalogId: "catalog-b", name: "echo", effect: "pure", implementation: () => "b" }).ok, true);
   assert.equal(first.functions.has("catalog-a", "echo"), true);
   assert.equal(first.functions.has("catalog-b", "echo"), false);
 });

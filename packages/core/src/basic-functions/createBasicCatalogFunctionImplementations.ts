@@ -12,6 +12,16 @@ export function createBasicCatalogFunctionImplementations(
 ): FunctionRegistration[] {
   if (typeof options.catalogId !== "string") throw new TypeError("catalogId is required");
   const formatting = createFormattingFunctions(options);
+  const regex = options.regexMatcher === undefined
+    ? {}
+    : { regex: (args: Readonly<Record<string, unknown>>) => {
+      if (typeof args.value !== "string" || typeof args.pattern !== "string") {
+        throw new TypeError("regex requires string value and pattern arguments");
+      }
+      const result = options.regexMatcher!({ value: args.value, pattern: args.pattern });
+      if (typeof result !== "boolean") throw new TypeError("regexMatcher must return a boolean");
+      return result;
+    } };
   const implementations = {
     required,
     length,
@@ -25,10 +35,12 @@ export function createBasicCatalogFunctionImplementations(
     and,
     or,
     not,
+    ...regex,
   } as const;
   return Object.entries(implementations).map(([name, implementation]) => ({
     catalogId: options.catalogId,
     name,
+    effect: "pure",
     implementation,
   }));
 }

@@ -83,7 +83,7 @@ export class ActionDispatcher {
       if (!isFunctionCall(call)) {
         return { ok: false, error: { code: "ACTION_INVALID", message: "Local function action is invalid", actionProperty } };
       }
-      const evaluated = this.functionEvaluator.evaluate(surface.catalogId, call, dataContext.value);
+      const evaluated = this.functionEvaluator.evaluateAction(surface.catalogId, call, dataContext.value);
       if (!evaluated.ok) {
         return { ok: false, error: { code: "LOCAL_FUNCTION_FAILED", message: "Local action function failed", cause: evaluated.error } };
       }

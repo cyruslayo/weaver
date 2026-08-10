@@ -123,7 +123,16 @@ export class FunctionEvaluator {
     functionCall: unknown,
     dataContext: DataContext,
   ): FunctionEvaluationResult {
-    return this.#evaluate(catalogId, functionCall, dataContext, 0);
+    return this.#evaluate(catalogId, functionCall, dataContext, 0, false);
+  }
+
+  /** Executes a direct local-action root; all recursive evaluation remains pure. */
+  evaluateAction(
+    catalogId: string,
+    functionCall: unknown,
+    dataContext: DataContext,
+  ): FunctionEvaluationResult {
+    return this.#evaluate(catalogId, functionCall, dataContext, 0, true);
   }
 
   #evaluate(
@@ -131,6 +140,7 @@ export class FunctionEvaluator {
     functionCall: unknown,
     dataContext: DataContext,
     depth: number,
+    allowActionRoot: boolean,
   ): FunctionEvaluationResult {
     let validation: ReturnType<CatalogRegistry["validateFunctionCall"]>;
     try {
@@ -176,13 +186,24 @@ export class FunctionEvaluator {
     const definitionResult = this.#catalogs.getFunctionDefinition(catalogId, functionName);
     if (!definitionResult.ok) return { ok: false, error: definitionResult.error };
     const definition = definitionResult.value;
-    const implementation = this.#functions.getImplementation(catalogId, functionName);
-    if (implementation === undefined) {
+    const registration = this.#functions.getRegistration(catalogId, functionName);
+    if (registration === undefined) {
       return {
         ok: false,
         error: {
           code: "FUNCTION_IMPLEMENTATION_NOT_FOUND",
           message: "The catalog function has no registered implementation",
+          catalogId,
+          functionName,
+        },
+      };
+    }
+    if (registration.effect === "action" && !allowActionRoot) {
+      return {
+        ok: false,
+        error: {
+          code: "FUNCTION_EFFECT_NOT_ALLOWED",
+          message: "Action-effect functions may execute only as a direct local-action root",
           catalogId,
           functionName,
         },
@@ -208,10 +229,10 @@ export class FunctionEvaluator {
       const context: FunctionExecutionContext = {
         catalogId,
         dataContext,
-        evaluateFunctionCall: (nestedCall) => this.#evaluate(catalogId, nestedCall, dataContext, depth + 1),
+        evaluateFunctionCall: (nestedCall) => this.#evaluate(catalogId, nestedCall, dataContext, depth + 1, false),
         propagateFunctionFailure: (error) => { throw new RecursiveFunctionFailure(error); },
       };
-      result = implementation(resolvedArgs, context);
+      result = registration.implementation(resolvedArgs, context);
     } catch (cause) {
       if (cause instanceof RecursiveFunctionFailure) return { ok: false, error: cause.error };
       return {
@@ -282,7 +303,7 @@ export class FunctionEvaluator {
         if (!resolved.ok) return argumentError(catalogId, functionName, "Data binding could not be resolved", resolved.error);
         return defensiveValue(resolved.value, catalogId, functionName);
       }
-      if (isFunctionCall(value)) return this.#evaluate(catalogId, value, dataContext, depth + 1);
+      if (isFunctionCall(value)) return this.#evaluate(catalogId, value, dataContext, depth + 1, false);
     }
 
     return defensiveValue(value, catalogId, functionName);

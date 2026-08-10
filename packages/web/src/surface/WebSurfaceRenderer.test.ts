@@ -200,7 +200,7 @@ test("Basic media policy receives bound hydrated URLs and policy exceptions pres
 test("Basic media policy receives trusted function-backed URL results", () => {
   const made = createWeaverRuntime({
     catalogs: [{ catalogId: "test", schema: catalog("test") }],
-    functions: [{ catalogId: "test", name: "mediaUrl", implementation: () => "/function.png" }],
+    functions: [{ catalogId: "test", name: "mediaUrl", effect: "pure", implementation: () => "/function.png" }],
   });
   assert.ok(made.ok); const rt = made.value; rt.process(create());
   rt.process(components([{ id: "root", component: "Image", url: { call: "mediaUrl", args: {} } }]));
@@ -347,7 +347,7 @@ function interactionCatalog(): JsonObject {
 function interactiveRuntime(local?: () => void): WeaverRuntime {
   const made = createWeaverRuntime({
     catalogs: [{ catalogId: "interactive", schema: interactionCatalog() }],
-    ...(local === undefined ? {} : { functions: [{ catalogId: "interactive", name: "local", implementation: local }] }),
+    ...(local === undefined ? {} : { functions: [{ catalogId: "interactive", name: "local", effect: "pure", implementation: local }] }),
     now: () => new Date("2025-01-02T03:04:05.000Z"),
   });
   assert.ok(made.ok);

@@ -109,8 +109,8 @@ test("rejects null and all non-boolean bound types without coercion", () => {
 test("evaluates function bindings and nested calls through FunctionEvaluator", () => {
   const data = { items: [{ name: "" }, { name: "Ada" }] };
   const { evaluator, functions, catalogId } = setup(data);
-  assert.equal(functions.register({ catalogId, name: "nonEmpty", implementation: ({ value }) => typeof value === "string" && value.length > 0 }).ok, true);
-  assert.equal(functions.register({ catalogId, name: "not", implementation: ({ value }) => !value }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "nonEmpty", effect: "pure", implementation: ({ value }) => typeof value === "string" && value.length > 0 }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "not", effect: "pure", implementation: ({ value }) => !value }).ok, true);
   const root = DataContext.root(data);
   for (const [index, expected] of [false, true].entries()) {
     const context = value(root.createCollectionItemContext("/items", index));
@@ -127,12 +127,12 @@ test("wraps function failures and enforces a boolean final result", () => {
   assert.equal(check.status, "error");
   assert.equal(check.issues[0]?.code, "CHECK_FUNCTION_EVALUATION_FAILED");
   if (check.issues[0]?.code === "CHECK_FUNCTION_EVALUATION_FAILED") assert.equal(check.issues[0].error.code, "FUNCTION_IMPLEMENTATION_NOT_FOUND");
-  assert.equal(functions.register({ catalogId, name: "missing", implementation: () => true }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "missing", effect: "pure", implementation: () => true }).ok, true);
   assert.equal(value(evaluator.evaluate(catalogId, instance("x", [rule({ call: "missing", args: {} })]), DataContext.root({}))).checks[0]?.status, "passed");
-  assert.equal(functions.register({ catalogId, name: "thrower", implementation: () => { throw new Error("boom"); } }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "thrower", effect: "pure", implementation: () => { throw new Error("boom"); } }).ok, true);
   check = value(evaluator.evaluate(catalogId, instance("x", [rule({ call: "thrower", args: {} })]), DataContext.root({}))).checks[0]!;
   assert.equal(check.status, "error");
-  assert.equal(functions.register({ catalogId, name: "anyResult", implementation: () => "true" }).ok, true);
+  assert.equal(functions.register({ catalogId, name: "anyResult", effect: "pure", implementation: () => "true" }).ok, true);
   check = value(evaluator.evaluate(catalogId, instance("x", [rule({ call: "anyResult", args: {} })]), DataContext.root({}))).checks[0]!;
   assert.equal(check.issues[0]?.code, "CHECK_CONDITION_TYPE_MISMATCH");
 });

@@ -12,9 +12,9 @@ function setup() {
   assert.equal(catalogs.register({ catalogId: "test", schema: { $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: "test", components: { X: { type: "object" } }, functions: { value: fn("value", "any"), voider: fn("voider", "void"), failing: fn("failing", "string") }, $defs: { theme: { type: "object" } } } }).ok, true);
   const functions = new FunctionRegistry(catalogs);
   let voidCount = 0;
-  functions.register({ catalogId: "test", name: "value", implementation: () => null });
-  functions.register({ catalogId: "test", name: "voider", implementation: () => { voidCount++; } });
-  functions.register({ catalogId: "test", name: "failing", implementation: () => { throw new Error(); } });
+  functions.register({ catalogId: "test", name: "value", effect: "pure", implementation: () => null });
+  functions.register({ catalogId: "test", name: "voider", effect: "pure", implementation: () => { voidCount++; } });
+  functions.register({ catalogId: "test", name: "failing", effect: "pure", implementation: () => { throw new Error(); } });
   return { resolver: new ActionContextResolver(catalogs, new FunctionEvaluator(catalogs, functions)), voidCount: () => voidCount };
 }
 

@@ -55,8 +55,8 @@ function runtime(options: { capture?: (value: unknown) => unknown; now?: () => D
   return createWeaverRuntime({
     catalogs: [{ catalogId: "test", schema: catalog("test") }],
     functions: [
-      { catalogId: "test", name: "format", implementation: ({ value }) => `Hello ${value}` },
-      { catalogId: "test", name: "capture", implementation: ({ value }) => options.capture?.(value) ?? value },
+      { catalogId: "test", name: "format", effect: "pure", implementation: ({ value }) => `Hello ${value}` },
+      { catalogId: "test", name: "capture", effect: "pure", implementation: ({ value }) => options.capture?.(value) ?? value },
     ],
     now: options.now,
   });
@@ -80,7 +80,7 @@ test("initializes atomically and rejects invalid catalog or function configurati
   assert.equal(valid.ok, true, !valid.ok ? JSON.stringify(valid.error) : undefined);
   const invalid = createWeaverRuntime({ catalogs: [{ catalogId: "bad", schema: {} }] });
   assert.equal(!invalid.ok && invalid.error.code, "CATALOG_CONFIGURATION_FAILED");
-  const unknownFunction = createWeaverRuntime({ catalogs: [{ catalogId: "test", schema: catalog("test") }], functions: [{ catalogId: "test", name: "missing", implementation: () => null }] });
+  const unknownFunction = createWeaverRuntime({ catalogs: [{ catalogId: "test", schema: catalog("test") }], functions: [{ catalogId: "test", name: "missing", effect: "pure", implementation: () => null }] });
   assert.equal(!unknownFunction.ok && unknownFunction.error.code, "FUNCTION_CONFIGURATION_FAILED");
   assert.equal(createWeaverRuntime({ catalogs: [] }).ok, true);
 });

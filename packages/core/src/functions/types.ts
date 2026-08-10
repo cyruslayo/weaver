@@ -3,6 +3,7 @@ import type { DataContext } from "../data-context/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 
 export type FunctionReturnType = CatalogFunctionReturnType;
+export type FunctionEffect = "pure" | "action";
 
 export interface FunctionCall {
   call: string;
@@ -43,6 +44,7 @@ export interface FunctionExecutionContext {
 export interface FunctionRegistration {
   catalogId: string;
   name: string;
+  effect: FunctionEffect;
   implementation: FunctionImplementation;
 }
 
@@ -50,6 +52,7 @@ export interface FunctionImplementationMetadata {
   catalogId: string;
   name: string;
   returnType: FunctionReturnType;
+  effect: FunctionEffect;
 }
 
 export type FunctionRegistrationResult =

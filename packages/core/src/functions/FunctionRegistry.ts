@@ -1,6 +1,5 @@
 import type { CatalogRegistry } from "../catalog/index.js";
 import type {
-  FunctionImplementation,
   FunctionImplementationMetadata,
   FunctionRegistration,
   FunctionRegistrationResult,
@@ -11,7 +10,7 @@ const key = (catalogId: string, name: string): string => JSON.stringify([catalog
 /** Stores only host-supplied trusted implementations, isolated by catalog. */
 export class FunctionRegistry {
   readonly #catalogs: CatalogRegistry;
-  readonly #implementations = new Map<string, FunctionImplementation>();
+  readonly #implementations = new Map<string, Readonly<FunctionRegistration>>();
 
   constructor(catalogs: CatalogRegistry) {
     this.#catalogs = catalogs;
@@ -34,13 +33,14 @@ export class FunctionRegistry {
       };
     }
 
-    this.#implementations.set(identity, registration.implementation);
+    this.#implementations.set(identity, Object.freeze({ ...registration }));
     return {
       ok: true,
       value: {
         catalogId: registration.catalogId,
         name: registration.name,
         returnType: declaration.value.returnType,
+        effect: registration.effect,
       },
     };
   }
@@ -55,13 +55,16 @@ export class FunctionRegistry {
       const [registeredCatalogId, name] = JSON.parse(identity) as [string, string];
       if (registeredCatalogId !== catalogId) continue;
       const definition = this.#catalogs.getFunctionDefinition(catalogId, name);
-      if (definition.ok) result.push({ catalogId, name, returnType: definition.value.returnType });
+      const registration = this.#implementations.get(identity);
+      if (definition.ok && registration !== undefined) {
+        result.push({ catalogId, name, returnType: definition.value.returnType, effect: registration.effect });
+      }
     }
     return result;
   }
 
   /** Internal evaluator seam; listing APIs never expose this reference. */
-  getImplementation(catalogId: string, functionName: string): FunctionImplementation | undefined {
+  getRegistration(catalogId: string, functionName: string): Readonly<FunctionRegistration> | undefined {
     return this.#implementations.get(key(catalogId, functionName));
   }
 }
