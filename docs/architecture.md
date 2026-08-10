@@ -1108,6 +1108,22 @@ Basic renderers
 
 The generic renderer knows neither Basic catalog identity nor `primaryColor`. No adapter means no agent-theme styling. Adapter output is validated as CSS custom properties and scoped to each Weaver-owned mount.
 
+Parent-owned Basic layout metadata follows a separate derived path:
+
+```text
+child hydrated properties
+        ↓
+WebRenderedRelationship
+        ↓
+Row / Column
+        ↓
+parent-owned layout mapping
+        ↓
+child flex-grow
+```
+
+The relationship metadata describes the rendered target child and is defensively owned. Row and Column alone interpret direct-child `weight`; child renderers and other flex-based parents do not infer ancestry or apply it.
+
 Catalog validation means component data is allowed. Renderer registration means
 browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage; Markdown and other conformance details remain pending. Application/custom registrations remain alongside them.
 

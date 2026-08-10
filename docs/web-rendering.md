@@ -235,7 +235,7 @@ Modal wraps its trigger in a neutral capture listener. Activation opens it local
 
 Opening maps registered trigger focus to the close control; closing maps the close control back to the trigger. Tab and Shift+Tab wrap inside the open dialog, while normal registered input focus and caret restoration continue across full rerenders. The Modal remains inside the Weaver mount: it uses no portal and mutates neither `document.body` nor host-owned siblings.
 
-All Basic Catalog components now have renderer coverage. This does not yet imply full Basic Catalog conformance: Text Markdown, `validationRegexp`, `CatalogComponentCommon.weight`, visual/conformance hardening, and trusted surface attribution/chrome remain pending.
+All Basic Catalog components now have renderer coverage. This does not yet imply full Basic Catalog conformance: Text Markdown, `validationRegexp`, visual/conformance hardening, and trusted surface attribution/chrome remain pending.
 
 ## Basic Icon policy
 
@@ -270,6 +270,8 @@ Task 22 Text renders strings with `textContent` and uses native headings, paragr
 Task 22 provides native semantics, essential flex layout behavior, separator geometry, and stable `data-a2ui-component` / Button `data-a2ui-variant` host styling hooks. Task 32 adds only the optional primary accent bridge; it does not add broad brand styling, spacing, typography styling, or a theme engine.
 
 Row and Column default to `justify = start` and `align = stretch`. List defaults to vertical direction and stretch alignment. Known enum values alone map to CSS; component property objects are never copied into styles. List children are wrapped in `role=listitem`; Card and Button consume the resolved `child` relationship.
+
+Basic `weight` belongs to the child component schema, but its layout meaning is parent-owned. `WebRenderedRelationship` carries a defensively owned snapshot of each target child's hydrated properties alongside its rendered Node. A direct Row or Column parent maps a finite, non-negative numeric `weight` to that child Element's inline CSS `flex-grow` before DOM commit. Zero and fractional values are preserved; omitted, non-finite, and negative values are ignored. Negative protocol data is not mutated. Weight outside a direct Row/Column relationship has no Web layout effect, including children of List, Card, Tabs, Modal, and Button. Non-Element custom renderer Nodes are left unchanged and are never wrapped.
 
 A Basic Button uses native `disabled` state to mirror Core's current check snapshot: `invalid`, `pending`, and `error` disable it, while `valid` enables it. No snapshot leaves normal behavior unchanged. An absent progressive child is a renderer-level reason to disable the otherwise empty button until rerender. Core `ActionDispatcher` remains the authoritative action gate; browser disabled state is not a security boundary. Clicks call only `interactions.dispatchAction("action")`, relying on the existing generation guard and local/server action paths.
 

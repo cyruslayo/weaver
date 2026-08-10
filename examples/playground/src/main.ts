@@ -5,7 +5,7 @@ const catalogId = "playground-basic";
 const ref = (name: string): JsonObject => ({ $ref: `common_types.json#/$defs/${name}` });
 const component = (name: string, properties: JsonObject, required: string[], allOf: JsonObject[] = []): JsonObject => ({
   type: "object", ...(allOf.length > 0 ? { allOf } : {}),
-  properties: { id: { type: "string" }, component: { const: name }, ...properties },
+  properties: { id: { type: "string" }, component: { const: name }, weight: { type: "number" }, ...properties },
   required: ["id", "component", ...required], additionalProperties: false,
 });
 const schema: JsonObject = {
@@ -13,6 +13,7 @@ const schema: JsonObject = {
   components: {
     Text: component("Text", { text: ref("DynamicString"), variant: { enum: ["h1", "h2", "h3", "h4", "h5", "caption", "body"] } }, ["text"]),
     Icon: component("Icon", { name: { oneOf: [{ enum: ["home", "search", "check", "close"] }, { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false }, ref("DataBinding")] } }, ["name"]),
+    Row: component("Row", { children: ref("ChildList"), justify: { enum: ["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch"] }, align: { enum: ["start", "center", "end", "stretch"] } }, ["children"]),
     Column: component("Column", { children: ref("ChildList"), justify: { enum: ["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch"] }, align: { enum: ["start", "center", "end", "stretch"] } }, ["children"]),
     Card: component("Card", { child: ref("ComponentId") }, ["child"]),
     Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), child: ref("ComponentId") }, required: ["title", "child"], additionalProperties: false } } }, ["tabs"]),
@@ -52,10 +53,15 @@ const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({
 created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId, theme: { primaryColor: "#6750a4" }, sendDataModel: true } });
 created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main", components: [
   { id: "root", component: "Tabs", tabs: [{ title: "Overview", child: "overview" }, { title: "Form", child: "form" }, { title: "Event", child: "event" }, { title: "Modal", child: "modal" }] },
-  { id: "overview", component: "Column", children: ["title", "bound-icon", "greeting"] },
+  { id: "overview", component: "Column", children: ["title", "bound-icon", "greeting", "weight-demo"] },
   { id: "title", component: "Text", variant: "h1", text: "Weaver Basic Tabs playground" },
   { id: "bound-icon", component: "Icon", name: { path: "/ui/icon" } },
   { id: "greeting", component: "Text", text: { path: "/form/name" } },
+  { id: "weight-demo", component: "Row", children: ["weight-card-one", "weight-card-two"] },
+  { id: "weight-card-one", component: "Card", child: "weight-text-one", weight: 1 },
+  { id: "weight-text-one", component: "Text", text: "Weight 1" },
+  { id: "weight-card-two", component: "Card", child: "weight-text-two", weight: 2 },
+  { id: "weight-text-two", component: "Text", text: "Weight 2" },
   { id: "form", component: "Column", children: ["name", "ready", "volume", "choice"] },
   { id: "name", component: "TextField", label: "Name", value: { path: "/form/name" } },
   { id: "ready", component: "CheckBox", label: "Ready", value: { path: "/form/ready" } },

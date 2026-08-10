@@ -133,6 +133,49 @@ test("Row and Column preserve children and apply mapped layout defaults", () => 
   }
 });
 
+test("Row and Column apply only usable direct-child weights", () => {
+  for (const component of ["Row", "Column"] as const) {
+    const base = setup(component);
+    const children = ["zero", "fraction", "omitted", "negative"].map((text) => child(base.document, text));
+    const rendered = setup(component, { relationships: [{
+      kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children,
+      childComponents: ["Text", "Text", "Text", "Text"],
+      childProperties: [{ weight: 0 }, { weight: 1.5 }, {}, { weight: -2 }],
+    }] }).node;
+    assert.deepEqual([...rendered.children].map((node) => (node as HTMLElement).style.flexGrow), ["0", "1.5", "", ""]);
+  }
+});
+
+test("Row weights a direct Card but not nested children, while non-layout parents ignore weight", () => {
+  const base = setup("Row");
+  const nestedText = child(base.document, "nested");
+  const card = setup("Card", { relationships: [{
+    kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: nestedText,
+    childComponent: "Text", childProperties: { weight: 5 },
+  }] }).node;
+  const row = setup("Row", { relationships: [{
+    kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children: [card],
+    childComponents: ["Card"], childProperties: [{ weight: 5 }],
+  }] }).node;
+  assert.equal(card.style.flexGrow, "5"); assert.equal(nestedText.style.flexGrow, ""); assert.equal(row.firstChild, card);
+
+  const listChild = child(base.document, "list");
+  const list = setup("List", { relationships: [{
+    kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children: [listChild],
+    childComponents: ["Text"], childProperties: [{ weight: 3 }],
+  }] }).node;
+  assert.equal(listChild.style.flexGrow, "");
+});
+
+test("Row ignores weight for non-Element custom renderer nodes", () => {
+  const base = setup("Row"); const text = base.document.createTextNode("plain");
+  const row = setup("Row", { relationships: [{
+    kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children: [text],
+    childComponents: ["Custom"], childProperties: [{ weight: 2 }],
+  }] }).node;
+  assert.equal(row.textContent, "plain");
+});
+
 test("List wraps ordered children with list semantics, direction, alignment, and empty support", () => {
   const base = setup("List"); const children = [child(base.document, "a"), child(base.document, "b")];
   const list = setup("List", { properties: { direction: "horizontal", align: "center" }, relationships: [{ kind: "template", property: "children", location: [{ kind: "property", name: "children" }], children }] }).node;

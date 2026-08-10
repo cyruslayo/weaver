@@ -17,7 +17,8 @@ function catalog(catalogId: string): JsonObject {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema", catalogId,
     components: {
-      Text: component("Text", { text: ref("DynamicString") }),
+      Text: component("Text", { text: ref("DynamicString"), weight: { type: "number" } }),
+      Row: component("Row", { children: ref("ChildList") }),
       Image: component("Image", { url: ref("DynamicString"), description: ref("DynamicString") }),
       Stack: component("Stack", { sections: ref("ChildList") }),
       TabsLike: component("TabsLike", { tabs: { type: "array", items: { type: "object", properties: {
@@ -172,6 +173,56 @@ test("renders repeated nested child relationships by location without exposing c
   const { target, result } = mount(rt, [...registrations(), tabsRenderer]);
   assert.ok(result.ok);
   assert.equal(target.textContent, "Panel APanel B");
+});
+
+test("relationships expose defensively owned target-child hydrated metadata", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Stack", sections: ["item", "item"] },
+    { id: "item", component: "Text", text: { path: "/label" }, weight: 2 },
+  ]));
+  rt.process(data({ label: "Hydrated" }));
+  const observed: unknown[] = [];
+  const parent: RendererRegistration = { catalogId: "test", component: "Stack", render: ({ document, relationships }) => {
+    const relationship = relationships[0];
+    assert.ok(relationship && relationship.kind !== "single");
+    observed.push(relationship.childComponents, relationship.childProperties);
+    assert.deepEqual(relationship.childComponents, ["Text", "Text"]);
+    assert.deepEqual(relationship.childProperties, [{ text: "Hydrated", weight: 2 }, { text: "Hydrated", weight: 2 }]);
+    (relationship.childProperties?.[0] as { text?: unknown }).text = "mutated";
+    assert.equal(relationship.childProperties?.[1]?.text, "Hydrated");
+    const node = document.createElement("div"); node.append(...relationship.children); return node;
+  } };
+  const mounted = mount(rt, [...registrations().filter(({ component }) => component !== "Stack"), parent]); assert.ok(mounted.result.ok);
+  const resolved = rt.resolveSurface("s"); assert.ok(resolved.ok);
+  assert.equal(resolved.value.tree.root?.relationships[0]?.kind !== "single" && resolved.value.tree.root?.relationships[0]?.children[0]?.properties.text, "Hydrated");
+  assert.equal(mounted.target.textContent, "HydratedHydrated");
+  assert.equal(observed.length, 2);
+});
+
+test("progressively missing relationships omit child metadata safely and preserve location", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([{ id: "root", component: "TabsLike", tabs: [{ title: "Later", child: "missing" }] }]));
+  const parent: RendererRegistration = { catalogId: "test", component: "TabsLike", render: ({ document, relationships }) => {
+    assert.deepEqual(relationships, [{ kind: "single", property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }] }]);
+    return document.createElement("div");
+  } };
+  assert.ok(mount(rt, [...registrations(), parent]).result.ok);
+});
+
+test("Row applies hydrated weight across templates and runtime updates without stale styles", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Row", children: { path: "/items", componentId: "item" } },
+    { id: "item", component: "Text", text: { path: "label" }, weight: 1.5 },
+  ]));
+  rt.process(data({ items: [{ label: "A" }, { label: "B" }] }));
+  const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test" })); assert.ok(result.ok);
+  assert.deepEqual([...target.querySelectorAll("p")].map((node) => node.style.flexGrow), ["1.5", "1.5"]);
+  rt.process(components([{ id: "item", component: "Text", text: { path: "label" }, weight: 3 }]));
+  assert.deepEqual([...target.querySelectorAll("p")].map((node) => node.style.flexGrow), ["3", "3"]);
+  rt.process(components([{ id: "item", component: "Text", text: { path: "label" } }]));
+  assert.deepEqual([...target.querySelectorAll("p")].map((node) => node.style.flexGrow), ["", ""]);
 });
 
 test("mount renders hydrated nested values immediately and preserves host siblings", () => {

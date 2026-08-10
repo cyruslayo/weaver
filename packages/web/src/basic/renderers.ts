@@ -38,6 +38,30 @@ export const renderDivider: WebComponentRenderer = ({ document, properties }) =>
   return element;
 };
 
+function appendWeightedRelationshipChildren(
+  parent: Element,
+  relationships: readonly WebRenderedRelationship[],
+): void {
+  const relationship = relationships.find((candidate) => candidate.property === "children");
+  if (relationship === undefined) return;
+  const apply = (node: Node, weight: unknown): void => {
+    if (typeof weight !== "number" || !Number.isFinite(weight) || weight < 0) return;
+    if (node.nodeType !== 1 || !("style" in node)) return;
+    (node as HTMLElement | SVGElement).style.flexGrow = String(weight);
+  };
+  if (relationship.kind === "single") {
+    if (relationship.child !== undefined) {
+      apply(relationship.child, relationship.childProperties?.weight);
+      parent.append(relationship.child);
+    }
+    return;
+  }
+  relationship.children.forEach((child, index) => {
+    apply(child, relationship.childProperties?.[index]?.weight);
+    parent.append(child);
+  });
+}
+
 function renderLayout(direction: "row" | "column", component: "Row" | "Column"): WebComponentRenderer {
   return ({ document, properties, relationships }) => {
     const element = document.createElement("div");
@@ -46,7 +70,7 @@ function renderLayout(direction: "row" | "column", component: "Row" | "Column"):
     element.style.flexDirection = direction;
     element.style.justifyContent = mapJustify(properties.justify);
     element.style.alignItems = mapAlign(properties.align);
-    element.append(...relationshipChildren(relationships, "children"));
+    appendWeightedRelationshipChildren(element, relationships);
     return element;
   };
 }

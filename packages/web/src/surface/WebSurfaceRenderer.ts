@@ -1,6 +1,7 @@
 import type {
   ComponentCheckSnapshot,
   HydratedComponentInstance,
+  HydratedValue,
   JsonValue,
   WeaverResolvedSurface,
   WeaverRuntime,
@@ -224,18 +225,34 @@ export class WebSurfaceRenderer {
         }
         const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
         if (!child.ok) return child;
-        relationships.push({ kind: "single", property: relationship.property,
-          location: relationship.location.map((segment) => ({ ...segment })), child: child.value });
+        relationships.push({
+          kind: "single",
+          property: relationship.property,
+          location: relationship.location.map((segment) => ({ ...segment })),
+          child: child.value,
+          childComponent: relationship.child.component,
+          childProperties: cloneHydratedProperties(relationship.child.properties),
+        });
         continue;
       }
       const children: Node[] = [];
+      const childComponents: string[] = [];
+      const childProperties: Readonly<Record<string, HydratedValue>>[] = [];
       for (const childInstance of relationship.children) {
         const child = this.#renderInstance(surfaceId, catalogId, childInstance, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
         if (!child.ok) return child;
         children.push(child.value);
+        childComponents.push(childInstance.component);
+        childProperties.push(cloneHydratedProperties(childInstance.properties));
       }
-      relationships.push({ kind: relationship.kind, property: relationship.property,
-        location: relationship.location.map((segment) => ({ ...segment })), children });
+      relationships.push({
+        kind: relationship.kind,
+        property: relationship.property,
+        location: relationship.location.map((segment) => ({ ...segment })),
+        children,
+        childComponents,
+        childProperties,
+      });
     }
 
     const renderer = this.#renderers.get(catalogId, instance.component);
@@ -293,6 +310,12 @@ function applyThemeProperties(
   for (const [name, value] of Object.entries(next)) container.style.setProperty(name, value);
   applied.clear();
   for (const name of Object.keys(next)) applied.add(name);
+}
+
+function cloneHydratedProperties(
+  properties: Readonly<Record<string, HydratedValue>>,
+): Readonly<Record<string, HydratedValue>> {
+  return structuredClone(properties);
 }
 
 function cloneStateEntries(state: ReadonlyMap<string, JsonValue> | undefined): Map<string, JsonValue> {

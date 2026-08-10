@@ -36,9 +36,22 @@ export interface WebComponentInteractions {
 }
 
 export type WebRenderedRelationship =
-  | { kind: "single"; property: string; location: readonly ComponentRelationshipLocationSegment[]; child?: Node }
-  | { kind: "list"; property: string; location: readonly ComponentRelationshipLocationSegment[]; children: readonly Node[] }
-  | { kind: "template"; property: string; location: readonly ComponentRelationshipLocationSegment[]; children: readonly Node[] };
+  | {
+      kind: "single";
+      property: string;
+      location: readonly ComponentRelationshipLocationSegment[];
+      child?: Node;
+      childComponent?: string;
+      childProperties?: Readonly<Record<string, HydratedValue>>;
+    }
+  | {
+      kind: "list" | "template";
+      property: string;
+      location: readonly ComponentRelationshipLocationSegment[];
+      children: readonly Node[];
+      childComponents?: readonly string[];
+      childProperties?: readonly Readonly<Record<string, HydratedValue>>[];
+    };
 
 export interface WebComponentRenderInput {
   document: Document;
