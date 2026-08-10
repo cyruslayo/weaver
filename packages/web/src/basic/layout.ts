@@ -11,7 +11,7 @@ export function mapJustify(value: unknown): string {
     case "spaceBetween": return "space-between";
     case "spaceAround": return "space-around";
     case "spaceEvenly": return "space-evenly";
-    case "stretch": return "stretch";
+    case "stretch": return "flex-start";
     case "start":
     default: return "flex-start";
   }

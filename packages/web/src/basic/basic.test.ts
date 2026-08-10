@@ -151,6 +151,27 @@ test("Row and Column preserve children and apply mapped layout defaults", () => 
   }
 });
 
+test("Row and Column implement main-axis stretch with explicit weights taking precedence", () => {
+  for (const component of ["Row", "Column"] as const) {
+    const base = setup(component);
+    const children = ["weighted", "zero", "fraction", "unweighted", "negative"].map((text) => child(base.document, text));
+    const rendered = setup(component, { properties: { justify: "stretch" }, relationships: [{
+      kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children,
+      childProperties: [{ weight: 2 }, { weight: 0 }, { weight: 1.5 }, {}, { weight: -2 }],
+    }] }).node;
+    assert.equal(rendered.style.justifyContent, "flex-start");
+    assert.deepEqual([...rendered.children].map((node) => (node as HTMLElement).style.flexGrow), ["2", "0", "1.5", "1", "1"]);
+  }
+});
+
+test("Row and Column preserve all non-stretch justify mappings and cross-axis stretch", () => {
+  const mappings = { start: "flex-start", center: "center", end: "flex-end", spaceBetween: "space-between", spaceAround: "space-around", spaceEvenly: "space-evenly" };
+  for (const component of ["Row", "Column"] as const) for (const [justify, expected] of Object.entries(mappings)) {
+    const node = setup(component, { properties: { justify, align: "stretch" } }).node;
+    assert.equal(node.style.justifyContent, expected); assert.equal(node.style.alignItems, "stretch");
+  }
+});
+
 test("Row and Column apply only usable direct-child weights", () => {
   for (const component of ["Row", "Column"] as const) {
     const base = setup(component);
@@ -194,11 +215,17 @@ test("Row ignores weight for non-Element custom renderer nodes", () => {
   assert.equal(row.textContent, "plain");
 });
 
-test("List wraps ordered children with list semantics, direction, alignment, and empty support", () => {
+test("List wraps ordered static/template children with directional native scrolling", () => {
   const base = setup("List"); const children = [child(base.document, "a"), child(base.document, "b")];
-  const list = setup("List", { properties: { direction: "horizontal", align: "center" }, relationships: [{ kind: "template", property: "children", location: [{ kind: "property", name: "children" }], children }] }).node;
-  assert.equal(list.getAttribute("role"), "list"); assert.equal(list.style.flexDirection, "row"); assert.equal(list.style.alignItems, "center");
-  assert.deepEqual([...list.children].map((item) => [item.getAttribute("role"), item.textContent]), [["listitem", "a"], ["listitem", "b"]]);
+  for (const kind of ["list", "template"] as const) {
+    const horizontal = setup("List", { properties: { direction: "horizontal", align: "center" }, relationships: [{ kind, property: "children", location: [{ kind: "property", name: "children" }], children }] }).node;
+    assert.equal(horizontal.getAttribute("role"), "list"); assert.equal(horizontal.style.flexDirection, "row"); assert.equal(horizontal.style.alignItems, "center");
+    assert.equal(horizontal.style.overflowX, "auto"); assert.equal(horizontal.style.overflowY, "hidden"); assert.equal(horizontal.style.flexWrap, "nowrap");
+    assert.deepEqual([...horizontal.children].map((item) => [item.getAttribute("role"), item.textContent, (item as HTMLElement).style.flexShrink, (item as HTMLElement).style.maxWidth]), [["listitem", "a", "0", "100%"], ["listitem", "b", "0", "100%"]]);
+  }
+  const vertical = setup("List", { relationships: [{ kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children }] }).node;
+  assert.equal(vertical.style.overflowY, "auto"); assert.equal(vertical.style.overflowX, "hidden");
+  assert.equal(vertical.style.minHeight, "0"); assert.equal(vertical.style.minWidth, "0"); assert.equal((vertical.firstElementChild as HTMLElement).style.flexShrink, "");
   assert.equal(setup("List").node.children.length, 0);
 });
 
@@ -354,7 +381,7 @@ test("TextField regexp handles empty, missing, throwing, and non-boolean matcher
   }
 });
 
-test("TextField combines Core checks and regexp state without inventing messages", () => {
+test("TextField combines Core checks and renderer-owned regexp messages", () => {
   const coreInvalid = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Core message", issues: [] }] };
   const coreError = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "error" as const, checks: [] };
   const pass: BasicRegexMatcher = () => true; const fail: BasicRegexMatcher = () => false; const error: BasicRegexMatcher = () => { throw new Error("private"); };
@@ -362,6 +389,7 @@ test("TextField combines Core checks and regexp state without inventing messages
   assert.equal(invalidPass.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(invalidPass.textContent?.includes("Core message"), true);
   const errorFail = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreError }, undefined, undefined, fail).node;
   assert.equal(errorFail.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(errorFail.querySelector("input")?.getAttribute("aria-invalid"), "true");
+  assert.equal(errorFail.textContent?.includes("Value does not match the required format."), true);
   const invalidError = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreInvalid }, undefined, undefined, error).node;
   assert.equal(invalidError.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(invalidError.textContent?.includes("Core message"), true);
   const validError = setup("TextField", { properties: { value: "x", validationRegexp: "p" } }, undefined, undefined, error).node;
@@ -395,10 +423,30 @@ test("DateTimeInput applies safe native date/time policy", () => {
   const disabled = setup("DateTimeInput", { properties: { value: "opaque" } }).node.querySelector("input") as HTMLInputElement; assert.equal(disabled.disabled, true); assert.equal(disabled.value, "opaque");
 });
 
-test("invalid inputs remain editable and expose only failed validation messages", () => {
-  const checks = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Required", issues: [] }, { index: 1, status: "pending" as const, message: "Wait", issues: [] }] };
-  const node = setup("TextField", { properties: { label: "Name" }, checks }).node; const control = node.querySelector("input") as HTMLInputElement;
-  assert.equal(control.disabled, false); assert.equal(control.getAttribute("aria-invalid"), "true"); assert.ok(control.getAttribute("aria-describedby")); assert.equal(node.textContent?.includes("Required"), true); assert.equal(node.textContent?.includes("Wait"), false);
+test("invalid inputs associate every failed message with their bound native controls", () => {
+  const checks = { sourceComponentId: "internal-id", scopePath: "/private/path", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Required", issues: [] }, { index: 1, status: "failed" as const, message: "Too short", issues: [] }] };
+  for (const component of ["TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"] as const) {
+    const properties = component === "ChoicePicker" ? { filterable: true, options: [{ label: "A", value: "a" }], value: [] }
+      : component === "DateTimeInput" ? { enableDate: true, enableTime: true, value: "" }
+      : component === "Slider" ? { value: 1 } : {};
+    const node = setup(component, { properties, checks }).node;
+    const controls = [...node.querySelectorAll<HTMLInputElement>(component === "ChoicePicker" ? 'input[type="radio"]' : "input,textarea")].filter((control) => control.type !== "search");
+    assert.ok(controls.length > 0);
+    for (const control of controls) {
+      assert.equal(control.disabled, false); assert.equal(control.getAttribute("aria-invalid"), "true");
+      const ids = control.getAttribute("aria-describedby")?.split(" ") ?? [];
+      assert.equal(ids.length, 2); ids.forEach((id) => { assert.equal(node.querySelector(`#${id}`)?.textContent === "Required" || node.querySelector(`#${id}`)?.textContent === "Too short", true); assert.doesNotMatch(id, /internal-id|private|path/); });
+    }
+    assert.equal(node.querySelector('input[type="search"]')?.hasAttribute("aria-describedby") ?? false, false);
+  }
+});
+
+test("TextField regexp failure is associated and recovery removes renderer-owned state", () => {
+  const fail = setup("TextField", { properties: { value: "bad", validationRegexp: "p" } }, undefined, undefined, () => false).node;
+  const control = fail.querySelector("input")!; const described = control.getAttribute("aria-describedby")!;
+  assert.equal(fail.querySelector(`#${described}`)?.textContent, "Value does not match the required format.");
+  const recovered = setup("TextField", { properties: { value: "good", validationRegexp: "p" } }, undefined, undefined, () => true).node;
+  assert.notEqual(recovered.querySelector("input")?.getAttribute("aria-invalid"), "true"); assert.equal(recovered.querySelector("input")?.hasAttribute("aria-describedby"), false); assert.equal(recovered.textContent?.includes("required format"), false);
 });
 
 function interactions(writes: unknown[]) { return { registerControl: () => {}, getLocalState: <T>(_key: string, fallback: T) => structuredClone(fallback), setLocalState: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }), writeInput: (property: string, value: unknown) => { writes.push([property, value]); return { ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }; }, dispatchAction: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }) }; }

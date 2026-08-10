@@ -407,6 +407,50 @@ test("Basic Tabs selects by structural location, persists locally, restores keyb
   assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Changed");
 });
 
+test("nested Basic Modals keep the closest dialog open, focused, and keyboard-contained", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Modal", trigger: "outer-trigger", content: "outer-content" },
+    { id: "outer-trigger", component: "Button", child: "outer-label", action: { event: { name: "outer-trigger-leak", context: {} } } },
+    { id: "outer-label", component: "Text", text: "Open outer" },
+    { id: "outer-content", component: "Row", children: ["inner"] },
+    { id: "inner", component: "Modal", trigger: "inner-trigger", content: "inner-content" },
+    { id: "inner-trigger", component: "Button", child: "inner-label", action: { event: { name: "inner-trigger-leak", context: {} } } },
+    { id: "inner-label", component: "Text", text: "Open inner" },
+    { id: "inner-content", component: "Button", child: "action-label", action: { event: { name: "inside", context: {} } } },
+    { id: "action-label", component: "Text", text: "Run inner action" },
+  ]));
+  const { target } = dom(); target.ownerDocument.body.append(target); const handoffs: unknown[] = [];
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId: "test" })), onServerEvent: (event) => handoffs.push(event) }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  target.querySelector<HTMLButtonElement>("button")!.focus(); target.querySelector<HTMLButtonElement>("button")!.click();
+  assert.equal(target.querySelectorAll('[role="dialog"]').length, 1); assert.match(target.textContent ?? "", /Open inner/);
+  const innerTrigger = [...target.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Open inner")!;
+  innerTrigger.focus(); innerTrigger.click();
+  assert.equal(handoffs.length, 0); assert.equal(target.querySelectorAll('[role="dialog"]').length, 2);
+  assert.ok(target.ownerDocument.activeElement === [...target.querySelectorAll<HTMLButtonElement>('button[aria-label="Close"]')].at(-1));
+
+  let dialogs = [...target.querySelectorAll<HTMLElement>('[role="dialog"]')]; let inner = dialogs.at(-1)!;
+  const innerAction = [...inner.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Run inner action")!;
+  innerAction.focus(); innerAction.dispatchEvent(new innerAction.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+  assert.ok(target.ownerDocument.activeElement === inner.querySelector('button[aria-label="Close"]'));
+  const innerClose = inner.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!; innerClose.focus();
+  innerClose.dispatchEvent(new innerClose.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }));
+  assert.equal(target.ownerDocument.activeElement?.textContent, "Run inner action");
+  innerAction.click(); assert.equal(handoffs.length, 1);
+
+  inner = [...target.querySelectorAll<HTMLElement>('[role="dialog"]')].at(-1)!;
+  inner.dispatchEvent(new inner.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(target.querySelectorAll('[role="dialog"]').length, 1); assert.equal(target.ownerDocument.activeElement?.textContent, "Open inner");
+  const reopenedTrigger = [...target.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Open inner")!;
+  reopenedTrigger.focus(); reopenedTrigger.click();
+  const innerBackdrop = [...target.querySelectorAll<HTMLElement>('[data-a2ui-modal-backdrop]')].at(-1)!; innerBackdrop.click();
+  assert.equal(target.querySelectorAll('[role="dialog"]').length, 1); assert.equal(target.ownerDocument.activeElement?.textContent, "Open inner");
+  const outerDialog = target.querySelector<HTMLElement>('[role="dialog"]')!;
+  outerDialog.dispatchEvent(new outerDialog.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(target.querySelector('[role="dialog"]'), null); assert.equal(target.ownerDocument.activeElement?.textContent, "Open outer");
+});
+
 test("Basic Modal intercepts a real Button trigger, persists open state, restores focus, and keeps content actions normal", () => {
   const rt = runtime(); rt.process(create());
   rt.process(components([

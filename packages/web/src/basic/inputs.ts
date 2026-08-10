@@ -146,7 +146,7 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Rec
     else if (!date && time) { control.type = "time"; control.step = "1"; control.value = normalizeTime(value); setConstraint(control, "min", properties.min, normalizeTime); setConstraint(control, "max", properties.max, normalizeTime); }
     else { control.type = "datetime-local"; control.value = isoToLocal(value); setConstraint(control, "min", properties.min, isoToLocal); setConstraint(control, "max", properties.max, isoToLocal); }
     interactions.registerControl(control, "value");
-    applyValidation(document, wrapper, [control], input.checks, nextId);
+    applyValidation(document, wrapper, date || time ? [control] : [], input.checks, nextId);
     if (date || time) control.addEventListener("change", () => {
       if (!control.value) { interactions.writeInput("value", ""); return; }
       if (date && time) { const iso = localToIso(control.value); if (iso !== undefined) interactions.writeInput("value", iso); }
@@ -202,14 +202,35 @@ function applyValidation(document: Document, wrapper: HTMLElement, controls: rea
   const status = combinedValidationState(checks, regexp);
   if (checks !== undefined || regexp !== "absent") wrapper.setAttribute("data-a2ui-validation-state", status);
   if (status === "invalid") controls.forEach((control) => control.setAttribute("aria-invalid", "true"));
-  if (checks?.status !== "invalid") return;
-  const failed = checks.checks.filter((check) => check.status === "failed");
-  if (failed.length === 0) return;
+
+  const messages: string[] = [];
   const list = document.createElement("div");
-  list.id = nextId("validation");
-  failed.forEach((check) => { const message = document.createElement("div"); message.textContent = check.message; list.append(message); });
-  controls.forEach((control) => control.setAttribute("aria-describedby", list.id));
+  if (checks?.status === "invalid") {
+    for (const check of checks.checks) {
+      if (check.status !== "failed") continue;
+      const message = document.createElement("div");
+      message.id = nextId("validation");
+      message.textContent = check.message;
+      messages.push(message.id);
+      list.append(message);
+    }
+  }
+  if (regexp === "failed") {
+    const message = document.createElement("div");
+    message.id = nextId("validation");
+    message.textContent = "Value does not match the required format.";
+    messages.push(message.id);
+    list.append(message);
+  }
+  if (messages.length === 0) return;
+  controls.forEach((control) => mergeDescribedBy(control, messages));
   wrapper.append(list);
+}
+
+function mergeDescribedBy(control: HTMLElement, messageIds: readonly string[]): void {
+  const tokens = new Set((control.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean));
+  messageIds.forEach((id) => tokens.add(id));
+  if (tokens.size > 0) control.setAttribute("aria-describedby", [...tokens].join(" "));
 }
 function normalizeDate(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);

@@ -45,16 +45,18 @@ export const renderDivider: WebComponentRenderer = ({ document, properties }) =>
   return element;
 };
 
-function appendWeightedRelationshipChildren(
+function appendLayoutRelationshipChildren(
   parent: Element,
   relationships: readonly WebRenderedRelationship[],
+  stretch: boolean,
 ): void {
   const relationship = relationships.find((candidate) => candidate.property === "children");
   if (relationship === undefined) return;
   const apply = (node: Node, weight: unknown): void => {
-    if (typeof weight !== "number" || !Number.isFinite(weight) || weight < 0) return;
     if (node.nodeType !== 1 || !("style" in node)) return;
-    (node as HTMLElement | SVGElement).style.flexGrow = String(weight);
+    const explicitWeight = typeof weight === "number" && Number.isFinite(weight) && weight >= 0;
+    if (!explicitWeight && !stretch) return;
+    (node as HTMLElement | SVGElement).style.flexGrow = String(explicitWeight ? weight : 1);
   };
   if (relationship.kind === "single") {
     if (relationship.child !== undefined) {
@@ -75,9 +77,10 @@ function renderLayout(direction: "row" | "column", component: "Row" | "Column"):
     applyBasicHook(element, component);
     element.style.display = "flex";
     element.style.flexDirection = direction;
-    element.style.justifyContent = mapJustify(properties.justify);
+    const stretch = properties.justify === "stretch";
+    element.style.justifyContent = stretch ? "flex-start" : mapJustify(properties.justify);
     element.style.alignItems = mapAlign(properties.align);
-    appendWeightedRelationshipChildren(element, relationships);
+    appendLayoutRelationshipChildren(element, relationships, stretch);
     return element;
   };
 }
@@ -90,11 +93,21 @@ export const renderList: WebComponentRenderer = ({ document, properties, relatio
   applyBasicHook(element, "List");
   element.setAttribute("role", "list");
   element.style.display = "flex";
-  element.style.flexDirection = properties.direction === "horizontal" ? "row" : "column";
+  const horizontal = properties.direction === "horizontal";
+  element.style.flexDirection = horizontal ? "row" : "column";
   element.style.alignItems = mapAlign(properties.align);
+  element.style.minHeight = "0";
+  element.style.minWidth = "0";
+  element.style.overflowX = horizontal ? "auto" : "hidden";
+  element.style.overflowY = horizontal ? "hidden" : "auto";
+  if (horizontal) element.style.flexWrap = "nowrap";
   for (const child of relationshipChildren(relationships, "children")) {
     const item = document.createElement("div");
     item.setAttribute("role", "listitem");
+    if (horizontal) {
+      item.style.flexShrink = "0";
+      item.style.maxWidth = "100%";
+    }
     item.append(child);
     element.append(item);
   }
@@ -268,7 +281,11 @@ export const renderModal: WebComponentRenderer = ({ document, relationships, int
   close.setAttribute("aria-label", "Close");
   close.textContent = "Close";
   interactions.registerControl(close, "modal-focus");
-  const closeModal = () => { interactions.setLocalState("open", false); };
+  const closeModal = () => {
+    // Map every dismissal path through the Modal's registered focus identity.
+    close.focus({ preventScroll: true });
+    interactions.setLocalState("open", false);
+  };
   close.addEventListener("click", closeModal);
   const content = directRelationship(relationships, "content");
   dialog.append(close);
@@ -283,6 +300,8 @@ export const renderModal: WebComponentRenderer = ({ document, relationships, int
       return;
     }
     if (event.key !== "Tab") return;
+    // The closest open dialog owns keyboard containment for nested Modals.
+    event.stopPropagation();
     const focusable = findFocusable(dialog);
     const first = focusable[0];
     const last = focusable.at(-1);
