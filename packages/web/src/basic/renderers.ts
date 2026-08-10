@@ -1,5 +1,6 @@
 import type { WebComponentRenderer, WebRenderedRelationship } from "../renderers/index.js";
 import { applyBasicHook, mapAlign, mapJustify, relationshipChildren } from "./layout.js";
+import { renderBasicInlineMarkdown } from "./markdown.js";
 
 const textElements = {
   h1: "h1",
@@ -17,7 +18,13 @@ export const renderText: WebComponentRenderer = ({ document, properties }) => {
     : "body";
   const element = document.createElement(textElements[variant]);
   applyBasicHook(element, "Text");
-  if (typeof properties.text === "string") element.textContent = properties.text;
+  if (typeof properties.text === "string") {
+    try {
+      element.append(...renderBasicInlineMarkdown(document, properties.text));
+    } catch {
+      element.textContent = properties.text;
+    }
+  }
   return element;
 };
 

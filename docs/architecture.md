@@ -1125,7 +1125,16 @@ child flex-grow
 The relationship metadata describes the rendered target child and is defensively owned. Row and Column alone interpret direct-child `weight`; child renderers and other flex-based parents do not infer ancestry or apply it.
 
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage; Markdown and other conformance details remain pending. Application/custom registrations remain alongside them.
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage, including Task 34's safe inline Text Markdown and TextField-local `validationRegexp`; broader visual hardening and the full conformance audit remain pending. Application/custom registrations remain alongside them.
+
+```text
+Text → hydrated string → safe non-recursive Markdown scanner → allowlisted native DOM nodes
+
+TextField → hydrated string + validationRegexp → trusted BasicRegexMatcher
+          → Web-only validation presentation
+```
+
+The Markdown scanner creates only text, `strong`, `em`, `code`, and `br` nodes and never parses an HTML string. The regexp capability is explicit per Web factory and may be shared with—but is never implicitly connected to—the Core Basic-function factory. Browser presentation does not synthesize Core checks, mutate component definitions, write model state, or alter `ActionDispatcher` gating. `CheckRule` remains the Core action-validation mechanism.
 
 ```text
 Icon.name

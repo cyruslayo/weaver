@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
+import type { BasicRegexMatcher } from "@weaver/core";
 import { RendererRegistry, type WebComponentInteractions, type WebComponentRenderInput, type WebComponentRenderer } from "../renderers/index.js";
 import { createBasicCatalogRendererRegistrations } from "./createBasicCatalogRendererRegistrations.js";
 import type { BasicIconResolver } from "./icon.js";
 import type { BasicResourcePolicy } from "./media.js";
 
-function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy, iconResolver?: BasicIconResolver) {
+function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy, iconResolver?: BasicIconResolver, regexMatcher?: BasicRegexMatcher) {
   const window = new Window();
   const document = window.document as unknown as Document;
   const calls: string[] = [];
-  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy, iconResolver })
+  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy, iconResolver, regexMatcher })
     .find((candidate) => candidate.component === component);
   assert.ok(registration);
   const input = {
@@ -114,10 +115,27 @@ test("Text selects native semantic elements and defaults to body", () => {
   assert.equal(setup("Text", { properties: { text: "x" } }).node.tagName, "P");
 });
 
-test("Text uses textContent and renders missing or null text empty", () => {
-  const unsafe = setup("Text", { properties: { text: "<script>alert(1)</script>" } }).node;
-  assert.equal(unsafe.textContent, "<script>alert(1)</script>");
-  assert.equal(unsafe.querySelector("script"), null);
+test("Text safely renders the supported inline Markdown subset", () => {
+  const node = setup("Text", { properties: { text: "Hello **strong** __also__ *em* _too_ `code`\nnext" } }).node;
+  assert.deepEqual([...node.querySelectorAll("strong")].map((item) => item.textContent), ["strong", "also"]);
+  assert.deepEqual([...node.querySelectorAll("em")].map((item) => item.textContent), ["em", "too"]);
+  assert.equal(node.querySelector("code")?.textContent, "code");
+  assert.equal(node.querySelectorAll("br").length, 1);
+});
+
+test("Text Markdown treats HTML, links, images, code contents, and headings as inert text", () => {
+  const source = "# Heading <b>bold?</b> <script>alert(1)</script> [click](javascript:alert(1)) ![x](https://example.com/x.png) `<script>x</script>`";
+  const node = setup("Text", { properties: { text: source } }).node;
+  assert.equal(node.textContent, source.replaceAll("`", ""));
+  for (const selector of ["b", "script", "a", "img"]) assert.equal(node.querySelector(selector), null);
+  assert.equal(node.querySelector("code")?.textContent, "<script>x</script>");
+});
+
+test("Text Markdown preserves escapes, malformed markers, variants, and missing text", () => {
+  assert.equal(setup("Text", { properties: { text: String.raw`\*literal* \_literal_ \`literal\` \\` } }).node.textContent, "*literal* _literal_ `literal` \\");
+  for (const text of ["**hello", "`code", "text_"]) assert.equal(setup("Text", { properties: { text } }).node.textContent, text);
+  assert.equal(setup("Text", { properties: { variant: "h2", text: "Hello **world**" } }).node.querySelector("strong")?.textContent, "world");
+  assert.equal(setup("Text", { properties: { variant: "caption", text: "*small*" } }).node.tagName, "SMALL");
   assert.equal(setup("Text", { properties: { text: undefined } }).node.textContent, "");
   assert.equal(setup("Text", { properties: { text: null } }).node.textContent, "");
 });
@@ -308,6 +326,46 @@ test("Basic inputs use native controls and normalized writes", () => {
     assert.deepEqual(writes[0], ["value", component === "CheckBox" ? false : component === "Slider" ? 4.25 : "7.5"]);
   }
   assert.equal((setup("Slider", { properties: { max: 10 } }).node.querySelector("input") as HTMLInputElement).disabled, true);
+});
+
+test("TextField validationRegexp uses only the optional trusted matcher", () => {
+  const calls: unknown[] = [];
+  const matcher: BasicRegexMatcher = (request) => { calls.push(request); return request.value === "42.5"; };
+  const noPattern = setup("TextField", { properties: { value: "42.5" } }, undefined, undefined, matcher).node;
+  assert.equal(calls.length, 0); assert.equal(noPattern.getAttribute("data-a2ui-regexp-state"), null);
+  const unavailable = setup("TextField", { properties: { value: "x", validationRegexp: "trusted syntax" } }).node;
+  assert.equal(unavailable.getAttribute("data-a2ui-regexp-state"), "unavailable"); assert.equal(unavailable.querySelector("input")?.hasAttribute("pattern"), false); assert.notEqual(unavailable.querySelector("input")?.getAttribute("aria-invalid"), "true");
+  const passed = setup("TextField", { properties: { value: "42.5", validationRegexp: "decimal", variant: "number" } }, undefined, undefined, matcher).node;
+  assert.equal(passed.getAttribute("data-a2ui-regexp-state"), "passed"); assert.notEqual(passed.querySelector("input")?.getAttribute("aria-invalid"), "true");
+  const failed = setup("TextField", { properties: { value: "bad", validationRegexp: "decimal" } }, undefined, undefined, matcher).node;
+  assert.equal(failed.getAttribute("data-a2ui-regexp-state"), "failed"); assert.equal(failed.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(failed.querySelector("input")?.getAttribute("aria-invalid"), "true"); assert.equal((failed.querySelector("input") as HTMLInputElement).disabled, false);
+  assert.deepEqual(calls, [{ value: "42.5", pattern: "decimal" }, { value: "bad", pattern: "decimal" }]);
+});
+
+test("TextField regexp handles empty, missing, throwing, and non-boolean matcher results", () => {
+  const values: string[] = [];
+  const matcher: BasicRegexMatcher = ({ value }) => { values.push(value); return true; };
+  setup("TextField", { properties: { value: "", validationRegexp: "p" } }, undefined, undefined, matcher);
+  const pending = setup("TextField", { properties: { value: undefined, validationRegexp: "p" } }, undefined, undefined, matcher).node;
+  assert.deepEqual(values, [""]); assert.equal(pending.getAttribute("data-a2ui-regexp-state"), "pending"); assert.notEqual(pending.querySelector("input")?.getAttribute("aria-invalid"), "true");
+  for (const unsafe of [(() => { throw new Error("host secret"); }) as BasicRegexMatcher, (() => "yes") as unknown as BasicRegexMatcher]) {
+    const node = setup("TextField", { properties: { value: "x", validationRegexp: "p" } }, undefined, undefined, unsafe).node;
+    assert.equal(node.getAttribute("data-a2ui-regexp-state"), "error"); assert.equal(node.getAttribute("data-a2ui-validation-state"), "error"); assert.notEqual(node.querySelector("input")?.getAttribute("aria-invalid"), "true"); assert.equal(node.textContent?.includes("host secret"), false);
+  }
+});
+
+test("TextField combines Core checks and regexp state without inventing messages", () => {
+  const coreInvalid = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Core message", issues: [] }] };
+  const coreError = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "error" as const, checks: [] };
+  const pass: BasicRegexMatcher = () => true; const fail: BasicRegexMatcher = () => false; const error: BasicRegexMatcher = () => { throw new Error("private"); };
+  const invalidPass = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreInvalid }, undefined, undefined, pass).node;
+  assert.equal(invalidPass.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(invalidPass.textContent?.includes("Core message"), true);
+  const errorFail = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreError }, undefined, undefined, fail).node;
+  assert.equal(errorFail.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(errorFail.querySelector("input")?.getAttribute("aria-invalid"), "true");
+  const invalidError = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreInvalid }, undefined, undefined, error).node;
+  assert.equal(invalidError.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(invalidError.textContent?.includes("Core message"), true);
+  const validError = setup("TextField", { properties: { value: "x", validationRegexp: "p" } }, undefined, undefined, error).node;
+  assert.equal(validError.getAttribute("data-a2ui-validation-state"), "error"); assert.notEqual(validError.querySelector("input")?.getAttribute("aria-invalid"), "true");
 });
 
 test("TextField defers writes until IME composition ends", () => {

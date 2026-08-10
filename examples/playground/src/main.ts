@@ -19,7 +19,7 @@ const schema: JsonObject = {
     Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), child: ref("ComponentId") }, required: ["title", "child"], additionalProperties: false } } }, ["tabs"]),
     Modal: component("Modal", { trigger: ref("ComponentId"), content: ref("ComponentId") }, ["trigger", "content"]),
     Button: component("Button", { child: ref("ComponentId"), variant: { enum: ["default", "primary", "borderless"] }, action: ref("Action"), checks: { type: "array" } }, ["child", "action"], [ref("Checkable")]),
-    TextField: component("TextField", { label: ref("DynamicString"), value: ref("DynamicString"), variant: { enum: ["shortText", "longText", "number", "obscured"] }, checks: { type: "array" } }, ["label"], [ref("Checkable")]),
+    TextField: component("TextField", { label: ref("DynamicString"), value: ref("DynamicString"), variant: { enum: ["shortText", "longText", "number", "obscured"] }, validationRegexp: { type: "string" }, checks: { type: "array" } }, ["label"], [ref("Checkable")]),
     CheckBox: component("CheckBox", { label: ref("DynamicString"), value: ref("DynamicBoolean"), checks: { type: "array" } }, ["label", "value"], [ref("Checkable")]),
     Slider: component("Slider", { label: ref("DynamicString"), min: { type: "number" }, max: { type: "number" }, value: ref("DynamicNumber"), checks: { type: "array" } }, ["max", "value"], [ref("Checkable")]),
     ChoicePicker: component("ChoicePicker", { label: ref("DynamicString"), value: ref("DynamicStringList"), options: { type: "array", items: { type: "object", properties: { label: ref("DynamicString"), value: { type: "string" } }, required: ["label", "value"], additionalProperties: false } }, variant: { enum: ["mutuallyExclusive", "multipleSelection"] }, displayStyle: { enum: ["checkbox", "chips"] }, filterable: { type: "boolean" }, checks: { type: "array" } }, ["options", "value"], [ref("Checkable")]),
@@ -49,12 +49,17 @@ const iconPaths: Readonly<Record<string, string>> = {
   check: "m4 12 5 5L20 6l-1.5-1.5L9 14 5.5 10.5z",
   close: "M6 6l12 12m0-12L6 18",
 };
-const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId, iconResolver: ({ name }) => iconPaths[name] }));
+const regexMatcher = ({ value, pattern }: { value: string; pattern: string }): boolean => {
+  if (pattern === "^[A-Za-z ]+$") return value.length > 0 && [...value].every((character) => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ".includes(character));
+  throw new Error("Unsupported playground regex pattern");
+};
+const renderers = new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId, iconResolver: ({ name }) => iconPaths[name], regexMatcher }));
 created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId, theme: { primaryColor: "#6750a4" }, sendDataModel: true } });
 created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main", components: [
   { id: "root", component: "Tabs", tabs: [{ title: "Overview", child: "overview" }, { title: "Form", child: "form" }, { title: "Event", child: "event" }, { title: "Modal", child: "modal" }] },
-  { id: "overview", component: "Column", children: ["title", "bound-icon", "greeting", "weight-demo"] },
+  { id: "overview", component: "Column", children: ["title", "markdown", "bound-icon", "greeting", "weight-demo"] },
   { id: "title", component: "Text", variant: "h1", text: "Weaver Basic Tabs playground" },
+  { id: "markdown", component: "Text", text: "Safe **strong**, *emphasis*, and `inline code`" },
   { id: "bound-icon", component: "Icon", name: { path: "/ui/icon" } },
   { id: "greeting", component: "Text", text: { path: "/form/name" } },
   { id: "weight-demo", component: "Row", children: ["weight-card-one", "weight-card-two"] },
@@ -63,7 +68,7 @@ created.value.process({ version: "v0.9.1", updateComponents: { surfaceId: "main"
   { id: "weight-card-two", component: "Card", child: "weight-text-two", weight: 2 },
   { id: "weight-text-two", component: "Text", text: "Weight 2" },
   { id: "form", component: "Column", children: ["name", "ready", "volume", "choice"] },
-  { id: "name", component: "TextField", label: "Name", value: { path: "/form/name" } },
+  { id: "name", component: "TextField", label: "Name (letters and spaces)", value: { path: "/form/name" }, validationRegexp: "^[A-Za-z ]+$" },
   { id: "ready", component: "CheckBox", label: "Ready", value: { path: "/form/ready" } },
   { id: "volume", component: "Slider", label: "Volume", min: 0, max: 10, value: { path: "/form/volume" } },
   { id: "choice", component: "ChoicePicker", label: "Mode", value: { path: "/form/mode" }, options: [{ label: "Fast", value: "fast" }, { label: "Careful", value: "careful" }] },

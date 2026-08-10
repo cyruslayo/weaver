@@ -1,3 +1,4 @@
+import type { BasicRegexMatcher } from "@weaver/core";
 import type { RendererRegistration } from "../renderers/index.js";
 import {
   renderButton,
@@ -18,13 +19,14 @@ export interface BasicCatalogRendererRegistrationOptions {
   catalogId: string;
   resourcePolicy?: BasicResourcePolicy;
   iconResolver?: BasicIconResolver;
+  regexMatcher?: BasicRegexMatcher;
 }
 
 /** Creates the trusted, foundation-only A2UI Basic Catalog renderer allowlist. */
 export function createBasicCatalogRendererRegistrations(
   options: BasicCatalogRendererRegistrationOptions,
 ): RendererRegistration[] {
-  const inputs = createBasicInputRenderers();
+  const inputs = createBasicInputRenderers(options.regexMatcher);
   const media = createBasicMediaRenderers(options.resourcePolicy);
   return [
     { catalogId: options.catalogId, component: "Text", render: renderText },

@@ -1,11 +1,11 @@
-import type { ComponentCheckSnapshot, HydratedValue } from "@weaver/core";
+import type { BasicRegexMatcher, ComponentCheckSnapshot, HydratedValue } from "@weaver/core";
 import type { WebComponentRenderInput, WebComponentRenderer } from "../renderers/index.js";
 import { applyBasicHook } from "./layout.js";
 
 type NativeControl = HTMLInputElement | HTMLTextAreaElement;
 type Option = { label?: unknown; value: string };
 
-export function createBasicInputRenderers(): Record<"TextField" | "CheckBox" | "Slider" | "ChoicePicker" | "DateTimeInput", WebComponentRenderer> {
+export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Record<"TextField" | "CheckBox" | "Slider" | "ChoicePicker" | "DateTimeInput", WebComponentRenderer> {
   let opaqueId = 0;
   const nextId = (kind: string) => `weaver-basic-${kind}-${++opaqueId}`;
 
@@ -21,7 +21,9 @@ export function createBasicInputRenderers(): Record<"TextField" | "CheckBox" | "
     control.id = id;
     control.value = typeof properties.value === "string" ? properties.value : "";
     interactions.registerControl(control, "value");
-    applyValidation(document, wrapper, [control], input.checks, nextId);
+    const regexp = evaluateRegexp(properties.value, properties.validationRegexp, regexMatcher);
+    if (regexp !== "absent") wrapper.setAttribute("data-a2ui-regexp-state", regexp);
+    applyValidation(document, wrapper, [control], input.checks, nextId, regexp);
     let composing = false;
     control.addEventListener("compositionstart", () => { composing = true; });
     control.addEventListener("input", () => { if (!composing) interactions.writeInput("value", control.value); });
@@ -172,16 +174,41 @@ function stringOrEmpty(value: unknown): string { return typeof value === "string
 function stringList(value: unknown): string[] { return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []; }
 function optionList(value: unknown): Option[] { return Array.isArray(value) ? value.filter((item): item is Option => typeof item === "object" && item !== null && typeof (item as { value?: unknown }).value === "string") : []; }
 
-function applyValidation(document: Document, wrapper: HTMLElement, controls: readonly HTMLElement[], checks: ComponentCheckSnapshot | undefined, nextId: (kind: string) => string): void {
-  if (checks === undefined) return;
-  wrapper.setAttribute("data-a2ui-validation-state", checks.status);
-  if (checks.status !== "invalid") return;
+type RegexpState = "absent" | "passed" | "failed" | "pending" | "error" | "unavailable";
+type ValidationState = "valid" | "invalid" | "pending" | "error";
+
+function evaluateRegexp(value: HydratedValue, pattern: HydratedValue, matcher: BasicRegexMatcher | undefined): RegexpState {
+  if (typeof pattern !== "string") return "absent";
+  if (matcher === undefined) return "unavailable";
+  if (value === undefined) return "pending";
+  if (typeof value !== "string") return "error";
+  try {
+    const result = matcher({ value, pattern });
+    return typeof result !== "boolean" ? "error" : result ? "passed" : "failed";
+  } catch {
+    return "error";
+  }
+}
+
+function combinedValidationState(checks: ComponentCheckSnapshot | undefined, regexp: RegexpState): ValidationState {
+  const core = checks?.status ?? "valid";
+  if (core === "invalid" || regexp === "failed") return "invalid";
+  if (core === "error" || regexp === "error") return "error";
+  if (core === "pending" || regexp === "pending") return "pending";
+  return "valid";
+}
+
+function applyValidation(document: Document, wrapper: HTMLElement, controls: readonly HTMLElement[], checks: ComponentCheckSnapshot | undefined, nextId: (kind: string) => string, regexp: RegexpState = "absent"): void {
+  const status = combinedValidationState(checks, regexp);
+  if (checks !== undefined || regexp !== "absent") wrapper.setAttribute("data-a2ui-validation-state", status);
+  if (status === "invalid") controls.forEach((control) => control.setAttribute("aria-invalid", "true"));
+  if (checks?.status !== "invalid") return;
   const failed = checks.checks.filter((check) => check.status === "failed");
   if (failed.length === 0) return;
   const list = document.createElement("div");
   list.id = nextId("validation");
   failed.forEach((check) => { const message = document.createElement("div"); message.textContent = check.message; list.append(message); });
-  controls.forEach((control) => { control.setAttribute("aria-invalid", "true"); control.setAttribute("aria-describedby", list.id); });
+  controls.forEach((control) => control.setAttribute("aria-describedby", list.id));
   wrapper.append(list);
 }
 function normalizeDate(value: string): string {
