@@ -77,11 +77,22 @@ The A2UI v0.9.1 Core/Web foundation phase is complete.
 
 ## Next phase: transport and MCP integration
 
-The next concrete milestone will be selected from the final Task 40 report. Transport, MCP, and Zynra integration are not complete and were not implemented by Task 40.
+## Task 41 — transport session ownership and routing
+
+Complete. Core now provides a transport-neutral `A2UITransportSession`: trusted
+host-assigned opaque routes own surfaces only after successful creation, guard
+inbound mutations, release ownership after successful deletion, and resolve
+actions plus optional client-data-model metadata to one owner route. Validation
+responses resolve to their inbound source route. No network transport was added.
+
+## Task 42 — first concrete transport adapter
+
+Next. Its implementation will be selected separately; Task 41 does not choose or
+implement HTTP, SSE, WebSocket, A2A, MCP, or another network protocol.
 
 ## Deferred work
 
-- network and transport adapters (including HTTP and A2A placement)
+- concrete network and transport adapters (Task 42, including HTTP and A2A placement)
 - MCP integration in `@weaver/mcp`
 - stable collection item identity beyond v0.9.1 positional scopes
 - Zynra V2 application integration

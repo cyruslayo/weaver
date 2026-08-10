@@ -1066,10 +1066,69 @@ A2UI outbound builders
 transport / host adapter
 ```
 
-Core owns exact A2UI outbound JSON objects. A transport owns delivery, routing,
-metadata placement, and retries. The host/orchestrator owns surface/server
-identity and ownership. Builders perform no sending and `process()` retains its
-ordinary processing result and side-effect behavior.
+Core owns exact A2UI outbound JSON objects. Concrete transports own delivery,
+metadata placement, and retries. Builders perform no sending and `process()`
+retains its ordinary processing result and side-effect behavior.
+
+## Transport session ownership and routing
+
+```text
+remote peer
+   ↓ authenticated by host/adapter
+routeId
+   ↓
+A2UITransportSession
+   ├── surface ownership
+   ├── inbound route guard
+   └── outbound route resolution
+   ↓
+WeaverRuntime
+```
+
+`A2UIRouteId` is a non-empty opaque string assigned by a trusted host or adapter.
+It is not agent-controlled protocol data and does not inherently mean a user,
+agent, URL, socket, MCP session, A2A context, or other external identity. Weaver
+does not authenticate route IDs. The adapter/host must assign one only after
+whatever authentication or connection trust its transport requires. A2UI wire
+messages cannot choose, expose, or derive their route; surface IDs, catalog IDs,
+and theme attribution claims never influence route selection.
+
+Each `A2UITransportSession` keeps a private `surfaceId → routeId` sidecar map.
+It does not modify `WeaverRuntime`, `SurfaceStore`, surface snapshots, or A2UI
+protocol types, and separate sessions share no registry. Lifecycle is atomic at
+the runtime boundary:
+
+```text
+successful create → bind
+successful delete → unbind
+failed operation  → ownership unchanged
+```
+
+An owned surface accepts updates, deletion, and duplicate creation only from its
+owner route. A different route receives an internal `SURFACE_ROUTE_MISMATCH`
+before runtime mutation; the expected owner is not disclosed on the wire.
+Updates never establish ownership, and a runtime surface created outside the
+session is reported as `SURFACE_ROUTE_UNKNOWN` rather than silently adopted.
+Direct transport-neutral `WeaverRuntime.process()` remains available.
+
+Outbound server actions resolve through the same sidecar:
+
+```text
+surface X created by route A
+→ action and optional sendDataModel payload for X
+→ route A only
+```
+
+There is no broadcast or passive DataModel synchronization. Current client
+capabilities are exposed defensively to adapters without choosing their metadata
+encoding. Validation responses are different: a mappable malformed inbound
+message returns only to its inbound source route, never to the claimed surface's
+owner route. Routing failures are session authorization failures and are not
+mapped to `VALIDATION_FAILED`.
+
+One transport session processes inbound A2UI messages synchronously in the order
+supplied by its adapter. Core adds no queue or lock. An adapter that receives
+messages concurrently must serialize calls before `processInbound()`.
 
 Validation-failure mapping is deliberately narrower than generic runtime-error
 mapping. Protocol schema failures and catalog-governed component/theme failures

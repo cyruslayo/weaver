@@ -26,7 +26,7 @@ Detached descendant/resource construction is **ACCEPTED FOR WEAVER V0.9.1 BASELI
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 141 | 1 | 9 | 0 | 2 | 3 | **156** |
+| 141 | 2 | 8 | 0 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -132,7 +132,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R070 | CTS top-level version/action exact shape (CTS root/action; schema) | Exact `{version:'v0.9.1',action:{...}}`; action tests | PASS | None |
 | R071 | `sendDataModel` metadata on actions (P synchronization; protocol) | Transport-neutral metadata emitted when true; action/runtime/Web tests | PASS | Targeted delivery is adapter-owned |
 | R072 | CDM exact `version` + `surfaces` shape (CDM root; schema) | Exact shape; each Weaver model is constrained to JSON object; action tests | PASS | None |
-| R073 | Send only current surface owner (P Targeted Delivery; protocol) | Core has no server identity/routing; returns metadata to caller | DEFERRED-BY-ARCHITECTURE | Host/orchestrator must route only to owner |
+| R073 | Send only current surface owner (P Targeted Delivery; protocol) | `A2UITransportSession` resolves each action and optional client-data-model object to the successful-create owner route; no concrete adapter delivers it yet | PARTIAL | Demonstrate targeted delivery through the first real adapter |
 | R074 | CAP `supportedCatalogIds` (CAP path `/v0.9/supportedCatalogIds`; schema) | Shared outbound builder and runtime emit exact `v0.9` shape; ordering/ownership/schema tests in `outbound.test.ts` | PASS | None |
 | R075 | CAP `inlineCatalogs` optional (CAP path `/v0.9/inlineCatalogs`; schema) | Intentionally omitted and no inline trust path | PASS | None; optional and unsupported |
 | R076 | Validation failure outbound `error` envelope (CTS `/error`; checklist) | Transport-neutral exact builder and eligible process-failure mapper; pinned CTS tests in `outbound.test.ts` | PASS | Transport decides delivery |
@@ -343,7 +343,7 @@ Pinned inbound tests validate canonical create/update/delete messages and invali
 Reconsider only these boundaries before integration:
 
 1. Keep outbound capability/error objects in the transport-neutral Core builders; adapters must not duplicate their wire construction.
-2. Define authenticated surface-owner identity/routing so `sendDataModel` cannot cross agent boundaries and attribution cannot be spoofed.
+2. Preserve Task 41's host-assigned route ownership in concrete adapters so `sendDataModel` cannot cross agent boundaries; connect trusted attribution only in host code.
 3. Decide whether detached full-subtree construction is acceptable for approved media and modal/tab content; this is the highest-risk renderer limitation, but does not justify replacing working architecture merely to resemble another renderer.
 4. Establish stable host policy contracts (resource, URL, regex, icon) before exposing remote agents.
 
@@ -351,6 +351,7 @@ Task 36 changed the pre-1.0 runtime capability public shape from incorrect `v0.9
 
 ## Final unresolved classification
 
-- **DEFERRED-BY-ARCHITECTURE:** R073 — host/orchestrator; R079 — transport adapter; R081 — transport adapter; R082 — transport adapter; R083 — future HTTP/SSE adapter; R084 — future A2A adapter; R085 — `@weaver/mcp`; R091 — transport adapter; R140 — host/orchestrator.
+- **PARTIAL:** R073 — the transport-session boundary guarantees owner-target resolution, but no concrete adapter demonstrates delivery; R155 — accepted eager detached construction limitation.
+- **DEFERRED-BY-ARCHITECTURE:** R079 — transport adapter; R081 — transport adapter; R082 — transport adapter; R083 — future HTTP/SSE adapter; R084 — future A2A adapter; R085 — `@weaver/mcp`; R091 — transport adapter; R140 — host/orchestrator.
 - **SPEC-AMBIGUOUS:** R035 — protocol requests array deletion to JavaScript `undefined`, which JSON cannot represent; R117 — Basic schema exposes `validationRegexp` while guide/checklist sources disagree in emphasis/shape; R156 — v0.9.1 scopes are positional and `ChildList` provides no stable item key.
 - **Accepted implementation limitation:** R155 — safe and correct but eager detached descendant/resource construction; approved media may begin loading before live mount.
