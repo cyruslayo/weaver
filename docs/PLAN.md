@@ -15,6 +15,7 @@ strict: `@weaver/core` has no Web or MCP dependency; adapters depend on Core.
 - Basic Catalog component renderer coverage
 - opt-in trusted Basic Catalog pure functions
 - security-sensitive Basic functions (`regex` and browser `openUrl`)
+- Basic Catalog surface theme bridge
 
 `WeaverRuntime` is now the recommended application entry point. Lower-level Core
 classes remain public for advanced composition. Runtime creation fixes the host's
@@ -43,12 +44,13 @@ or action behavior.
 
 ## Next milestones
 
-1. theme translation
-2. Text Markdown
-3. TextField `validationRegexp`
-4. conformance and hardening
+1. safe Text Markdown
+2. TextField `validationRegexp`
+3. `CatalogComponentCommon.weight`
+4. Basic component visual/conformance hardening
+5. surface attribution/chrome
 
-Basic Catalog pure functions and the security-sensitive `regex` and `openUrl` milestone are complete. Full Basic Catalog conformance remains incomplete until the work above is finished.
+Basic Catalog pure functions, security-sensitive `regex` and `openUrl`, and the opt-in surface theme bridge are complete. Full Basic Catalog conformance remains incomplete until the work above is finished.
 
 ## Deferred work
 

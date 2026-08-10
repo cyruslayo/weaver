@@ -179,4 +179,10 @@ test("capabilities are ordered and defensive, resolved state is defensive, and r
   resolved.value.tree.root!.properties.mutated = true;
   const again = rt.resolveSurface("s");
   assert.equal(again.ok && again.value.tree.root?.properties.mutated, undefined);
+
+  rt.process({ version: "v0.9.1", createSurface: { surfaceId: "themed", catalogId: "test", theme: { primaryColor: "#112233" } } });
+  const themed = rt.resolveSurface("themed"); assert.ok(themed.ok && themed.value.theme);
+  themed.value.theme.primaryColor = "#ffffff";
+  const themedAgain = rt.resolveSurface("themed");
+  assert.equal(themedAgain.ok && themedAgain.value.theme?.primaryColor, "#112233");
 });

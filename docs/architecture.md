@@ -1088,9 +1088,28 @@ The first framework-free browser layer consumes only Core's public derived API:
                      trusted DOM
 ```
 
+Validated surface theme data follows the same defensive Core ownership boundary and may cross one optional Web-only bridge:
+
+```text
+createSurface.theme
+      ↓
+CatalogRegistry validation
+      ↓
+SurfaceSnapshot / runtime resolution
+      ↓
+WebSurfaceThemeAdapter (host-installed)
+      ↓
+allowlisted custom properties
+      ↓
+Weaver mount
+      ↓
+Basic renderers
+```
+
+The generic renderer knows neither Basic catalog identity nor `primaryColor`. No adapter means no agent-theme styling. Adapter output is validated as CSS custom properties and scoped to each Weaver-owned mount.
+
 Catalog validation means component data is allowed. Renderer registration means
-browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage; functions,
-theme translation, Markdown, and other conformance details remain pending. Application/custom registrations remain alongside them.
+browser implementation code is allowed. The production Basic Catalog registrations cover Text, Image, Icon, Video, AudioPlayer, Divider, Row, Column, List, Card, Tabs, Modal, Button, TextField, CheckBox, Slider, ChoicePicker, and DateTimeInput. All Basic Catalog components now have renderer coverage; Markdown and other conformance details remain pending. Application/custom registrations remain alongside them.
 
 ```text
 Icon.name

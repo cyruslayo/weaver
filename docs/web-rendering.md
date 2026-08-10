@@ -165,6 +165,32 @@ complete detached tree before replacement, so a missing renderer, invalid
 renderer result, or trusted renderer exception leaves the previous successful
 DOM intact. Returned nodes become owned by the Weaver mount.
 
+## Basic theme bridge
+
+`A2UI createSurface.theme` is catalog-defined surface data. Weaver Core validates it and retains it in the defensive `SurfaceSnapshot` and runtime resolution. Web styling is a separate, explicit host trust choice:
+
+```text
+createSurface.theme
+      ↓
+CatalogRegistry validation
+      ↓
+SurfaceSnapshot
+      ↓
+optional WebSurfaceThemeAdapter
+      ↓
+allowlisted CSS custom properties
+      ↓
+Weaver-owned mount
+      ↓
+Basic renderers
+```
+
+Hosts opt in with `themeAdapter: createBasicCatalogThemeAdapter({ catalogId })`. The exact caller-supplied catalog ID isolates Basic interpretation from custom catalogs. The Task 32 adapter maps only `theme.primaryColor` in `#RRGGBB` form to `--a2ui-color-primary`. Additional catalog-valid theme properties are ignored rather than mapped automatically. Without an adapter, agent theme data has no Web styling effect.
+
+Hosts may independently provide inherited `--a2ui-color-primary` and `--a2ui-color-on-primary` values without enabling agent translation. Precedence is: an agent primary color translated onto the mount; otherwise an inherited host variable; otherwise the Basic renderer fallback. Adapter properties are applied only to the ordinary Weaver-owned mount container, never document-global styles. Each mount tracks and removes only its own stale adapter properties.
+
+`iconUrl` and `agentDisplayName` are attribution metadata and are intentionally neither loaded nor rendered. Verified attribution requires a later host-controlled surface-chrome boundary that can authenticate or replace agent claims.
+
 ## Basic Catalog foundation coverage
 
 Hosts compose the production foundation allowlist with application renderers:
@@ -209,7 +235,7 @@ Modal wraps its trigger in a neutral capture listener. Activation opens it local
 
 Opening maps registered trigger focus to the close control; closing maps the close control back to the trigger. Tab and Shift+Tab wrap inside the open dialog, while normal registered input focus and caret restoration continue across full rerenders. The Modal remains inside the Weaver mount: it uses no portal and mutates neither `document.body` nor host-owned siblings.
 
-All Basic Catalog components now have renderer coverage. This does not yet imply full Basic Catalog conformance: trusted Basic functions, theme translation, Text Markdown, and `validationRegexp` remain pending.
+All Basic Catalog components now have renderer coverage. This does not yet imply full Basic Catalog conformance: Text Markdown, `validationRegexp`, `CatalogComponentCommon.weight`, visual/conformance hardening, and trusted surface attribution/chrome remain pending.
 
 ## Basic Icon policy
 
@@ -241,7 +267,7 @@ Image uses `<img>` with explicit schema-enum mappings for `object-fit`, safe var
 
 Task 22 Text renders strings with `textContent` and uses native headings, paragraph, and `small` semantics. Missing, mismatched, and explicit `null` values display as empty text. Task 22 outputs plain text only. Simple Markdown rendering remains a later conformance item.
 
-Task 22 provides native semantics, essential flex layout behavior, separator geometry, and stable `data-a2ui-component` / Button `data-a2ui-variant` host styling hooks. It does not provide theme translation, brand styling, spacing, typography styling, or a full visual design system. `surface.theme` is not consumed.
+Task 22 provides native semantics, essential flex layout behavior, separator geometry, and stable `data-a2ui-component` / Button `data-a2ui-variant` host styling hooks. Task 32 adds only the optional primary accent bridge; it does not add broad brand styling, spacing, typography styling, or a theme engine.
 
 Row and Column default to `justify = start` and `align = stretch`. List defaults to vertical direction and stretch alignment. Known enum values alone map to CSS; component property objects are never copied into styles. List children are wrapped in `role=listitem`; Card and Button consume the resolved `child` relationship.
 

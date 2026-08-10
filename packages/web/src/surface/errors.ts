@@ -2,6 +2,7 @@ import type { WeaverSurfaceResolutionError } from "@weaver/core";
 
 export type WebRenderError =
   | { code: "SURFACE_RESOLUTION_FAILED"; cause: WeaverSurfaceResolutionError }
+  | { code: "THEME_ADAPTER_FAILED" }
   | {
       code: "RENDERER_NOT_FOUND";
       catalogId: string;

@@ -122,6 +122,9 @@ export const renderTabs: WebComponentRenderer = ({ document, properties, relatio
     button.setAttribute("aria-controls", panelId);
     button.setAttribute("aria-selected", index === selectedIndex ? "true" : "false");
     button.tabIndex = index === selectedIndex ? 0 : -1;
+    if (index === selectedIndex) {
+      button.setAttribute("style", "color: var(--a2ui-color-primary, #17e); border-block-end: solid var(--a2ui-color-primary, #17e)");
+    }
     if (typeof tab === "object" && tab !== null && !Array.isArray(tab) && typeof tab.title === "string") button.textContent = tab.title;
     interactions.registerControl(button, `tab:${index}`);
     const select = (nextIndex: number, keyboard: boolean) => {
@@ -273,6 +276,9 @@ export const renderButton: WebComponentRenderer = ({ document, properties, relat
     ? properties.variant
     : "default";
   button.setAttribute("data-a2ui-variant", variant);
+  if (variant === "primary") {
+    button.setAttribute("style", "background-color: var(--a2ui-color-primary, #17e); color: var(--a2ui-color-on-primary, white)");
+  }
   const children = relationshipChildren(relationships, "child");
   button.append(...children);
   button.disabled = children.length === 0

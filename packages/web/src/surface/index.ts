@@ -7,4 +7,7 @@ export type {
   WebSurfaceMountResult,
   WebSurfaceRendererConfig,
   WebSurfaceRenderResult,
+  WebSurfaceThemeAdapter,
+  WebSurfaceThemeInput,
+  WebSurfaceThemeResult,
 } from "./types.js";

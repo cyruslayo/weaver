@@ -36,6 +36,7 @@ export function createBasicInputRenderers(): Record<"TextField" | "CheckBox" | "
     const label = document.createElement("label");
     const control = document.createElement("input");
     control.type = "checkbox";
+    applyPrimaryAccent(control);
     control.checked = properties.value === true;
     const text = document.createElement("span");
     text.textContent = stringOrEmpty(properties.label);
@@ -55,6 +56,7 @@ export function createBasicInputRenderers(): Record<"TextField" | "CheckBox" | "
     const control = document.createElement("input");
     control.id = id;
     control.type = "range";
+    applyPrimaryAccent(control);
     control.min = typeof properties.min === "number" && Number.isFinite(properties.min) ? String(properties.min) : "0";
     if (typeof properties.max === "number" && Number.isFinite(properties.max)) control.max = String(properties.max);
     control.step = "any";
@@ -103,6 +105,7 @@ export function createBasicInputRenderers(): Record<"TextField" | "CheckBox" | "
       const row = document.createElement("label");
       const control = document.createElement("input");
       control.type = multiple ? "checkbox" : "radio";
+      applyPrimaryAccent(control);
       control.name = groupName;
       control.value = option.value;
       control.checked = multiple ? selected.includes(option.value) : radioSelection === option.value;
@@ -152,6 +155,10 @@ export function createBasicInputRenderers(): Record<"TextField" | "CheckBox" | "
   };
 
   return { TextField: renderTextField, CheckBox: renderCheckBox, Slider: renderSlider, ChoicePicker: renderChoicePicker, DateTimeInput: renderDateTimeInput };
+}
+
+function applyPrimaryAccent(control: HTMLInputElement): void {
+  control.style.accentColor = "var(--a2ui-color-primary, #17e)";
 }
 
 function componentWrapper(document: Document, component: string, variant?: HydratedValue): HTMLDivElement {

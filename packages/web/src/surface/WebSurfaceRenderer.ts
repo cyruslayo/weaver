@@ -17,6 +17,7 @@ import type {
   WebSurfaceMountResult,
   WebSurfaceRendererConfig,
   WebSurfaceRenderResult,
+  WebSurfaceThemeAdapter,
 } from "./types.js";
 
 const identityKey = (sourceComponentId: string, scopePath: string): string =>
@@ -35,11 +36,13 @@ type SelectionSnapshot = {
 export class WebSurfaceRenderer {
   readonly #runtime: WeaverRuntime;
   readonly #renderers: RendererRegistry;
+  readonly #themeAdapter?: WebSurfaceThemeAdapter;
   readonly #onServerEvent?: (event: WebServerEventHandoff) => void;
 
   constructor(config: WebSurfaceRendererConfig) {
     this.#runtime = config.runtime;
     this.#renderers = config.renderers;
+    this.#themeAdapter = config.themeAdapter;
     this.#onServerEvent = config.onServerEvent;
   }
 
@@ -53,6 +56,7 @@ export class WebSurfaceRenderer {
     let controlMetadata = new WeakMap<Element, string>();
     let controls = new Map<string, Element>();
     const localState = new Map<string, Map<string, JsonValue>>();
+    const appliedThemeProperties = new Set<string>();
     const render = (): WebSurfaceRenderResult => {
       const focus = captureFocus(container, document, controlMetadata);
       const renderGeneration = ++generation;
@@ -70,6 +74,7 @@ export class WebSurfaceRenderer {
         renderedIdentities,
         nextControlMetadata,
         nextControls,
+        appliedThemeProperties,
       );
       if (result.ok) {
         controlMetadata = nextControlMetadata;
@@ -129,18 +134,50 @@ export class WebSurfaceRenderer {
     renderedIdentities: Set<string>,
     controlMetadata: WeakMap<Element, string>,
     controls: Map<string, Element>,
+    appliedThemeProperties: Set<string>,
   ): WebSurfaceRenderResult {
     const resolved = this.#runtime.resolveSurface(surfaceId);
     if (!resolved.ok) return { ok: false, error: { code: "SURFACE_RESOLUTION_FAILED", cause: resolved.error } };
-    if (!resolved.value.tree.ready || resolved.value.tree.root === undefined) {
-      container.replaceChildren();
-      return { ok: true, value: { ready: false } };
+
+    const theme = this.#resolveTheme(resolved.value);
+    if (!theme.ok) return theme;
+
+    let renderedNode: Node | undefined;
+    const ready = resolved.value.tree.ready && resolved.value.tree.root !== undefined;
+    if (ready) {
+      const rendered = this.#renderTree(resolved.value, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
+      if (!rendered.ok) return rendered;
+      renderedNode = rendered.value;
     }
 
-    const rendered = this.#renderTree(resolved.value, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
-    if (!rendered.ok) return rendered;
-    container.replaceChildren(rendered.value);
-    return { ok: true, value: { ready: true } };
+    applyThemeProperties(container as HTMLElement, appliedThemeProperties, theme.value);
+    container.replaceChildren(...(renderedNode === undefined ? [] : [renderedNode]));
+    return { ok: true, value: { ready } };
+  }
+
+  #resolveTheme(surface: WeaverResolvedSurface):
+    | { ok: true; value: Readonly<Record<string, string>> }
+    | { ok: false; error: WebRenderError } {
+    if (this.#themeAdapter === undefined) return { ok: true, value: {} };
+    try {
+      const result = this.#themeAdapter(Object.freeze({
+        catalogId: surface.catalogId,
+        theme: surface.theme === undefined ? undefined : structuredClone(surface.theme),
+      }));
+      if (result === null || typeof result !== "object"
+        || result.customProperties === null || typeof result.customProperties !== "object"
+        || Array.isArray(result.customProperties)) return { ok: false, error: { code: "THEME_ADAPTER_FAILED" } };
+      const properties: Record<string, string> = {};
+      for (const [name, value] of Object.entries(result.customProperties)) {
+        if (!/^--[A-Za-z_][A-Za-z0-9_-]*$/.test(name) || typeof value !== "string") {
+          return { ok: false, error: { code: "THEME_ADAPTER_FAILED" } };
+        }
+        properties[name] = value;
+      }
+      return { ok: true, value: properties };
+    } catch {
+      return { ok: false, error: { code: "THEME_ADAPTER_FAILED" } };
+    }
   }
 
   #renderTree(
@@ -245,6 +282,17 @@ export class WebSurfaceRenderer {
     if (!isNode(node, document)) return { ok: false, error: { code: "INVALID_RENDERER_RESULT", ...metadata } };
     return { ok: true, value: node };
   }
+}
+
+function applyThemeProperties(
+  container: HTMLElement,
+  applied: Set<string>,
+  next: Readonly<Record<string, string>>,
+): void {
+  for (const name of applied) if (!(name in next)) container.style.removeProperty(name);
+  for (const [name, value] of Object.entries(next)) container.style.setProperty(name, value);
+  applied.clear();
+  for (const name of Object.keys(next)) applied.add(name);
 }
 
 function cloneStateEntries(state: ReadonlyMap<string, JsonValue> | undefined): Map<string, JsonValue> {

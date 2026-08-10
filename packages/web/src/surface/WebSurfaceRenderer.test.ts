@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createWeaverRuntime, type JsonObject, type WeaverRuntime } from "@weaver/core";
 import { Window } from "happy-dom";
-import { createBasicCatalogRendererRegistrations } from "../basic/index.js";
+import { createBasicCatalogRendererRegistrations, createBasicCatalogThemeAdapter } from "../basic/index.js";
 import { RendererRegistry, type RendererRegistration } from "../renderers/index.js";
 import { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
 
@@ -52,7 +52,7 @@ function catalog(catalogId: string): JsonObject {
     } } },
   };
 }
-const create = (catalogId = "test") => ({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId } });
+const create = (catalogId = "test", theme?: JsonObject) => ({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId, ...(theme === undefined ? {} : { theme }) } });
 const components = (values: JsonObject[]) => ({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: values } });
 const data = (value: unknown) => ({ version: "v0.9.1", updateDataModel: { surfaceId: "s", value } });
 function runtime(catalogIds = ["test"]): WeaverRuntime {
@@ -87,6 +87,68 @@ function mount(rt: WeaverRuntime, regs = registrations()) {
   const result = web.mount({ surfaceId: "s", target });
   return { target, result };
 }
+
+test("surface theme translation is opt-in, catalog-isolated, allowlisted, and mount-scoped", () => {
+  const themed = runtime(["test", "custom"]); themed.process(create("test", { primaryColor: "#112233", customThing: "ignored", iconUrl: "https://invalid.example/icon", agentDisplayName: "Agent" }));
+  themed.process(components([{ id: "root", component: "Text", text: "safe" }]));
+  const absent = mount(themed); assert.ok(absent.result.ok);
+  const absentContainer = absent.target.firstElementChild as HTMLElement;
+  assert.equal(absentContainer.style.getPropertyValue("--a2ui-color-primary"), "");
+  assert.equal(absent.target.querySelector("img"), null); assert.equal(absent.target.textContent, "safe");
+
+  const { target } = dom();
+  const web = new WebSurfaceRenderer({ runtime: themed, renderers: new RendererRegistry(registrations()), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) });
+  const mounted = web.mount({ surfaceId: "s", target }); assert.ok(mounted.ok);
+  const container = target.firstElementChild as HTMLElement;
+  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
+  assert.equal(container.style.length, 1);
+
+  const mismatch = runtime(["test", "custom"]); mismatch.process(create("custom", { primaryColor: "#abcdef" }));
+  mismatch.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [{ id: "root", component: "Text", text: "custom" }] } });
+  const mismatchTarget = dom().target;
+  const mismatchMount = new WebSurfaceRenderer({ runtime: mismatch, renderers: new RendererRegistry([{ catalogId: "custom", component: "Text", render: ({ document }) => document.createElement("span") }]), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) }).mount({ surfaceId: "s", target: mismatchTarget });
+  assert.ok(mismatchMount.ok); assert.equal((mismatchTarget.firstElementChild as HTMLElement).style.length, 0);
+});
+
+test("theme updates clean only mount-owned properties and delete/recreate does not leak", () => {
+  const rt = runtime(); rt.process(create("test", { primaryColor: "#ff0000" })); rt.process(components([{ id: "root", component: "Text", text: "red" }]));
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement;
+  container.style.setProperty("--host-owned", "keep");
+  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process(create("test")); rt.process(components([{ id: "root", component: "Text", text: "plain" }]));
+  assert.ok(mounted.value.refresh().ok);
+  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), ""); assert.equal(container.style.getPropertyValue("--host-owned"), "keep");
+  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process(create("test", { primaryColor: "#0000ff" })); rt.process(components([{ id: "root", component: "Text", text: "blue" }]));
+  mounted.value.refresh(); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#0000ff");
+});
+
+test("theme adapter failures and invalid property names preserve previous DOM and theme atomically", () => {
+  const rt = runtime(); rt.process(create("test", { primaryColor: "#ff0000" })); rt.process(components([{ id: "root", component: "Text", text: "old" }]));
+  let fail = false;
+  const adapter = createBasicCatalogThemeAdapter({ catalogId: "test" });
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: (input) => { if (fail) throw new Error("secret"); return adapter(input); } }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement; const oldNode = container.firstChild;
+  fail = true; rt.process(components([{ id: "root", component: "Text", text: "new" }]));
+  const failed = mounted.value.getLastResult(); assert.equal(!failed.ok && failed.error.code, "THEME_ADAPTER_FAILED");
+  assert.equal(container.firstChild, oldNode); assert.equal(container.textContent, "old"); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#ff0000");
+
+  const badTarget = dom().target;
+  const bad = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: () => ({ customProperties: { color: "red" } }) }).mount({ surfaceId: "s", target: badTarget });
+  assert.equal(!bad.ok && bad.error.code, "THEME_ADAPTER_FAILED"); assert.equal(badTarget.childNodes.length, 0);
+});
+
+test("theme property ownership is independent across mounts", () => {
+  const rt = runtime(); rt.process(create("test", { primaryColor: "#112233" })); rt.process(components([{ id: "root", component: "Text", text: "x" }]));
+  const adapter = createBasicCatalogThemeAdapter({ catalogId: "test" });
+  const oneTarget = dom().target; const twoTarget = dom().target;
+  const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: adapter });
+  const one = web.mount({ surfaceId: "s", target: oneTarget }); const two = web.mount({ surfaceId: "s", target: twoTarget }); assert.ok(one.ok && two.ok);
+  one.value.unmount(); assert.equal((twoTarget.firstElementChild as HTMLElement).style.getPropertyValue("--a2ui-color-primary"), "#112233");
+});
 
 test("renders repeated nested child relationships by location without exposing component IDs", () => {
   const rt = runtime(); rt.process(create());

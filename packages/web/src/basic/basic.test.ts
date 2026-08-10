@@ -166,6 +166,8 @@ test("Tabs maps repeated structural child locations and exposes accessible posit
   assert.equal(panel.textContent, "first");
   assert.equal(buttons[0]?.getAttribute("aria-controls"), panel.id);
   assert.equal(panel.getAttribute("aria-labelledby"), buttons[0]?.id);
+  assert.match(buttons[0]?.getAttribute("style") ?? "", /--a2ui-color-primary/);
+  assert.equal(buttons[1]?.hasAttribute("style"), false);
   assert.equal(rendered.textContent?.includes("second"), false);
   assert.equal([...buttons, panel].some((element) => element.id.includes("root") || element.id.includes("/")), false);
 });
@@ -229,8 +231,13 @@ test("Button appends child, emits one action, and exposes only safe variant hook
   const base = setup("Button"); const label = child(base.document, "Go");
   const rendered = setup("Button", { properties: { variant: "primary" }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: label }] });
   assert.equal(rendered.node.tagName, "BUTTON"); assert.equal((rendered.node as HTMLButtonElement).type, "button"); assert.equal(rendered.node.textContent, "Go");
-  assert.equal(rendered.node.getAttribute("data-a2ui-variant"), "primary"); rendered.node.click(); assert.deepEqual(rendered.calls, ["action"]);
-  assert.equal(setup("Button", { properties: { variant: "anything" } }).node.getAttribute("data-a2ui-variant"), "default");
+  assert.equal(rendered.node.getAttribute("data-a2ui-variant"), "primary");
+  assert.match(rendered.node.getAttribute("style") ?? "", /background-color: var\(--a2ui-color-primary, #17e\)/);
+  assert.match(rendered.node.getAttribute("style") ?? "", /color: var\(--a2ui-color-on-primary, white\)/);
+  rendered.node.click(); assert.deepEqual(rendered.calls, ["action"]);
+  const fallback = setup("Button", { properties: { variant: "anything" } }).node;
+  assert.equal(fallback.getAttribute("data-a2ui-variant"), "default"); assert.equal(fallback.style.backgroundColor, "");
+  assert.equal(setup("Button", { properties: { variant: "borderless" } }).node.style.backgroundColor, "");
 });
 
 test("Button mirrors supplied checks and disables a progressively empty control", () => {
@@ -252,8 +259,8 @@ test("Basic inputs use native controls and normalized writes", () => {
     const rendered = setup(component, { properties, interactions: interactions(writes) }).node;
     const control = rendered.querySelector(selector) as HTMLInputElement;
     if (component === "TextField") { assert.equal(control.type, "number"); control.value = "7.5"; }
-    if (component === "CheckBox") { assert.equal(control.checked, true); control.checked = false; }
-    if (component === "Slider") { assert.equal(control.min, "0"); assert.equal(control.max, "10"); assert.equal(control.step, "any"); control.value = "4.25"; }
+    if (component === "CheckBox") { assert.equal(control.checked, true); assert.equal(control.style.accentColor, "var(--a2ui-color-primary, #17e)"); control.checked = false; }
+    if (component === "Slider") { assert.equal(control.style.accentColor, "var(--a2ui-color-primary, #17e)"); assert.equal(control.min, "0"); assert.equal(control.max, "10"); assert.equal(control.step, "any"); control.value = "4.25"; }
     fire(control, event);
     assert.deepEqual(writes[0], ["value", component === "CheckBox" ? false : component === "Slider" ? 4.25 : "7.5"]);
   }
@@ -273,7 +280,9 @@ test("ChoicePicker filters labels ephemerally and writes string arrays", () => {
   assert.equal(node.getAttribute("data-a2ui-display-style"), "chips");
   const filter = node.querySelector('input[type="search"]') as HTMLInputElement; filter.value = "BET"; fire(filter, "input");
   assert.deepEqual([...node.querySelectorAll('fieldset > label:has(input[type="radio"])')].map((row) => (row as HTMLElement).hidden), [true, true, false]); assert.deepEqual(writes, []);
-  const radio = node.querySelectorAll('input[type="radio"]')[2] as HTMLInputElement; radio.checked = true; fire(radio, "change"); assert.deepEqual(writes, [["value", ["c"]]]);
+  const radio = node.querySelectorAll('input[type="radio"]')[2] as HTMLInputElement;
+  assert.equal(radio.style.accentColor, "var(--a2ui-color-primary, #17e)");
+  radio.checked = true; fire(radio, "change"); assert.deepEqual(writes, [["value", ["c"]]]);
 });
 
 test("DateTimeInput applies safe native date/time policy", () => {
