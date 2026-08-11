@@ -55,6 +55,40 @@ _meta.a2ui = {
 
 Every bridge-owned `resources/read` and `tools/call` carries a fresh `clientCapabilities` value. Action metadata is present for `a2ui_action`; `clientDataModel` is present only when the session-prepared delivery includes it. The official SDK owns reserved `io.modelcontextprotocol/*` metadata.
 
+## Application capabilities
+
+Host applications can expose trusted domain integrations as ordinary MCP tools with `registerMcpApplicationCapability` or the batch helper `registerMcpApplicationCapabilities`:
+
+```ts
+registerMcpApplicationCapability(server, {
+  name: "get_profile",
+  description: "Read the current user's profile.",
+  inputSchema: emptyObjectSchema,
+  outputSchema: profileSchema,
+  annotations: { readOnlyHint: true },
+  async execute(_input, ctx) {
+    // The application authorizes every call; Weaver only passes ctx through.
+    return { success: true, data: await profileService.get(ctx.http?.authInfo) };
+  },
+});
+```
+
+The ownership boundary is deliberate:
+
+```text
+MCP SDK       = protocol handling, tool registration, and input/output schemas
+Weaver helper = batch preflight, safe application result mapping, exception boundary
+application   = authorization, business rules, and domain services
+```
+
+Every capability requires a non-empty description and an explicit input schema, including tools whose schema accepts only an empty object. The host supplies an MCP-compatible `StandardSchemaWithJSON` implementation (for example Zod v4, ArkType, or Valibot); Weaver has no schema catalog and no schema-library runtime dependency. Optional output schemas are passed unchanged to the official SDK, which remains the sole output validator.
+
+Successful text becomes `TextContent`. Successful `data` is defensively cloned as JSON-safe `structuredContent`; supplied text is preserved, otherwise compact `JSON.stringify(data)` text is included as a compatibility fallback. A declared output schema requires successful data. Expected `{ success: false, message }` results become MCP tool execution errors with that application-safe message. Unexpected throws become only `Application capability failed.`; an optional trusted `onDiagnostic` callback receives the capability name and original failure host-side, and its own failures are contained.
+
+Official tool annotations are forwarded as hints. They are not authorization, confirmation, rate-limit, or execution policy. The helper passes the official `ServerContext` through without interpreting `authInfo`, `clientInfo`, `serverInfo`, names, or annotations. The application must authorize before invoking sensitive domain services.
+
+MCP 2026 has no implicit application session state. Stateful applications should return explicit application-owned opaque handles and accept them in later arguments, reauthorizing every call. Weaver neither stores handles nor treats one as permission. These helpers do not register `a2ui_action`/`a2ui_error`, generate A2UI, or depend on UI packages.
+
 ## Trust and ownership
 
 One bridge binds one connected MCP client to one trusted host-provided `A2UIRouteId` and one `A2UITransportSession`. Route identity is never inferred from MCP server/client metadata, names, URIs, results, or `_meta`, and is never placed on the MCP wire. Wrong-route outbound deliveries are rejected before an MCP call. Inbound envelopes always pass through `session.processInbound(routeId, envelope)`; routing rejection cannot become an A2UI validation error.

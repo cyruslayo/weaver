@@ -1,3 +1,5 @@
+export * from "./application-capabilities.js";
+
 import type { Client } from "@modelcontextprotocol/client";
 import type {
   A2UIRouteId,

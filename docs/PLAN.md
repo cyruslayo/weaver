@@ -105,9 +105,13 @@ Complete. Web now supports explicit per-run finite fixed-delay reconnect, adapte
 
 Complete. `@weaver/mcp` now maps MCP 2026-07-28 resource and tool results to one trusted `A2UITransportSession` route and maps routed actions and validation errors back to narrow MCP tools. It receives an already-connected official SDK v2 client and owns no MCP connection lifecycle.
 
-## Task 46 — recommended next milestone
+## Task 46 — MCP application capability server helpers
 
-Recommended next: MCP application-capability server helpers. The client bridge establishes the concrete metadata and action/error mappings while deliberately leaving application-domain tool registration host-owned. Narrow server helpers can now be designed from real integration requirements before A2A or Zynra V2 integration adds another axis.
+Complete. `@weaver/mcp` now provides thin, Standard-Schema-neutral helpers for registering trusted application handlers as ordinary official MCP tools. The helpers add atomic batch preflight, safe result mapping, JSON-safe defensive output ownership, and an exception diagnostic boundary while leaving validation, protocol behavior, authorization, and tool lifecycle with the SDK and host application.
+
+## Task 47 — recommended next milestone
+
+Recommended next: Zynra V2 integration readiness review. The generic A2UI client-delivery and application-capability server boundaries are now present; reviewing readiness before adding A2A or more MCP conveniences will expose concrete integration gaps without prematurely expanding Weaver's transport APIs.
 
 ## Deferred work
 

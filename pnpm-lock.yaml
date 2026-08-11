@@ -39,13 +39,12 @@ importers:
       '@modelcontextprotocol/client':
         specifier: 2.0.0
         version: 2.0.0
-      '@weaver/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
       '@modelcontextprotocol/server':
         specifier: 2.0.0
         version: 2.0.0
+      '@weaver/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/web:
     dependencies:

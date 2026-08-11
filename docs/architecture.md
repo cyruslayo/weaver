@@ -30,6 +30,22 @@ WeaverRuntime
 @weaver/web
 ```
 
+This A2UI UI-delivery direction is separate from application capability invocation:
+
+```text
+Application Agent
+   ↓ MCP tools/call
+official MCP server
+   ↓
+@weaver/mcp application capability adapter
+   ↓
+application integration handler
+   ↓
+domain services
+```
+
+The official server owns protocol and schema validation; the adapter maps application results and contains unexpected exceptions; the application owns authorization and domain behavior. Neither direction is collapsed into the other, and capability helpers do not generate A2UI.
+
 Outbound interaction uses the same session route:
 
 ```text
@@ -57,7 +73,7 @@ Weaver handles interface runtime behavior. A2UI will define interface messages.
 MCP will expose application capabilities. Applications own business rules and
 data. Agents may coordinate MCP and A2UI. Weaver does not require an agent.
 
-A2UI runtime behavior lives in Core/Web; the narrow MCP client bridge lives only in `@weaver/mcp`.
+A2UI runtime behavior lives in Core/Web; the narrow MCP client bridge and separate application-capability adapter live only in `@weaver/mcp`. The adapter has no global registry or implicit tool state. Applications needing state expose explicit opaque handles and remain responsible for authorization on each use.
 
 ## A2UI protocol boundary
 
