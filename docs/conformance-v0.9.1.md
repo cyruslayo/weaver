@@ -26,7 +26,7 @@ Detached descendant/resource construction is **ACCEPTED FOR WEAVER V0.9.1 BASELI
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 146 | 1 | 4 | 0 | 2 | 3 | **156** |
+| 148 | 1 | 2 | 0 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -147,9 +147,9 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available; Weaver SSE binding uses one JSON envelope per event | PASS | Other transports own own framing |
 | R081 | Metadata carriage (P Transport contract; protocol) | Real loopback POST wrappers carry exact capabilities on every request and optional routed client-data-model metadata | PASS | None |
 | R082 | Bidirectional action channel (P optional contract; protocol) | Weaver Web adapter provides loopback-tested SSE server-to-client and POST client-to-server integration | PASS | None |
-| R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | Weaver binding validates `text/event-stream`; it does not intercept `application/a2ui+json` | DEFERRED-BY-ARCHITECTURE | Future MIME interception layer |
+| R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | `@weaver/mcp` performs exact, parameter-safe MIME interception for resource text and tool embedded resources; non-A2UI media never enters the runtime | PASS | None |
 | R084 | A2A mapping/capability metadata (P A2A binding; protocol) | No A2A adapter by design | DEFERRED-BY-ARCHITECTURE | Future A2A adapter |
-| R085 | MCP delivery (P Other transports; protocol) | `@weaver/mcp` placeholder only | DEFERRED-BY-ARCHITECTURE | `@weaver/mcp` |
+| R085 | MCP delivery (P Other transports; protocol) | Official SDK v2 modern HTTP harness proves MCP 2026-07-28 resource/tool delivery, per-request capabilities, routed actions/errors, and route isolation through `A2UITransportSession` | PASS | Application-domain server helpers remain separate |
 | R086 | Arbitrary text chunks (C JSONL; checklist) | Incremental character buffer; JSONL tests | PASS | None |
 | R087 | LF, CRLF, split CRLF (JSONL framing example; checklist) | All supported/tested | PASS | None |
 | R088 | Unterminated final frame (reasonable stream completion behavior) | `finish()` parses/tested | PASS | None |
@@ -336,7 +336,7 @@ Pinned inbound tests validate canonical create/update/delete messages and invali
 3. **Task 38 — Basic visual hardening (complete):** leaf margins, component variants, Card/Button/ChoicePicker/Divider visuals, inherited contrast and nested-card visual tests.
 4. **Task 39 — trusted surface attribution boundary (complete):** trusted host provider output renders in Weaver-owned chrome; raw identity claims remain inert.
 5. **Task 40 — final v0.9.1 conformance gate (complete):** pinned inbound/outbound schemas, architecture/security boundaries, full Basic smoke coverage, positional-state evidence, and final classification.
-6. Later, independently: HTTP/SSE and A2A transport adapters, then `@weaver/mcp`; do not pull these into Core.
+6. **Tasks 41–45 (complete):** transport-session routing, HTTP/SSE transport and bounded resume, then the MCP v2 A2UI client bridge. A2A remains independent and deferred.
 
 ## 15. Decisions before Zynra V2
 
@@ -352,6 +352,6 @@ Task 36 changed the pre-1.0 runtime capability public shape from incorrect `v0.9
 ## Final unresolved classification
 
 - **PARTIAL:** R155 — accepted eager detached construction limitation.
-- **DEFERRED-BY-ARCHITECTURE:** R083 — `application/a2ui+json` interception is not part of Weaver's `text/event-stream` binding; R084 — future A2A adapter; R085 — `@weaver/mcp`; R140 — host/orchestrator.
+- **DEFERRED-BY-ARCHITECTURE:** R084 — future A2A adapter; R140 — host/orchestrator.
 - **SPEC-AMBIGUOUS:** R035 — protocol requests array deletion to JavaScript `undefined`, which JSON cannot represent; R117 — Basic schema exposes `validationRegexp` while guide/checklist sources disagree in emphasis/shape; R156 — v0.9.1 scopes are positional and `ChildList` provides no stable item key.
 - **Accepted implementation limitation:** R155 — safe and correct but eager detached descendant/resource construction; approved media may begin loading before live mount.

@@ -101,13 +101,16 @@ Complete. A dependency-free, loopback-only Node reference server now documents a
 
 Complete. Web now supports explicit per-run finite fixed-delay reconnect, adapter-local SSE event-ID cursors, `Last-Event-ID` resume across reconnect and manual reruns, typed exhaustion/resume-unavailable outcomes, and abortable waits. The loopback reference peer assigns monotonic IDs and provides bounded in-memory ordered replay without changing Core ownership or A2UI objects.
 
-## Task 45 — recommended next milestone
+## Task 45 — MCP v2 A2UI client bridge
 
-Recommended next: MCP integration. Task 44 closed the demonstrated HTTP/SSE interruption gap without revealing a need for a generic connection or transport framework. MCP should now establish its own concrete binding requirements independently; do not generalize HTTP/SSE resume semantics into Core.
+Complete. `@weaver/mcp` now maps MCP 2026-07-28 resource and tool results to one trusted `A2UITransportSession` route and maps routed actions and validation errors back to narrow MCP tools. It receives an already-connected official SDK v2 client and owns no MCP connection lifecycle.
+
+## Task 46 — recommended next milestone
+
+Recommended next: MCP application-capability server helpers. The client bridge establishes the concrete metadata and action/error mappings while deliberately leaving application-domain tool registration host-owned. Narrow server helpers can now be designed from real integration requirements before A2A or Zynra V2 integration adds another axis.
 
 ## Deferred work
 
 - additional network bindings, including A2A placement
-- MCP integration in `@weaver/mcp` (Task 45)
 - stable collection item identity beyond v0.9.1 positional scopes
 - Zynra V2 application integration

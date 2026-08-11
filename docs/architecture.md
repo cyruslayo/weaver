@@ -14,6 +14,36 @@
 @weaver/mcp
 ```
 
+MCP inbound integration is concrete and transport-independent:
+
+```text
+MCP Server
+   ↓ resources/read or tools/call
+official MCP Client
+   ↓
+@weaver/mcp
+   ↓
+A2UITransportSession
+   ↓
+WeaverRuntime
+   ↓
+@weaver/web
+```
+
+Outbound interaction uses the same session route:
+
+```text
+A2UI interaction
+   ↓
+session routed delivery
+   ↓
+@weaver/mcp
+   ↓
+tools/call
+   ├── a2ui_action
+   └── a2ui_error
+```
+
 The dependency rules are strict:
 
 - core must not depend on web
@@ -27,7 +57,7 @@ Weaver handles interface runtime behavior. A2UI will define interface messages.
 MCP will expose application capabilities. Applications own business rules and
 data. Agents may coordinate MCP and A2UI. Weaver does not require an agent.
 
-Neither A2UI nor MCP behavior is implemented during the workspace bootstrap.
+A2UI runtime behavior lives in Core/Web; the narrow MCP client bridge lives only in `@weaver/mcp`.
 
 ## A2UI protocol boundary
 
