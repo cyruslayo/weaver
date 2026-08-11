@@ -111,7 +111,19 @@ Complete. `@weaver/mcp` now provides thin, Standard-Schema-neutral helpers for r
 
 ## Task 47 — Zynra V2 integration readiness review
 
-Complete. The canonical decision is [`zynra-v2-readiness.md`](zynra-v2-readiness.md). Weaver has no identified generic blocker, but the stored read-only reference is a mismatched historical Weaver prototype rather than the described Zynra backend, so Zynra contract evidence must be corrected and sanitized before the first integration slice is implemented. No production package, dependency, public API, A2A adapter, or custom catalog was added.
+Complete. The canonical decision is [`zynra-v2-readiness.md`](zynra-v2-readiness.md). The integration review completed and the available reference evidence was insufficient. No production package, dependency, public API, A2A adapter, or custom catalog was added.
+
+## Task 48 — Package Weaver for external consumption
+
+Complete. Core, Web, and MCP build as synchronized ESM packages, pack into verified local tarballs, and pass an isolated external-consumer typecheck and runtime-import smoke test without workspace links or source access.
+
+## Task 49 — Install packed Weaver artifacts into the real Zynra repository
+
+Next. Install only Task 48's tarballs in Zynra and verify its integration and build boundaries. This work takes place in the Zynra repository.
+
+## Task 50 — Implement first Zynra V2 vertical slice
+
+Provisional, subject to Task 49 evidence.
 
 ## Deferred work
 

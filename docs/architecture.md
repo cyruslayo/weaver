@@ -1467,18 +1467,16 @@ and disallowed schemes become controlled function failures; a popup-blocker
 
 See [Web rendering](./web-rendering.md) for the renderer, interaction, and mount boundaries.
 
-## Application boundary
+## Package and application boundary
 
 ```text
-Zynra
-  |
-  +--> depends on Weaver
-
-Weaver
-  |
-  +--> must know nothing about Zynra
+Weaver repository
+      |
+      v build and package
+@weaver/core / @weaver/web / @weaver/mcp
+      |
+      v install published-shaped artifacts
+external application
 ```
 
-Zynra is a future consumer. Its backend reference under `docs/references/` is
-documentation only and cannot enter any package because packages publish only
-their `dist` directories.
+Consumer applications depend on package root exports, never Weaver workspace links, source paths, repository aliases, or files outside package artifacts. Weaver packages know nothing about a consumer application's business architecture. Core is the dependency foundation; Web and MCP consume the consumer-installed compatible Core package.

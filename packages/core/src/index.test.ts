@@ -4,6 +4,6 @@ import { test } from "node:test";
 import { WEAVER_CORE_VERSION, createWeaverRuntime } from "./index.js";
 
 test("exports the Weaver runtime facade", () => {
-  assert.equal(WEAVER_CORE_VERSION, "0.0.0-dev");
+  assert.equal(WEAVER_CORE_VERSION, "0.1.0");
   assert.deepEqual(createWeaverRuntime({ catalogs: [] }).ok, true);
 });

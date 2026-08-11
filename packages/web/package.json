@@ -1,10 +1,13 @@
 {
   "name": "@weaver/web",
-  "version": "0.0.0-dev",
+  "version": "0.1.0",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.test-helper.*"
   ],
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -17,10 +20,11 @@
     "test": "tsc -p tsconfig.json && node --test dist/basic/basic.test.js dist/basic-functions/openUrl.test.js dist/renderers/RendererRegistry.test.js dist/surface/WebSurfaceRenderer.test.js dist/transport/http-sse/http-sse.test.js",
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
-  "dependencies": {
-    "@weaver/core": "workspace:*"
+  "peerDependencies": {
+    "@weaver/core": "0.1.x"
   },
   "devDependencies": {
+    "@weaver/core": "workspace:*",
     "happy-dom": "^20.11.2"
   }
 }

@@ -1,10 +1,13 @@
 {
   "name": "@weaver/mcp",
-  "version": "0.0.0-dev",
+  "version": "0.1.0",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/**/*.test-helper.*"
   ],
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -19,7 +22,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0"
+  },
+  "peerDependencies": {
+    "@weaver/core": "0.1.x"
+  },
+  "devDependencies": {
     "@weaver/core": "workspace:*"
   }
 }

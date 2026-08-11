@@ -8,3 +8,6 @@ nul
 .pnpm-store
 .corepack
 .pnpm-home
+artifacts/
+integration/package-consumer/node_modules/
+integration/package-consumer/pnpm-lock.yaml

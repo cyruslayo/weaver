@@ -42,16 +42,16 @@ importers:
       '@modelcontextprotocol/server':
         specifier: 2.0.0
         version: 2.0.0
+    devDependencies:
       '@weaver/core':
         specifier: workspace:*
         version: link:../core
 
   packages/web:
-    dependencies:
+    devDependencies:
       '@weaver/core':
         specifier: workspace:*
         version: link:../core
-    devDependencies:
       happy-dom:
         specifier: ^20.11.2
         version: 20.11.2
