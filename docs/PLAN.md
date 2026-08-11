@@ -109,9 +109,9 @@ Complete. `@weaver/mcp` now maps MCP 2026-07-28 resource and tool results to one
 
 Complete. `@weaver/mcp` now provides thin, Standard-Schema-neutral helpers for registering trusted application handlers as ordinary official MCP tools. The helpers add atomic batch preflight, safe result mapping, JSON-safe defensive output ownership, and an exception diagnostic boundary while leaving validation, protocol behavior, authorization, and tool lifecycle with the SDK and host application.
 
-## Task 47 — recommended next milestone
+## Task 47 — Zynra V2 integration readiness review
 
-Recommended next: Zynra V2 integration readiness review. The generic A2UI client-delivery and application-capability server boundaries are now present; reviewing readiness before adding A2A or more MCP conveniences will expose concrete integration gaps without prematurely expanding Weaver's transport APIs.
+Complete. The canonical decision is [`zynra-v2-readiness.md`](zynra-v2-readiness.md). Weaver has no identified generic blocker, but the stored read-only reference is a mismatched historical Weaver prototype rather than the described Zynra backend, so Zynra contract evidence must be corrected and sanitized before the first integration slice is implemented. No production package, dependency, public API, A2A adapter, or custom catalog was added.
 
 ## Deferred work
 
