@@ -47,7 +47,15 @@ In Weaver:
 pnpm verify:packages
 ```
 
-This builds the workspace, creates three ignored tarballs in `artifacts/`, inspects their files and packed manifests, repacks to check structural reproducibility, and installs copies into a temporary consumer outside the workspace. The consumer uses normal NodeNext package resolution without path mappings and runs strict declaration and ESM runtime-import checks.
+This builds the workspace, creates three ignored tarballs in `artifacts/`, inspects their files and packed manifests, repacks to check structural reproducibility, and installs copies into a temporary consumer outside the workspace. The consumer uses normal NodeNext package resolution without path mappings and runs strict declaration and Node ESM runtime-import checks.
+
+Core also has a packaged Cloudflare Workers runtime gate:
+
+```sh
+pnpm verify:worker-core
+```
+
+It packs Core, installs the tarball in an isolated non-workspace consumer, and executes request-time catalog registration plus valid and invalid A2UI validation inside workerd. The fixture enables neither startup evaluation nor Node compatibility.
 
 An external repository can then install the generated `.tgz` files by relative path. It must not copy Weaver source or use workspace/link dependencies.
 
@@ -61,6 +69,7 @@ pnpm test
 pnpm build
 pnpm conformance:v0.9.1
 pnpm verify:packages
+pnpm verify:worker-core
 ```
 
 ## Versioning and publishing

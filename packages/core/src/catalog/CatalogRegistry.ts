@@ -1,8 +1,7 @@
-import { Ajv2020, type ErrorObject, type ValidateFunction } from "ajv/dist/2020.js";
-
 import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js";
 import type { CatalogRegistryError } from "./errors.js";
 import { A2UI_CATALOG_SCHEMA } from "./schema.js";
+import { isValidSchema, referencesResolve, SchemaValidator, type SchemaValidationIssue } from "./schema-validator.js";
 import type {
   BindableValueLocation,
   CatalogActionPropertiesResult,
@@ -33,18 +32,18 @@ import type {
 
 interface RegisteredCatalog {
   schema: JsonObject;
-  validators: ReadonlyMap<string, ValidateFunction>;
-  functionValidators: ReadonlyMap<string, ValidateFunction>;
+  validators: ReadonlyMap<string, SchemaValidator>;
+  functionValidators: ReadonlyMap<string, SchemaValidator>;
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
   structureLocations: ReadonlyMap<string, readonly ComponentStructureLocation[]>;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
   dynamicValueLocations: ReadonlyMap<string, readonly DynamicValueLocation[]>;
   bindableValueLocations: ReadonlyMap<string, readonly BindableValueLocation[]>;
-  bindableValueValidators: ReadonlyMap<string, ValidateFunction>;
+  bindableValueValidators: ReadonlyMap<string, SchemaValidator>;
   actionProperties: ReadonlyMap<string, readonly string[]>;
   checkableComponents: ReadonlySet<string>;
-  themeValidator: ValidateFunction;
+  themeValidator: SchemaValidator;
 }
 
 const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
@@ -327,12 +326,8 @@ function error(code: CatalogRegistryError["code"], catalogId: string, message: s
   return { code, catalogId, message };
 }
 
-function normalizeErrors(errors: ErrorObject[] | null | undefined): CatalogValidationIssue[] {
-  return (errors ?? []).map(({ instancePath, message, keyword }) => ({
-    path: instancePath || "/",
-    message: message ?? "Validation failed",
-    keyword,
-  }));
+function normalizeErrors(errors: readonly SchemaValidationIssue[]): CatalogValidationIssue[] {
+  return errors.map(({ path, message, keyword }) => ({ path, message, keyword }));
 }
 
 function escapeJsonPointer(value: string): string {
@@ -340,8 +335,7 @@ function escapeJsonPointer(value: string): string {
 }
 
 export class CatalogRegistry {
-  readonly #ajv = new Ajv2020({ allErrors: true, strict: false, validateFormats: false });
-  readonly #validateCatalogShape = this.#ajv.compile(A2UI_CATALOG_SCHEMA);
+  readonly #validateCatalogShape = new SchemaValidator(A2UI_CATALOG_SCHEMA);
   readonly #catalogs = new Map<string, RegisteredCatalog>();
   #registrationSequence = 0;
 
@@ -358,8 +352,9 @@ export class CatalogRegistry {
       return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog schema must be JSON data") };
     }
 
-    if (!this.#validateCatalogShape(schema) || schema.catalogId !== catalogId) {
-      const issues = normalizeErrors(this.#validateCatalogShape.errors);
+    const catalogShape = this.#validateCatalogShape.validate(schema);
+    if (!catalogShape.valid || schema.catalogId !== catalogId) {
+      const issues = normalizeErrors(catalogShape.issues);
       if (schema.catalogId !== catalogId) {
         issues.push({ path: "/catalogId", message: "Must match the registration catalogId", keyword: "const" });
       }
@@ -378,28 +373,28 @@ export class CatalogRegistry {
     }
 
     const components = schema.components as JsonObject;
-    const validators = new Map<string, ValidateFunction>();
-    const functionValidators = new Map<string, ValidateFunction>();
+    const validators = new Map<string, SchemaValidator>();
+    const functionValidators = new Map<string, SchemaValidator>();
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
     const structureLocations = new Map<string, readonly ComponentStructureLocation[]>();
     const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
     const dynamicValueLocations = new Map<string, readonly DynamicValueLocation[]>();
     const bindableValueLocations = new Map<string, readonly BindableValueLocation[]>();
-    const bindableValueValidators = new Map<string, ValidateFunction>();
+    const bindableValueValidators = new Map<string, SchemaValidator>();
     const actionProperties = new Map<string, readonly string[]>();
     const checkableComponents = new Set<string>();
     const functions = schema.functions === undefined ? {} : schema.functions;
     if (!isPlainObject(functions)) {
       return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog functions must be an object") };
     }
-    let themeValidator: ValidateFunction;
+    let themeValidator: SchemaValidator;
     try {
       for (const [componentName, componentSchema] of Object.entries(components)) {
         if (componentSchema === null || Array.isArray(componentSchema) || typeof componentSchema !== "object") {
           throw new Error("invalid component schema");
         }
-        if (!this.#ajv.validateSchema(componentSchema)) throw new Error("invalid component schema");
+        if (!isValidSchema(componentSchema)) throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
         structureLocations.set(componentName, discoverStructureLocations(componentSchema));
         dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
@@ -411,31 +406,37 @@ export class CatalogRegistry {
           compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/bindable-${index}/catalog.json`;
           (compilationSchema.$defs as JsonObject)[`weaverBindable${index}`] = { oneOf: bindable.literalSchemas };
           compilationSchema.$ref = `#/$defs/weaverBindable${index}`;
-          bindableValueValidators.set(`${componentName}:${bindableLocationKey(bindable.path)}`, this.#ajv.compile(compilationSchema));
+          if (!referencesResolve(compilationSchema)) throw new Error("unresolved schema reference");
+          bindableValueValidators.set(`${componentName}:${bindableLocationKey(bindable.path)}`, new SchemaValidator(compilationSchema));
         }
         actionProperties.set(componentName, discoverActionProperties(componentSchema));
         if (isCheckable(componentSchema)) checkableComponents.add(componentName);
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
-        compilationSchema.$ref = `#/components/${escapeJsonPointer(componentName)}`;
-        validators.set(componentName, this.#ajv.compile(compilationSchema));
+        (compilationSchema.$defs as JsonObject).weaverComponent = cloneJson(componentSchema);
+        compilationSchema.$ref = "#/$defs/weaverComponent";
+        if (!referencesResolve(compilationSchema)) throw new Error("unresolved schema reference");
+        validators.set(componentName, new SchemaValidator(compilationSchema));
       }
       for (const [functionName, functionSchema] of Object.entries(functions)) {
-        if (!isPlainObject(functionSchema) || !this.#ajv.validateSchema(functionSchema)) {
+        if (!isPlainObject(functionSchema) || !isValidSchema(functionSchema)) {
           throw new Error("invalid function schema");
         }
         const definition = discoverFunctionDefinition(catalogId, functionName, functionSchema);
         if (definition === undefined) throw new Error("unsupported function return type");
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(functionName)}/function.json`;
-        compilationSchema.$ref = `#/functions/${escapeJsonPointer(functionName)}`;
-        functionValidators.set(functionName, this.#ajv.compile(compilationSchema));
+        (compilationSchema.$defs as JsonObject).weaverFunction = cloneJson(functionSchema);
+        compilationSchema.$ref = "#/$defs/weaverFunction";
+        if (!referencesResolve(compilationSchema)) throw new Error("unresolved schema reference");
+        functionValidators.set(functionName, new SchemaValidator(compilationSchema));
         functionDefinitions.set(functionName, definition);
       }
       const themeCompilationSchema = cloneJson(schema);
       themeCompilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/theme/catalog.json`;
       themeCompilationSchema.$ref = "#/$defs/theme";
-      themeValidator = this.#ajv.compile(themeCompilationSchema);
+      if (!referencesResolve(themeCompilationSchema)) throw new Error("unresolved schema reference");
+      themeValidator = new SchemaValidator(themeCompilationSchema);
     } catch {
       return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog schemas could not be compiled") };
     }
@@ -528,7 +529,10 @@ export class CatalogRegistry {
       issues.push({ path: "/", message: "FunctionCall must contain a call name and object args", keyword: "type" });
     }
     const validator = catalog.functionValidators.get(functionName)!;
-    if (issues.length === 0 && !validator(functionCall)) issues.push(...normalizeErrors(validator.errors));
+    if (issues.length === 0) {
+      const validation = validator.validate(functionCall);
+      if (!validation.valid) issues.push(...normalizeErrors(validation.issues));
+    }
     if (issues.length > 0) {
       return {
         ok: false,
@@ -643,12 +647,12 @@ export class CatalogRegistry {
     return { ok: true, value: locations.map(({ path }) => ({ path: path.map((segment) => ({ ...segment })) })) };
   }
 
-  /** Validates a hydrated bindable value without exposing the compiled Ajv validator. */
+  /** Validates a hydrated bindable value without exposing the private schema validator. */
   validateBindableValue(catalogId: string, componentName: string, location: BindableValueLocation, value: unknown): boolean {
     const validator = this.#catalogs.get(catalogId)?.bindableValueValidators.get(
       `${componentName}:${bindableLocationKey(location.path)}`,
     );
-    return validator?.(value) ?? false;
+    return validator?.validate(value).valid ?? false;
   }
 
   /** Detects only direct common_types.json#/$defs/Action property references. */
@@ -675,12 +679,13 @@ export class CatalogRegistry {
     if (catalog === undefined) {
       return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
     }
-    if (!catalog.themeValidator(theme)) {
+    const validation = catalog.themeValidator.validate(theme);
+    if (!validation.valid) {
       return {
         ok: false,
         error: {
           ...error("THEME_VALIDATION_FAILED", catalogId, "Theme does not satisfy the catalog schema"),
-          issues: normalizeErrors(catalog.themeValidator.errors),
+          issues: normalizeErrors(validation.issues),
         },
       };
     }
@@ -707,14 +712,15 @@ export class CatalogRegistry {
 
     const componentId = component.id;
     const componentName = component.component;
-    if (!validator(component)) {
+    const validation = validator.validate(component);
+    if (!validation.valid) {
       return {
         ok: false,
         error: {
           ...error("COMPONENT_VALIDATION_FAILED", catalogId, "Component does not satisfy the catalog schema"),
           componentId,
           component: componentName,
-          issues: normalizeErrors(validator.errors),
+          issues: normalizeErrors(validation.issues),
         },
       };
     }

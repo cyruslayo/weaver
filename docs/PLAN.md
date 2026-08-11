@@ -119,11 +119,23 @@ Complete. Core, Web, and MCP build as synchronized ESM packages, pack into verif
 
 ## Task 49 — Install packed Weaver artifacts into the real Zynra repository
 
-Next. Install only Task 48's tarballs in Zynra and verify its integration and build boundaries. This work takes place in the Zynra repository.
+Complete.
 
 ## Task 50 — Implement first Zynra V2 vertical slice
 
-Provisional, subject to Task 49 evidence.
+Complete.
+
+## Task 51 — Integrate Weaver into Zynra
+
+Blocked during runtime verification because Core's Ajv catalog-validation path compiled schemas with dynamic JavaScript, which workerd disallows.
+
+## Task 52 — Worker-safe Core JSON-Schema validation
+
+Complete. Core now uses an interpreting validator for runtime and request-time trusted catalog registration without dynamic JavaScript compilation.
+
+## Task 53 — Install Weaver 0.1.1 artifacts in Zynra
+
+Next. Install the synchronized Core, Web, and MCP 0.1.1 tarballs in Zynra, then complete and reverify Task 51 there.
 
 ## Deferred work
 

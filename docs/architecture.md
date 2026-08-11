@@ -60,6 +60,8 @@ tools/call
    └── a2ui_error
 ```
 
+Core schema validation is runtime-portable across Node.js, browsers, and Worker runtimes. It interprets trusted JSON Schema data and does not require dynamic JavaScript compilation.
+
 The dependency rules are strict:
 
 - core must not depend on web

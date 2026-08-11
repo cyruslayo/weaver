@@ -11,10 +11,12 @@
     "conformance:v0.9.1": "pnpm --filter @weaver/core test && pnpm --filter @weaver/web test && pnpm typecheck",
     "pack:packages": "node scripts/pack-packages.mjs",
     "verify:packages": "pnpm build && pnpm pack:packages && node scripts/verify-packages.mjs",
+    "verify:worker-core": "node scripts/verify-worker-core.mjs",
     "clean": "pnpm -r --if-present run clean"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "ajv": "^8.20.0",
     "typescript": "^6.0.2"
   }
 }

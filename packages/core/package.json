@@ -1,6 +1,6 @@
 {
   "name": "@weaver/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "files": [
     "dist",
@@ -21,6 +21,6 @@
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
   "dependencies": {
-    "ajv": "^8.20.0"
+    "@cfworker/json-schema": "4.1.1"
   }
 }

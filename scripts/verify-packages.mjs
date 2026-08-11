@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const version = "0.1.0";
+const version = "0.1.1";
 const specs = [
   { dir: "core", name: "@weaver/core", file: `weaver-core-${version}.tgz` },
   { dir: "web", name: "@weaver/web", file: `weaver-web-${version}.tgz` },

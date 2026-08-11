@@ -7,9 +7,9 @@
     "smoke": "node smoke.mjs"
   },
   "dependencies": {
-    "@weaver/core": "file:../../artifacts/weaver-core-0.1.0.tgz",
-    "@weaver/web": "file:../../artifacts/weaver-web-0.1.0.tgz",
-    "@weaver/mcp": "file:../../artifacts/weaver-mcp-0.1.0.tgz"
+    "@weaver/core": "file:../../artifacts/weaver-core-0.1.1.tgz",
+    "@weaver/web": "file:../../artifacts/weaver-web-0.1.1.tgz",
+    "@weaver/mcp": "file:../../artifacts/weaver-mcp-0.1.1.tgz"
   },
   "devDependencies": {
     "@types/node": "22.20.1",

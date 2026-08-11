@@ -15,4 +15,4 @@ export * from "./runtime/index.js";
 export * from "./surfaces/index.js";
 export * from "./transport/index.js";
 
-export const WEAVER_CORE_VERSION = "0.1.0";
+export const WEAVER_CORE_VERSION = "0.1.1";
