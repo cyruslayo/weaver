@@ -26,7 +26,7 @@ Detached descendant/resource construction is **ACCEPTED FOR WEAVER V0.9.1 BASELI
 
 | PASS | PARTIAL | DEFERRED-BY-ARCHITECTURE | NOT-IMPLEMENTED | NOT-APPLICABLE | SPEC-AMBIGUOUS | Total |
 |---:|---:|---:|---:|---:|---:|---:|
-| 141 | 2 | 8 | 0 | 2 | 3 | **156** |
+| 146 | 1 | 4 | 0 | 2 | 3 | **156** |
 
 Counts cover the 156 numbered requirement rows (`R001`–`R156`) below. Guidance is audited but is not promoted to wire-validity merely because it suggests pixels, margins, shadows, or appearance.
 
@@ -132,7 +132,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R070 | CTS top-level version/action exact shape (CTS root/action; schema) | Exact `{version:'v0.9.1',action:{...}}`; action tests | PASS | None |
 | R071 | `sendDataModel` metadata on actions (P synchronization; protocol) | Transport-neutral metadata emitted when true; action/runtime/Web tests | PASS | Targeted delivery is adapter-owned |
 | R072 | CDM exact `version` + `surfaces` shape (CDM root; schema) | Exact shape; each Weaver model is constrained to JSON object; action tests | PASS | None |
-| R073 | Send only current surface owner (P Targeted Delivery; protocol) | `A2UITransportSession` resolves each action and optional client-data-model object to the successful-create owner route; no concrete adapter delivers it yet | PARTIAL | Demonstrate targeted delivery through the first real adapter |
+| R073 | Send only current surface owner (P Targeted Delivery; protocol) | Session-routed deliveries are accepted only by the matching one-route HTTP/SSE adapter; wrong-route deliveries perform no fetch, including optional client-data-model metadata | PASS | None |
 | R074 | CAP `supportedCatalogIds` (CAP path `/v0.9/supportedCatalogIds`; schema) | Shared outbound builder and runtime emit exact `v0.9` shape; ordering/ownership/schema tests in `outbound.test.ts` | PASS | None |
 | R075 | CAP `inlineCatalogs` optional (CAP path `/v0.9/inlineCatalogs`; schema) | Intentionally omitted and no inline trust path | PASS | None; optional and unsupported |
 | R076 | Validation failure outbound `error` envelope (CTS `/error`; checklist) | Transport-neutral exact builder and eligible process-failure mapper; pinned CTS tests in `outbound.test.ts` | PASS | Transport decides delivery |
@@ -143,11 +143,11 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 
 | ID | Requirement (source; class) | Weaver / evidence | Status | Owner/action |
 |---|---|---|---|---|
-| R079 | Ordered reliable delivery (P Transport contract; protocol) | Core processes call order but provides no network delivery | DEFERRED-BY-ARCHITECTURE | Transport adapter |
-| R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available | PASS | Other transports own own framing |
-| R081 | Metadata carriage (P Transport contract; protocol) | Core creates metadata but does not carry it | DEFERRED-BY-ARCHITECTURE | Transport adapter |
-| R082 | Bidirectional action channel (P optional contract; protocol) | Web callback exposes handoff; no channel | DEFERRED-BY-ARCHITECTURE | Transport adapter |
-| R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | No HTTP/content-type layer | DEFERRED-BY-ARCHITECTURE | Future HTTP/SSE adapter |
+| R079 | Ordered reliable delivery (P Transport contract; protocol) | Weaver HTTP/SSE events are processed sequentially and client POSTs are serialized in call order; interruption returns explicit failure rather than silently reordering | PASS | No automatic reconnect |
+| R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available; Weaver SSE binding uses one JSON envelope per event | PASS | Other transports own own framing |
+| R081 | Metadata carriage (P Transport contract; protocol) | Weaver POST wrappers carry exact capabilities on every request and optional routed client-data-model metadata | PASS | None |
+| R082 | Bidirectional action channel (P optional contract; protocol) | Weaver Web adapter provides SSE server-to-client and POST client-to-server integration | PASS | None |
+| R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | Weaver binding validates `text/event-stream`; it does not intercept `application/a2ui+json` | DEFERRED-BY-ARCHITECTURE | Future MIME interception layer |
 | R084 | A2A mapping/capability metadata (P A2A binding; protocol) | No A2A adapter by design | DEFERRED-BY-ARCHITECTURE | Future A2A adapter |
 | R085 | MCP delivery (P Other transports; protocol) | `@weaver/mcp` placeholder only | DEFERRED-BY-ARCHITECTURE | `@weaver/mcp` |
 | R086 | Arbitrary text chunks (C JSONL; checklist) | Incremental character buffer; JSONL tests | PASS | None |
@@ -155,7 +155,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R088 | Unterminated final frame (reasonable stream completion behavior) | `finish()` parses/tested | PASS | None |
 | R089 | Empty frame and malformed JSON recovery | Empty is INVALID_JSON; malformed frame does not poison next; tests | PASS | None |
 | R090 | Maximum frame and recovery (Weaver hardening) | 1,048,576-char configurable limit/discard mode; tests | PASS | None |
-| R091 | UTF-8 byte decoding boundary | Decoder accepts JS text, not bytes | DEFERRED-BY-ARCHITECTURE | Transport adapter owns `TextDecoder` and byte limits |
+| R091 | UTF-8 byte decoding boundary | Web HTTP/SSE adapter uses incremental streaming `TextDecoder`; split multibyte characters and bounded events are tested | PASS | None |
 
 ## 5. Catalog trust and custom catalogs
 
@@ -351,7 +351,7 @@ Task 36 changed the pre-1.0 runtime capability public shape from incorrect `v0.9
 
 ## Final unresolved classification
 
-- **PARTIAL:** R073 — the transport-session boundary guarantees owner-target resolution, but no concrete adapter demonstrates delivery; R155 — accepted eager detached construction limitation.
-- **DEFERRED-BY-ARCHITECTURE:** R079 — transport adapter; R081 — transport adapter; R082 — transport adapter; R083 — future HTTP/SSE adapter; R084 — future A2A adapter; R085 — `@weaver/mcp`; R091 — transport adapter; R140 — host/orchestrator.
+- **PARTIAL:** R155 — accepted eager detached construction limitation.
+- **DEFERRED-BY-ARCHITECTURE:** R083 — `application/a2ui+json` interception is not part of Weaver's `text/event-stream` binding; R084 — future A2A adapter; R085 — `@weaver/mcp`; R140 — host/orchestrator.
 - **SPEC-AMBIGUOUS:** R035 — protocol requests array deletion to JavaScript `undefined`, which JSON cannot represent; R117 — Basic schema exposes `validationRegexp` while guide/checklist sources disagree in emphasis/shape; R156 — v0.9.1 scopes are positional and `ChildList` provides no stable item key.
 - **Accepted implementation limitation:** R155 — safe and correct but eager detached descendant/resource construction; approved media may begin loading before live mount.

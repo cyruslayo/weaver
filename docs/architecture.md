@@ -1130,6 +1130,40 @@ One transport session processes inbound A2UI messages synchronously in the order
 supplied by its adapter. Core adds no queue or lock. An adapter that receives
 messages concurrently must serialize calls before `processInbound()`.
 
+The first concrete binding lives in `@weaver/web`:
+
+```text
+remote HTTP/SSE peer
+        ↕
+Browser HTTP/SSE adapter
+        ↓
+trusted routeId
+        ↓
+A2UITransportSession
+        ↓
+WeaverRuntime
+```
+
+The adapter uses a POST-opened `text/event-stream` as its sole inbound channel
+and a separately configured POST endpoint for routed client messages. One
+adapter owns one route and two trusted endpoints; route identity never enters
+the wire wrapper. SSE events are incrementally UTF-8 decoded and processed
+sequentially. Outbound action flow is:
+
+```text
+ActionDispatcher
+      ↓
+session routed delivery
+      ↓
+matching HTTP/SSE adapter
+      ↓
+POST sendUrl
+```
+
+Client POSTs, including automatic standard validation responses, share one
+call-order serialization boundary. Authentication and request policy belong to
+the host-supplied fetch wrapper. See [the Weaver HTTP/SSE binding](./http-sse-transport.md).
+
 Validation-failure mapping is deliberately narrower than generic runtime-error
 mapping. Protocol schema failures and catalog-governed component/theme failures
 are eligible; lifecycle, DataModel, function, checks, stale-interaction, and

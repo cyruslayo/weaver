@@ -85,14 +85,24 @@ inbound mutations, release ownership after successful deletion, and resolve
 actions plus optional client-data-model metadata to one owner route. Validation
 responses resolve to their inbound source route. No network transport was added.
 
-## Task 42 — first concrete transport adapter
+## Task 42 — browser HTTP + SSE transport adapter
 
-Next. Its implementation will be selected separately; Task 41 does not choose or
-implement HTTP, SSE, WebSocket, A2A, MCP, or another network protocol.
+Complete. Web now provides a Weaver-defined, one-route browser adapter that opens
+a POST SSE stream, incrementally decodes bounded UTF-8 events in order, routes
+them through `A2UITransportSession`, and serializes routed action/validation POSTs
+with capabilities and optional client-data-model metadata. It adds no retry,
+reconnection, authentication, server implementation, or generic transport layer.
+
+## Task 43 — evidence-selected next transport milestone
+
+Recommended next: a small HTTP/SSE server reference helper. The browser binding
+now defines a concrete interoperable wire contract; a reference peer will test
+that contract end-to-end before reconnect/resume policy or a broader MCP binding
+introduces independent concerns.
 
 ## Deferred work
 
-- concrete network and transport adapters (Task 42, including HTTP and A2A placement)
+- additional network bindings, including A2A placement and reconnect/resume policy
 - MCP integration in `@weaver/mcp`
 - stable collection item identity beyond v0.9.1 positional scopes
 - Zynra V2 application integration

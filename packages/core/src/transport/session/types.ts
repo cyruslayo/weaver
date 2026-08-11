@@ -26,6 +26,10 @@ export type A2UIActionDeliveryResult =
   | { ok: true; value: { routeId: A2UIRouteId; message: A2UIClientActionMessage; clientDataModel?: A2UIClientDataModel } }
   | { ok: false; error: A2UIRoutingError };
 
+export type A2UIRoutedDelivery =
+  | { routeId: A2UIRouteId; message: A2UIClientActionMessage; clientDataModel?: A2UIClientDataModel }
+  | { routeId: A2UIRouteId; message: A2UIValidationFailedClientMessage };
+
 export type A2UIValidationErrorDeliveryResult =
   | { ok: true; value: { routeId: A2UIRouteId; message: A2UIValidationFailedClientMessage } }
   | { ok: false; error: A2UIRoutingError };
