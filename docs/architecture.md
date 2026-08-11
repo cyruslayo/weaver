@@ -1144,6 +1144,20 @@ A2UITransportSession
 WeaverRuntime
 ```
 
+Loopback interoperability is proven without moving Node server concerns into either package:
+
+```text
+reference server (examples/test support)
+        ↕ real HTTP/SSE sockets
+Browser HTTP/SSE adapter
+        ↓
+A2UITransportSession
+        ↓
+WeaverRuntime
+```
+
+The single-peer reference server is outside Core/Web architecture and is not a framework server API. Real hosts own authentication and correlation; no remote identity is accepted from A2UI or wrapper fields.
+
 The adapter uses a POST-opened `text/event-stream` as its sole inbound channel
 and a separately configured POST endpoint for routed client messages. One
 adapter owns one route and two trusted endpoints; route identity never enters

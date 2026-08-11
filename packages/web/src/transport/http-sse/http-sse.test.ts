@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { A2UIRoutedDelivery, A2UITransportSession } from "@weaver/core";
+import { createA2UITransportSession, createWeaverRuntime, type A2UIRoutedDelivery, type A2UITransportSession, type JsonObject } from "@weaver/core";
 import { createBrowserA2UIHttpSseTransport } from "./createBrowserA2UIHttpSseTransport.js";
+import { startReferenceServer, type ReceivedClientMessage } from "./reference-server.test-helper.js";
 
 const encoder = new TextEncoder();
 function response(chunks: Uint8Array[], type = "text/event-stream"): Response {
@@ -102,4 +103,74 @@ test("rejects concurrent run, permits rerun, and reports pre-abort deterministic
   let count = 0; const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => { count++; return count === 1 ? new Response(stream, { headers: { "Content-Type": "text/event-stream" } }) : response([]); } });
   const active = adapter.run(); assert.equal((await adapter.run()).ok, false); close(); assert.equal((await active).ok, true); assert.deepEqual(await adapter.run(), { ok: true, status: "closed" });
   const controller = new AbortController(); controller.abort(); assert.deepEqual(await adapter.run({ signal: controller.signal }), { ok: true, status: "aborted" });
+});
+
+const integrationSchema: JsonObject = {
+  $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: "basic",
+  components: {
+    Button: { type: "object", properties: { id: { type: "string" }, component: { const: "Button" }, action: { $ref: "common_types.json#/$defs/Action" } }, required: ["id", "component", "action"], additionalProperties: false },
+  },
+  $defs: { theme: { type: "object", additionalProperties: false }, commonTypes: { $id: "common_types.json", $defs: {
+    Action: { type: "object", properties: { event: { type: "object", properties: { name: { type: "string" }, context: { type: "object" } }, required: ["name", "context"], additionalProperties: false } }, required: ["event"], additionalProperties: false },
+  } } },
+};
+function integration() { const made = createWeaverRuntime({ catalogs: [{ catalogId: "basic", schema: integrationSchema }], now: () => new Date("2026-01-01T00:00:00.000Z") }); assert.ok(made.ok); return { runtime: made.value, session: createA2UITransportSession({ runtime: made.value }) }; }
+const createMessage = (surfaceId: string, sendDataModel = false) => ({ version: "v0.9.1", createSurface: { surfaceId, catalogId: "basic", sendDataModel } });
+const componentsMessage = (surfaceId: string) => ({ version: "v0.9.1", updateComponents: { surfaceId, components: [{ id: "root", component: "Button", action: { event: { name: "go", context: { fixed: 1 } } } }] } });
+const dataMessage = (surfaceId: string, owner: string) => ({ version: "v0.9.1", updateDataModel: { surfaceId, value: { owner } } });
+async function waitFor(predicate: () => boolean): Promise<void> { for (let n = 0; n < 100 && !predicate(); n++) await new Promise(resolve => setTimeout(resolve, 10)); assert.equal(predicate(), true); }
+
+test("real loopback stream updates runtime, posts action/model and validation failure, and preserves ownership across reopen", async () => {
+  const opened: Record<string, unknown>[] = []; const received: ReceivedClientMessage[] = [];
+  const server = await startReferenceServer({ onStreamOpen: value => { opened.push(value); }, onClientMessage: value => { received.push(value); } });
+  const { runtime, session: transportSession } = integration(); const diagnostics: string[] = [];
+  const adapter = createBrowserA2UIHttpSseTransport({ session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl, onDiagnostic: d => diagnostics.push(d.message) });
+  let run = adapter.run();
+  try {
+    await waitFor(() => opened.length === 1); assert.deepEqual(opened[0], { "v0.9": { supportedCatalogIds: ["basic"] } });
+    assert.deepEqual(await server.sendA2UI(createMessage("X", true)), { ok: true });
+    assert.deepEqual(await server.sendA2UI(componentsMessage("X")), { ok: true });
+    assert.deepEqual(await server.sendA2UI(dataMessage("X", "A")), { ok: true });
+    await waitFor(() => runtime.getSurface("X")?.dataModel !== undefined);
+    assert.equal(runtime.getSurface("X")?.components.root?.component, "Button"); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "A" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
+    const action = runtime.dispatchAction({ surfaceId: "X", sourceComponentId: "root", scopePath: "/", actionProperty: "action" });
+    const delivery = transportSession.prepareActionDelivery(action); assert.ok(delivery.ok); assert.equal((await adapter.sendDelivery(delivery.value)).ok, true);
+    await waitFor(() => received.length === 1); assert.equal(received[0]?.message.version, "v0.9.1"); assert.deepEqual(received[0]?.message.action, { name: "go", surfaceId: "X", sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: { fixed: 1 } }); assert.deepEqual(received[0]?.clientDataModel, { version: "v0.9.1", surfaces: { X: { owner: "A" } } });
+    assert.deepEqual(received[0]?.capabilities, { "v0.9": { supportedCatalogIds: ["basic"] } }); assert.equal(JSON.stringify(received).includes("routeId"), false);
+    await server.sendA2UI({ version: "v0.9.1", updateComponents: { surfaceId: "X", components: [] } });
+    await waitFor(() => received.length === 2); assert.deepEqual(received[1]?.message, { version: "v0.9.1", error: { code: "VALIDATION_FAILED", surfaceId: "X", path: "/updateComponents/components", message: "Expected at least one component" } });
+    server.closeStream(); assert.deepEqual(await run, { ok: true, status: "closed" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
+    run = adapter.run(); await waitFor(() => opened.length === 2); await server.sendA2UI({ version: "v0.9.1", deleteSurface: { surfaceId: "X" } }); await waitFor(() => runtime.getSurface("X") === undefined); assert.equal(transportSession.getSurfaceRoute("X"), undefined);
+    assert.deepEqual(diagnostics, []);
+  } finally { server.closeStream(); await run; await server.close(); }
+});
+
+test("two real loopback peers target only their owned route and reject cross-route mutation", async () => {
+  const aReceived: ReceivedClientMessage[] = []; const bReceived: ReceivedClientMessage[] = []; let aOpen = false; let bOpen = false;
+  const aServer = await startReferenceServer({ onStreamOpen: () => { aOpen = true; }, onClientMessage: m => { aReceived.push(m); } }); const bServer = await startReferenceServer({ onStreamOpen: () => { bOpen = true; }, onClientMessage: m => { bReceived.push(m); } });
+  const { runtime, session: shared } = integration(); const bDiagnostics: string[] = [];
+  const a = createBrowserA2UIHttpSseTransport({ session: shared, routeId: "A", streamUrl: aServer.streamUrl, sendUrl: aServer.sendUrl }); const b = createBrowserA2UIHttpSseTransport({ session: shared, routeId: "B", streamUrl: bServer.streamUrl, sendUrl: bServer.sendUrl, onDiagnostic: d => bDiagnostics.push(d.message) });
+  const arun = a.run(); const brun = b.run();
+  try {
+    await waitFor(() => aOpen && bOpen); for (const [server, id, owner] of [[aServer, "X", "A"], [bServer, "Y", "B"]] as const) { await server.sendA2UI(createMessage(id, true)); await server.sendA2UI(componentsMessage(id)); await server.sendA2UI(dataMessage(id, owner)); }
+    await waitFor(() => runtime.getSurface("Y")?.dataModel !== undefined); assert.equal(shared.getSurfaceRoute("X"), "A"); assert.equal(shared.getSurfaceRoute("Y"), "B");
+    await bServer.sendA2UI(dataMessage("X", "intruder")); await waitFor(() => bDiagnostics.length === 1); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "A" }); assert.equal(bReceived.length, 0);
+    for (const [adapter, id] of [[a, "X"], [b, "Y"]] as const) { const routed = shared.prepareActionDelivery(runtime.dispatchAction({ surfaceId: id, sourceComponentId: "root", scopePath: "/", actionProperty: "action" })); assert.ok(routed.ok); assert.equal((await adapter.sendDelivery(routed.value)).ok, true); }
+    await waitFor(() => aReceived.length === 1 && bReceived.length === 1); assert.deepEqual((aReceived[0]?.clientDataModel as { surfaces: object }).surfaces, { X: { owner: "A" } }); assert.deepEqual((bReceived[0]?.clientDataModel as { surfaces: object }).surfaces, { Y: { owner: "B" } });
+  } finally { aServer.closeStream(); bServer.closeStream(); await Promise.all([arun, brun]); await Promise.all([aServer.close(), bServer.close()]); }
+});
+
+test("reference server enforces endpoint methods, exact wrappers, limits, and one active stream", async () => {
+  const server = await startReferenceServer(); const post = (path: string, body: string, headers: Record<string,string> = {}) => fetch(server.url + path, { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8", ...headers }, body });
+  try {
+    assert.equal((await fetch(server.streamUrl)).status, 405); assert.equal((await fetch(server.sendUrl)).status, 405); assert.equal((await fetch(server.url + "/missing", { method: "POST" })).status, 404);
+    assert.equal((await post("/a2ui/stream", "{" , { Accept: "text/event-stream" })).status, 400);
+    assert.equal((await post("/a2ui/stream", JSON.stringify({ metadata: {} }), { Accept: "text/event-stream" })).status, 400);
+    assert.equal((await post("/a2ui/send", "{")).status, 400); assert.equal((await post("/a2ui/send", JSON.stringify({ message: {}, metadata: { a2uiClientCapabilities: {} }, routeId: "A" }))).status, 400);
+    assert.equal((await post("/a2ui/send", `{"padding":"${"x".repeat(1_048_576)}"}`)).status, 413);
+    assert.equal((await post("/a2ui/stream", `{"padding":"${"x".repeat(1_048_576)}"}`, { Accept: "text/event-stream" })).status, 413);
+    let opened = false; const stream = fetch(server.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json" }, body: JSON.stringify({ metadata: { a2uiClientCapabilities: {} } }) }).then(r => { opened = r.ok; return r; }); await waitFor(() => opened);
+    assert.equal((await post("/a2ui/stream", JSON.stringify({ metadata: { a2uiClientCapabilities: {} } }), { Accept: "text/event-stream" })).status, 409);
+    assert.equal((await server.sendA2UI(undefined)).ok, false); server.closeStream(); await stream;
+  } finally { await server.close(); }
 });

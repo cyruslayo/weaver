@@ -93,12 +93,13 @@ them through `A2UITransportSession`, and serializes routed action/validation POS
 with capabilities and optional client-data-model metadata. It adds no retry,
 reconnection, authentication, server implementation, or generic transport layer.
 
-## Task 43 — evidence-selected next transport milestone
+## Task 43 — HTTP/SSE reference server and loopback interoperability
 
-Recommended next: a small HTTP/SSE server reference helper. The browser binding
-now defines a concrete interoperable wire contract; a reference peer will test
-that contract end-to-end before reconnect/resume policy or a broader MCP binding
-introduces independent concerns.
+Complete. A dependency-free, loopback-only Node reference server now documents and enforces the Task 42 wrappers, bounded JSON requests, one trusted peer/active SSE stream, exact JSON SSE writing, and client-message observation. Normal Web tests prove real-socket handshake, ordered runtime updates, actions with optional model metadata, validation-error return, route rejection, stream reopening/ownership lifecycle, and two-server targeted delivery.
+
+## Task 44 — recommended next milestone
+
+Recommended next: HTTP/SSE reconnect/resume. Task 43 showed the binding and targeted routing work over real sockets; stream closure is now the clearest operational gap. Define explicit bounded retry/resume semantics before a production server integration boundary hardens assumptions around interruption. MCP remains an independent transport concern.
 
 ## Deferred work
 

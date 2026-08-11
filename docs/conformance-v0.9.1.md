@@ -132,7 +132,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R070 | CTS top-level version/action exact shape (CTS root/action; schema) | Exact `{version:'v0.9.1',action:{...}}`; action tests | PASS | None |
 | R071 | `sendDataModel` metadata on actions (P synchronization; protocol) | Transport-neutral metadata emitted when true; action/runtime/Web tests | PASS | Targeted delivery is adapter-owned |
 | R072 | CDM exact `version` + `surfaces` shape (CDM root; schema) | Exact shape; each Weaver model is constrained to JSON object; action tests | PASS | None |
-| R073 | Send only current surface owner (P Targeted Delivery; protocol) | Session-routed deliveries are accepted only by the matching one-route HTTP/SSE adapter; wrong-route deliveries perform no fetch, including optional client-data-model metadata | PASS | None |
+| R073 | Send only current surface owner (P Targeted Delivery; protocol) | Two loopback reference servers confirm session-routed deliveries are accepted only by the matching one-route HTTP/SSE adapter; wrong-route deliveries perform no POST, including optional client-data-model metadata | PASS | None |
 | R074 | CAP `supportedCatalogIds` (CAP path `/v0.9/supportedCatalogIds`; schema) | Shared outbound builder and runtime emit exact `v0.9` shape; ordering/ownership/schema tests in `outbound.test.ts` | PASS | None |
 | R075 | CAP `inlineCatalogs` optional (CAP path `/v0.9/inlineCatalogs`; schema) | Intentionally omitted and no inline trust path | PASS | None; optional and unsupported |
 | R076 | Validation failure outbound `error` envelope (CTS `/error`; checklist) | Transport-neutral exact builder and eligible process-failure mapper; pinned CTS tests in `outbound.test.ts` | PASS | Transport decides delivery |
@@ -143,10 +143,10 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 
 | ID | Requirement (source; class) | Weaver / evidence | Status | Owner/action |
 |---|---|---|---|---|
-| R079 | Ordered reliable delivery (P Transport contract; protocol) | Weaver HTTP/SSE events are processed sequentially and client POSTs are serialized in call order; interruption returns explicit failure rather than silently reordering | PASS | No automatic reconnect |
+| R079 | Ordered reliable delivery (P Transport contract; protocol) | Real loopback Weaver HTTP/SSE events are processed sequentially and client POSTs are serialized in call order; interruption returns explicit failure rather than silently reordering | PASS | No automatic reconnect |
 | R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available; Weaver SSE binding uses one JSON envelope per event | PASS | Other transports own own framing |
-| R081 | Metadata carriage (P Transport contract; protocol) | Weaver POST wrappers carry exact capabilities on every request and optional routed client-data-model metadata | PASS | None |
-| R082 | Bidirectional action channel (P optional contract; protocol) | Weaver Web adapter provides SSE server-to-client and POST client-to-server integration | PASS | None |
+| R081 | Metadata carriage (P Transport contract; protocol) | Real loopback POST wrappers carry exact capabilities on every request and optional routed client-data-model metadata | PASS | None |
+| R082 | Bidirectional action channel (P optional contract; protocol) | Weaver Web adapter provides loopback-tested SSE server-to-client and POST client-to-server integration | PASS | None |
 | R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | Weaver binding validates `text/event-stream`; it does not intercept `application/a2ui+json` | DEFERRED-BY-ARCHITECTURE | Future MIME interception layer |
 | R084 | A2A mapping/capability metadata (P A2A binding; protocol) | No A2A adapter by design | DEFERRED-BY-ARCHITECTURE | Future A2A adapter |
 | R085 | MCP delivery (P Other transports; protocol) | `@weaver/mcp` placeholder only | DEFERRED-BY-ARCHITECTURE | `@weaver/mcp` |
