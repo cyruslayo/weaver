@@ -143,7 +143,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 
 | ID | Requirement (source; class) | Weaver / evidence | Status | Owner/action |
 |---|---|---|---|---|
-| R079 | Ordered reliable delivery (P Transport contract; protocol) | Real loopback Weaver HTTP/SSE events are processed sequentially and client POSTs are serialized in call order; interruption returns explicit failure rather than silently reordering | PASS | No automatic reconnect |
+| R079 | Ordered reliable delivery (P Transport contract; protocol) | Real loopback Weaver HTTP/SSE events are processed sequentially, client POSTs are serialized, and opt-in bounded `Last-Event-ID` replay resumes only later events in order without duplicate lifecycle delivery; exhaustion and unavailable history are explicit | PASS | Production hosts own durable/session-correlated replay |
 | R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available; Weaver SSE binding uses one JSON envelope per event | PASS | Other transports own own framing |
 | R081 | Metadata carriage (P Transport contract; protocol) | Real loopback POST wrappers carry exact capabilities on every request and optional routed client-data-model metadata | PASS | None |
 | R082 | Bidirectional action channel (P optional contract; protocol) | Weaver Web adapter provides loopback-tested SSE server-to-client and POST client-to-server integration | PASS | None |

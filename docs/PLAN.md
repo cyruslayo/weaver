@@ -97,13 +97,17 @@ reconnection, authentication, server implementation, or generic transport layer.
 
 Complete. A dependency-free, loopback-only Node reference server now documents and enforces the Task 42 wrappers, bounded JSON requests, one trusted peer/active SSE stream, exact JSON SSE writing, and client-message observation. Normal Web tests prove real-socket handshake, ordered runtime updates, actions with optional model metadata, validation-error return, route rejection, stream reopening/ownership lifecycle, and two-server targeted delivery.
 
-## Task 44 — recommended next milestone
+## Task 44 — bounded HTTP/SSE reconnect and resume
 
-Recommended next: HTTP/SSE reconnect/resume. Task 43 showed the binding and targeted routing work over real sockets; stream closure is now the clearest operational gap. Define explicit bounded retry/resume semantics before a production server integration boundary hardens assumptions around interruption. MCP remains an independent transport concern.
+Complete. Web now supports explicit per-run finite fixed-delay reconnect, adapter-local SSE event-ID cursors, `Last-Event-ID` resume across reconnect and manual reruns, typed exhaustion/resume-unavailable outcomes, and abortable waits. The loopback reference peer assigns monotonic IDs and provides bounded in-memory ordered replay without changing Core ownership or A2UI objects.
+
+## Task 45 — recommended next milestone
+
+Recommended next: MCP integration. Task 44 closed the demonstrated HTTP/SSE interruption gap without revealing a need for a generic connection or transport framework. MCP should now establish its own concrete binding requirements independently; do not generalize HTTP/SSE resume semantics into Core.
 
 ## Deferred work
 
-- additional network bindings, including A2A placement and reconnect/resume policy
-- MCP integration in `@weaver/mcp`
+- additional network bindings, including A2A placement
+- MCP integration in `@weaver/mcp` (Task 45)
 - stable collection item identity beyond v0.9.1 positional scopes
 - Zynra V2 application integration

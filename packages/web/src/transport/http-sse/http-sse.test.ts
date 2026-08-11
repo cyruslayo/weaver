@@ -128,9 +128,9 @@ test("real loopback stream updates runtime, posts action/model and validation fa
   let run = adapter.run();
   try {
     await waitFor(() => opened.length === 1); assert.deepEqual(opened[0], { "v0.9": { supportedCatalogIds: ["basic"] } });
-    assert.deepEqual(await server.sendA2UI(createMessage("X", true)), { ok: true });
-    assert.deepEqual(await server.sendA2UI(componentsMessage("X")), { ok: true });
-    assert.deepEqual(await server.sendA2UI(dataMessage("X", "A")), { ok: true });
+    assert.equal((await server.sendA2UI(createMessage("X", true))).ok, true);
+    assert.equal((await server.sendA2UI(componentsMessage("X"))).ok, true);
+    assert.equal((await server.sendA2UI(dataMessage("X", "A"))).ok, true);
     await waitFor(() => runtime.getSurface("X")?.dataModel !== undefined);
     assert.equal(runtime.getSurface("X")?.components.root?.component, "Button"); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "A" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
     const action = runtime.dispatchAction({ surfaceId: "X", sourceComponentId: "root", scopePath: "/", actionProperty: "action" });
@@ -158,6 +158,73 @@ test("two real loopback peers target only their owned route and reject cross-rou
     for (const [adapter, id] of [[a, "X"], [b, "Y"]] as const) { const routed = shared.prepareActionDelivery(runtime.dispatchAction({ surfaceId: id, sourceComponentId: "root", scopePath: "/", actionProperty: "action" })); assert.ok(routed.ok); assert.equal((await adapter.sendDelivery(routed.value)).ok, true); }
     await waitFor(() => aReceived.length === 1 && bReceived.length === 1); assert.deepEqual((aReceived[0]?.clientDataModel as { surfaces: object }).surfaces, { X: { owner: "A" } }); assert.deepEqual((bReceived[0]?.clientDataModel as { surfaces: object }).surfaces, { Y: { owner: "B" } });
   } finally { aServer.closeStream(); bServer.closeStream(); await Promise.all([arun, brun]); await Promise.all([aServer.close(), bServer.close()]); }
+});
+
+test("SSE IDs persist, reset, ignore NUL, advance on ignored/malformed/empty events, and omit incomplete IDs", async () => {
+  const headers: Array<Record<string, string>> = []; let call = 0; const inputs: unknown[] = []; const diagnostics: string[] = [];
+  const streams = [
+    'id: 1\ndata: {"n":1}\n\ndata: {bad}\n\nevent: ping\nid: 2\ndata: alive\n\nid: 3\n\nid: incomplete',
+    'data: {"n":2}\n\nid:\ndata: {"reset":true}\n\nid: bad\0value\ndata: {"n":3}\n\n',
+    "",
+  ];
+  const adapter = createBrowserA2UIHttpSseTransport({ session: session(inputs), routeId: "A", streamUrl: "/stream", sendUrl: "/send", fetch: async (_input, init) => { headers.push(init?.headers as Record<string, string>); return response([encoder.encode(streams[call++]!)]); }, onDiagnostic: d => diagnostics.push(d.code) });
+  await adapter.run(); await adapter.run(); await adapter.run();
+  assert.equal(headers[0]?.["Last-Event-ID"], undefined); assert.equal(headers[1]?.["Last-Event-ID"], "3"); assert.equal(headers[2]?.["Last-Event-ID"], undefined);
+  assert.deepEqual(inputs, [{ n: 1 }, { n: 2 }, { reset: true }, { n: 3 }]); assert.deepEqual(diagnostics, ["SSE_INVALID_JSON"]);
+});
+
+test("bounded reconnect retries clean EOF/fetch/read failures, preserves one run, and exhausts exactly", async () => {
+  let calls = 0; let reads = 0;
+  const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => {
+    calls++; if (calls === 1) return response([]); if (calls === 2) throw new Error("network");
+    return new Response(new ReadableStream<Uint8Array>({ pull(controller) { reads++; if (reads === 1) controller.error(new Error("read")); } }), { headers: { "Content-Type": "text/event-stream" } });
+  } });
+  const run = adapter.run({ reconnect: { maxAttempts: 2, delayMs: 0 } }); assert.equal((await adapter.run()).ok, false);
+  assert.deepEqual(await run, { ok: false, error: { code: "RECONNECT_EXHAUSTED", message: "Reconnect attempt budget exhausted", attempts: 2, lastFailureCode: "STREAM_READ_FAILED" } }); assert.equal(calls, 3);
+  await assert.rejects(adapter.run({ reconnect: { maxAttempts: Infinity } }), RangeError);
+});
+
+test("reconnect delay and active/reconnect fetch abort immediately without another request", async () => {
+  for (const mode of ["delay", "fetch"] as const) {
+    let calls = 0; const controller = new AbortController();
+    const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async (_input, init) => {
+      calls++; if (calls === 1) return response([]);
+      return await new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true }));
+    } });
+    const run = adapter.run({ signal: controller.signal, reconnect: { maxAttempts: 2, delayMs: mode === "delay" ? 10_000 : 0 } });
+    await new Promise(resolve => setTimeout(resolve, mode === "delay" ? 10 : 30)); controller.abort(); assert.deepEqual(await run, { ok: true, status: "aborted" }); assert.equal(calls, mode === "delay" ? 1 : 2);
+  }
+});
+
+test("fatal reconnect responses stop and resumed 410 is distinct without clearing cursor", async () => {
+  for (const fatal of [new Response("", { status: 500 }), response([], "text/html"), new Response(null, { headers: { "Content-Type": "text/event-stream" } })]) {
+    let calls = 0; const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => ++calls === 1 ? response([]) : fatal });
+    assert.equal((await adapter.run({ reconnect: { maxAttempts: 3, delayMs: 0 } })).ok, false); assert.equal(calls, 2);
+  }
+  const seen: Array<Record<string,string>> = []; let calls = 0; const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async (_i, init) => { seen.push(init?.headers as Record<string,string>); return ++calls === 1 ? response([encoder.encode('id: 8\ndata: {}\n\n')]) : new Response("", { status: 410 }); } });
+  await adapter.run(); const unavailable = await adapter.run({ reconnect: { maxAttempts: 2, delayMs: 0 } }); assert.deepEqual(unavailable, { ok: false, error: { code: "RESUME_UNAVAILABLE", status: 410, message: "Server cannot resume from the stored SSE event ID" } }); assert.equal(seen[1]?.["Last-Event-ID"], "8");
+});
+
+test("reference server assigns bounded sequential IDs and replays known gaps in order", async () => {
+  const cursors: Array<string | undefined> = []; const server = await startReferenceServer({ replayCapacity: 2, onStreamOpen: (_c, id) => { cursors.push(id); } });
+  const body = JSON.stringify({ metadata: { a2uiClientCapabilities: {} } }); const open = (id?: string) => fetch(server.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json", ...(id === undefined ? {} : { "Last-Event-ID": id }) }, body });
+  try {
+    assert.deepEqual(await server.sendA2UI({ n: 0 }), { ok: false, error: "NO_ACTIVE_STREAM" });
+    let stream = await open(); assert.equal(stream.status, 200); const one = await server.sendA2UI({ n: 1 }); const two = await server.sendA2UI({ n: 2 }); assert.ok(one.ok && two.ok); assert.deepEqual([one.eventId, two.eventId], ["1", "2"]); server.closeStream(); await stream.body?.cancel(); await waitFor(() => true);
+    const three = await server.sendA2UI({ n: 3 }); assert.deepEqual(three, { ok: true, eventId: "3", status: "buffered-for-resume" }); assert.equal(server.historySize(), 2);
+    stream = await open("1"); assert.equal(stream.status, 200); const reader = stream.body!.getReader(); const decoder = new TextDecoder(); let text = ""; while (!text.includes("id: 3")) { const read = await reader.read(); if (read.done) break; text += decoder.decode(read.value); } assert.ok(text.indexOf("id: 2") < text.indexOf("id: 3")); assert.deepEqual(cursors, [undefined, "1"]); server.closeStream(); await reader.cancel();
+    assert.equal((await open("0")).status, 410); assert.equal((await open("99")).status, 410); assert.equal((await open("bad")).status, 400);
+  } finally { await server.close(); }
+});
+
+test("automatic loopback resume replays a disconnected gap once and preserves ownership", async () => {
+  const cursors: Array<string | undefined> = []; const server = await startReferenceServer({ onStreamOpen: (_c, id) => { cursors.push(id); } }); const { runtime, session: transportSession } = integration();
+  const controller = new AbortController(); const adapter = createBrowserA2UIHttpSseTransport({ session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl }); const run = adapter.run({ signal: controller.signal, reconnect: { maxAttempts: 2, delayMs: 30 } });
+  try {
+    await waitFor(() => cursors.length === 1); await server.sendA2UI(createMessage("X")); await server.sendA2UI(componentsMessage("X")); await waitFor(() => runtime.getSurface("X")?.components.root !== undefined);
+    server.closeStream(); await new Promise(resolve => setTimeout(resolve, 5)); const gap = await server.sendA2UI(dataMessage("X", "resumed")); assert.ok(gap.ok); await waitFor(() => cursors.length === 2 && runtime.getSurface("X")?.dataModel !== undefined);
+    assert.deepEqual(cursors, [undefined, "2"]); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "resumed" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
+  } finally { controller.abort(); server.closeStream(); assert.deepEqual(await run, { ok: true, status: "aborted" }); await server.close(); }
 });
 
 test("reference server enforces endpoint methods, exact wrappers, limits, and one active stream", async () => {

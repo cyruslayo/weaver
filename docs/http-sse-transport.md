@@ -1,92 +1,53 @@
 # Weaver browser HTTP/SSE transport binding
 
-> **This is a Weaver transport binding.**
->
-> **It is not a normative A2UI v0.9.1 HTTP/SSE binding.**
+> **This is a Weaver transport binding. It is not a normative A2UI v0.9.1 HTTP/SSE binding.**
 
-`@weaver/web` provides `createBrowserA2UIHttpSseTransport`. One adapter instance represents one trusted host-assigned `routeId`, one stream endpoint, and one send endpoint. Multiple remote peers use separate adapters and may share an `A2UITransportSession`. The `routeId` is assigned by trusted host code and never appears in a body, query, or Weaver-created header on the remote wire. Endpoints likewise come only from factory configuration.
+`@weaver/web` provides `createBrowserA2UIHttpSseTransport`. One adapter represents one trusted host-assigned `routeId`, one stream endpoint, and one send endpoint. Routes never appear in a body, query, or Weaver-created remote header. An SSE event ID is only a replay cursor: it is not a route, surface, authentication, or session identity.
 
-## Stream request
+## Stream and resume
 
-```http
-POST <streamUrl>
-Accept: text/event-stream
-Content-Type: application/json
+The adapter opens `POST <streamUrl>` with `Accept: text/event-stream`, JSON content, and `{ "metadata": { "a2uiClientCapabilities": ... } }`. A successful response must be `text/event-stream` and have a body. UTF-8 SSE events are decoded incrementally and processed sequentially. Default, `message`, and `a2ui` events carry one A2UI JSON envelope; other event types are ignored. LF, CRLF, CR, comments, split boundaries, multiple `data` fields, and a bounded event size are supported. An incomplete event at EOF is discarded.
 
-{"metadata":{"a2uiClientCapabilities":{}}}
+The private decoder implements `id:`. NUL-containing ID fields are ignored, an empty ID resets the cursor, and an omitted ID preserves it. The adapter advances its cursor when the complete SSE event ends, before payload handling. Thus malformed JSON, ignored event types, empty-data events, A2UI validation failures, routing rejection, and failed automatic validation POSTs do not cause endless replay. An interrupted incomplete event does not advance it. `retry:` remains deliberately ignored, unlike native `EventSource`; reconnect pacing is client/host policy.
+
+A fresh adapter omits `Last-Event-ID`. Once its non-empty cursor advances, automatic reconnects and later manual `run()` calls send `Last-Event-ID: <cursor>`. An empty-ID reset makes later requests omit it. Cursor values are checked again for NUL, CR, and LF before request construction. A resumed request receiving `410 Gone` returns typed `RESUME_UNAVAILABLE`, retains the cursor, and never silently starts fresh. A host can deliberately create a fresh adapter or reload/reconcile application state.
+
+Using `Last-Event-ID` on POST is part of this Weaver-defined binding, not native `EventSource`. Cross-origin hosts must allow that request header in CORS configuration; Weaver configures no CORS behavior.
+
+## Reconnect policy
+
+`adapter.run()` retains its original default: EOF/failure returns, with no automatic reconnect. Reconnect is explicit and finite per run:
+
+```ts
+adapter.run({
+  signal,
+  reconnect: { maxAttempts: 3, delayMs: 1000 },
+});
 ```
 
-The capabilities value is the exact object returned by `session.getClientCapabilities()`. There is no empty message field. A successful response must have `Content-Type: text/event-stream` (parameters are allowed) and a streaming body.
+`maxAttempts` is a finite integer at least zero and counts all reconnect requests after the initial request. The budget does not reset when an intermediate stream opens; a later explicit `run()` receives a fresh budget. `delayMs` is finite and non-negative, defaults to 1000 ms, and is one fixed client-owned delay—there is no jitter, exponential backoff, network-status API, or server-controlled `retry:` timing. Waiting is abortable and cleans up its timer/listener.
 
-The response is incrementally decoded as UTF-8. One accepted SSE event data payload equals one A2UI server-to-client JSON envelope; JSONL is not nested inside SSE. Default events, `event: message`, and `event: a2ui` are accepted. Other event types, comments, empty events, unknown fields, `id`, and `retry` are ignored. LF, CRLF, CR, multiple `data` fields, and split byte/line boundaries are supported. An event requires a terminating blank line; an incomplete event at EOF is discarded.
+Clean established EOF, fetch/network failure, and stream-body read failure consume the bounded reconnect policy. Caller abort is final. HTTP 4xx/5xx, wrong MIME, and missing body are fatal and are not retried. Exhaustion returns `RECONNECT_EXHAUSTED` with the number of reconnect attempts and a safe last failure code. Abort during an active stream, delay, or reconnect request returns `aborted`. A reconnect remains part of the same active run, preserving the one-active-run rule.
 
-SSE events are processed sequentially through `session.processInbound(routeId, value)`. Recoverable malformed or oversized events produce host diagnostics and processing continues. The default event-data limit is 1 MiB. Routing/lifecycle failures remain host diagnostics. A standard validation failure prepared by the session is automatically sent through the same ordered client POST path.
+The same host-supplied `fetch` wrapper handles initial stream, reconnect stream, and client POST requests. It remains the authentication, credentials, CORS, and instrumentation boundary; Weaver neither inspects nor configures authorization.
 
-## Client message request
+## Client messages
 
-```http
-POST <sendUrl>
-Content-Type: application/json
-
-{
-  "message": { "version": "v0.9.1", "action": {} },
-  "metadata": {
-    "a2uiClientCapabilities": {},
-    "a2uiClientDataModel": {}
-  }
-}
-```
-
-`message` is the exact existing action or `VALIDATION_FAILED` object. Capabilities are included on every POST. `a2uiClientDataModel` is included only when the session-prepared routed delivery supplies it; otherwise the property is omitted. Client POSTs are serialized in call order, including automatic validation responses. A failed send does not prevent the next send.
-
-Typical Web interaction integration remains host-controlled:
-
-```text
-Web server event callback
-      ↓
-A2UITransportSession.prepareActionDelivery()
-      ↓
-matching adapter.sendDelivery()
-      ↓
-POST sendUrl
-```
-
-Local `functionCall` actions stay local under `ActionDispatcher` and never enter this adapter.
-
-## Failure and policy
-
-```text
-recoverable event error → diagnostic + continue
-fatal stream failure    → run returns
-send failure            → caller receives failure; no retry
-clean stream EOF         → closed
-caller abort             → aborted
-```
-
-Only one `run()` may be active per adapter. After it closes, aborts, or fails, the host may explicitly start a fresh run. Task 42 does not implement retry, `Last-Event-ID`, resume, or automatic reconnect, and SSE `id`/`retry` fields have no reconnection semantics. Stream termination does not alter session surface ownership.
-
-A host-supplied `fetch` wrapper is the authentication, CORS, credentials, and request-instrumentation policy boundary. Weaver does not inspect or configure tokens, cookies, browser storage, or authorization headers and does not authenticate peers.
+Actions and automatic standard validation responses use serialized `POST <sendUrl>` requests with exact `{ message, metadata }` wrappers. Capabilities are included every time; optional owner-routed `a2uiClientDataModel` is included only when supplied by the session. Failed sends do not stop later sends. Local function actions remain local. Disconnect/resume never mutates Core surface ownership or adds replay state to `A2UITransportSession`, `SurfaceStore`, or `DataModel`.
 
 ## Reference server
 
-`examples/http-sse-server/` contains a dependency-free Node reference peer and executable entry point. One reference-server instance equals one trusted remote peer, so no route, owner, client, connection, or session ID is added to either wire wrapper. It accepts exactly one active stream; a second receives `409 Conflict`, while closing the active response releases the slot for a later stream.
+`examples/http-sse-server/` is a dependency-free, loopback reference peer. Each successfully accepted `sendA2UI()` receives a unique monotonically increasing decimal event ID and emits:
 
-The stream endpoint is `POST /a2ui/stream`. It requires JSON content, `Accept: text/event-stream`, and the exact metadata-only wrapper shown above. It flushes these headers immediately and emits an inert initial comment before waiting for messages:
-
-```http
-HTTP/1.1 200 OK
-Content-Type: text/event-stream; charset=utf-8
-Cache-Control: no-cache
-
-: connected
-
+```text
 event: a2ui
-data: {"version":"v0.9.1","createSurface":{}}
+id: 17
+data: {...}
 
 ```
 
-Trusted reference code can send only a JSON-serialized value as one `event: a2ui`; there is no raw SSE API or JSON repair. JSON serialization failures, absent/closed streams, and write failures are controlled results. A write that reports backpressure waits for `drain`.
+After the first successful stream, events generated while disconnected are retained for resume. Before any successful stream, `sendA2UI()` still returns `NO_ACTIVE_STREAM`. History stores only event ID and serialized payload, defaults to 128 entries, drops oldest entries, is memory-only and non-persistent, and is private reference/test API. Replay is serialized with live writes and uses the same `write()`/`drain` backpressure handling.
 
-The receipt endpoint is `POST /a2ui/send`. It requires the exact `{message, metadata}` wrapper, capabilities, and only the optional `metadata.a2uiClientDataModel`; success is `204 No Content`. Both endpoints reject malformed JSON with `400`, limit request bodies to 1 MiB and return `413` when exceeded. Trusted callbacks observe defensive copies. A callback failure is contained and returns `500` before the stream is established or send receipt completes.
+No `Last-Event-ID` means a fresh stream with no old replay. A known cursor replays only later events; the latest cursor opens with no duplicates. Invalid decimal syntax returns 400. Expired, unknown, or ahead cursors return 410 because continuity cannot be proven. Replay occurs before live events.
 
-**The reference server is not a production security boundary.** It has no authentication, CORS policy, persistence, reconnect/resume, clustering, horizontal scaling, or more than one stream. It defaults to `127.0.0.1`. Real multi-user or multi-agent hosts must correlate the stream request, send requests, and authenticated peer/session in trusted server infrastructure; untrusted request-body fields must not establish identity. Cross-origin deployments must configure CORS in their host server; Weaver deliberately does not add a permissive policy.
+The helper is single-peer and not a production security boundary. It has no authentication, CORS policy, persistence, clustering, or durable session correlation. Process restart loses history. Reliable resume across restarts, multiple instances, and load balancing requires host-owned durable, session-correlated replay infrastructure. The small helper is not that solution.

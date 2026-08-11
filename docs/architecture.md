@@ -1176,7 +1176,21 @@ POST sendUrl
 
 Client POSTs, including automatic standard validation responses, share one
 call-order serialization boundary. Authentication and request policy belong to
-the host-supplied fetch wrapper. See [the Weaver HTTP/SSE binding](./http-sse-transport.md).
+the host-supplied fetch wrapper.
+
+Bounded resume remains entirely in the Web binding:
+
+```text
+SSE event id
+    ↓
+browser adapter replay cursor
+    ↓
+Last-Event-ID on POST stream request
+    ↓
+trusted remote stream
+```
+
+The cursor advances at completed-SSE-event semantics, is neither route nor surface identity, and never enters Core, `A2UITransportSession`, or surface ownership. Automatic reconnect is opt-in, finite, fixed-delay, and abortable. See [the Weaver HTTP/SSE binding](./http-sse-transport.md).
 
 Validation-failure mapping is deliberately narrower than generic runtime-error
 mapping. Protocol schema failures and catalog-governed component/theme failures

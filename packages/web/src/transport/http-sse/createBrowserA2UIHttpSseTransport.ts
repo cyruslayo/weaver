@@ -1,8 +1,10 @@
 import type { A2UIRoutedDelivery, MessageProcessorResult } from "@weaver/core";
 import { SseDecoder } from "./SseDecoder.js";
-import type { BrowserA2UIHttpSseDiagnostic, BrowserA2UIHttpSseRunResult, BrowserA2UIHttpSseSendResult, BrowserA2UIHttpSseTransport, BrowserA2UIHttpSseTransportOptions } from "./types.js";
+import type { BrowserA2UIHttpSseDiagnostic, BrowserA2UIHttpSseRunOptions, BrowserA2UIHttpSseRunResult, BrowserA2UIHttpSseSendResult, BrowserA2UIHttpSseTransport, BrowserA2UIHttpSseTransportOptions } from "./types.js";
 
 const DEFAULT_MAX_EVENT_BYTES = 1_048_576;
+const DEFAULT_RECONNECT_DELAY_MS = 1_000;
+type RetriableFailure = "STREAM_CLOSED" | "STREAM_FETCH_FAILED" | "STREAM_READ_FAILED";
 
 export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTransportOptions): BrowserA2UIHttpSseTransport {
   const limit = options.maxEventBytes ?? DEFAULT_MAX_EVENT_BYTES;
@@ -12,6 +14,7 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
   if (typeof fetchImpl !== "function") throw new TypeError("fetch is unavailable");
   let running = false;
   let sendTail: Promise<void> = Promise.resolve();
+  let lastEventId = "";
 
   const diagnostic = (value: BrowserA2UIHttpSseDiagnostic): void => { try { options.onDiagnostic?.(value); } catch { /* trusted callback is isolated */ } };
   const capabilities = () => structuredClone(options.session.getClientCapabilities());
@@ -25,9 +28,7 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
       const response = await fetchImpl(options.sendUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!response.ok) return { ok: false, error: { code: "SEND_HTTP_ERROR", status: response.status, message: `Send endpoint returned HTTP ${response.status}` } };
       return { ok: true };
-    } catch {
-      return { ok: false, error: { code: "SEND_FETCH_FAILED", message: "Send request failed" } };
-    }
+    } catch { return { ok: false, error: { code: "SEND_FETCH_FAILED", message: "Send request failed" } }; }
   }
 
   function sendDelivery(delivery: A2UIRoutedDelivery): Promise<BrowserA2UIHttpSseSendResult> {
@@ -53,30 +54,76 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
     if (!sent.ok) diagnostic({ code: "VALIDATION_DELIVERY_FAILED", message: `Validation delivery failed: ${sent.error.code}` });
   }
 
-  async function run(runOptions: { signal?: AbortSignal } = {}): Promise<BrowserA2UIHttpSseRunResult> {
+  async function openStream(signal: AbortSignal | undefined): Promise<BrowserA2UIHttpSseRunResult | RetriableFailure> {
+    const headers: Record<string, string> = { Accept: "text/event-stream", "Content-Type": "application/json" };
+    if (isHeaderSafeCursor(lastEventId) && lastEventId !== "") headers["Last-Event-ID"] = lastEventId;
+    let response: Response;
+    try {
+      response = await fetchImpl(options.streamUrl, { method: "POST", headers, body: JSON.stringify({ metadata: { a2uiClientCapabilities: capabilities() } }), ...(signal === undefined ? {} : { signal }) });
+    } catch { return signal?.aborted ? { ok: true, status: "aborted" } : "STREAM_FETCH_FAILED"; }
+    if (headers["Last-Event-ID"] !== undefined && response.status === 410) {
+      diagnostic({ code: "RESUME_UNAVAILABLE", message: "Server cannot resume from the stored SSE event ID" });
+      return { ok: false, error: { code: "RESUME_UNAVAILABLE", status: 410, message: "Server cannot resume from the stored SSE event ID" } };
+    }
+    if (!response.ok) return { ok: false, error: { code: "STREAM_HTTP_ERROR", status: response.status, message: `Stream endpoint returned HTTP ${response.status}` } };
+    const mime = response.headers.get("Content-Type")?.split(";", 1)[0]?.trim().toLowerCase();
+    if (mime !== "text/event-stream") return { ok: false, error: { code: "STREAM_CONTENT_TYPE_INVALID", message: "Stream response must be text/event-stream" } };
+    if (response.body === null) return { ok: false, error: { code: "STREAM_BODY_MISSING", message: "Stream response has no body" } };
+    const reader = response.body.getReader(); const text = new TextDecoder(); const decoder = new SseDecoder(limit);
+    try {
+      while (true) {
+        const read = await reader.read();
+        if (read.done) { decoder.finish(); return signal?.aborted ? { ok: true, status: "aborted" } : "STREAM_CLOSED"; }
+        const decoded = decoder.push(text.decode(read.value, { stream: true }));
+        for (let index = 0; index < decoded.oversized; index++) diagnostic({ code: "SSE_EVENT_TOO_LARGE", message: `SSE event exceeds ${limit} bytes` });
+        for (const event of decoded.events) {
+          lastEventId = event.lastEventId;
+          if (event.data !== "" && (event.type === undefined || event.type === "message" || event.type === "a2ui")) await processEvent(event.data);
+        }
+      }
+    } catch { return signal?.aborted ? { ok: true, status: "aborted" } : "STREAM_READ_FAILED"; }
+  }
+
+  async function run(runOptions: BrowserA2UIHttpSseRunOptions = {}): Promise<BrowserA2UIHttpSseRunResult> {
     if (running) return { ok: false, error: { code: "TRANSPORT_ALREADY_RUNNING", message: "Transport is already running" } };
+    const reconnect = validateReconnect(runOptions.reconnect);
     running = true;
     try {
       if (runOptions.signal?.aborted) return { ok: true, status: "aborted" };
-      let response: Response;
-      try {
-        response = await fetchImpl(options.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json" }, body: JSON.stringify({ metadata: { a2uiClientCapabilities: capabilities() } }), ...(runOptions.signal === undefined ? {} : { signal: runOptions.signal }) });
-      } catch { return runOptions.signal?.aborted ? { ok: true, status: "aborted" } : { ok: false, error: { code: "STREAM_FETCH_FAILED", message: "Stream request failed" } }; }
-      if (!response.ok) return { ok: false, error: { code: "STREAM_HTTP_ERROR", status: response.status, message: `Stream endpoint returned HTTP ${response.status}` } };
-      const mime = response.headers.get("Content-Type")?.split(";", 1)[0]?.trim().toLowerCase();
-      if (mime !== "text/event-stream") return { ok: false, error: { code: "STREAM_CONTENT_TYPE_INVALID", message: "Stream response must be text/event-stream" } };
-      if (response.body === null) return { ok: false, error: { code: "STREAM_BODY_MISSING", message: "Stream response has no body" } };
-      const reader = response.body.getReader(); const text = new TextDecoder(); const decoder = new SseDecoder(limit);
-      try {
-        while (true) {
-          const read = await reader.read();
-          if (read.done) { decoder.finish(); return runOptions.signal?.aborted ? { ok: true, status: "aborted" } : { ok: true, status: "closed" }; }
-          const decoded = decoder.push(text.decode(read.value, { stream: true }));
-          for (let index = 0; index < decoded.oversized; index++) diagnostic({ code: "SSE_EVENT_TOO_LARGE", message: `SSE event exceeds ${limit} bytes` });
-          for (const event of decoded.events) if (event.data !== "" && (event.type === undefined || event.type === "message" || event.type === "a2ui")) await processEvent(event.data);
+      let attempts = 0;
+      while (true) {
+        const result = await openStream(runOptions.signal);
+        if (typeof result !== "string") return result;
+        if (reconnect === undefined) {
+          if (result === "STREAM_CLOSED") return { ok: true, status: "closed" };
+          return { ok: false, error: { code: result, message: result === "STREAM_FETCH_FAILED" ? "Stream request failed" : "Stream read failed" } };
         }
-      } catch { return runOptions.signal?.aborted ? { ok: true, status: "aborted" } : { ok: false, error: { code: "STREAM_READ_FAILED", message: "Stream read failed" } }; }
+        if (attempts >= reconnect.maxAttempts) return { ok: false, error: { code: "RECONNECT_EXHAUSTED", message: "Reconnect attempt budget exhausted", attempts, lastFailureCode: result } };
+        diagnostic({ code: "RECONNECT_SCHEDULED", message: `Reconnect attempt ${attempts + 1} scheduled` });
+        if (!(await abortableDelay(reconnect.delayMs, runOptions.signal))) return { ok: true, status: "aborted" };
+        attempts += 1;
+        if (runOptions.signal?.aborted) return { ok: true, status: "aborted" };
+      }
     } finally { running = false; }
   }
   return Object.freeze({ run, sendDelivery });
+}
+
+function validateReconnect(value: BrowserA2UIHttpSseRunOptions["reconnect"]): { maxAttempts: number; delayMs: number } | undefined {
+  if (value === undefined) return undefined;
+  if (!Number.isFinite(value.maxAttempts) || !Number.isInteger(value.maxAttempts) || value.maxAttempts < 0) throw new RangeError("reconnect.maxAttempts must be a finite non-negative integer");
+  const delayMs = value.delayMs ?? DEFAULT_RECONNECT_DELAY_MS;
+  if (!Number.isFinite(delayMs) || delayMs < 0) throw new RangeError("reconnect.delayMs must be finite and non-negative");
+  return { maxAttempts: value.maxAttempts, delayMs };
+}
+function isHeaderSafeCursor(value: string): boolean { return !/[\0\r\n]/u.test(value); }
+function abortableDelay(delayMs: number, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(false);
+  return new Promise(resolve => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const done = (completed: boolean) => { if (timer !== undefined) clearTimeout(timer); signal?.removeEventListener("abort", abort); resolve(completed); };
+    const abort = () => done(false);
+    signal?.addEventListener("abort", abort, { once: true });
+    timer = setTimeout(() => done(true), delayMs);
+  });
 }
