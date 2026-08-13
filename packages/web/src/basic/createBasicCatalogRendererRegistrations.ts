@@ -12,7 +12,10 @@ import {
   renderText,
 } from "./renderers.js";
 import { createBasicIconRenderer, type BasicIconResolver } from "./icon.js";
-import { createBasicInputRenderers } from "./inputs.js";
+import {
+  createBasicInputRenderers,
+  type DateTimeInputLocalValueResolver,
+} from "./inputs.js";
 import { createBasicMediaRenderers, type BasicResourcePolicy } from "./media.js";
 
 export interface BasicCatalogRendererRegistrationOptions {
@@ -20,13 +23,15 @@ export interface BasicCatalogRendererRegistrationOptions {
   resourcePolicy?: BasicResourcePolicy;
   iconResolver?: BasicIconResolver;
   regexMatcher?: BasicRegexMatcher;
+  /** Resolves raw datetime-local values before any ECMAScript Date conversion. */
+  dateTimeInputLocalValueResolver?: DateTimeInputLocalValueResolver;
 }
 
 /** Creates the trusted, foundation-only A2UI Basic Catalog renderer allowlist. */
 export function createBasicCatalogRendererRegistrations(
   options: BasicCatalogRendererRegistrationOptions,
 ): RendererRegistration[] {
-  const inputs = createBasicInputRenderers(options.regexMatcher);
+  const inputs = createBasicInputRenderers(options.regexMatcher, options.dateTimeInputLocalValueResolver);
   const media = createBasicMediaRenderers(options.resourcePolicy);
   return [
     { catalogId: options.catalogId, component: "Text", render: renderText },

@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const artifact = "weaver-core-0.1.1.tgz";
+const artifact = "weaver-core-0.1.2.tgz";
 const run = (command, args, options = {}) => {
   const result = spawnSync(command, args, { encoding: "utf8", shell: process.platform === "win32", ...options });
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);

@@ -347,7 +347,7 @@ export class WebSurfaceRenderer {
 
     let node: unknown;
     try {
-      node = renderer({ document, catalogId, instance, properties: Object.freeze({ ...instance.properties }), relationships: Object.freeze(relationships), checks: checks.get(instanceIdentity), interactions });
+      node = renderer({ document, surfaceId, catalogId, instance, properties: Object.freeze({ ...instance.properties }), relationships: Object.freeze(relationships), checks: checks.get(instanceIdentity), interactions });
     } catch { return { ok: false, error: { code: "RENDERER_EXECUTION_FAILED", ...metadata } }; }
     if (!isNode(node, document)) return { ok: false, error: { code: "INVALID_RENDERER_RESULT", ...metadata } };
     return { ok: true, value: node };

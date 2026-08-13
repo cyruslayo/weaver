@@ -6,7 +6,23 @@ import { appendBasicStyle, applyBasicMargin, basicControl, basicOutline, basicRa
 type NativeControl = HTMLInputElement | HTMLTextAreaElement;
 type Option = { label?: unknown; value: string };
 
-export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Record<"TextField" | "CheckBox" | "Slider" | "ChoicePicker" | "DateTimeInput", WebComponentRenderer> {
+export interface DateTimeInputLocalValueRequest {
+  surfaceId: string;
+  sourceComponentId: string;
+  scopePath: string;
+  rawValue: string;
+  currentValue: string;
+}
+
+export type DateTimeInputLocalValueResult =
+  | { status: "accept"; value: string }
+  | { status: "reject"; message: string };
+
+export type DateTimeInputLocalValueResolver = (
+  request: DateTimeInputLocalValueRequest,
+) => DateTimeInputLocalValueResult;
+
+export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher, dateTimeInputLocalValueResolver?: DateTimeInputLocalValueResolver): Record<"TextField" | "CheckBox" | "Slider" | "ChoicePicker" | "DateTimeInput", WebComponentRenderer> {
   let opaqueId = 0;
   const nextId = (kind: string) => `weaver-basic-${kind}-${++opaqueId}`;
 
@@ -165,6 +181,32 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher): Rec
     interactions.registerControl(control, "value");
     applyValidation(document, wrapper, date || time ? [control] : [], input.checks, nextId);
     if (date || time) control.addEventListener("change", () => {
+      if (date && time && dateTimeInputLocalValueResolver !== undefined) {
+        if (input.surfaceId === undefined) {
+          control.setCustomValidity("Local date and time resolution failed.");
+          return;
+        }
+        let resolution: DateTimeInputLocalValueResult;
+        try {
+          resolution = dateTimeInputLocalValueResolver({
+            surfaceId: input.surfaceId,
+            sourceComponentId: input.instance.sourceComponentId,
+            scopePath: input.instance.scopePath,
+            rawValue: control.value,
+            currentValue: value,
+          });
+        } catch {
+          control.setCustomValidity("Local date and time resolution failed.");
+          return;
+        }
+        if (resolution.status === "reject") {
+          control.setCustomValidity(resolution.message);
+          return;
+        }
+        control.setCustomValidity("");
+        interactions.writeInput("value", resolution.value);
+        return;
+      }
       if (!control.value) { interactions.writeInput("value", ""); return; }
       if (date && time) { const iso = localToIso(control.value); if (iso !== undefined) interactions.writeInput("value", iso); }
       else interactions.writeInput("value", control.value);

@@ -329,6 +329,20 @@ DateTimeInput → string (ISO policy below)
 
 `TextField` uses text, textarea, number, and password controls. The number variant provides native numeric editing UX, but its A2UI model value and matcher input remain strings (unlike Slider). During IME composition, intermediate input events do not write; `compositionend` writes the final composed string once. The resulting DataModel notification drives the ordinary full rerender, so local regexp presentation is derived from the current hydrated value and preserves the existing focus/caret continuity behavior.
 
+For date-and-time controls, `createBasicCatalogRendererRegistrations` also accepts an optional synchronous `dateTimeInputLocalValueResolver`. Without it, the backward-compatible path remains `new Date(rawLocalValue).toISOString()`. With it, the host receives the native `datetime-local` value before any `Date` conversion, together with `surfaceId`, `sourceComponentId`, `scopePath`, and the current bound value. The host must explicitly accept with its selected canonical string or reject with a native validation message; rejection and resolver exceptions fail closed without a DataModel write. Date-only and time-only controls are unchanged.
+
+```ts
+createBasicCatalogRendererRegistrations({
+  catalogId,
+  dateTimeInputLocalValueResolver: ({ rawValue }) =>
+    rawValue === "2032-03-14T02:30"
+      ? { status: "reject", message: "Choose an existing local time." }
+      : { status: "accept", value: resolveInHost(rawValue) },
+});
+```
+
+Weaver deliberately defines no timezone or DST policy. Resolver identity is the protocol surface plus source component and scope path; it is stable while that component instance exists on the mounted surface. Hosts can discard tracked validation state through their existing surface unmount/deletion lifecycle. Resolver output remains host-selected client data, not trusted server authority: servers must validate received values independently. This seam prevents destructive client-side ambiguity; it does not replace server validation.
+
 `validationRegexp` is an optional TextField-local validation hint. Execution requires the host to pass a trusted `BasicRegexMatcher` explicitly to `createBasicCatalogRendererRegistrations`; hosts may share the same matcher with `createBasicCatalogFunctionImplementations`, but the factories are not linked. Weaver never executes agent patterns with JavaScript `RegExp`, never sets the native input `pattern` attribute, and does not write validation results to the model. Missing dynamic values are pending and are not matched; the empty string is matched. A missing matcher is exposed only as `data-a2ui-regexp-state="unavailable"` and does not alter ordinary Core presentation. Matcher exceptions and non-boolean results are errors, fail soft, and expose no host error text.
 
 Combined Web presentation uses `invalid > error > pending > valid`. A confirmed invalid control receives `aria-invalid=true`, visible validation text, and an `aria-describedby` association to every applicable opaque message ID; existing unrelated description tokens are preserved and deduplicated. Error, pending, and unavailable states do not claim confirmed invalidity. Failed Core messages remain visible in deterministic check order. A confirmed regexp mismatch additionally renders the renderer-owned text `Value does not match the required format.` and associates it with the TextField. This generic Weaver UI text is not an agent-authored `CheckRule` message. `validationRegexp` is Web presentation/input validation only. `CheckRule` remains Core validation and the authoritative action gate; business or security correctness that must block an action requires a real check or application/domain validation. A regexp mismatch alone does not produce `ACTION_BLOCKED_BY_CHECKS`.

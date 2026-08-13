@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@weaver/core':
-        specifier: file:./weaver-core-0.1.1.tgz
-        version: file:weaver-core-0.1.1.tgz
+        specifier: file:./weaver-core-0.1.2.tgz
+        version: file:weaver-core-0.1.2.tgz
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 0.8.71
@@ -687,9 +687,9 @@ packages:
   '@vitest/utils@3.2.7':
     resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
 
-  '@weaver/core@file:weaver-core-0.1.1.tgz':
-    resolution: {integrity: sha512-UH8UoScDzF5mdbmZD6jKNdHwtbQZpvGwYNdMpTASQH92y2EE6IXvtegh2WPmO0o+MD6hf6z3We6/g/fC2RvYYA==, tarball: file:weaver-core-0.1.1.tgz}
-    version: 0.1.1
+  '@weaver/core@file:weaver-core-0.1.2.tgz':
+    resolution: {integrity: sha512-SdBlMpUmJKZ/WjqAAec1T3B4hSgAUCV4FxD5u0wkhex5LxSbA7kLfTwSHcS40P5W0MThZDrK6W5/OnTY3ZtolQ==, tarball: file:weaver-core-0.1.2.tgz}
+    version: 0.1.2
 
   acorn-walk@8.3.2:
     resolution: {integrity: sha512-cjkyv4OtNCIeqhHrfS81QWXoCBPExR/J62oyEqepVw8WaQeSqpW2uhuLPh1m9eWhDuOo/jUXVTlifvesOWp/4A==}
@@ -1501,7 +1501,7 @@ snapshots:
       loupe: 3.2.1
       tinyrainbow: 2.0.0
 
-  '@weaver/core@file:weaver-core-0.1.1.tgz':
+  '@weaver/core@file:weaver-core-0.1.2.tgz':
     dependencies:
       '@cfworker/json-schema': 4.1.1
 

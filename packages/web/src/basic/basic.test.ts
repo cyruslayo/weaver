@@ -16,6 +16,7 @@ function setup(component: string, overrides: Partial<WebComponentRenderInput> = 
   assert.ok(registration);
   const input = {
     document,
+    surfaceId: "surface-test",
     catalogId: "test-basic",
     instance: { sourceComponentId: "root", component, scopePath: "/", definition: {}, properties: {}, relationships: [] },
     properties: {}, relationships: [],

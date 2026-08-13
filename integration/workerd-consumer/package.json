@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.15.0",
   "scripts": { "test": "vitest run" },
-  "dependencies": { "@weaver/core": "file:./weaver-core-0.1.1.tgz" },
+  "dependencies": { "@weaver/core": "file:./weaver-core-0.1.2.tgz" },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.8.71",
     "vitest": "3.2.7"

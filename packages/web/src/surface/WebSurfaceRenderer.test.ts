@@ -702,6 +702,70 @@ function interactiveRuntime(local?: () => void): WeaverRuntime {
   return made.value;
 }
 
+test("DateTimeInput default datetime and date-only writes remain backward compatible", () => {
+  const rt = runtime();
+  rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Row", children: ["datetime", "date"] },
+    { id: "datetime", component: "DateTimeInput", value: { path: "/datetime" }, enableDate: true, enableTime: true },
+    { id: "date", component: "DateTimeInput", value: { path: "/date" }, enableDate: true, enableTime: false },
+  ]));
+  rt.process(data({ datetime: "2032-08-16T19:00:00.000Z", date: "2032-08-15" }));
+  const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test" })); assert.ok(result.ok);
+  const controls = target.querySelectorAll<HTMLInputElement>("input");
+  controls[0]!.value = "2032-08-16T12:00"; dispatch(controls[0]!, "change");
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).datetime, new Date("2032-08-16T12:00").toISOString());
+  const currentDate = target.querySelectorAll<HTMLInputElement>("input")[1]!;
+  currentDate.value = "2032-08-15"; dispatch(currentDate, "change");
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).date, "2032-08-15");
+});
+
+test("DateTimeInput resolver exposes raw stable identity, rejects safely, and accepts exact host values", () => {
+  const rt = runtime();
+  rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Row", children: ["first", "second"] },
+    { id: "first", component: "DateTimeInput", value: { path: "/first" }, enableDate: true, enableTime: true },
+    { id: "second", component: "DateTimeInput", value: { path: "/second" }, enableDate: true, enableTime: true },
+  ]));
+  rt.process(data({ first: "2032-01-01T00:00:00.000Z", second: "2032-01-02T00:00:00.000Z" }));
+  const seen: Array<{ surfaceId: string; sourceComponentId: string; scopePath: string; rawValue: string; currentValue: string }> = [];
+  const decisions = new Map<string, { status: "accept"; value: string } | { status: "reject"; message: string }>();
+  const regs = createBasicCatalogRendererRegistrations({ catalogId: "test", dateTimeInputLocalValueResolver: (request) => {
+    seen.push(request); return decisions.get(request.sourceComponentId) ?? { status: "reject", message: "Choose an unambiguous time" };
+  } });
+  const { target, result } = mount(rt, regs); assert.ok(result.ok);
+  let controls = target.querySelectorAll<HTMLInputElement>("input");
+  controls[0]!.value = "2032-03-14T02:30"; dispatch(controls[0]!, "change");
+  assert.deepEqual(seen[0], { surfaceId: "s", sourceComponentId: "first", scopePath: "/", rawValue: "2032-03-14T02:30", currentValue: "2032-01-01T00:00:00.000Z" });
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).first, "2032-01-01T00:00:00.000Z");
+  assert.equal(controls[0]!.value, "2032-03-14T02:30"); assert.equal(controls[0]!.validationMessage, "Choose an unambiguous time");
+
+  controls[1]!.value = "2032-11-07T01:30"; dispatch(controls[1]!, "change");
+  assert.equal(seen[1]!.rawValue, "2032-11-07T01:30"); assert.equal(seen[1]!.sourceComponentId, "second");
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).second, "2032-01-02T00:00:00.000Z");
+
+  decisions.set("first", { status: "accept", value: "2032-11-07T08:30:00.000Z" });
+  controls[0]!.value = "2032-11-07T01:30"; dispatch(controls[0]!, "change");
+  assert.equal(controls[0]!.validationMessage, "");
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).first, "2032-11-07T08:30:00.000Z");
+
+  controls = target.querySelectorAll<HTMLInputElement>("input");
+  decisions.set("second", { status: "accept", value: "2032-11-07T09:30:00.000Z" });
+  controls[1]!.value = "2032-11-07T01:30"; dispatch(controls[1]!, "change");
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).second, "2032-11-07T09:30:00.000Z");
+});
+
+test("DateTimeInput resolver exceptions fail closed without default conversion", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([{ id: "root", component: "DateTimeInput", value: { path: "/value" }, enableDate: true, enableTime: true }]));
+  rt.process(data({ value: "2032-01-01T00:00:00.000Z" }));
+  const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test", dateTimeInputLocalValueResolver: () => { throw new Error("host failure"); } })); assert.ok(result.ok);
+  const control = target.querySelector("input")!; control.value = "2032-03-14T02:30"; dispatch(control, "change");
+  assert.equal((rt.getSurface("s")!.dataModel as JsonObject).value, "2032-01-01T00:00:00.000Z");
+  assert.equal(control.value, "2032-03-14T02:30"); assert.equal(control.validationMessage, "Local date and time resolution failed.");
+});
+
 function interactionRegistrations(results: unknown[] = []): RendererRegistration[] {
   return [
     { catalogId: "interactive", component: "Stack", render: ({ document, relationships }) => { const node = document.createElement("div"); const relation = relationships[0]; if (relation?.kind !== "single") node.append(...(relation?.children ?? [])); return node; } },

@@ -55,6 +55,8 @@ export type WebRenderedRelationship =
 
 export interface WebComponentRenderInput {
   document: Document;
+  /** Stable protocol surface identity supplied by WebSurfaceRenderer. Optional for source compatibility with direct renderer harnesses. */
+  surfaceId?: string;
   catalogId: string;
   instance: HydratedComponentInstance;
   properties: Readonly<Record<string, HydratedValue>>;
