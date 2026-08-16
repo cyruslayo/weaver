@@ -1,7 +1,11 @@
 # Prototype Notes
 
-The existing prototype is preserved in place as design input. No prototype
-implementation has been migrated into the new packages.
+The analysis in the sections before "Closure (Task 54)" documents the prototype
+as it existed before migration. Path references and future-tense statements
+there describe that historical state, not the current repository. Task 54
+removed the prototype source files.
+
+No prototype implementation has been migrated into the new packages.
 
 | Concept | Prototype files | Disposition |
 | --- | --- | --- |
@@ -64,12 +68,14 @@ The remaining observations do not select or implement renderer or MCP behavior.
 
 ## Closure (Task 54)
 
-The prototype source files were removed in Task 54. The verbatim snapshot of
-the prototype (including `App.ts`, `server.js`, `HANDOFF.md`, root
-`index.html`, `.env.example`, and the entire `frontend/` app with its
-`StreamingEngine` tests) remains preserved as historical design input in
+The prototype source files were removed in Task 54. A historical source
+snapshot containing the main prototype files (`App.ts`, `server.js`,
+`HANDOFF.md`, root `index.html`, `.env.example`, and the `frontend/` source,
+including its `StreamingEngine` tests) remains preserved as design input in
 [`references/zynra-backend-reference.txt`](references/zynra-backend-reference.txt).
-Git history additionally retains the original files.
+Commits preceding Task 54 retain the deleted prototype files, including paths
+missing from the snapshot (`frontend/.gitignore`, `frontend/public/favicon.svg`,
+and `frontend/public/icons.svg`).
 
 The concepts this document listed as "preserve" are realized in the current
 framework:
