@@ -67,6 +67,27 @@ test("reports malformed complete and final frames without throwing", () => {
   assert.deepEqual(decoder.finish(), [{ ok: false, error: { code: "INVALID_JSON", frame: 2 } }]);
 });
 
+test("rejects Markdown fences instead of stripping them", () => {
+  const decoder = new JsonlDecoder();
+  const events = decoder.push('```json\n{"ok":true}\n```\n');
+  assert.deepEqual(events, [
+    { ok: false, error: { code: "INVALID_JSON", frame: 1 } },
+    { ok: true, value: { ok: true }, frame: 2 },
+    { ok: false, error: { code: "INVALID_JSON", frame: 3 } },
+  ]);
+});
+
+test("rejects trailing commas and unescaped newlines instead of repairing them", () => {
+  const decoder = new JsonlDecoder();
+  assert.deepEqual(decoder.push('{"items":[1,2,],}\n'), [
+    { ok: false, error: { code: "INVALID_JSON", frame: 1 } },
+  ]);
+  assert.deepEqual(decoder.push('{"text":"a\nb"}\n'), [
+    { ok: false, error: { code: "INVALID_JSON", frame: 2 } },
+    { ok: false, error: { code: "INVALID_JSON", frame: 3 } },
+  ]);
+});
+
 test("empty and whitespace-only framed lines are invalid but trailing delimiter adds no frame", () => {
   const decoder = new JsonlDecoder();
   const events = decoder.push('{"n":1}\n\n   \n{"n":4}\n');

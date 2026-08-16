@@ -61,3 +61,27 @@ a second mutable nested tree, and the resolver does not implement DOM rendering,
 data binding, actions, or dynamic-list instances.
 
 The remaining observations do not select or implement renderer or MCP behavior.
+
+## Closure (Task 54)
+
+The prototype source files were removed in Task 54. The verbatim snapshot of
+the prototype (including `App.ts`, `server.js`, `HANDOFF.md`, root
+`index.html`, `.env.example`, and the entire `frontend/` app with its
+`StreamingEngine` tests) remains preserved as historical design input in
+[`references/zynra-backend-reference.txt`](references/zynra-backend-reference.txt).
+Git history additionally retains the original files.
+
+The concepts this document listed as "preserve" are realized in the current
+framework:
+
+| Prototype concept | Current realization |
+| --- | --- |
+| ComponentRegistry allowlist | `CatalogRegistry` in `@weaver/core` plus the trusted DOM `RendererRegistry` in `@weaver/web` |
+| StateActionBus state updates/subscriptions | `SurfaceStore`, `DataModel`, and `InputBindingWriter` in `@weaver/core` |
+| StreamingEngine incremental input | `JsonlDecoder` in `@weaver/core` (strict framing and parsing; no repair, no Markdown stripping) |
+| Browser action dispatch | `ActionDispatcher` in `@weaver/core` and the Web interaction bridge in `@weaver/web` |
+| Design token firewall | trusted `WebSurfaceThemeAdapter` allowlist in `@weaver/web` |
+
+Prototype protocol shapes (`beginRendering`, `surfaceUpdate`, `streamComplete`,
+bare `{ rootId, components }` payloads, and silent JSON repair) remain
+discarded, as this document originally required.
