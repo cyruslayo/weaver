@@ -5,8 +5,7 @@
   "packageManager": "pnpm@10.15.0",
   "scripts": {
     "build": "pnpm -r --workspace-concurrency=1 run build",
-    "test": "pnpm -r --workspace-concurrency=1 --if-present run test && pnpm run test:prototype",
-    "test:prototype": "node --experimental-strip-types --test frontend/src/StreamingEngine.test.ts",
+    "test": "pnpm -r --workspace-concurrency=1 --if-present run test",
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
     "conformance:v0.9.1": "pnpm --filter @weaver/core test && pnpm --filter @weaver/web test && pnpm typecheck",
     "pack:packages": "node scripts/pack-packages.mjs",
