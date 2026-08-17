@@ -1,7 +1,13 @@
 {
   "name": "@weaver/web",
   "version": "0.1.2",
+  "description": "Weaver browser renderer plus browser transport and policies",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyruslayo/weaver.git",
+    "directory": "packages/web"
+  },
   "files": [
     "dist",
     "!dist/**/*.test.*",

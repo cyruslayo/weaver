@@ -1,7 +1,16 @@
 {
   "name": "@weaver/mcp",
   "version": "0.1.2",
+  "description": "Weaver MCP A2UI bridge plus application capability helpers",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyruslayo/weaver.git",
+    "directory": "packages/mcp"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "files": [
     "dist",
     "!dist/**/*.test.*",

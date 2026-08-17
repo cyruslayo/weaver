@@ -17,10 +17,7 @@ const run = (command, args, options = {}) => {
   if (result.status !== 0) fail(`${command} ${args.join(" ")} failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
   return result.stdout;
 };
-const shellPath = (value) => process.platform === "win32"
-  ? value.replace(/^([A-Za-z]):[\\/]/, (_, drive) => `/${drive.toLowerCase()}/`).replaceAll("\\", "/")
-  : value;
-const tarList = (archive) => run("tar", ["-tzf", shellPath(archive)]).trim().split(/\r?\n/).sort();
+const tarList = (archive) => run("tar", ["-tzf", archive]).trim().split(/\r?\n/).sort();
 const dependencyValues = (manifest) => Object.values({
   ...manifest.dependencies,
   ...manifest.peerDependencies,
@@ -44,7 +41,7 @@ for (const spec of specs) {
 
   const extractDir = path.join(extractedRoot, spec.dir);
   await mkdir(extractDir);
-  run("tar", ["-xzf", shellPath(archive), "-C", shellPath(extractDir)]);
+  run("tar", ["-xzf", archive, "-C", extractDir]);
   const packageDir = path.join(extractDir, "package");
   const manifestText = await readFile(path.join(packageDir, "package.json"), "utf8");
   const manifest = JSON.parse(manifestText);
@@ -69,7 +66,7 @@ for (const spec of specs) {
   if (JSON.stringify(files) !== JSON.stringify(secondFiles)) fail(`${spec.file}: repack file list changed`);
   const secondExtract = path.join(temp, `second-${spec.dir}`);
   await mkdir(secondExtract);
-  run("tar", ["-xzf", shellPath(secondArchive), "-C", shellPath(secondExtract), "package/package.json"]);
+  run("tar", ["-xzf", secondArchive, "-C", secondExtract, "package/package.json"]);
   const secondManifest = await readFile(path.join(secondExtract, "package", "package.json"), "utf8");
   if (manifestText !== secondManifest) fail(`${spec.file}: repack manifest changed`);
 }
