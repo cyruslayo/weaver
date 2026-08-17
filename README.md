@@ -127,8 +127,10 @@ workflow and release gate.
 ## Minimal working example
 
 Weaver's trust model is explicit: the host registers every trusted A2UI catalog
-and renderer during initialization. There is no built-in catalog or
-"create an app" helper, so the quick-start is deliberately low-level.
+and renderer during initialization. `@weaver/core` bundles the canonical A2UI
+v0.9.1 Basic Catalog registration helper (`createBasicCatalogV091Registration`)
+for hosts that want the canonical catalog without hand-copying its schema;
+custom catalogs are registered the same low-level way.
 
 ### Core only (any platform)
 

@@ -53,7 +53,13 @@ test("production boundaries retain source-level security invariants", () => {
 test("package publication and dependency boundaries remain narrow", () => {
   for (const name of ["core", "web", "mcp"]) {
     const manifest = JSON.parse(readFileSync(new URL(`packages/${name}/package.json`, repoRoot), "utf8")) as { files?: string[]; exports?: Record<string, unknown>; dependencies?: Record<string, string> };
-    assert.deepEqual(manifest.files, ["dist", "!dist/**/*.test.*", "!dist/**/*.test-helper.*"]);
+    assert.equal(manifest.files?.[0], "dist");
+    assert.ok(manifest.files?.includes("!dist/**/*.test.*"));
+    assert.ok(manifest.files?.includes("!dist/**/*.test-helper.*"));
+    for (const entry of manifest.files ?? []) {
+      assert.equal(entry.startsWith("!dist/") || entry === "dist" || entry === "THIRD_PARTY_LICENSES.txt", true);
+      assert.doesNotMatch(entry, /^(?:src|tests?|fixtures|coverage)(\/|$)|(?:^|[\\/])(?:src|tests?|fixtures|coverage)(?:[\\/]|$)|tsconfig\.json$/i);
+    }
     assert.deepEqual(Object.keys(manifest.exports ?? {}), ["."]);
     for (const dependency of Object.keys(manifest.dependencies ?? {})) assert.doesNotMatch(dependency, /react|vue|sanitize|markdown|date|regex|css|express/i);
   }

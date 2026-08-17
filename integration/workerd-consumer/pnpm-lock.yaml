@@ -688,7 +688,7 @@ packages:
     resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
 
   '@weaver/core@file:weaver-core-0.1.2.tgz':
-    resolution: {integrity: sha512-SdBlMpUmJKZ/WjqAAec1T3B4hSgAUCV4FxD5u0wkhex5LxSbA7kLfTwSHcS40P5W0MThZDrK6W5/OnTY3ZtolQ==, tarball: file:weaver-core-0.1.2.tgz}
+    resolution: {integrity: sha512-hT/55E9HnZJ5SGrQOjKhpIfy3+V480XtZPP/lg2oDb4CTyurgyNXVo68iIB9utdyk0Z0vv8ZKJDfqnEqDJ6oiA==, tarball: file:weaver-core-0.1.2.tgz}
     version: 0.1.2
 
   acorn-walk@8.3.2:

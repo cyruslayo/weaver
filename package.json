@@ -8,6 +8,7 @@
     "test": "pnpm -r --workspace-concurrency=1 --if-present run test",
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
     "conformance:v0.9.1": "pnpm --filter @weaver/core test && pnpm --filter @weaver/web test && pnpm typecheck",
+    "check:generated": "node scripts/generate-basic-catalog.mjs --check",
     "pack:packages": "node scripts/pack-packages.mjs",
     "verify:packages": "pnpm build && pnpm pack:packages && node scripts/verify-packages.mjs",
     "verify:worker-core": "node scripts/verify-worker-core.mjs",

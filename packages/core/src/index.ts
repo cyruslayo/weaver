@@ -1,5 +1,6 @@
 export * from "./actions/index.js";
 export * from "./basic-functions/index.js";
+export * from "./basic-catalog/index.js";
 export * from "./catalog/index.js";
 export * from "./checks/index.js";
 export * from "./component-tree/index.js";

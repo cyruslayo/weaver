@@ -36,6 +36,7 @@ for (const spec of specs) {
   await stat(archive).catch(() => fail(`Missing artifact: ${spec.file}`));
   const files = tarList(archive);
   if (!files.includes("package/package.json") || !files.includes("package/dist/index.js") || !files.includes("package/dist/index.d.ts")) fail(`${spec.file}: required publication files missing`);
+  if (spec.dir === "core" && !files.includes("package/THIRD_PARTY_LICENSES.txt")) fail(`${spec.file}: required A2UI third-party license file missing`);
   const forbiddenFile = files.find((file) => /(^|\/)(src|tests?|fixtures|coverage|node_modules|docs\/references|playground)(\/|$)|\.test(?:-helper)?\.|pnpm-lock\.yaml|tsconfig\.json$/i.test(file));
   if (forbiddenFile) fail(`${spec.file}: unexpected file ${forbiddenFile}`);
 
