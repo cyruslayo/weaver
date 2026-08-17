@@ -1,7 +1,28 @@
 A2UI repository: a2ui-project/a2ui
 Commit: ec97cb0d7499932e67003ffe5b709a3db7e7033a
-Sources:
+Pinned upstream sources:
 - specification/v0_9_1/json/common_types.json
 - specification/v0_9_1/json/server_to_client.json
 - specification/v0_9_1/catalogs/basic/catalog.json
-Test-only exact copies. Not exported or copied to dist.
+
+Pinned exact upstream copies (used by conformance fixtures and by the Basic
+Catalog generator; these are not exported or copied to dist):
+- common_types.json
+- server_to_client.json
+- catalog.json
+
+Weaver-normalized production representation:
+- packages/core/src/basic-catalog/generated-basic-catalog.ts
+
+The production representation is generated from the pinned catalog.json and
+common_types.json by scripts/generate-basic-catalog.mjs. It is not an exact
+copy: Weaver inlines the upstream common_types resource and flattens the
+catalog component `allOf` composition into a single self-contained catalog
+document, rewriting absolute and local common-types references to
+`common_types.json#/$defs/...`. FunctionCall's function-contract restriction
+is preserved by rewriting the original cross-document
+`catalog.json#/$defs/anyFunction` reference to the generated nested
+`basic_functions.json#/$defs/anyFunction`, which contains the copied/normalized
+canonical Basic function contracts and anyFunction union. This normalization
+is required so CatalogRegistry can compile the canonical catalog through its
+existing self-contained-document reference handling without runtime fetching.

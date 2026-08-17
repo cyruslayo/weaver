@@ -1,41 +1,9 @@
-import { createWeaverRuntime, WEAVER_CORE_VERSION, type JsonObject } from "@weaver/core";
+import { A2UI_V091_BASIC_CATALOG_ID, createBasicCatalogV091Registration, createWeaverRuntime, WEAVER_CORE_VERSION } from "@weaver/core";
 import { createBasicCatalogRendererRegistrations, createBasicCatalogThemeAdapter, RendererRegistry, WebSurfaceRenderer } from "@weaver/web";
 
-const catalogId = "playground-basic";
-const ref = (name: string): JsonObject => ({ $ref: `common_types.json#/$defs/${name}` });
-const component = (name: string, properties: JsonObject, required: string[], allOf: JsonObject[] = []): JsonObject => ({
-  type: "object", ...(allOf.length > 0 ? { allOf } : {}),
-  properties: { id: { type: "string" }, component: { const: name }, weight: { type: "number" }, ...properties },
-  required: ["id", "component", ...required], additionalProperties: false,
-});
-const schema: JsonObject = {
-  $schema: "https://json-schema.org/draft/2020-12/schema", catalogId,
-  components: {
-    Text: component("Text", { text: ref("DynamicString"), variant: { enum: ["h1", "h2", "h3", "h4", "h5", "caption", "body"] } }, ["text"]),
-    Icon: component("Icon", { name: { oneOf: [{ enum: ["home", "search", "check", "close"] }, { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false }, ref("DataBinding")] } }, ["name"]),
-    Row: component("Row", { children: ref("ChildList"), justify: { enum: ["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch"] }, align: { enum: ["start", "center", "end", "stretch"] } }, ["children"]),
-    Column: component("Column", { children: ref("ChildList"), justify: { enum: ["start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch"] }, align: { enum: ["start", "center", "end", "stretch"] } }, ["children"]),
-    Card: component("Card", { child: ref("ComponentId") }, ["child"]),
-    Tabs: component("Tabs", { tabs: { type: "array", items: { type: "object", properties: { title: ref("DynamicString"), child: ref("ComponentId") }, required: ["title", "child"], additionalProperties: false } } }, ["tabs"]),
-    Modal: component("Modal", { trigger: ref("ComponentId"), content: ref("ComponentId") }, ["trigger", "content"]),
-    Button: component("Button", { child: ref("ComponentId"), variant: { enum: ["default", "primary", "borderless"] }, action: ref("Action"), checks: { type: "array" } }, ["child", "action"], [ref("Checkable")]),
-    TextField: component("TextField", { label: ref("DynamicString"), value: ref("DynamicString"), variant: { enum: ["shortText", "longText", "number", "obscured"] }, validationRegexp: { type: "string" }, checks: { type: "array" } }, ["label"], [ref("Checkable")]),
-    CheckBox: component("CheckBox", { label: ref("DynamicString"), value: ref("DynamicBoolean"), checks: { type: "array" } }, ["label", "value"], [ref("Checkable")]),
-    Slider: component("Slider", { label: ref("DynamicString"), min: { type: "number" }, max: { type: "number" }, value: ref("DynamicNumber"), checks: { type: "array" } }, ["max", "value"], [ref("Checkable")]),
-    ChoicePicker: component("ChoicePicker", { label: ref("DynamicString"), value: ref("DynamicStringList"), options: { type: "array", items: { type: "object", properties: { label: ref("DynamicString"), value: { type: "string" } }, required: ["label", "value"], additionalProperties: false } }, variant: { enum: ["mutuallyExclusive", "multipleSelection"] }, displayStyle: { enum: ["checkbox", "chips"] }, filterable: { type: "boolean" }, checks: { type: "array" } }, ["options", "value"], [ref("Checkable")]),
-  },
-  functions: {},
-  $defs: { theme: { type: "object", properties: { primaryColor: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" }, agentDisplayName: { type: "string" }, iconUrl: { type: "string" } }, additionalProperties: false }, commonTypes: { $id: "common_types.json", $defs: {
-    ComponentId: { type: "string" }, ChildList: { type: "array", items: ref("ComponentId") },
-    PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-    DataBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-    FunctionCall: { type: "object" }, DynamicString: { oneOf: [{ type: "string" }, ref("PathBinding"), ref("FunctionCall")] },
-    DynamicNumber: { oneOf: [{ type: "number" }, ref("PathBinding"), ref("FunctionCall")] }, DynamicBoolean: { oneOf: [{ type: "boolean" }, ref("PathBinding"), ref("FunctionCall")] }, DynamicStringList: { oneOf: [{ type: "array", items: { type: "string" } }, ref("PathBinding"), ref("FunctionCall")] }, Checkable: {},
-    Action: { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
-  } } },
-};
-
-const created = createWeaverRuntime({ catalogs: [{ catalogId, schema }] });
+const catalogId = A2UI_V091_BASIC_CATALOG_ID;
+const registration = createBasicCatalogV091Registration();
+const created = createWeaverRuntime({ catalogs: [registration] });
 if (!created.ok) throw new Error("Playground runtime configuration failed");
 const app = document.querySelector<HTMLElement>("#app");
 if (app === null) throw new Error("Playground root element was not found");
