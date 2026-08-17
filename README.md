@@ -82,8 +82,9 @@ Weaver is pre-1.0. The public API is evolving and should not be assumed stable.
   (`examples/http-sse-server/`) is a single-peer loopback test peer, not a
   production server.
 
-Runtime support declarations (Node version policy, and so on) are not yet
-established; this document does not claim any.
+Runtime support declarations are package-specific: `@weaver/mcp` requires
+Node >=20 (its pinned MCP runtime dependencies do), while `@weaver/core` and
+`@weaver/web` currently make no Node-version support declaration.
 
 ## Current consumption / install workflow
 
