@@ -103,13 +103,14 @@ artifacts/weaver-web-0.1.2.tgz
 artifacts/weaver-mcp-0.1.2.tgz
 ```
 
-An external application installs them by relative file path:
+An external application installs them by relative file path (shown with a
+placeholder for the Weaver checkout directory):
 
 ```json
 {
   "dependencies": {
-    "@weaver/core": "file:../weaver/artifacts/weaver-core-0.1.2.tgz",
-    "@weaver/web": "file:../weaver/artifacts/weaver-web-0.1.2.tgz"
+    "@weaver/core": "file:<path-to-weaver>/artifacts/weaver-core-0.1.2.tgz",
+    "@weaver/web": "file:<path-to-weaver>/artifacts/weaver-web-0.1.2.tgz"
   }
 }
 ```
@@ -131,11 +132,11 @@ and renderer during initialization. There is no built-in catalog or
 ### Core only (any platform)
 
 ```ts
-import { createWeaverRuntime } from "@weaver/core";
+import { createWeaverRuntime, type JsonObject } from "@weaver/core";
 
-// 1. Build a trusted A2UI v0.9.1 catalog JSON Schema (only a fragment shown).
+// 1. Build a minimal Text-only A2UI v0.9.1 catalog for this example.
 const catalogId = "basic";
-const schema = {
+const schema: JsonObject = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   catalogId,
   components: {
@@ -192,25 +193,74 @@ if (resolved.ok) console.log(resolved.value.tree);
 ### Web rendering (browser)
 
 ```ts
-import { createWeaverRuntime } from "@weaver/core";
+import { createWeaverRuntime, type JsonObject } from "@weaver/core";
 import {
   RendererRegistry,
   WebSurfaceRenderer,
   createBasicCatalogRendererRegistrations,
 } from "@weaver/web";
 
-// runtime created as above with a registered trusted catalog
-const runtime = created.value;
+// 1. Register the same minimal Text-only catalog as above.
+const catalogId = "basic";
+const schema: JsonObject = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  catalogId,
+  components: {
+    Text: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        component: { const: "Text" },
+        text: { $ref: "common_types.json#/$defs/DynamicString" },
+      },
+      required: ["id", "component", "text"],
+      additionalProperties: false,
+    },
+  },
+  functions: {},
+  $defs: {
+    theme: { type: "object", additionalProperties: false },
+    commonTypes: {
+      $id: "common_types.json",
+      $defs: {
+        DynamicString: {
+          oneOf: [
+            { type: "string" },
+            { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
+            { type: "object" },
+          ],
+        },
+      },
+    },
+  },
+};
 
-// The host opts into the trusted Basic Catalog renderer allowlist.
+// 2. Create the runtime and process the messages before mounting.
+const created = createWeaverRuntime({ catalogs: [{ catalogId, schema }] });
+if (!created.ok) throw new Error("runtime configuration failed");
+created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId } });
+created.value.process({
+  version: "v0.9.1",
+  updateComponents: {
+    surfaceId: "main",
+    components: [{ id: "root", component: "Text", text: "Hello from Weaver" }],
+  },
+});
+
+// 3. The host opts into the trusted Basic Catalog renderer allowlist.
 const renderers = new RendererRegistry(
   createBasicCatalogRendererRegistrations({ catalogId }),
 );
 
-const mount = new WebSurfaceRenderer({ runtime, renderers }).mount({
+// 4. Mount the existing surface.
+const mounted = new WebSurfaceRenderer({
+  runtime: created.value,
+  renderers,
+}).mount({
   surfaceId: "main",
   target: document.querySelector("#app")!,
 });
+if (!mounted.ok) throw new Error(`mount failed: ${mounted.error.code}`);
 ```
 
 `createBasicCatalogRendererRegistrations` returns an explicit allowlist of 18
