@@ -1,7 +1,13 @@
 {
   "name": "@weaver/core",
   "version": "0.1.2",
+  "description": "Weaver protocol, runtime, catalog, state, and action foundation",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cyruslayo/weaver.git",
+    "directory": "packages/core"
+  },
   "files": [
     "dist",
     "!dist/**/*.test.*",

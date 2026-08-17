@@ -74,6 +74,21 @@ pnpm verify:worker-core
 
 ## Versioning and publishing
 
-Core, Web, and MCP release together at one synchronized version. During `0.x`, intentional API evolution may occur; consumers should not assume pre-1.0 API stability beyond the declared compatible release line. Version bumps are deliberate manual updates across all three manifests until release frequency justifies automation.
+Core, Web, and MCP release together at one synchronized version. During `0.x`, version bumps remain deliberate manual updates across all three manifests; `WEAVER_CORE_VERSION` in `packages/core/src/index.ts` must be updated with each release version.
 
-Task 48 stops at verified local tarballs. Registry selection and publishing are later work; no registry account or credentials are required.
+The release gates above remain the readiness checks for any release:
+
+```sh
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm conformance:v0.9.1
+pnpm verify:packages
+pnpm verify:worker-core
+```
+
+No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced; CI belongs to Task 57.
+
+`@weaver/mcp` declares `engines.node >= 20` because its pinned MCP runtime dependencies (`@modelcontextprotocol/client`, `@modelcontextprotocol/server`) require it. Core and Web make no Node-version support declaration yet.
+
+A Weaver project-license decision is still required before the intended public release/publishing process. Task 56 does not select that license.
