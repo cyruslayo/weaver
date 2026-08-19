@@ -195,54 +195,30 @@ if (resolved.ok) console.log(resolved.value.tree);
 
 ### Web rendering (browser)
 
+The recommended canonical Basic Catalog path uses the high-level Web facade:
+
 ```ts
-import { createWeaverRuntime, type JsonObject } from "@weaver/core";
-import {
-  RendererRegistry,
-  WebSurfaceRenderer,
-  createBasicCatalogRendererRegistrations,
-} from "@weaver/web";
+import { createBasicWebRuntime } from "@weaver/web";
 
-// 1. Register the same minimal Text-only catalog as above.
-const catalogId = "basic";
-const schema: JsonObject = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  catalogId,
-  components: {
-    Text: {
-      type: "object",
-      properties: {
-        id: { type: "string" },
-        component: { const: "Text" },
-        text: { $ref: "common_types.json#/$defs/DynamicString" },
-      },
-      required: ["id", "component", "text"],
-      additionalProperties: false,
-    },
+const created = createBasicWebRuntime({
+  basic: {
+    // These are trusted host policies; omitted policies remain deny-by-default.
+    resourcePolicy: ({ url }) => url.startsWith("https://assets.example/") ? url : undefined,
+    iconResolver: ({ name }) => ({ home: "M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" }[name]),
+    regexMatcher: ({ value, pattern }) => pattern === "^[A-Za-z ]+$" && /^[A-Za-z ]+$/.test(value),
   },
-  functions: {},
-  $defs: {
-    theme: { type: "object", additionalProperties: false },
-    commonTypes: {
-      $id: "common_types.json",
-      $defs: {
-        DynamicString: {
-          oneOf: [
-            { type: "string" },
-            { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-            { type: "object" },
-          ],
-        },
-      },
-    },
+  rendering: {
+    attributionProvider: () => ({ displayName: "Trusted host" }),
   },
-};
+});
+if (!created.ok) throw new Error("Web runtime configuration failed");
 
-// 2. Create the runtime and process the messages before mounting.
-const created = createWeaverRuntime({ catalogs: [{ catalogId, schema }] });
-if (!created.ok) throw new Error("runtime configuration failed");
-created.value.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId } });
-created.value.process({
+const web = created.value;
+web.runtime.process({
+  version: "v0.9.1",
+  createSurface: { surfaceId: "main", catalogId: web.catalogId },
+});
+web.runtime.process({
   version: "v0.9.1",
   updateComponents: {
     surfaceId: "main",
@@ -250,27 +226,22 @@ created.value.process({
   },
 });
 
-// 3. The host opts into the trusted Basic Catalog renderer allowlist.
-const renderers = new RendererRegistry(
-  createBasicCatalogRendererRegistrations({ catalogId }),
-);
-
-// 4. Mount the existing surface.
-const mounted = new WebSurfaceRenderer({
-  runtime: created.value,
-  renderers,
-}).mount({
+const mounted = web.mount({
   surfaceId: "main",
   target: document.querySelector("#app")!,
 });
 if (!mounted.ok) throw new Error(`mount failed: ${mounted.error.code}`);
 ```
 
-`createBasicCatalogRendererRegistrations` returns an explicit allowlist of 18
-Basic Catalog renderers and accepts optional host-provided policies
-(`resourcePolicy`, `iconResolver`, `regexMatcher`,
-`dateTimeInputLocalValueResolver`). `RendererRegistry` accepts application
-renderers alongside them. See
+`createBasicWebRuntime` supplies the canonical Basic catalog registration, its
+18 trusted renderer registrations, and the safe Basic theme adapter. Media,
+icons, regex matching, custom datetime-local resolution, attribution, and all
+functions remain explicit host choices; built-in datetime-local compatibility
+conversion remains available, while no Basic functions or `openUrl` implementation is
+installed automatically. The facade does not create transports or network
+connections. Additional trusted catalogs and renderers can be supplied through
+its grouped options, while `RendererRegistry`, `WebSurfaceRenderer`, and the
+Basic factories remain public for advanced composition. See
 [docs/web-rendering.md](docs/web-rendering.md).
 
 The canonical runnable example is the
