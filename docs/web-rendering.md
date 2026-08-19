@@ -1,5 +1,45 @@
 # Web rendering
 
+## Recommended Basic Web facade
+
+For the canonical A2UI v0.9.1 Basic Catalog, browser hosts can use
+`createBasicWebRuntime` instead of composing the catalog, runtime, renderer
+registry, theme adapter, and surface renderer themselves:
+
+```ts
+import { createBasicWebRuntime } from "@weaver/web";
+
+const created = createBasicWebRuntime({
+  basic: { resourcePolicy, iconResolver, regexMatcher },
+  rendering: { attributionProvider, onServerEvent },
+});
+if (!created.ok) throw new Error("Web runtime configuration failed");
+
+const web = created.value;
+web.runtime.process({
+  version: "v0.9.1",
+  createSurface: { surfaceId: "main", catalogId: web.catalogId },
+});
+const mounted = web.mount({ surfaceId: "main", target: document.querySelector("#app")! });
+```
+
+The facade owns the canonical `A2UI_V091_BASIC_CATALOG_ID`, installs the
+canonical Basic catalog and renderer allowlist, and installs the existing
+allowlisted Basic theme adapter. `web.runtime` remains the authoritative Core
+processing and transport-integration seam. The facade does not expose its
+internal `RendererRegistry`, track mounts, or create transports.
+
+All security-sensitive policies remain explicit. Without a resource policy,
+agent media URLs remain denied; without an icon resolver, named icons have no
+host implementation; without a regex matcher, regex execution is unavailable;
+and without an attribution provider, raw theme identity claims remain inert.
+No Basic functions or Web `openUrl` implementation are installed implicitly.
+Caller-supplied additional catalogs and renderer registrations are trusted
+pass-through configuration and retain the existing exact-identity and
+no-fallback rules. Low-level `createWeaverRuntime`, `RendererRegistry`,
+`WebSurfaceRenderer`, and Basic factories remain public for advanced or custom
+composition.
+
 ## Pipeline
 
 ```text
@@ -329,7 +369,7 @@ DateTimeInput → string (ISO policy below)
 
 `TextField` uses text, textarea, number, and password controls. The number variant provides native numeric editing UX, but its A2UI model value and matcher input remain strings (unlike Slider). During IME composition, intermediate input events do not write; `compositionend` writes the final composed string once. The resulting DataModel notification drives the ordinary full rerender, so local regexp presentation is derived from the current hydrated value and preserves the existing focus/caret continuity behavior.
 
-For date-and-time controls, `createBasicCatalogRendererRegistrations` also accepts an optional synchronous `dateTimeInputLocalValueResolver`. Without it, the backward-compatible path remains `new Date(rawLocalValue).toISOString()`. With it, the host receives the native `datetime-local` value before any `Date` conversion, together with `surfaceId`, `sourceComponentId`, `scopePath`, and the current bound value. The host must explicitly accept with its selected canonical string or reject with a native validation message; rejection and resolver exceptions fail closed without a DataModel write. Date-only and time-only controls are unchanged.
+For date-and-time controls, `createBasicCatalogRendererRegistrations` also accepts an optional synchronous `dateTimeInputLocalValueResolver`; custom datetime-local resolution remains an explicit host choice. Without it, the built-in backward-compatible path remains `new Date(rawLocalValue).toISOString()`. With it, the host receives the native `datetime-local` value before any `Date` conversion, together with `surfaceId`, `sourceComponentId`, `scopePath`, and the current bound value. The host must explicitly accept with its selected canonical string or reject with a native validation message; rejection and resolver exceptions fail closed without a DataModel write. Date-only and time-only controls are unchanged.
 
 ```ts
 createBasicCatalogRendererRegistrations({

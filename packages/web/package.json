@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.json && node --test dist/basic/basic.test.js dist/basic-functions/openUrl.test.js dist/renderers/RendererRegistry.test.js dist/surface/WebSurfaceRenderer.test.js dist/transport/http-sse/http-sse.test.js",
+    "test": "tsc -p tsconfig.json && node --test dist/basic/basic.test.js dist/basic-functions/openUrl.test.js dist/basic-web-runtime/BasicWebRuntime.test.js dist/renderers/RendererRegistry.test.js dist/surface/WebSurfaceRenderer.test.js dist/transport/http-sse/http-sse.test.js",
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
   "peerDependencies": {
