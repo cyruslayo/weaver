@@ -222,7 +222,7 @@ test("automatic loopback resume replays a disconnected gap once and preserves ow
   const controller = new AbortController(); const adapter = createBrowserA2UIHttpSseTransport({ session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl }); const run = adapter.run({ signal: controller.signal, reconnect: { maxAttempts: 2, delayMs: 30 } });
   try {
     await waitFor(() => cursors.length === 1); await server.sendA2UI(createMessage("X")); await server.sendA2UI(componentsMessage("X")); await waitFor(() => runtime.getSurface("X")?.components.root !== undefined);
-    server.closeStream(); await new Promise(resolve => setTimeout(resolve, 5)); const gap = await server.sendA2UI(dataMessage("X", "resumed")); assert.ok(gap.ok); await waitFor(() => cursors.length === 2 && runtime.getSurface("X")?.dataModel !== undefined);
+    server.closeStream(); await new Promise(resolve => setTimeout(resolve, 5)); const gap = await server.sendA2UI(dataMessage("X", "resumed")); assert.ok(gap.ok); await waitFor(() => cursors.length === 2 && (runtime.getSurface("X")?.dataModel as JsonObject | undefined)?.["owner"] === "resumed");
     assert.deepEqual(cursors, [undefined, "2"]); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "resumed" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
   } finally { controller.abort(); server.closeStream(); assert.deepEqual(await run, { ok: true, status: "aborted" }); await server.close(); }
 });
