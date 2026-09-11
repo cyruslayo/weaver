@@ -1,4 +1,4 @@
-import { createA2UIV091Producer, WEAVER_CORE_VERSION, createWeaverRuntime, type WeaverRuntime } from "@weaver/core";
+import { createA2UIV091Producer, createA2UIV091StreamIngestion, WEAVER_CORE_VERSION, createWeaverRuntime, type A2UIV091StreamIngestionEvent, type WeaverRuntime } from "@weaver/core";
 import { RendererRegistry, createBasicWebRuntime, createBrowserA2UIHttpSseTransport, createBasicCatalogRendererRegistrations, type BasicWebRuntime, type BasicWebRuntimeConfig, type DateTimeInputLocalValueRequest, type DateTimeInputLocalValueResult } from "@weaver/web";
 import { createA2UIMcpClientBridge, registerMcpApplicationCapabilities } from "@weaver/mcp";
 
@@ -12,6 +12,12 @@ const producerMessages = [
 ];
 const runtimeFactory: typeof createWeaverRuntime = createWeaverRuntime;
 const runtimeType = null as WeaverRuntime | null;
+const streamIngestionFactory: typeof createA2UIV091StreamIngestion = createA2UIV091StreamIngestion;
+const streamIngestionEventType = null as A2UIV091StreamIngestionEvent | null;
+const emptyRuntime = createWeaverRuntime({ catalogs: [] });
+if (!emptyRuntime.ok) throw new Error("consumer runtime configuration failed");
+const streamIngestion = createA2UIV091StreamIngestion({ runtime: emptyRuntime.value });
+const streamEvents = streamIngestion.push("not-json\\n");
 const rendererRegistry = RendererRegistry;
 const basicWebRuntimeFactory: typeof createBasicWebRuntime = createBasicWebRuntime;
 const basicWebRuntimeType = null as BasicWebRuntime | null;
@@ -23,4 +29,4 @@ const applicationCapabilities = registerMcpApplicationCapabilities;
 const resolver = (request: DateTimeInputLocalValueRequest): DateTimeInputLocalValueResult => ({ status: "accept", value: request.rawValue });
 const basicRegistrations = createBasicCatalogRendererRegistrations({ catalogId: "basic", dateTimeInputLocalValueResolver: resolver });
 
-void [version, producerMessages, runtimeFactory, runtimeType, rendererRegistry, basicWebRuntimeFactory, basicWebRuntimeType, basicWebRuntimeConfigType, browserTransport, mcpBridge, applicationCapabilities, basicRegistrations];
+void [version, producerMessages, runtimeFactory, runtimeType, streamIngestionFactory, streamIngestionEventType, streamEvents, rendererRegistry, basicWebRuntimeFactory, basicWebRuntimeType, basicWebRuntimeConfigType, browserTransport, mcpBridge, applicationCapabilities, basicRegistrations];
