@@ -211,7 +211,11 @@ const schema: JsonObject = {
 };
 
 // 2. Create the runtime with the trusted catalog (returns { ok, value }).
-const created = createWeaverRuntime({ catalogs: [{ catalogId, schema }] });
+const created = createWeaverRuntime({
+  catalogs: [{ catalogId, schema }],
+  // Optional host safety policy; omitted values use finite defaults.
+  safety: { maxResolutionDepth: 32, maxResolvedInstances: 1000 },
+});
 if (!created.ok) throw new Error("runtime configuration failed");
 
 // 3. Process A2UI server messages.
@@ -230,6 +234,15 @@ created.value.process({
 const resolved = created.value.resolveSurface("main");
 if (resolved.ok) console.log(resolved.value.tree);
 ```
+
+Runtime resolution has finite host safety budgets. `maxResolutionDepth` counts
+root depth as 1; `maxResolvedInstances` bounds both structural node/reference
+work and materialized instances, including their roots. Each resolution gets fresh
+counters. Exceeding a budget returns a typed `RESOLUTION_BUDGET_EXCEEDED`
+policy error rather than a schema error, partial tree, or truncated prefix.
+Hosts may configure stricter positive safe-integer limits; invalid policy fails
+runtime creation. Core's JSON ownership and inspection paths are iterative, so
+deep non-structural JSON remains stack-safe without silently truncating data.
 
 ### Web rendering (browser)
 

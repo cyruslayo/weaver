@@ -1,7 +1,13 @@
-import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js";
+import type { A2UIComponent, JsonObject } from "../protocol/index.js";
+import { cloneJson } from "../data-model/clone.js";
 import type { CatalogRegistryError } from "./errors.js";
 import { A2UI_CATALOG_SCHEMA } from "./schema.js";
-import { isValidSchema, referencesResolve, SchemaValidator, type SchemaValidationIssue } from "./schema-validator.js";
+import {
+  isValidSchema,
+  referencesResolve,
+  SchemaValidator,
+  type SchemaValidationIssue,
+} from "./schema-validator.js";
 import type {
   BindableValueLocation,
   CatalogActionPropertiesResult,
@@ -36,7 +42,10 @@ interface RegisteredCatalog {
   functionValidators: ReadonlyMap<string, SchemaValidator>;
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
-  structureLocations: ReadonlyMap<string, readonly ComponentStructureLocation[]>;
+  structureLocations: ReadonlyMap<
+    string,
+    readonly ComponentStructureLocation[]
+  >;
   dynamicProperties: ReadonlyMap<string, readonly DynamicPropertyDefinition[]>;
   dynamicValueLocations: ReadonlyMap<string, readonly DynamicValueLocation[]>;
   bindableValueLocations: ReadonlyMap<string, readonly BindableValueLocation[]>;
@@ -68,19 +77,31 @@ const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
   "common_types.json#/$defs/DynamicStringList": "dynamicStringList",
 };
 
-const DYNAMIC_FUNCTION_ARGUMENT_REFS: Readonly<Record<string, DynamicPropertyKind | "dynamicValue">> = {
+const DYNAMIC_FUNCTION_ARGUMENT_REFS: Readonly<
+  Record<string, DynamicPropertyKind | "dynamicValue">
+> = {
   ...DYNAMIC_PROPERTY_REFS,
   "common_types.json#/$defs/DynamicValue": "dynamicValue",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString": "dynamicString",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber": "dynamicNumber",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean": "dynamicBoolean",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList": "dynamicStringList",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicValue": "dynamicValue",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicString": "dynamicString",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicNumber": "dynamicNumber",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicBoolean": "dynamicBoolean",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicStringList": "dynamicStringList",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicValue": "dynamicValue",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString":
+    "dynamicString",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber":
+    "dynamicNumber",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean":
+    "dynamicBoolean",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList":
+    "dynamicStringList",
+  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicValue":
+    "dynamicValue",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicString":
+    "dynamicString",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicNumber":
+    "dynamicNumber",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicBoolean":
+    "dynamicBoolean",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicStringList":
+    "dynamicStringList",
+  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicValue":
+    "dynamicValue",
   "#/$defs/DynamicString": "dynamicString",
   "#/$defs/DynamicNumber": "dynamicNumber",
   "#/$defs/DynamicBoolean": "dynamicBoolean",
@@ -88,34 +109,54 @@ const DYNAMIC_FUNCTION_ARGUMENT_REFS: Readonly<Record<string, DynamicPropertyKin
   "#/$defs/DynamicValue": "dynamicValue",
 };
 const FUNCTION_RETURN_TYPES: readonly CatalogFunctionReturnType[] = [
-  "string", "number", "boolean", "array", "object", "any", "void",
+  "string",
+  "number",
+  "boolean",
+  "array",
+  "object",
+  "any",
+  "void",
 ];
 
 function isPlainObject(value: unknown): value is JsonObject {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
-function functionArgumentDefinition(schema: JsonObject | undefined): CatalogFunctionArgumentDefinition {
+function functionArgumentDefinition(
+  schema: JsonObject | undefined,
+): CatalogFunctionArgumentDefinition {
   if (schema === undefined) return { kind: "dynamicValue" };
-  const reference = typeof schema.$ref === "string" ? DYNAMIC_FUNCTION_ARGUMENT_REFS[schema.$ref] : undefined;
+  const reference =
+    typeof schema.$ref === "string"
+      ? DYNAMIC_FUNCTION_ARGUMENT_REFS[schema.$ref]
+      : undefined;
   if (reference !== undefined) return { kind: reference };
 
   if (schema.type === "array" && isPlainObject(schema.items)) {
     const item = functionArgumentDefinition(schema.items);
-    if (item.kind === "dynamicValue" || item.kind === "dynamicString" || item.kind === "dynamicNumber" ||
-      item.kind === "dynamicBoolean" || item.kind === "dynamicStringList") {
+    if (
+      item.kind === "dynamicValue" ||
+      item.kind === "dynamicString" ||
+      item.kind === "dynamicNumber" ||
+      item.kind === "dynamicBoolean" ||
+      item.kind === "dynamicStringList"
+    ) {
       return { kind: "arrayOfDynamicValues" };
     }
   }
 
   if (schema.type === "object") {
-    const properties = isPlainObject(schema.properties) ? schema.properties : undefined;
+    const properties = isPlainObject(schema.properties)
+      ? schema.properties
+      : undefined;
     if (properties !== undefined) {
       const fields: Record<string, CatalogFunctionArgumentDefinition> = {};
       for (const [name, value] of Object.entries(properties)) {
-        if (isPlainObject(value)) fields[name] = functionArgumentDefinition(value);
+        if (isPlainObject(value))
+          fields[name] = functionArgumentDefinition(value);
       }
       return { kind: "literalObject", properties: fields };
     }
@@ -123,7 +164,12 @@ function functionArgumentDefinition(schema: JsonObject | undefined): CatalogFunc
   }
 
   // A schema without a type is the A2UI convention for an unrestricted dynamic value.
-  if (schema.type === undefined && schema.$ref === undefined && schema.oneOf === undefined && schema.anyOf === undefined) {
+  if (
+    schema.type === undefined &&
+    schema.$ref === undefined &&
+    schema.oneOf === undefined &&
+    schema.anyOf === undefined
+  ) {
     return { kind: "dynamicValue" };
   }
   return { kind: "literal" };
@@ -134,19 +180,33 @@ function discoverFunctionDefinition(
   name: string,
   functionSchema: JsonObject,
 ): CatalogFunctionDefinition | undefined {
-  const properties = isPlainObject(functionSchema.properties) ? functionSchema.properties : undefined;
-  const returnTypeSchema = properties !== undefined && isPlainObject(properties.returnType)
-    ? properties.returnType
+  const properties = isPlainObject(functionSchema.properties)
+    ? functionSchema.properties
     : undefined;
+  const returnTypeSchema =
+    properties !== undefined && isPlainObject(properties.returnType)
+      ? properties.returnType
+      : undefined;
   const returnType = returnTypeSchema?.const;
-  if (returnType !== undefined && (typeof returnType !== "string" || !FUNCTION_RETURN_TYPES.includes(returnType as CatalogFunctionReturnType))) {
+  if (
+    returnType !== undefined &&
+    (typeof returnType !== "string" ||
+      !FUNCTION_RETURN_TYPES.includes(returnType as CatalogFunctionReturnType))
+  ) {
     return undefined;
   }
-  const argsSchema = properties !== undefined && isPlainObject(properties.args) ? properties.args : undefined;
-  const argsProperties = argsSchema !== undefined && isPlainObject(argsSchema.properties) ? argsSchema.properties : undefined;
+  const argsSchema =
+    properties !== undefined && isPlainObject(properties.args)
+      ? properties.args
+      : undefined;
+  const argsProperties =
+    argsSchema !== undefined && isPlainObject(argsSchema.properties)
+      ? argsSchema.properties
+      : undefined;
   const args: Record<string, CatalogFunctionArgumentDefinition> = {};
   for (const [argName, schema] of Object.entries(argsProperties ?? {})) {
-    if (isPlainObject(schema)) args[argName] = functionArgumentDefinition(schema);
+    if (isPlainObject(schema))
+      args[argName] = functionArgumentDefinition(schema);
   }
   return {
     catalogId,
@@ -156,12 +216,16 @@ function discoverFunctionDefinition(
   };
 }
 
-function cloneFunctionDefinition(definition: CatalogFunctionDefinition): CatalogFunctionDefinition {
+function cloneFunctionDefinition(
+  definition: CatalogFunctionDefinition,
+): CatalogFunctionDefinition {
   const argumentsCopy: Record<string, CatalogFunctionArgumentDefinition> = {};
   for (const [name, argument] of Object.entries(definition.arguments)) {
     argumentsCopy[name] = {
       kind: argument.kind,
-      ...(argument.properties === undefined ? {} : { properties: cloneArgumentDefinitions(argument.properties) }),
+      ...(argument.properties === undefined
+        ? {}
+        : { properties: cloneArgumentDefinitions(argument.properties) }),
     };
   }
   return { ...definition, arguments: argumentsCopy };
@@ -174,48 +238,86 @@ function cloneArgumentDefinitions(
   for (const [name, definition] of Object.entries(definitions)) {
     result[name] = {
       kind: definition.kind,
-      ...(definition.properties === undefined ? {} : { properties: cloneArgumentDefinitions(definition.properties) }),
+      ...(definition.properties === undefined
+        ? {}
+        : { properties: cloneArgumentDefinitions(definition.properties) }),
     };
   }
   return result;
 }
 
-function discoverStructure(componentSchema: JsonObject): ComponentStructureDefinition {
-  const structure: ComponentStructureDefinition = { singleChildFields: [], childListFields: [] };
+function discoverStructure(
+  componentSchema: JsonObject,
+): ComponentStructureDefinition {
+  const structure: ComponentStructureDefinition = {
+    singleChildFields: [],
+    childListFields: [],
+  };
   const properties = componentSchema.properties;
-  if (properties === null || Array.isArray(properties) || typeof properties !== "object") return structure;
+  if (
+    properties === null ||
+    Array.isArray(properties) ||
+    typeof properties !== "object"
+  )
+    return structure;
 
   for (const [property, propertySchema] of Object.entries(properties)) {
-    if (propertySchema === null || Array.isArray(propertySchema) || typeof propertySchema !== "object") continue;
-    if (propertySchema.$ref === COMPONENT_ID_REF) structure.singleChildFields.push(property);
-    if (propertySchema.$ref === CHILD_LIST_REF) structure.childListFields.push(property);
+    if (
+      propertySchema === null ||
+      Array.isArray(propertySchema) ||
+      typeof propertySchema !== "object"
+    )
+      continue;
+    if (propertySchema.$ref === COMPONENT_ID_REF)
+      structure.singleChildFields.push(property);
+    if (propertySchema.$ref === CHILD_LIST_REF)
+      structure.childListFields.push(property);
   }
   return structure;
 }
 
-function discoverStructureLocations(componentSchema: JsonObject): ComponentStructureLocation[] {
+function discoverStructureLocations(
+  componentSchema: JsonObject,
+): ComponentStructureLocation[] {
   const locations: ComponentStructureLocation[] = [];
-  const visit = (schema: JsonObject, path: ComponentStructureLocationSegment[]): void => {
+  const visit = (
+    schema: JsonObject,
+    path: ComponentStructureLocationSegment[],
+  ): void => {
     if (schema.$ref === COMPONENT_ID_REF) {
-      locations.push({ path: path.map((segment) => ({ ...segment })), kind: "single" });
+      locations.push({
+        path: path.map((segment) => ({ ...segment })),
+        kind: "single",
+      });
       return;
     }
     if (schema.$ref === CHILD_LIST_REF) {
-      locations.push({ path: path.map((segment) => ({ ...segment })), kind: "list" });
+      locations.push({
+        path: path.map((segment) => ({ ...segment })),
+        kind: "list",
+      });
       return;
     }
     if (isPlainObject(schema.properties)) {
       for (const [name, child] of Object.entries(schema.properties)) {
-        if (isPlainObject(child)) visit(child, [...path, { kind: "property", name }]);
+        if (isPlainObject(child))
+          visit(child, [...path, { kind: "property", name }]);
       }
     }
-    if (isPlainObject(schema.items)) visit(schema.items, [...path, { kind: "arrayItems" }]);
+    if (isPlainObject(schema.items))
+      visit(schema.items, [...path, { kind: "arrayItems" }]);
   };
   visit(componentSchema, []);
   // Preserve the legacy direct traversal contract: all direct singles precede direct lists.
-  locations.sort((left, right) => left.path.length === 1 && right.path.length === 1
-    ? (left.kind === right.kind ? 0 : left.kind === "single" ? -1 : 1)
-    : 0);
+  locations.sort((left, right) =>
+    left.path.length === 1 && right.path.length === 1
+      ? left.kind === right.kind
+        ? 0
+        : left.kind === "single"
+          ? -1
+          : 1
+      : 0,
+  );
   return locations;
 }
 
@@ -223,18 +325,24 @@ function discoverActionProperties(componentSchema: JsonObject): string[] {
   const properties = componentSchema.properties;
   if (!isPlainObject(properties)) return [];
   return Object.entries(properties).flatMap(([property, schema]) =>
-    isPlainObject(schema) && schema.$ref === ACTION_REF ? [property] : []
+    isPlainObject(schema) && schema.$ref === ACTION_REF ? [property] : [],
   );
 }
 
 function isCheckable(componentSchema: JsonObject): boolean {
-  return Array.isArray(componentSchema.allOf) && componentSchema.allOf.some((entry) =>
-    isPlainObject(entry) && entry.$ref === CHECKABLE_REF
+  return (
+    Array.isArray(componentSchema.allOf) &&
+    componentSchema.allOf.some(
+      (entry) => isPlainObject(entry) && entry.$ref === CHECKABLE_REF,
+    )
   );
 }
 
 function dynamicKind(schema: JsonObject): DynamicPropertyKind | undefined {
-  const direct = typeof schema.$ref === "string" ? DYNAMIC_PROPERTY_REFS[schema.$ref] : undefined;
+  const direct =
+    typeof schema.$ref === "string"
+      ? DYNAMIC_PROPERTY_REFS[schema.$ref]
+      : undefined;
   if (direct !== undefined) return direct;
   if (!Array.isArray(schema.allOf)) return undefined;
   for (const member of schema.allOf) {
@@ -245,20 +353,30 @@ function dynamicKind(schema: JsonObject): DynamicPropertyKind | undefined {
   return undefined;
 }
 
-function discoverDynamicValueLocations(componentSchema: JsonObject): DynamicValueLocation[] {
+function discoverDynamicValueLocations(
+  componentSchema: JsonObject,
+): DynamicValueLocation[] {
   const locations: DynamicValueLocation[] = [];
-  const visit = (schema: JsonObject, path: DynamicValueLocationSegment[]): void => {
+  const visit = (
+    schema: JsonObject,
+    path: DynamicValueLocationSegment[],
+  ): void => {
     const valueKind = dynamicKind(schema);
     if (valueKind !== undefined) {
-      locations.push({ path: path.map((segment) => ({ ...segment })), valueKind });
+      locations.push({
+        path: path.map((segment) => ({ ...segment })),
+        valueKind,
+      });
       return;
     }
     if (isPlainObject(schema.properties)) {
       for (const [name, child] of Object.entries(schema.properties)) {
-        if (isPlainObject(child)) visit(child, [...path, { kind: "property", name }]);
+        if (isPlainObject(child))
+          visit(child, [...path, { kind: "property", name }]);
       }
     }
-    if (isPlainObject(schema.items)) visit(schema.items, [...path, { kind: "arrayItems" }]);
+    if (isPlainObject(schema.items))
+      visit(schema.items, [...path, { kind: "arrayItems" }]);
   };
   visit(componentSchema, []);
   return locations;
@@ -268,70 +386,101 @@ interface DiscoveredBindableValue extends BindableValueLocation {
   literalSchemas: JsonObject[];
 }
 
-function discoverBindableValues(componentSchema: JsonObject): DiscoveredBindableValue[] {
+function discoverBindableValues(
+  componentSchema: JsonObject,
+): DiscoveredBindableValue[] {
   const locations: DiscoveredBindableValue[] = [];
-  const visit = (schema: JsonObject, path: DynamicValueLocationSegment[]): void => {
+  const visit = (
+    schema: JsonObject,
+    path: DynamicValueLocationSegment[],
+  ): void => {
     if (Array.isArray(schema.oneOf)) {
       const branches = schema.oneOf.filter(isPlainObject);
-      const bindingBranches = branches.filter((branch) =>
-        typeof branch.$ref === "string" && DATA_BINDING_REFS.has(branch.$ref)
+      const bindingBranches = branches.filter(
+        (branch) =>
+          typeof branch.$ref === "string" && DATA_BINDING_REFS.has(branch.$ref),
       );
-      const hasFunctionCall = branches.some((branch) =>
-        typeof branch.$ref === "string" && FUNCTION_CALL_REFS.has(branch.$ref)
+      const hasFunctionCall = branches.some(
+        (branch) =>
+          typeof branch.$ref === "string" &&
+          FUNCTION_CALL_REFS.has(branch.$ref),
       );
-      if (branches.length === schema.oneOf.length && bindingBranches.length === 1 && !hasFunctionCall) {
+      if (
+        branches.length === schema.oneOf.length &&
+        bindingBranches.length === 1 &&
+        !hasFunctionCall
+      ) {
         locations.push({
           path: path.map((segment) => ({ ...segment })),
-          literalSchemas: branches.filter((branch) => branch !== bindingBranches[0]).map(cloneJson),
+          literalSchemas: branches
+            .filter((branch) => branch !== bindingBranches[0])
+            .map(cloneJson),
         });
         return;
       }
     }
     if (isPlainObject(schema.properties)) {
       for (const [name, child] of Object.entries(schema.properties)) {
-        if (isPlainObject(child)) visit(child, [...path, { kind: "property", name }]);
+        if (isPlainObject(child))
+          visit(child, [...path, { kind: "property", name }]);
       }
     }
-    if (isPlainObject(schema.items)) visit(schema.items, [...path, { kind: "arrayItems" }]);
+    if (isPlainObject(schema.items))
+      visit(schema.items, [...path, { kind: "arrayItems" }]);
   };
   visit(componentSchema, []);
   return locations.filter(({ literalSchemas }) => literalSchemas.length > 0);
 }
 
-function bindableLocationKey(path: readonly DynamicValueLocationSegment[]): string {
+function bindableLocationKey(
+  path: readonly DynamicValueLocationSegment[],
+): string {
   return JSON.stringify(path);
 }
 
-function discoverDynamicProperties(componentSchema: JsonObject): DynamicPropertyDefinition[] {
+function discoverDynamicProperties(
+  componentSchema: JsonObject,
+): DynamicPropertyDefinition[] {
   const definitions: DynamicPropertyDefinition[] = [];
   const properties = componentSchema.properties;
-  if (properties === null || Array.isArray(properties) || typeof properties !== "object") return definitions;
+  if (
+    properties === null ||
+    Array.isArray(properties) ||
+    typeof properties !== "object"
+  )
+    return definitions;
   for (const [property, propertySchema] of Object.entries(properties)) {
-    if (propertySchema === null || Array.isArray(propertySchema) || typeof propertySchema !== "object") continue;
-    const valueKind = typeof propertySchema.$ref === "string" ? DYNAMIC_PROPERTY_REFS[propertySchema.$ref] : undefined;
+    if (
+      propertySchema === null ||
+      Array.isArray(propertySchema) ||
+      typeof propertySchema !== "object"
+    )
+      continue;
+    const valueKind =
+      typeof propertySchema.$ref === "string"
+        ? DYNAMIC_PROPERTY_REFS[propertySchema.$ref]
+        : undefined;
     if (valueKind !== undefined) definitions.push({ property, valueKind });
   }
   return definitions;
 }
 
-function cloneJson<T extends JsonValue>(value: T): T {
-  if (value === null || typeof value !== "object") return value;
-  if (Array.isArray(value)) return value.map((entry) => cloneJson(entry)) as T;
-  const result: Record<string, JsonValue> = {};
-  for (const [key, entry] of Object.entries(value)) result[key] = cloneJson(entry);
-  return result as T;
-}
-
-function error(code: CatalogRegistryError["code"], catalogId: string, message: string): CatalogRegistryError {
+function error(
+  code: CatalogRegistryError["code"],
+  catalogId: string,
+  message: string,
+): CatalogRegistryError {
   return { code, catalogId, message };
 }
 
-function normalizeErrors(errors: readonly SchemaValidationIssue[]): CatalogValidationIssue[] {
-  return errors.map(({ path, message, keyword }) => ({ path, message, keyword }));
-}
-
-function escapeJsonPointer(value: string): string {
-  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+function normalizeErrors(
+  errors: readonly SchemaValidationIssue[],
+): CatalogValidationIssue[] {
+  return errors.map(({ path, message, keyword }) => ({
+    path,
+    message,
+    keyword,
+  }));
 }
 
 export class CatalogRegistry {
@@ -339,37 +488,82 @@ export class CatalogRegistry {
   readonly #catalogs = new Map<string, RegisteredCatalog>();
   #registrationSequence = 0;
 
-  register(registration: CatalogRegistration): CatalogRegistryResult<CatalogSnapshot> {
+  register(
+    registration: CatalogRegistration,
+  ): CatalogRegistryResult<CatalogSnapshot> {
     const { catalogId } = registration;
     if (this.#catalogs.has(catalogId)) {
-      return { ok: false, error: error("CATALOG_ALREADY_REGISTERED", catalogId, "Catalog is already registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_ALREADY_REGISTERED",
+          catalogId,
+          "Catalog is already registered",
+        ),
+      };
     }
 
     let schema: JsonObject;
     try {
       schema = cloneJson(registration.schema);
     } catch {
-      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog schema must be JSON data") };
+      return {
+        ok: false,
+        error: error(
+          "INVALID_CATALOG_SCHEMA",
+          catalogId,
+          "Catalog schema must be JSON data",
+        ),
+      };
     }
 
     const catalogShape = this.#validateCatalogShape.validate(schema);
     if (!catalogShape.valid || schema.catalogId !== catalogId) {
       const issues = normalizeErrors(catalogShape.issues);
       if (schema.catalogId !== catalogId) {
-        issues.push({ path: "/catalogId", message: "Must match the registration catalogId", keyword: "const" });
+        issues.push({
+          path: "/catalogId",
+          message: "Must match the registration catalogId",
+          keyword: "const",
+        });
       }
       return {
         ok: false,
-        error: { ...error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog schema is invalid"), issues },
+        error: {
+          ...error(
+            "INVALID_CATALOG_SCHEMA",
+            catalogId,
+            "Catalog schema is invalid",
+          ),
+          issues,
+        },
       };
     }
 
     const themeSchema = (schema.$defs as JsonObject | undefined)?.theme;
     if (themeSchema === undefined) {
-      return { ok: false, error: error("THEME_SCHEMA_NOT_FOUND", catalogId, "Catalog does not define $defs.theme") };
+      return {
+        ok: false,
+        error: error(
+          "THEME_SCHEMA_NOT_FOUND",
+          catalogId,
+          "Catalog does not define $defs.theme",
+        ),
+      };
     }
-    if (themeSchema === null || Array.isArray(themeSchema) || typeof themeSchema !== "object") {
-      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog theme schema is invalid") };
+    if (
+      themeSchema === null ||
+      Array.isArray(themeSchema) ||
+      typeof themeSchema !== "object"
+    ) {
+      return {
+        ok: false,
+        error: error(
+          "INVALID_CATALOG_SCHEMA",
+          catalogId,
+          "Catalog theme schema is invalid",
+        ),
+      };
     }
 
     const components = schema.components as JsonObject;
@@ -377,68 +571,136 @@ export class CatalogRegistry {
     const functionValidators = new Map<string, SchemaValidator>();
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
-    const structureLocations = new Map<string, readonly ComponentStructureLocation[]>();
-    const dynamicProperties = new Map<string, readonly DynamicPropertyDefinition[]>();
-    const dynamicValueLocations = new Map<string, readonly DynamicValueLocation[]>();
-    const bindableValueLocations = new Map<string, readonly BindableValueLocation[]>();
+    const structureLocations = new Map<
+      string,
+      readonly ComponentStructureLocation[]
+    >();
+    const dynamicProperties = new Map<
+      string,
+      readonly DynamicPropertyDefinition[]
+    >();
+    const dynamicValueLocations = new Map<
+      string,
+      readonly DynamicValueLocation[]
+    >();
+    const bindableValueLocations = new Map<
+      string,
+      readonly BindableValueLocation[]
+    >();
     const bindableValueValidators = new Map<string, SchemaValidator>();
     const actionProperties = new Map<string, readonly string[]>();
     const checkableComponents = new Set<string>();
     const functions = schema.functions === undefined ? {} : schema.functions;
     if (!isPlainObject(functions)) {
-      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog functions must be an object") };
+      return {
+        ok: false,
+        error: error(
+          "INVALID_CATALOG_SCHEMA",
+          catalogId,
+          "Catalog functions must be an object",
+        ),
+      };
     }
     let themeValidator: SchemaValidator;
     try {
-      for (const [componentName, componentSchema] of Object.entries(components)) {
-        if (componentSchema === null || Array.isArray(componentSchema) || typeof componentSchema !== "object") {
+      for (const [componentName, componentSchema] of Object.entries(
+        components,
+      )) {
+        if (
+          componentSchema === null ||
+          Array.isArray(componentSchema) ||
+          typeof componentSchema !== "object"
+        ) {
           throw new Error("invalid component schema");
         }
-        if (!isValidSchema(componentSchema)) throw new Error("invalid component schema");
+        if (!isValidSchema(componentSchema))
+          throw new Error("invalid component schema");
         structures.set(componentName, discoverStructure(componentSchema));
-        structureLocations.set(componentName, discoverStructureLocations(componentSchema));
-        dynamicProperties.set(componentName, discoverDynamicProperties(componentSchema));
-        dynamicValueLocations.set(componentName, discoverDynamicValueLocations(componentSchema));
+        structureLocations.set(
+          componentName,
+          discoverStructureLocations(componentSchema),
+        );
+        dynamicProperties.set(
+          componentName,
+          discoverDynamicProperties(componentSchema),
+        );
+        dynamicValueLocations.set(
+          componentName,
+          discoverDynamicValueLocations(componentSchema),
+        );
         const bindableValues = discoverBindableValues(componentSchema);
-        bindableValueLocations.set(componentName, bindableValues.map(({ path }) => ({ path })));
+        bindableValueLocations.set(
+          componentName,
+          bindableValues.map(({ path }) => ({ path })),
+        );
         for (const [index, bindable] of bindableValues.entries()) {
           const compilationSchema = cloneJson(schema);
           compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/bindable-${index}/catalog.json`;
-          (compilationSchema.$defs as JsonObject)[`weaverBindable${index}`] = { oneOf: bindable.literalSchemas };
+          (compilationSchema.$defs as JsonObject)[`weaverBindable${index}`] = {
+            oneOf: bindable.literalSchemas,
+          };
           compilationSchema.$ref = `#/$defs/weaverBindable${index}`;
-          if (!referencesResolve(compilationSchema)) throw new Error("unresolved schema reference");
-          bindableValueValidators.set(`${componentName}:${bindableLocationKey(bindable.path)}`, new SchemaValidator(compilationSchema));
+          if (!referencesResolve(compilationSchema))
+            throw new Error("unresolved schema reference");
+          bindableValueValidators.set(
+            `${componentName}:${bindableLocationKey(bindable.path)}`,
+            new SchemaValidator(compilationSchema),
+          );
         }
-        actionProperties.set(componentName, discoverActionProperties(componentSchema));
-        if (isCheckable(componentSchema)) checkableComponents.add(componentName);
+        actionProperties.set(
+          componentName,
+          discoverActionProperties(componentSchema),
+        );
+        if (isCheckable(componentSchema))
+          checkableComponents.add(componentName);
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
-        (compilationSchema.$defs as JsonObject).weaverComponent = cloneJson(componentSchema);
+        (compilationSchema.$defs as JsonObject).weaverComponent =
+          cloneJson(componentSchema);
         compilationSchema.$ref = "#/$defs/weaverComponent";
-        if (!referencesResolve(compilationSchema)) throw new Error("unresolved schema reference");
+        if (!referencesResolve(compilationSchema))
+          throw new Error("unresolved schema reference");
         validators.set(componentName, new SchemaValidator(compilationSchema));
       }
       for (const [functionName, functionSchema] of Object.entries(functions)) {
         if (!isPlainObject(functionSchema) || !isValidSchema(functionSchema)) {
           throw new Error("invalid function schema");
         }
-        const definition = discoverFunctionDefinition(catalogId, functionName, functionSchema);
-        if (definition === undefined) throw new Error("unsupported function return type");
+        const definition = discoverFunctionDefinition(
+          catalogId,
+          functionName,
+          functionSchema,
+        );
+        if (definition === undefined)
+          throw new Error("unsupported function return type");
         const compilationSchema = cloneJson(schema);
         compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(functionName)}/function.json`;
-        (compilationSchema.$defs as JsonObject).weaverFunction = cloneJson(functionSchema);
+        (compilationSchema.$defs as JsonObject).weaverFunction =
+          cloneJson(functionSchema);
         compilationSchema.$ref = "#/$defs/weaverFunction";
-        if (!referencesResolve(compilationSchema)) throw new Error("unresolved schema reference");
-        functionValidators.set(functionName, new SchemaValidator(compilationSchema));
+        if (!referencesResolve(compilationSchema))
+          throw new Error("unresolved schema reference");
+        functionValidators.set(
+          functionName,
+          new SchemaValidator(compilationSchema),
+        );
         functionDefinitions.set(functionName, definition);
       }
       const themeCompilationSchema = cloneJson(schema);
       themeCompilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/theme/catalog.json`;
       themeCompilationSchema.$ref = "#/$defs/theme";
-      if (!referencesResolve(themeCompilationSchema)) throw new Error("unresolved schema reference");
+      if (!referencesResolve(themeCompilationSchema))
+        throw new Error("unresolved schema reference");
       themeValidator = new SchemaValidator(themeCompilationSchema);
     } catch {
-      return { ok: false, error: error("INVALID_CATALOG_SCHEMA", catalogId, "Catalog schemas could not be compiled") };
+      return {
+        ok: false,
+        error: error(
+          "INVALID_CATALOG_SCHEMA",
+          catalogId,
+          "Catalog schemas could not be compiled",
+        ),
+      };
     }
 
     this.#registrationSequence += 1;
@@ -466,11 +728,16 @@ export class CatalogRegistry {
 
   get(catalogId: string): CatalogSnapshot | undefined {
     const catalog = this.#catalogs.get(catalogId);
-    return catalog === undefined ? undefined : { catalogId, schema: cloneJson(catalog.schema) };
+    return catalog === undefined
+      ? undefined
+      : { catalogId, schema: cloneJson(catalog.schema) };
   }
 
   list(): CatalogSnapshot[] {
-    return [...this.#catalogs].map(([catalogId, catalog]) => ({ catalogId, schema: cloneJson(catalog.schema) }));
+    return [...this.#catalogs].map(([catalogId, catalog]) => ({
+      catalogId,
+      schema: cloneJson(catalog.schema),
+    }));
   }
 
   getSupportedCatalogIds(): string[] {
@@ -478,25 +745,45 @@ export class CatalogRegistry {
   }
 
   hasFunction(catalogId: string, functionName: string): boolean {
-    return this.#catalogs.get(catalogId)?.functionValidators.has(functionName) ?? false;
+    return (
+      this.#catalogs.get(catalogId)?.functionValidators.has(functionName) ??
+      false
+    );
   }
 
   /** Detects only the direct standard A2UI Checkable allOf mixin reference. */
   isComponentCheckable(catalogId: string, componentName: string): boolean {
-    return this.#catalogs.get(catalogId)?.checkableComponents.has(componentName) ?? false;
+    return (
+      this.#catalogs.get(catalogId)?.checkableComponents.has(componentName) ??
+      false
+    );
   }
 
-  getFunctionDefinition(catalogId: string, functionName: string): CatalogFunctionDefinitionResult {
+  getFunctionDefinition(
+    catalogId: string,
+    functionName: string,
+  ): CatalogFunctionDefinitionResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const definition = catalog.functionDefinitions.get(functionName);
     if (definition === undefined) {
       return {
         ok: false,
         error: {
-          ...error("FUNCTION_NOT_ALLOWED", catalogId, "Function is not allowed by the catalog"),
+          ...error(
+            "FUNCTION_NOT_ALLOWED",
+            catalogId,
+            "Function is not allowed by the catalog",
+          ),
           functionName,
         },
       };
@@ -504,29 +791,57 @@ export class CatalogRegistry {
     return { ok: true, value: cloneFunctionDefinition(definition) };
   }
 
-  validateFunctionCall(catalogId: string, functionCall: unknown): CatalogFunctionValidationResult {
+  validateFunctionCall(
+    catalogId: string,
+    functionCall: unknown,
+  ): CatalogFunctionValidationResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
-    const functionName = isPlainObject(functionCall) && typeof functionCall.call === "string"
-      ? functionCall.call
-      : undefined;
-    if (functionName === undefined || !catalog.functionValidators.has(functionName)) {
+    const functionName =
+      isPlainObject(functionCall) && typeof functionCall.call === "string"
+        ? functionCall.call
+        : undefined;
+    if (
+      functionName === undefined ||
+      !catalog.functionValidators.has(functionName)
+    ) {
       return {
         ok: false,
         error: {
-          ...error("FUNCTION_NOT_ALLOWED", catalogId, "Function is not allowed by the catalog"),
+          ...error(
+            "FUNCTION_NOT_ALLOWED",
+            catalogId,
+            "Function is not allowed by the catalog",
+          ),
           ...(functionName === undefined ? {} : { functionName }),
         },
       };
     }
 
     const issues: CatalogValidationIssue[] = [];
-    if (!isPlainObject(functionCall) || !isPlainObject(functionCall.args) ||
+    if (
+      !isPlainObject(functionCall) ||
+      !isPlainObject(functionCall.args) ||
       ("returnType" in functionCall &&
-        (typeof functionCall.returnType !== "string" || !FUNCTION_RETURN_TYPES.includes(functionCall.returnType as CatalogFunctionReturnType)))) {
-      issues.push({ path: "/", message: "FunctionCall must contain a call name and object args", keyword: "type" });
+        (typeof functionCall.returnType !== "string" ||
+          !FUNCTION_RETURN_TYPES.includes(
+            functionCall.returnType as CatalogFunctionReturnType,
+          )))
+    ) {
+      issues.push({
+        path: "/",
+        message: "FunctionCall must contain a call name and object args",
+        keyword: "type",
+      });
     }
     const validator = catalog.functionValidators.get(functionName)!;
     if (issues.length === 0) {
@@ -537,7 +852,11 @@ export class CatalogRegistry {
       return {
         ok: false,
         error: {
-          ...error("FUNCTION_VALIDATION_FAILED", catalogId, "Function call does not satisfy the catalog schema"),
+          ...error(
+            "FUNCTION_VALIDATION_FAILED",
+            catalogId,
+            "Function call does not satisfy the catalog schema",
+          ),
           functionName,
           issues,
         },
@@ -546,17 +865,31 @@ export class CatalogRegistry {
     return { ok: true, value: functionCall };
   }
 
-  getComponentStructure(catalogId: string, componentName: string): CatalogComponentStructureResult {
+  getComponentStructure(
+    catalogId: string,
+    componentName: string,
+  ): CatalogComponentStructureResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const structure = catalog.structures.get(componentName);
     if (structure === undefined) {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component structural metadata is not available"),
+          ...error(
+            "COMPONENT_STRUCTURE_NOT_FOUND",
+            catalogId,
+            "Component structural metadata is not available",
+          ),
           component: componentName,
         },
       };
@@ -576,14 +909,25 @@ export class CatalogRegistry {
   ): CatalogComponentStructureLocationsResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const locations = catalog.structureLocations.get(componentName);
     if (locations === undefined) {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component structural metadata is not available"),
+          ...error(
+            "COMPONENT_STRUCTURE_NOT_FOUND",
+            catalogId,
+            "Component structural metadata is not available",
+          ),
           component: componentName,
         },
       };
@@ -597,35 +941,66 @@ export class CatalogRegistry {
     };
   }
 
-  getDynamicProperties(catalogId: string, componentName: string): CatalogDynamicPropertiesResult {
+  getDynamicProperties(
+    catalogId: string,
+    componentName: string,
+  ): CatalogDynamicPropertiesResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const definitions = catalog.dynamicProperties.get(componentName);
     if (definitions === undefined) {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component property metadata is not available"),
+          ...error(
+            "COMPONENT_STRUCTURE_NOT_FOUND",
+            catalogId,
+            "Component property metadata is not available",
+          ),
           component: componentName,
         },
       };
     }
-    return { ok: true, value: definitions.map((definition) => ({ ...definition })) };
+    return {
+      ok: true,
+      value: definitions.map((definition) => ({ ...definition })),
+    };
   }
 
-  getDynamicValueLocations(catalogId: string, componentName: string): CatalogDynamicValueLocationsResult {
+  getDynamicValueLocations(
+    catalogId: string,
+    componentName: string,
+  ): CatalogDynamicValueLocationsResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const locations = catalog.dynamicValueLocations.get(componentName);
     if (locations === undefined) {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component property metadata is not available"),
+          ...error(
+            "COMPONENT_STRUCTURE_NOT_FOUND",
+            catalogId,
+            "Component property metadata is not available",
+          ),
           component: componentName,
         },
       };
@@ -639,34 +1014,82 @@ export class CatalogRegistry {
     };
   }
 
-  getBindableValueLocations(catalogId: string, componentName: string): CatalogBindableValueLocationsResult {
+  getBindableValueLocations(
+    catalogId: string,
+    componentName: string,
+  ): CatalogBindableValueLocationsResult {
     const catalog = this.#catalogs.get(catalogId);
-    if (catalog === undefined) return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+    if (catalog === undefined)
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     const locations = catalog.bindableValueLocations.get(componentName);
-    if (locations === undefined) return { ok: false, error: { ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component property metadata is not available"), component: componentName } };
-    return { ok: true, value: locations.map(({ path }) => ({ path: path.map((segment) => ({ ...segment })) })) };
+    if (locations === undefined)
+      return {
+        ok: false,
+        error: {
+          ...error(
+            "COMPONENT_STRUCTURE_NOT_FOUND",
+            catalogId,
+            "Component property metadata is not available",
+          ),
+          component: componentName,
+        },
+      };
+    return {
+      ok: true,
+      value: locations.map(({ path }) => ({
+        path: path.map((segment) => ({ ...segment })),
+      })),
+    };
   }
 
   /** Validates a hydrated bindable value without exposing the private schema validator. */
-  validateBindableValue(catalogId: string, componentName: string, location: BindableValueLocation, value: unknown): boolean {
-    const validator = this.#catalogs.get(catalogId)?.bindableValueValidators.get(
-      `${componentName}:${bindableLocationKey(location.path)}`,
-    );
+  validateBindableValue(
+    catalogId: string,
+    componentName: string,
+    location: BindableValueLocation,
+    value: unknown,
+  ): boolean {
+    const validator = this.#catalogs
+      .get(catalogId)
+      ?.bindableValueValidators.get(
+        `${componentName}:${bindableLocationKey(location.path)}`,
+      );
     return validator?.validate(value).valid ?? false;
   }
 
   /** Detects only direct common_types.json#/$defs/Action property references. */
-  getActionProperties(catalogId: string, componentName: string): CatalogActionPropertiesResult {
+  getActionProperties(
+    catalogId: string,
+    componentName: string,
+  ): CatalogActionPropertiesResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const properties = catalog.actionProperties.get(componentName);
     if (properties === undefined) {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_STRUCTURE_NOT_FOUND", catalogId, "Component action metadata is not available"),
+          ...error(
+            "COMPONENT_STRUCTURE_NOT_FOUND",
+            catalogId,
+            "Component action metadata is not available",
+          ),
           component: componentName,
         },
       };
@@ -674,17 +1097,31 @@ export class CatalogRegistry {
     return { ok: true, value: [...properties] };
   }
 
-  validateTheme(catalogId: string, theme: JsonObject): CatalogThemeValidationResult {
+  validateTheme(
+    catalogId: string,
+    theme: JsonObject,
+  ): CatalogThemeValidationResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
     const validation = catalog.themeValidator.validate(theme);
     if (!validation.valid) {
       return {
         ok: false,
         error: {
-          ...error("THEME_VALIDATION_FAILED", catalogId, "Theme does not satisfy the catalog schema"),
+          ...error(
+            "THEME_VALIDATION_FAILED",
+            catalogId,
+            "Theme does not satisfy the catalog schema",
+          ),
           issues: normalizeErrors(validation.issues),
         },
       };
@@ -692,10 +1129,20 @@ export class CatalogRegistry {
     return { ok: true, value: theme };
   }
 
-  validateComponent(catalogId: string, component: A2UIComponent): CatalogComponentValidationResult {
+  validateComponent(
+    catalogId: string,
+    component: A2UIComponent,
+  ): CatalogComponentValidationResult {
     const catalog = this.#catalogs.get(catalogId);
     if (catalog === undefined) {
-      return { ok: false, error: error("CATALOG_NOT_FOUND", catalogId, "Catalog is not registered") };
+      return {
+        ok: false,
+        error: error(
+          "CATALOG_NOT_FOUND",
+          catalogId,
+          "Catalog is not registered",
+        ),
+      };
     }
 
     const validator = catalog.validators.get(component.component);
@@ -703,7 +1150,11 @@ export class CatalogRegistry {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_NOT_ALLOWED", catalogId, "Component type is not allowed by the catalog"),
+          ...error(
+            "COMPONENT_NOT_ALLOWED",
+            catalogId,
+            "Component type is not allowed by the catalog",
+          ),
           componentId: component.id,
           component: component.component,
         },
@@ -717,7 +1168,11 @@ export class CatalogRegistry {
       return {
         ok: false,
         error: {
-          ...error("COMPONENT_VALIDATION_FAILED", catalogId, "Component does not satisfy the catalog schema"),
+          ...error(
+            "COMPONENT_VALIDATION_FAILED",
+            catalogId,
+            "Component does not satisfy the catalog schema",
+          ),
           componentId,
           component: componentName,
           issues: normalizeErrors(validation.issues),

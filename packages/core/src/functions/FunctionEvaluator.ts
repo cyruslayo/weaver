@@ -27,24 +27,59 @@ type InternalResult<T> =
   | { ok: false; error: FunctionEvaluationError };
 
 function isPlainObject(value: unknown): value is JsonObject {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
-function isJsonSafe(value: unknown, ancestors = new Set<object>()): value is JsonValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+function isJsonSafe(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return true;
   if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object" || ancestors.has(value)) return false;
-  ancestors.add(value);
-  const safe = Array.isArray(value)
-    ? Object.keys(value).length === value.length && value.every((entry) => isJsonSafe(entry, ancestors))
-    : isPlainObject(value) && Object.values(value).every((entry) => isJsonSafe(entry, ancestors));
-  ancestors.delete(value);
-  return safe;
+  if (typeof value !== "object") return false;
+  const active = new Set<object>();
+  const stack: (
+    | { value: unknown; exit: false }
+    | { value: object; exit: true }
+  )[] = [{ value, exit: false }];
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    if (frame.exit) {
+      active.delete(frame.value);
+      continue;
+    }
+    const current = frame.value;
+    if (
+      current === null ||
+      typeof current === "string" ||
+      typeof current === "boolean"
+    )
+      continue;
+    if (typeof current === "number") {
+      if (!Number.isFinite(current)) return false;
+      continue;
+    }
+    if (typeof current !== "object" || active.has(current)) return false;
+    if (Array.isArray(current)) {
+      if (Object.keys(current).length !== current.length) return false;
+    } else if (!isPlainObject(current)) return false;
+    active.add(current);
+    stack.push({ value: current, exit: true });
+    if (Array.isArray(current))
+      for (const entry of current) stack.push({ value: entry, exit: false });
+    else
+      for (const entry of Object.values(current))
+        stack.push({ value: entry, exit: false });
+  }
+  return true;
 }
 
-function defensiveValue(value: unknown, catalogId: string, functionName: string): InternalResult<unknown> {
+function defensiveValue(
+  value: unknown,
+  catalogId: string,
+  functionName: string,
+): InternalResult<unknown> {
   if (value === undefined) return { ok: true, value: undefined };
   if (!isJsonSafe(value)) {
     return {
@@ -64,21 +99,32 @@ function actualType(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
   if (Array.isArray(value)) return "array";
-  if (typeof value === "number" && !Number.isFinite(value)) return "non-finite number";
-  if (typeof value === "object" && !isPlainObject(value)) return "class instance";
+  if (typeof value === "number" && !Number.isFinite(value))
+    return "non-finite number";
+  if (typeof value === "object" && !isPlainObject(value))
+    return "class instance";
   return typeof value;
 }
 
-function validReturnValue(value: unknown, expected: FunctionReturnType): boolean {
+function validReturnValue(
+  value: unknown,
+  expected: FunctionReturnType,
+): boolean {
   if (expected === "void") return value === undefined;
   if (!isJsonSafe(value)) return false;
   switch (expected) {
-    case "string": return typeof value === "string";
-    case "number": return typeof value === "number" && Number.isFinite(value);
-    case "boolean": return typeof value === "boolean";
-    case "array": return Array.isArray(value);
-    case "object": return isPlainObject(value);
-    case "any": return true;
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "boolean":
+      return typeof value === "boolean";
+    case "array":
+      return Array.isArray(value);
+    case "object":
+      return isPlainObject(value);
+    case "any":
+      return true;
   }
 }
 
@@ -113,9 +159,10 @@ export class FunctionEvaluator {
   ) {
     this.#catalogs = catalogs;
     this.#functions = functions;
-    this.#maxDepth = Number.isSafeInteger(options.maxDepth) && (options.maxDepth ?? 0) > 0
-      ? options.maxDepth!
-      : MAX_DEFAULT_DEPTH;
+    this.#maxDepth =
+      Number.isSafeInteger(options.maxDepth) && (options.maxDepth ?? 0) > 0
+        ? options.maxDepth!
+        : MAX_DEFAULT_DEPTH;
   }
 
   evaluate(
@@ -152,7 +199,13 @@ export class FunctionEvaluator {
           code: "FUNCTION_VALIDATION_FAILED",
           message: "Function call validation failed",
           catalogId,
-          issues: [{ path: "/", message: "Unable to inspect FunctionCall", keyword: "type" }],
+          issues: [
+            {
+              path: "/",
+              message: "Unable to inspect FunctionCall",
+              keyword: "type",
+            },
+          ],
         },
       };
     }
@@ -165,7 +218,9 @@ export class FunctionEvaluator {
           message: "Validated value is not a FunctionCall",
           catalogId,
           functionName: "",
-          issues: [{ path: "/", message: "Expected FunctionCall", keyword: "type" }],
+          issues: [
+            { path: "/", message: "Expected FunctionCall", keyword: "type" },
+          ],
         },
       };
     }
@@ -183,10 +238,17 @@ export class FunctionEvaluator {
     }
 
     const functionName = call.call;
-    const definitionResult = this.#catalogs.getFunctionDefinition(catalogId, functionName);
-    if (!definitionResult.ok) return { ok: false, error: definitionResult.error };
+    const definitionResult = this.#catalogs.getFunctionDefinition(
+      catalogId,
+      functionName,
+    );
+    if (!definitionResult.ok)
+      return { ok: false, error: definitionResult.error };
     const definition = definitionResult.value;
-    const registration = this.#functions.getRegistration(catalogId, functionName);
+    const registration = this.#functions.getRegistration(
+      catalogId,
+      functionName,
+    );
     if (registration === undefined) {
       return {
         ok: false,
@@ -203,7 +265,8 @@ export class FunctionEvaluator {
         ok: false,
         error: {
           code: "FUNCTION_EFFECT_NOT_ALLOWED",
-          message: "Action-effect functions may execute only as a direct local-action root",
+          message:
+            "Action-effect functions may execute only as a direct local-action root",
           catalogId,
           functionName,
         },
@@ -229,12 +292,16 @@ export class FunctionEvaluator {
       const context: FunctionExecutionContext = {
         catalogId,
         dataContext,
-        evaluateFunctionCall: (nestedCall) => this.#evaluate(catalogId, nestedCall, dataContext, depth + 1, false),
-        propagateFunctionFailure: (error) => { throw new RecursiveFunctionFailure(error); },
+        evaluateFunctionCall: (nestedCall) =>
+          this.#evaluate(catalogId, nestedCall, dataContext, depth + 1, false),
+        propagateFunctionFailure: (error) => {
+          throw new RecursiveFunctionFailure(error);
+        },
       };
       result = registration.implementation(resolvedArgs, context);
     } catch (cause) {
-      if (cause instanceof RecursiveFunctionFailure) return { ok: false, error: cause.error };
+      if (cause instanceof RecursiveFunctionFailure)
+        return { ok: false, error: cause.error };
       return {
         ok: false,
         error: {
@@ -251,7 +318,8 @@ export class FunctionEvaluator {
         ok: false,
         error: {
           code: "FUNCTION_RETURN_TYPE_MISMATCH",
-          message: "Function implementation returned a value outside its catalog contract",
+          message:
+            "Function implementation returned a value outside its catalog contract",
           catalogId,
           functionName,
           expected: definition.returnType,
@@ -259,7 +327,10 @@ export class FunctionEvaluator {
         },
       };
     }
-    return { ok: true, value: result === undefined ? undefined : cloneJson(result as JsonValue) };
+    return {
+      ok: true,
+      value: result === undefined ? undefined : cloneJson(result as JsonValue),
+    };
   }
 
   #resolveArgument(
@@ -271,10 +342,18 @@ export class FunctionEvaluator {
     depth: number,
   ): InternalResult<unknown> {
     if (definition.kind === "arrayOfDynamicValues") {
-      if (!Array.isArray(value)) return defensiveValue(value, catalogId, functionName);
+      if (!Array.isArray(value))
+        return defensiveValue(value, catalogId, functionName);
       const values: unknown[] = [];
       for (const entry of value) {
-        const resolved = this.#resolveArgument(catalogId, functionName, entry, { kind: "dynamicValue" }, dataContext, depth);
+        const resolved = this.#resolveArgument(
+          catalogId,
+          functionName,
+          entry,
+          { kind: "dynamicValue" },
+          dataContext,
+          depth,
+        );
         if (!resolved.ok) return resolved;
         values.push(resolved.value);
       }
@@ -282,28 +361,48 @@ export class FunctionEvaluator {
     }
 
     if (definition.kind === "literalObject") {
-      if (!isPlainObject(value)) return defensiveValue(value, catalogId, functionName);
+      if (!isPlainObject(value))
+        return defensiveValue(value, catalogId, functionName);
       const fields: Record<string, unknown> = {};
       for (const [name, entry] of Object.entries(value)) {
         const fieldDefinition = definition.properties?.[name];
-        const resolved = fieldDefinition === undefined
-          ? defensiveValue(entry, catalogId, functionName)
-          : this.#resolveArgument(catalogId, functionName, entry, fieldDefinition, dataContext, depth);
+        const resolved =
+          fieldDefinition === undefined
+            ? defensiveValue(entry, catalogId, functionName)
+            : this.#resolveArgument(
+                catalogId,
+                functionName,
+                entry,
+                fieldDefinition,
+                dataContext,
+                depth,
+              );
         if (!resolved.ok) return resolved;
         fields[name] = resolved.value;
       }
       return { ok: true, value: fields };
     }
 
-    if (definition.kind === "dynamicValue" || definition.kind === "dynamicString" ||
-      definition.kind === "dynamicNumber" || definition.kind === "dynamicBoolean" ||
-      definition.kind === "dynamicStringList") {
+    if (
+      definition.kind === "dynamicValue" ||
+      definition.kind === "dynamicString" ||
+      definition.kind === "dynamicNumber" ||
+      definition.kind === "dynamicBoolean" ||
+      definition.kind === "dynamicStringList"
+    ) {
       if (isDataPathBinding(value)) {
         const resolved = dataContext.resolveBinding(value);
-        if (!resolved.ok) return argumentError(catalogId, functionName, "Data binding could not be resolved", resolved.error);
+        if (!resolved.ok)
+          return argumentError(
+            catalogId,
+            functionName,
+            "Data binding could not be resolved",
+            resolved.error,
+          );
         return defensiveValue(resolved.value, catalogId, functionName);
       }
-      if (isFunctionCall(value)) return this.#evaluate(catalogId, value, dataContext, depth + 1, false);
+      if (isFunctionCall(value))
+        return this.#evaluate(catalogId, value, dataContext, depth + 1, false);
     }
 
     return defensiveValue(value, catalogId, functionName);
