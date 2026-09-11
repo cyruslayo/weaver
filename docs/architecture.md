@@ -145,10 +145,16 @@ future transport adapter
 text chunks
       |
       v
+A2UIV091StreamIngestion
+      |
+      v
 JsonlDecoder
       |
       v
 unknown JSON values
+      |
+      v
+WeaverRuntime.process
       |
       v
 A2UIMessageProcessor
@@ -160,9 +166,13 @@ SurfaceStore
 `JsonlDecoder` owns framing and strict JSON parsing only. It accepts incremental
 JavaScript strings, supports LF and CRLF boundaries, and applies a configurable
 per-frame character limit. It does not validate or repair A2UI. The
+`A2UIV091StreamIngestion` adapter composes that decoder with the existing
+`WeaverRuntime.process()` boundary and preserves typed decode, protocol, catalog,
+and lifecycle results. It does not own runtime state or reset surfaces. The
 `A2UIMessageProcessor` owns protocol validation and dispatch, while
 `SurfaceStore` owns runtime state. Network transports and byte-to-text decoding
-remain pending; future adapters will supply text chunks to this boundary.
+remain separate; provider or transport adapters supply text chunks to stream
+ingestion.
 
 The processor owns the boundary between structural and lifecycle failures:
 

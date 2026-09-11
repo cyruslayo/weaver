@@ -152,6 +152,24 @@ const messages = [
 
 The producer constructs caller-owned A2UI v0.9.1 JSON and checks the protocol envelope. Invalid JSON-like caller values fail with `TypeError`; the producer never repairs them. It does not call a model, validate a trusted catalog, manage runtime lifecycle, authorize application actions, or make model output trusted. Application/provider code owns model selection and text extraction; a transport or runtime then processes the produced messages.
 
+### Validated streamed ingestion
+
+For untrusted provider text, use the Core stream-ingestion API with an existing runtime:
+
+```ts
+import { createA2UIV091StreamIngestion } from "@weaver/core";
+
+const ingestion = createA2UIV091StreamIngestion({ runtime });
+for (const textDelta of providerTextDeltas) {
+  for (const event of ingestion.push(textDelta)) {
+    if (!event.ok) console.error(event.frame, event.error.code);
+  }
+}
+ingestion.finish();
+```
+
+The application/provider owns the model stream and text extraction. Weaver owns strict JSONL framing and canonical runtime processing; it does not repair JSON, strip Markdown, retry output, call a model, or authorize actions. See [validated A2UI stream ingestion](docs/a2ui-stream-ingestion.md).
+
 ### Core only (any platform)
 
 ```ts
