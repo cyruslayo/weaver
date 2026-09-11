@@ -85,6 +85,30 @@ prefer `v0.9.1`. Validation preserves the version supplied on the wire. The
 canonical requirement and gap tracker is
 [`conformance-v0.9.1.md`](conformance-v0.9.1.md).
 
+Application backends can use `createA2UIV091Producer` from `@weaver/core` to
+construct the supported `createSurface`, `updateComponents`,
+`updateDataModel`, and `deleteSurface` messages. The producer owns the returned
+JSON and checks the generic protocol envelope, but deliberately does not check
+trusted catalog schemas, runtime lifecycle state, model output, or application
+authorization. A typical application path is:
+
+```text
+application/agent code
+      |
+      v
+A2UI v0.9.1 producer
+      |
+      v
+transport or stream adapter
+      |
+      v
+WeaverRuntime.process
+```
+
+The producer is construction only: it does not call a model or make untrusted
+model output safe. Invalid JSON-like caller values throw `TypeError` rather than
+being repaired. Core remains transport-neutral and provider-neutral.
+
 `@weaver/core` provides one safe runtime entry point for untrusted A2UI
 objects:
 
