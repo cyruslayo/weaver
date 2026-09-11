@@ -132,6 +132,26 @@ v0.9.1 Basic Catalog registration helper (`createBasicCatalogV091Registration`)
 for hosts that want the canonical catalog without hand-copying its schema;
 custom catalogs are registered the same low-level way.
 
+### Producing A2UI messages
+
+Application code can use the version-explicit producer for the common server-message lifecycle instead of repeating the wire version and envelope keys:
+
+```ts
+import { createA2UIV091Producer } from "@weaver/core";
+
+const producer = createA2UIV091Producer();
+const messages = [
+  producer.createSurface({ surfaceId: "main", catalogId: "my-catalog" }),
+  producer.updateComponents({
+    surfaceId: "main",
+    components: [{ id: "root", component: "Text", text: "Hello" }],
+  }),
+  producer.updateDataModel({ surfaceId: "main", path: "/name", value: "Ada" }),
+];
+```
+
+The producer constructs caller-owned A2UI v0.9.1 JSON and checks the protocol envelope. Invalid JSON-like caller values fail with `TypeError`; the producer never repairs them. It does not call a model, validate a trusted catalog, manage runtime lifecycle, authorize application actions, or make model output trusted. Application/provider code owns model selection and text extraction; a transport or runtime then processes the produced messages.
+
 ### Core only (any platform)
 
 ```ts
