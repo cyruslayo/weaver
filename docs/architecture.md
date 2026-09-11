@@ -577,6 +577,38 @@ lists. A missing root is successful progressive state (`ready: false`). Missing
 children and cycles are non-fatal issues; missing catalog or component structural
 metadata is fatal.
 
+Runtime composition applies a finite host safety policy to the derived stages.
+The defaults are `maxResolutionDepth = 32` and `maxResolvedInstances = 1000`;
+hosts may choose stricter positive safe-integer values. Recursive implementation
+depth is capped at 256 and the resolved-count setting at 100,000 so configuration
+cannot turn the platform call stack into Weaver's effective policy. Root depth is
+1, and the depth limit applies to both static tree traversal and the final
+instance tree. The resolved-count limit is applied independently to static
+component-tree node/reference work and materialized component instances; every
+node/reference or instance, including its root, counts once before descendants
+are visited. Missing and circular structural references count as attempted
+node work, while reused IDs in separate branches count once per occurrence.
+
+A single fresh budget is shared by tree and instance work for each operation,
+including each interaction lookup. Template descriptors are expanded in data
+scope order, so collection size and nested template multiplication consume the
+instance budget before an instance is allocated. Exact-limit trees succeed;
+the first over-limit work returns `RESOLUTION_BUDGET_EXCEEDED` with the budget,
+phase, configured limit, observed count/depth, and a bounded component ID. The
+runtime wraps this as the existing tree or instance resolution failure; it is a
+host safety-policy failure, not protocol or catalog schema invalidity. Resolution
+has no persistent mutation, and `writeInput`/`dispatchAction` resolve completely
+before delegating side effects. Weaver never truncates a tree. Disconnected
+component definitions remain storage state and are not counted by this policy;
+hosts needing a storage-cardinality bound must add that separate policy.
+
+JSON ownership and inspection use one canonical iterative clone/equality path
+across the store, data model, contexts, resolver snapshots, actions, functions,
+catalogs, and producer values. This removes recursive platform-stack hazards
+from accepted JSON nesting without adding a second public JSON-depth budget.
+Work for a large accepted payload remains linear in its input size; Task61's
+stream frame limit remains the transport-side bound for streamed text.
+
 ### Architecture decision: catalog-defined structure
 
 Weaver does not hard-code property names such as `children`, `child`, `content`,

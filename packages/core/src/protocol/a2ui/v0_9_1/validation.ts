@@ -12,12 +12,17 @@ type MessageKey = (typeof MESSAGE_KEYS)[number];
 type UnknownRecord = Record<string, unknown>;
 
 function isRecord(value: unknown): value is UnknownRecord {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
 
-function issue(path: string, message: string, surfaceId?: string): ValidationIssue {
+function issue(
+  path: string,
+  message: string,
+  surfaceId?: string,
+): ValidationIssue {
   return surfaceId === undefined
     ? { code: "VALIDATION_FAILED", path, message }
     : { code: "VALIDATION_FAILED", path, message, surfaceId };
@@ -53,51 +58,130 @@ function validateString(
   }
 }
 
-function isJsonValue(value: unknown, ancestors = new Set<object>()): value is JsonValue {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean")
+    return true;
   if (typeof value === "number") return Number.isFinite(value);
   if (typeof value !== "object") return false;
-  if (ancestors.has(value)) return false;
-
-  ancestors.add(value);
-  const valid = Array.isArray(value)
-    ? Object.keys(value).length === value.length && value.every((entry) => isJsonValue(entry, ancestors))
-    : isRecord(value) && Object.values(value).every((entry) => isJsonValue(entry, ancestors));
-  ancestors.delete(value);
-  return valid;
+  const active = new Set<object>();
+  const stack: (
+    | { value: unknown; exit: false }
+    | { value: object; exit: true }
+  )[] = [{ value, exit: false }];
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    if (frame.exit) {
+      active.delete(frame.value);
+      continue;
+    }
+    const current = frame.value;
+    if (
+      current === null ||
+      typeof current === "string" ||
+      typeof current === "boolean"
+    )
+      continue;
+    if (typeof current === "number") {
+      if (!Number.isFinite(current)) return false;
+      continue;
+    }
+    if (typeof current !== "object" || active.has(current)) return false;
+    if (Array.isArray(current)) {
+      if (Object.keys(current).length !== current.length) return false;
+    } else if (!isRecord(current)) return false;
+    active.add(current);
+    stack.push({ value: current, exit: true });
+    if (Array.isArray(current))
+      for (const entry of current) stack.push({ value: entry, exit: false });
+    else
+      for (const entry of Object.values(current))
+        stack.push({ value: entry, exit: false });
+  }
+  return true;
 }
 
-function validateCreateSurface(payload: unknown, issues: ValidationIssue[]): void {
+function validateCreateSurface(
+  payload: unknown,
+  issues: ValidationIssue[],
+): void {
   if (!isRecord(payload)) {
     issues.push(issue("/createSurface", "Expected object"));
     return;
   }
   const surfaceId = getSurfaceId(payload);
-  validateExactKeys(payload, ["surfaceId", "catalogId", "theme", "sendDataModel"], "/createSurface", issues, surfaceId);
-  validateString(payload.surfaceId, "/createSurface/surfaceId", issues, surfaceId);
-  validateString(payload.catalogId, "/createSurface/catalogId", issues, surfaceId);
-  if ("theme" in payload && (!isRecord(payload.theme) || !isJsonValue(payload.theme))) {
-    issues.push(issue("/createSurface/theme", "Expected JSON object", surfaceId));
+  validateExactKeys(
+    payload,
+    ["surfaceId", "catalogId", "theme", "sendDataModel"],
+    "/createSurface",
+    issues,
+    surfaceId,
+  );
+  validateString(
+    payload.surfaceId,
+    "/createSurface/surfaceId",
+    issues,
+    surfaceId,
+  );
+  validateString(
+    payload.catalogId,
+    "/createSurface/catalogId",
+    issues,
+    surfaceId,
+  );
+  if (
+    "theme" in payload &&
+    (!isRecord(payload.theme) || !isJsonValue(payload.theme))
+  ) {
+    issues.push(
+      issue("/createSurface/theme", "Expected JSON object", surfaceId),
+    );
   }
-  if ("sendDataModel" in payload && typeof payload.sendDataModel !== "boolean") {
-    issues.push(issue("/createSurface/sendDataModel", "Expected boolean", surfaceId));
+  if (
+    "sendDataModel" in payload &&
+    typeof payload.sendDataModel !== "boolean"
+  ) {
+    issues.push(
+      issue("/createSurface/sendDataModel", "Expected boolean", surfaceId),
+    );
   }
 }
 
-function validateUpdateComponents(payload: unknown, issues: ValidationIssue[]): void {
+function validateUpdateComponents(
+  payload: unknown,
+  issues: ValidationIssue[],
+): void {
   if (!isRecord(payload)) {
     issues.push(issue("/updateComponents", "Expected object"));
     return;
   }
   const surfaceId = getSurfaceId(payload);
-  validateExactKeys(payload, ["surfaceId", "components"], "/updateComponents", issues, surfaceId);
-  validateString(payload.surfaceId, "/updateComponents/surfaceId", issues, surfaceId);
+  validateExactKeys(
+    payload,
+    ["surfaceId", "components"],
+    "/updateComponents",
+    issues,
+    surfaceId,
+  );
+  validateString(
+    payload.surfaceId,
+    "/updateComponents/surfaceId",
+    issues,
+    surfaceId,
+  );
   if (!Array.isArray(payload.components)) {
-    issues.push(issue("/updateComponents/components", "Expected array", surfaceId));
+    issues.push(
+      issue("/updateComponents/components", "Expected array", surfaceId),
+    );
     return;
   }
   if (payload.components.length === 0) {
-    issues.push(issue("/updateComponents/components", "Expected at least one component", surfaceId));
+    issues.push(
+      issue(
+        "/updateComponents/components",
+        "Expected at least one component",
+        surfaceId,
+      ),
+    );
   }
   payload.components.forEach((component, index) => {
     const path = `/updateComponents/components/${index}`;
@@ -115,41 +199,78 @@ function validateUpdateComponents(payload: unknown, issues: ValidationIssue[]): 
   });
 }
 
-function validateUpdateDataModel(payload: unknown, issues: ValidationIssue[]): void {
+function validateUpdateDataModel(
+  payload: unknown,
+  issues: ValidationIssue[],
+): void {
   if (!isRecord(payload)) {
     issues.push(issue("/updateDataModel", "Expected object"));
     return;
   }
   const surfaceId = getSurfaceId(payload);
-  validateExactKeys(payload, ["surfaceId", "path", "value"], "/updateDataModel", issues, surfaceId);
-  validateString(payload.surfaceId, "/updateDataModel/surfaceId", issues, surfaceId);
-  if ("path" in payload) validateString(payload.path, "/updateDataModel/path", issues, surfaceId);
+  validateExactKeys(
+    payload,
+    ["surfaceId", "path", "value"],
+    "/updateDataModel",
+    issues,
+    surfaceId,
+  );
+  validateString(
+    payload.surfaceId,
+    "/updateDataModel/surfaceId",
+    issues,
+    surfaceId,
+  );
+  if ("path" in payload)
+    validateString(payload.path, "/updateDataModel/path", issues, surfaceId);
   if ("value" in payload && !isJsonValue(payload.value)) {
-    issues.push(issue("/updateDataModel/value", "Expected JSON value", surfaceId));
+    issues.push(
+      issue("/updateDataModel/value", "Expected JSON value", surfaceId),
+    );
   }
 }
 
-function validateDeleteSurface(payload: unknown, issues: ValidationIssue[]): void {
+function validateDeleteSurface(
+  payload: unknown,
+  issues: ValidationIssue[],
+): void {
   if (!isRecord(payload)) {
     issues.push(issue("/deleteSurface", "Expected object"));
     return;
   }
   const surfaceId = getSurfaceId(payload);
-  validateExactKeys(payload, ["surfaceId"], "/deleteSurface", issues, surfaceId);
-  validateString(payload.surfaceId, "/deleteSurface/surfaceId", issues, surfaceId);
+  validateExactKeys(
+    payload,
+    ["surfaceId"],
+    "/deleteSurface",
+    issues,
+    surfaceId,
+  );
+  validateString(
+    payload.surfaceId,
+    "/deleteSurface/surfaceId",
+    issues,
+    surfaceId,
+  );
 }
 
-const validators: Record<MessageKey, (payload: unknown, issues: ValidationIssue[]) => void> = {
+const validators: Record<
+  MessageKey,
+  (payload: unknown, issues: ValidationIssue[]) => void
+> = {
   createSurface: validateCreateSurface,
   updateComponents: validateUpdateComponents,
   updateDataModel: validateUpdateDataModel,
   deleteSurface: validateDeleteSurface,
 };
 
-export function validateA2UIServerMessage(input: unknown): ValidationResult<A2UIServerMessage> {
+export function validateA2UIServerMessage(
+  input: unknown,
+): ValidationResult<A2UIServerMessage> {
   const issues: ValidationIssue[] = [];
   try {
-    if (!isRecord(input)) return { ok: false, issues: [issue("/", "Expected object")] };
+    if (!isRecord(input))
+      return { ok: false, issues: [issue("/", "Expected object")] };
 
     if (input.version !== "v0.9" && input.version !== "v0.9.1") {
       issues.push(issue("/version", "Expected v0.9 or v0.9.1"));
@@ -166,6 +287,7 @@ export function validateA2UIServerMessage(input: unknown): ValidationResult<A2UI
       validators[key](input[key], issues);
     }
 
+    // SAFETY: validation above establishes the discriminated server-message shape.
     return issues.length === 0
       ? { ok: true, value: input as unknown as A2UIServerMessage }
       : { ok: false, issues };

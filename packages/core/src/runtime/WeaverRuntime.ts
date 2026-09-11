@@ -1,7 +1,11 @@
 import { ActionDispatcher } from "../actions/index.js";
 import { CatalogRegistry } from "../catalog/index.js";
 import { CheckEvaluator } from "../checks/index.js";
-import { ComponentInstanceResolver, type ResolvedComponentInstance } from "../component-instances/index.js";
+import { cloneJson } from "../data-model/clone.js";
+import {
+  ComponentInstanceResolver,
+  type ResolvedComponentInstance,
+} from "../component-instances/index.js";
 import { ComponentPropertyResolver } from "../component-properties/index.js";
 import { ComponentTreeResolver } from "../component-tree/index.js";
 import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
@@ -15,6 +19,7 @@ import {
   type A2UIValidationFailureMappingResult,
 } from "../protocol/index.js";
 import { SurfaceStore } from "../surfaces/index.js";
+import { createResolutionBudget, normalizeResolutionSafety } from "./safety.js";
 import type {
   WeaverActionRequest,
   WeaverActionResult,
@@ -25,6 +30,13 @@ import type {
   WeaverSurfaceResolutionResult,
   WeaverSurfaceSubscriber,
 } from "./types.js";
+
+function cloneRuntimeJson<T>(value: T): T {
+  // SAFETY: runtime snapshots cloned here are JSON-shaped protocol values.
+  return cloneJson(
+    value as unknown as import("../protocol/index.js").JsonValue,
+  ) as unknown as T;
+}
 
 interface RuntimeServices {
   catalogs: CatalogRegistry;
@@ -37,6 +49,7 @@ interface RuntimeServices {
   checks: CheckEvaluator;
   inputs: InputBindingWriter;
   actions: ActionDispatcher;
+  safety: import("./safety.js").ResolutionSafetyPolicy;
 }
 
 export class WeaverRuntime {
@@ -51,7 +64,9 @@ export class WeaverRuntime {
     return this.#services.processor.process(input);
   }
 
-  processMany(inputs: readonly unknown[]): ReturnType<A2UIMessageProcessor["process"]>[] {
+  processMany(
+    inputs: readonly unknown[],
+  ): ReturnType<A2UIMessageProcessor["process"]>[] {
     return inputs.map((input) => this.process(input));
   }
 
@@ -61,30 +76,63 @@ export class WeaverRuntime {
 
   resolveSurface(surfaceId: string): WeaverSurfaceResolutionResult {
     const surface = this.#services.store.get(surfaceId);
-    if (surface === undefined) return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };
+    if (surface === undefined)
+      return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };
 
-    const tree = this.#services.trees.resolve(surface);
-    if (!tree.ok) return { ok: false, error: { code: "COMPONENT_TREE_RESOLUTION_FAILED", cause: tree.error } };
-    const instances = this.#services.instances.resolve(surface);
-    if (!instances.ok) return { ok: false, error: { code: "COMPONENT_INSTANCE_RESOLUTION_FAILED", cause: instances.error } };
-    const hydrated = this.#services.properties.resolveTree(surface, instances.value);
-    if (!hydrated.ok) return { ok: false, error: { code: "COMPONENT_PROPERTY_RESOLUTION_FAILED", cause: hydrated.error } };
+    const budget = createResolutionBudget(this.#services.safety);
+    const tree = this.#services.trees.resolve(surface, budget);
+    if (!tree.ok)
+      return {
+        ok: false,
+        error: { code: "COMPONENT_TREE_RESOLUTION_FAILED", cause: tree.error },
+      };
+    const instances = this.#services.instances.resolveFromTree(
+      surface,
+      tree.value,
+      budget,
+    );
+    if (!instances.ok)
+      return {
+        ok: false,
+        error: {
+          code: "COMPONENT_INSTANCE_RESOLUTION_FAILED",
+          cause: instances.error,
+        },
+      };
+    const hydrated = this.#services.properties.resolveTree(
+      surface,
+      instances.value,
+    );
+    if (!hydrated.ok)
+      return {
+        ok: false,
+        error: {
+          code: "COMPONENT_PROPERTY_RESOLUTION_FAILED",
+          cause: hydrated.error,
+        },
+      };
     const checks = this.#services.checks.evaluateTree(surface, instances.value);
-    if (!checks.ok) return { ok: false, error: { code: "CHECK_EVALUATION_FAILED", cause: checks.error } };
+    if (!checks.ok)
+      return {
+        ok: false,
+        error: { code: "CHECK_EVALUATION_FAILED", cause: checks.error },
+      };
 
     return {
       ok: true,
       value: {
         surfaceId: surface.surfaceId,
         catalogId: surface.catalogId,
-        ...(surface.theme === undefined ? {} : { theme: structuredClone(surface.theme) }),
+        ...(surface.theme === undefined
+          ? {}
+          : { theme: cloneJson(surface.theme) }),
         sendDataModel: surface.sendDataModel,
         tree: hydrated.value,
         checks: checks.value,
         issues: {
-          tree: structuredClone(tree.value.issues),
-          instances: structuredClone(instances.value.issues),
-          properties: structuredClone(hydrated.value.issues),
+          tree: cloneRuntimeJson(tree.value.issues),
+          instances: cloneRuntimeJson(instances.value.issues),
+          properties: cloneRuntimeJson(hydrated.value.issues),
         },
       },
     };
@@ -99,7 +147,12 @@ export class WeaverRuntime {
       property: request.property,
       value: request.value,
     });
-    return written.ok ? written : { ok: false, error: { code: "INPUT_WRITE_FAILED", cause: written.error } };
+    return written.ok
+      ? written
+      : {
+          ok: false,
+          error: { code: "INPUT_WRITE_FAILED", cause: written.error },
+        };
   }
 
   dispatchAction(request: WeaverActionRequest): WeaverActionResult {
@@ -110,11 +163,18 @@ export class WeaverRuntime {
       instance: current.value.instance,
       actionProperty: request.actionProperty,
     });
-    return dispatched.ok ? dispatched : { ok: false, error: { code: "ACTION_DISPATCH_FAILED", cause: dispatched.error } };
+    return dispatched.ok
+      ? dispatched
+      : {
+          ok: false,
+          error: { code: "ACTION_DISPATCH_FAILED", cause: dispatched.error },
+        };
   }
 
   subscribeSurface(surfaceId: string, subscriber: WeaverSurfaceSubscriber) {
-    return this.#services.store.subscribe(surfaceId, () => subscriber(this.resolveSurface(surfaceId)));
+    return this.#services.store.subscribe(surfaceId, () =>
+      subscriber(this.resolveSurface(surfaceId)),
+    );
   }
 
   getClientCapabilities(): A2UIClientCapabilities {
@@ -129,36 +189,74 @@ export class WeaverRuntime {
     return mapA2UIValidationFailure(input);
   }
 
-  #resolveCurrentInstance(identity: { surfaceId: string; sourceComponentId: string; scopePath: string }):
-    | { ok: true; value: { surface: NonNullable<ReturnType<SurfaceStore["get"]>>; instance: ResolvedComponentInstance } }
+  #resolveCurrentInstance(identity: {
+    surfaceId: string;
+    sourceComponentId: string;
+    scopePath: string;
+  }):
+    | {
+        ok: true;
+        value: {
+          surface: NonNullable<ReturnType<SurfaceStore["get"]>>;
+          instance: ResolvedComponentInstance;
+        };
+      }
     | { ok: false; error: import("./types.js").WeaverRuntimeInteractionError } {
     const surface = this.#services.store.get(identity.surfaceId);
-    if (surface === undefined) return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId: identity.surfaceId } };
-    const instances = this.#services.instances.resolve(surface);
-    if (!instances.ok) return { ok: false, error: { code: "INSTANCE_RESOLUTION_FAILED", cause: instances.error } };
-    const instance = instances.value.root === undefined ? undefined : findInstance(
-      instances.value.root,
-      identity.sourceComponentId,
-      identity.scopePath,
+    if (surface === undefined)
+      return {
+        ok: false,
+        error: { code: "SURFACE_NOT_FOUND", surfaceId: identity.surfaceId },
+      };
+    const instances = this.#services.instances.resolve(
+      surface,
+      createResolutionBudget(this.#services.safety),
     );
+    if (!instances.ok)
+      return {
+        ok: false,
+        error: { code: "INSTANCE_RESOLUTION_FAILED", cause: instances.error },
+      };
+    const instance =
+      instances.value.root === undefined
+        ? undefined
+        : findInstance(
+            instances.value.root,
+            identity.sourceComponentId,
+            identity.scopePath,
+          );
     if (instance === undefined) {
-      return { ok: false, error: {
-        code: "INSTANCE_NOT_FOUND",
-        surfaceId: identity.surfaceId,
-        sourceComponentId: identity.sourceComponentId,
-        scopePath: identity.scopePath,
-      } };
+      return {
+        ok: false,
+        error: {
+          code: "INSTANCE_NOT_FOUND",
+          surfaceId: identity.surfaceId,
+          sourceComponentId: identity.sourceComponentId,
+          scopePath: identity.scopePath,
+        },
+      };
     }
     return { ok: true, value: { surface, instance } };
   }
 }
 
-function findInstance(root: ResolvedComponentInstance, sourceComponentId: string, scopePath: string): ResolvedComponentInstance | undefined {
-  if (root.sourceComponentId === sourceComponentId && root.scopePath === scopePath) return root;
+function findInstance(
+  root: ResolvedComponentInstance,
+  sourceComponentId: string,
+  scopePath: string,
+): ResolvedComponentInstance | undefined {
+  if (
+    root.sourceComponentId === sourceComponentId &&
+    root.scopePath === scopePath
+  )
+    return root;
   for (const relationship of root.relationships) {
-    const children = relationship.kind === "single"
-      ? relationship.child === undefined ? [] : [relationship.child]
-      : relationship.children;
+    const children =
+      relationship.kind === "single"
+        ? relationship.child === undefined
+          ? []
+          : [relationship.child]
+        : relationship.children;
     for (const child of children) {
       const found = findInstance(child, sourceComponentId, scopePath);
       if (found !== undefined) return found;
@@ -167,17 +265,40 @@ function findInstance(root: ResolvedComponentInstance, sourceComponentId: string
   return undefined;
 }
 
-export function createWeaverRuntime(config: WeaverRuntimeConfig = { catalogs: [] }): WeaverRuntimeCreationResult {
+export function createWeaverRuntime(
+  config: WeaverRuntimeConfig = { catalogs: [] },
+): WeaverRuntimeCreationResult {
+  const safety = normalizeResolutionSafety(config.safety);
+  if (!safety.ok)
+    return {
+      ok: false,
+      error: { code: "SAFETY_CONFIGURATION_FAILED", safetyError: safety.error },
+    };
+
   const catalogs = new CatalogRegistry();
   for (const registration of config.catalogs) {
     const result = catalogs.register(registration);
-    if (!result.ok) return { ok: false, error: { code: "CATALOG_CONFIGURATION_FAILED", catalogError: result.error } };
+    if (!result.ok)
+      return {
+        ok: false,
+        error: {
+          code: "CATALOG_CONFIGURATION_FAILED",
+          catalogError: result.error,
+        },
+      };
   }
 
   const functions = new FunctionRegistry(catalogs);
   for (const registration of config.functions ?? []) {
     const result = functions.register(registration);
-    if (!result.ok) return { ok: false, error: { code: "FUNCTION_CONFIGURATION_FAILED", functionError: result.error } };
+    if (!result.ok)
+      return {
+        ok: false,
+        error: {
+          code: "FUNCTION_CONFIGURATION_FAILED",
+          functionError: result.error,
+        },
+      };
   }
 
   const store = new SurfaceStore();
@@ -185,16 +306,22 @@ export function createWeaverRuntime(config: WeaverRuntimeConfig = { catalogs: []
   const trees = new ComponentTreeResolver(catalogs);
   const instances = new ComponentInstanceResolver(trees);
   const checks = new CheckEvaluator(catalogs, functionEvaluator);
-  return { ok: true, value: new WeaverRuntime({
-    catalogs,
-    functions,
-    store,
-    processor: new A2UIMessageProcessor(store, catalogs),
-    trees,
-    instances,
-    properties: new ComponentPropertyResolver(catalogs, functionEvaluator),
-    checks,
-    inputs: new InputBindingWriter(store, catalogs),
-    actions: new ActionDispatcher(catalogs, functionEvaluator, checks, { ...(config.now === undefined ? {} : { now: config.now }) }),
-  }) };
+  return {
+    ok: true,
+    value: new WeaverRuntime({
+      catalogs,
+      functions,
+      store,
+      processor: new A2UIMessageProcessor(store, catalogs),
+      trees,
+      instances,
+      properties: new ComponentPropertyResolver(catalogs, functionEvaluator),
+      checks,
+      inputs: new InputBindingWriter(store, catalogs),
+      actions: new ActionDispatcher(catalogs, functionEvaluator, checks, {
+        ...(config.now === undefined ? {} : { now: config.now }),
+      }),
+      safety: safety.value,
+    }),
+  };
 }

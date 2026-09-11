@@ -1,7 +1,7 @@
 import { DataModel } from "../data-model/index.js";
 import type { DataModelChange, DataModelResult } from "../data-model/index.js";
 import type { A2UIComponent, JsonValue } from "../protocol/index.js";
-import { cloneJson } from "./clone.js";
+import { cloneJson, equalJson } from "./clone.js";
 import type { SurfaceStoreResult } from "./errors.js";
 import type {
   CreateSurfaceInput,
@@ -44,7 +44,10 @@ export class SurfaceStore {
     };
     this.#surfaces.set(input.surfaceId, surface);
     const snapshot = this.#snapshot(surface);
-    this.#notify(input.surfaceId, () => ({ type: "created", surface: this.#snapshot(surface) }));
+    this.#notify(input.surfaceId, () => ({
+      type: "created",
+      surface: this.#snapshot(surface),
+    }));
     return success(snapshot);
   }
 
@@ -58,14 +61,19 @@ export class SurfaceStore {
   }
 
   list(): SurfaceSnapshot[] {
-    return Array.from(this.#surfaces.values(), (surface) => this.#snapshot(surface));
+    return Array.from(this.#surfaces.values(), (surface) =>
+      this.#snapshot(surface),
+    );
   }
 
   hasRoot(surfaceId: string): boolean {
     return this.#surfaces.get(surfaceId)?.components.has("root") ?? false;
   }
 
-  getData(surfaceId: string, path = "/"): SurfaceStoreResult<JsonValue | undefined> {
+  getData(
+    surfaceId: string,
+    path = "/",
+  ): SurfaceStoreResult<JsonValue | undefined> {
     const surface = this.#surfaces.get(surfaceId);
     if (surface === undefined) {
       return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };
@@ -73,8 +81,13 @@ export class SurfaceStore {
     return this.#mapDataModelResult(surface.dataModel.get(path));
   }
 
-  replaceData(surfaceId: string, value: JsonValue): SurfaceStoreResult<SurfaceSnapshot> {
-    return this.#mutateData(surfaceId, "/", (dataModel) => dataModel.replace(value));
+  replaceData(
+    surfaceId: string,
+    value: JsonValue,
+  ): SurfaceStoreResult<SurfaceSnapshot> {
+    return this.#mutateData(surfaceId, "/", (dataModel) =>
+      dataModel.replace(value),
+    );
   }
 
   setData(
@@ -82,11 +95,18 @@ export class SurfaceStore {
     path: string,
     value: JsonValue,
   ): SurfaceStoreResult<SurfaceSnapshot> {
-    return this.#mutateData(surfaceId, path, (dataModel) => dataModel.set(path, value));
+    return this.#mutateData(surfaceId, path, (dataModel) =>
+      dataModel.set(path, value),
+    );
   }
 
-  deleteData(surfaceId: string, path: string): SurfaceStoreResult<SurfaceSnapshot> {
-    return this.#mutateData(surfaceId, path, (dataModel) => dataModel.delete(path));
+  deleteData(
+    surfaceId: string,
+    path: string,
+  ): SurfaceStoreResult<SurfaceSnapshot> {
+    return this.#mutateData(surfaceId, path, (dataModel) =>
+      dataModel.delete(path),
+    );
   }
 
   updateComponents(
@@ -157,7 +177,9 @@ export class SurfaceStore {
     return {
       surfaceId: surface.surfaceId,
       catalogId: surface.catalogId,
-      ...(surface.theme === undefined ? {} : { theme: cloneJson(surface.theme) }),
+      ...(surface.theme === undefined
+        ? {}
+        : { theme: cloneJson(surface.theme) }),
       sendDataModel: surface.sendDataModel,
       components,
       dataModel: this.#dataSnapshot(surface.dataModel),
@@ -175,13 +197,18 @@ export class SurfaceStore {
   #mapDataModelResult<T>(result: DataModelResult<T>): SurfaceStoreResult<T> {
     return result.ok
       ? success(result.value)
-      : { ok: false, error: { code: "DATA_MODEL_ERROR", dataModelError: result.error } };
+      : {
+          ok: false,
+          error: { code: "DATA_MODEL_ERROR", dataModelError: result.error },
+        };
   }
 
   #mutateData(
     surfaceId: string,
     path: string,
-    mutate: (dataModel: DataModel) => DataModelResult<DataModelChange | undefined>,
+    mutate: (
+      dataModel: DataModel,
+    ) => DataModelResult<DataModelChange | undefined>,
   ): SurfaceStoreResult<SurfaceSnapshot> {
     const surface = this.#surfaces.get(surfaceId);
     if (surface === undefined) {
@@ -194,8 +221,8 @@ export class SurfaceStore {
     // DataModel delete returns undefined for a missing target. DataModel also
     // suppresses subscriptions when a successful set leaves JSON unchanged.
     const change = mutation.value;
-    const changed = change !== undefined
-      && JSON.stringify(change.previousValue) !== JSON.stringify(change.value);
+    const changed =
+      change !== undefined && !equalJson(change.previousValue, change.value);
     if (changed) {
       this.#notify(surfaceId, () => ({
         type: "dataModelUpdated",
