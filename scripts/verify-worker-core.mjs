@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -21,6 +21,25 @@ const run = (command, args, options = {}) => {
 run("pnpm", ["--filter", "@weaver/core", "clean"], { cwd: root, stdio: "inherit" });
 run("pnpm", ["--filter", "@weaver/core", "build"], { cwd: root, stdio: "inherit" });
 run("pnpm", ["pack", "--pack-destination", path.join(root, "artifacts")], { cwd: path.join(root, "packages", "core"), stdio: "inherit" });
+const corePackageRoot = path.join(root, "packages", "core");
+const packFiles = ["package.json", "LICENSE", "THIRD_PARTY_LICENSES.txt"];
+const originalPackFiles = await Promise.all(
+  packFiles.map((file) => readFile(path.join(corePackageRoot, file))),
+);
+try {
+  for (const file of packFiles) {
+    const filePath = path.join(corePackageRoot, file);
+    const normalized = (await readFile(filePath, "utf8")).replace(/\r\n/g, "\n");
+    await writeFile(filePath, normalized);
+  }
+  run("pnpm", ["pack", "--pack-destination", path.join(root, "artifacts")], {
+    cwd: corePackageRoot,
+    stdio: "inherit",
+  });
+} finally {
+  for (const [index, file] of packFiles.entries())
+    await writeFile(path.join(corePackageRoot, file), originalPackFiles[index]);
+}
 const consumer = await mkdtemp(path.join(os.tmpdir(), "weaver-workerd-consumer-"));
 const store = await mkdtemp(path.join(os.tmpdir(), "weaver-workerd-store-"));
 for (const file of ["package.json", "pnpm-lock.yaml", "vitest.config.js", "worker.test.js"]) {
