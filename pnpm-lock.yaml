@@ -31,6 +31,22 @@ importers:
         specifier: ^8.2.0
         version: 8.2.1(@types/node@22.20.1)(esbuild@0.28.2)
 
+  examples/reference-app:
+    dependencies:
+      '@weaver/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@weaver/web':
+        specifier: workspace:*
+        version: link:../../packages/web
+    devDependencies:
+      happy-dom:
+        specifier: ^20.11.2
+        version: 20.11.2
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.1(@types/node@22.20.1)(esbuild@0.28.2)
+
   packages/core:
     dependencies:
       '@cfworker/json-schema':

@@ -1,0 +1,23 @@
+:root {
+  color: #202124;
+  background: #f4f1eb;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  box-sizing: border-box;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+
+[data-weaver-mount] {
+  background: #fffdf9;
+  border: 1px solid #ded7ca;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
