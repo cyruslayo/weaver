@@ -295,10 +295,12 @@ its grouped options, while `RendererRegistry`, `WebSurfaceRenderer`, and the
 Basic factories remain public for advanced composition. See
 [docs/web-rendering.md](docs/web-rendering.md).
 
-The canonical runnable example is the
-[playground](examples/playground/), and the loopback browser transport is
-demonstrated by the [HTTP/SSE reference
-server](examples/http-sse-server/).
+The canonical runnable examples distinguish two purposes: the
+[playground](examples/playground/) explores renderers and Basic components,
+while the [reference application](examples/reference-app/) demonstrates the
+full application-agent -> producer -> JSONL ingestion -> runtime -> Web ->
+trusted action round trip. The loopback browser transport is demonstrated by
+the [HTTP/SSE reference server](examples/http-sse-server/).
 
 ## A2UI conformance
 
@@ -366,7 +368,8 @@ packages/
   web/     @weaver/web     browser rendering + HTTP/SSE transport
   mcp/     @weaver/mcp     optional MCP bridge + capability helpers
 examples/
-  playground/              runnable browser example (core + web)
+  playground/              renderer and Basic component exploration
+  reference-app/           full producer/ingestion/runtime/action round trip
   http-sse-server/         loopback reference peer for the HTTP/SSE binding
 integration/
   package-consumer/        isolated consumer for packed-tarball verification
