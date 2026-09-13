@@ -19,7 +19,7 @@ All intended APIs are reachable from each package's root export. Internal direct
 @weaver/web  -X-> mcp
 ```
 
-Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.1.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
+Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.2.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
 
 A frontend application normally installs:
 
@@ -87,8 +87,8 @@ pnpm verify:packages
 pnpm verify:worker-core
 ```
 
-No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced; CI belongs to Task 57.
+No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced. The existing Ubuntu CI Verify job runs every release gate, including `verify:worker-core`.
 
 `@weaver/mcp` declares `engines.node >= 20` because its pinned MCP runtime dependencies (`@modelcontextprotocol/client`, `@modelcontextprotocol/server`) require it. Core and Web make no Node-version support declaration yet.
 
-A Weaver project-license decision is still required before the intended public release/publishing process. Task 56 does not select that license.
+Weaver is licensed under the Apache License 2.0 (SPDX: `Apache-2.0`). The canonical project license is in the repository root and is copied into each publishable package so packed artifacts carry it. `packages/core/THIRD_PARTY_LICENSES.txt` remains separate provenance and attribution for redistributed A2UI-derived material; it is not Weaver's project license.

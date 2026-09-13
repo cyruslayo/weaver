@@ -52,3 +52,6 @@ jobs:
 
       - name: Verify packed packages
         run: pnpm verify:packages
+
+      - name: Verify packed Core in workerd
+        run: pnpm verify:worker-core

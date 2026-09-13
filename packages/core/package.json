@@ -1,6 +1,7 @@
 {
   "name": "@weaver/core",
-  "version": "0.1.2",
+  "version": "0.2.0",
+  "license": "Apache-2.0",
   "description": "Weaver protocol, runtime, catalog, state, and action foundation",
   "type": "module",
   "repository": {
@@ -10,6 +11,7 @@
   },
   "files": [
     "dist",
+    "LICENSE",
     "THIRD_PARTY_LICENSES.txt",
     "!dist/**/*.test.*",
     "!dist/**/*.test-helper.*"

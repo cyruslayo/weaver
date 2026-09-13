@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { A2UI_V091_BASIC_CATALOG_ID, WEAVER_CORE_VERSION, createWeaverRuntime } from "./index.js";
 
 test("exports the Weaver runtime facade", () => {
-  assert.equal(WEAVER_CORE_VERSION, "0.1.2");
+  assert.equal(WEAVER_CORE_VERSION, "0.2.0");
   assert.deepEqual(createWeaverRuntime({ catalogs: [] }).ok, true);
 });
 
