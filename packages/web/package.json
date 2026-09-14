@@ -1,6 +1,7 @@
 {
   "name": "@weaver/web",
-  "version": "0.1.2",
+  "version": "0.2.0",
+  "license": "Apache-2.0",
   "description": "Weaver browser renderer plus browser transport and policies",
   "type": "module",
   "repository": {
@@ -10,6 +11,7 @@
   },
   "files": [
     "dist",
+    "LICENSE",
     "!dist/**/*.test.*",
     "!dist/**/*.test-helper.*"
   ],
@@ -27,7 +29,7 @@
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
   "peerDependencies": {
-    "@weaver/core": "0.1.x"
+    "@weaver/core": "0.2.x"
   },
   "devDependencies": {
     "@weaver/core": "workspace:*",

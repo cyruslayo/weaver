@@ -186,8 +186,14 @@ function assertCanonicalSets(catalog) {
 }
 
 function generate() {
-  const catalog = JSON.parse(readFileSync(path.join(fixtures, "catalog.json"), "utf8"));
-  const common = JSON.parse(readFileSync(path.join(fixtures, "common_types.json"), "utf8"));
+  let catalog;
+  let common;
+  try {
+    catalog = JSON.parse(readFileSync(path.join(fixtures, "catalog.json"), "utf8"));
+    common = JSON.parse(readFileSync(path.join(fixtures, "common_types.json"), "utf8"));
+  } catch (error) {
+    throw new Error(`Could not read Basic Catalog fixtures: ${error instanceof Error ? error.message : String(error)}`);
+  }
   assertCanonicalSets(catalog);
   const normalized = normalize(catalog, common);
 
@@ -222,7 +228,7 @@ function generate() {
 const header = generate();
 if (process.argv.includes("--check")) {
   const current = readFileSync(output, "utf8");
-  if (current !== header) {
+  if (current.replace(/\r\n/g, "\n") !== header) {
     process.stderr.write("Basic Catalog generated output is stale; run scripts/generate-basic-catalog.mjs\n");
     process.exit(1);
   }

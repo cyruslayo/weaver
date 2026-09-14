@@ -58,13 +58,13 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture.
 
 | Package | Version | Runtime | Responsibilities |
 | --- | --- | --- | --- |
-| `@weaver/core` | 0.1.x | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
-| `@weaver/web` | 0.1.x | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
-| `@weaver/mcp` | 0.1.x | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
+| `@weaver/core` | 0.2.0 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
+| `@weaver/web` | 0.2.0 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
+| `@weaver/mcp` | 0.2.0 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
 
 All three packages are ESM-only with a single root export, and they release
 together at one synchronized version. Core is mandatory; Web and MCP declare
-`@weaver/core` as a peer dependency (`0.1.x`). MCP is optional and not required
+`@weaver/core` as a peer dependency (`0.2.x`). MCP is optional and not required
 by Core or Web. See [docs/packaging.md](docs/packaging.md).
 
 ## Current maturity / support status
@@ -99,9 +99,9 @@ pnpm verify:packages
 This builds the workspace and produces three ignored tarballs in `artifacts/`:
 
 ```text
-artifacts/weaver-core-0.1.2.tgz
-artifacts/weaver-web-0.1.2.tgz
-artifacts/weaver-mcp-0.1.2.tgz
+artifacts/weaver-core-0.2.0.tgz
+artifacts/weaver-web-0.2.0.tgz
+artifacts/weaver-mcp-0.2.0.tgz
 ```
 
 An external application installs them by relative file path (shown with a
@@ -110,8 +110,8 @@ placeholder for the Weaver checkout directory):
 ```json
 {
   "dependencies": {
-    "@weaver/core": "file:<path-to-weaver>/artifacts/weaver-core-0.1.2.tgz",
-    "@weaver/web": "file:<path-to-weaver>/artifacts/weaver-web-0.1.2.tgz"
+    "@weaver/core": "file:<path-to-weaver>/artifacts/weaver-core-0.2.0.tgz",
+    "@weaver/web": "file:<path-to-weaver>/artifacts/weaver-web-0.2.0.tgz"
   }
 }
 ```
@@ -417,7 +417,9 @@ Documentation lives in `docs/`; internal roadmap and status decisions belong in
 [docs/PLAN.md](docs/PLAN.md). Prototype design notes are preserved (historical)
 in [docs/prototype-notes.md](docs/prototype-notes.md).
 
-## License status
+## License
 
-Weaver currently has **no project license selected**. No license file exists
-in this repository, and this document does not imply one.
+Weaver is licensed under the Apache License 2.0 (SPDX: `Apache-2.0`). The
+project license is provided in [`LICENSE`](LICENSE). The A2UI-derived material
+redistributed by Core retains separate provenance and attribution in
+[`packages/core/THIRD_PARTY_LICENSES.txt`](packages/core/THIRD_PARTY_LICENSES.txt); that file is not Weaver's project license.

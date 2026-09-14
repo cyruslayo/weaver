@@ -57,7 +57,7 @@ test("package publication and dependency boundaries remain narrow", () => {
     assert.ok(manifest.files?.includes("!dist/**/*.test.*"));
     assert.ok(manifest.files?.includes("!dist/**/*.test-helper.*"));
     for (const entry of manifest.files ?? []) {
-      assert.equal(entry.startsWith("!dist/") || entry === "dist" || entry === "THIRD_PARTY_LICENSES.txt", true);
+      assert.equal(entry.startsWith("!dist/") || entry === "dist" || entry === "LICENSE" || entry === "THIRD_PARTY_LICENSES.txt", true);
       assert.doesNotMatch(entry, /^(?:src|tests?|fixtures|coverage)(\/|$)|(?:^|[\\/])(?:src|tests?|fixtures|coverage)(?:[\\/]|$)|tsconfig\.json$/i);
     }
     assert.deepEqual(Object.keys(manifest.exports ?? {}), ["."]);
