@@ -1,7 +1,10 @@
 {
-  "name": "@weaver/web",
-  "version": "0.2.0",
+  "name": "@cylayo/weaver-web",
+  "version": "0.2.1",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Weaver browser renderer plus browser transport and policies",
   "type": "module",
   "repository": {
@@ -29,10 +32,10 @@
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
   "peerDependencies": {
-    "@weaver/core": "0.2.x"
+    "@cylayo/weaver-core": "0.2.x"
   },
   "devDependencies": {
-    "@weaver/core": "workspace:*",
+    "@cylayo/weaver-core": "workspace:*",
     "happy-dom": "^20.11.2"
   }
 }

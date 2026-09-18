@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createWeaverRuntime, type JsonObject, type WeaverRuntime } from "@weaver/core";
+import { createWeaverRuntime, type JsonObject, type WeaverRuntime } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import { createBasicCatalogRendererRegistrations, createBasicCatalogThemeAdapter } from "../basic/index.js";
 import { RendererRegistry, type RendererRegistration } from "../renderers/index.js";

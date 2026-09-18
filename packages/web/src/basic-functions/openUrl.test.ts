@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CatalogRegistry, DataContext, FunctionEvaluator, FunctionRegistry, createBasicCatalogFunctionImplementations, type JsonObject } from "@weaver/core";
+import { CatalogRegistry, DataContext, FunctionEvaluator, FunctionRegistry, createBasicCatalogFunctionImplementations, type JsonObject } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import { createBasicCatalogBrowserFunctionImplementations } from "./index.js";
 

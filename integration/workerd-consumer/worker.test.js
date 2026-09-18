@@ -1,4 +1,4 @@
-import { createWeaverRuntime } from "@weaver/core";
+import { createWeaverRuntime } from "@cylayo/weaver-core";
 import { describe, expect, it } from "vitest";
 
 const catalog = {

@@ -2,7 +2,7 @@ import {
   createA2UIV091StreamIngestion,
   type A2UIServerMessage,
   type WeaverRuntime,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 
 export interface AgentStream {
   send(messages: readonly A2UIServerMessage[]): void;

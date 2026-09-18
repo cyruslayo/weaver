@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { createMcpHandler, fromJsonSchema, McpServer } from "@modelcontextprotocol/server";
-import type { A2UITransportSession } from "@weaver/core";
+import type { A2UITransportSession } from "@cylayo/weaver-core";
 import {
   createA2UIMcpClientBridge,
   registerMcpApplicationCapabilities,

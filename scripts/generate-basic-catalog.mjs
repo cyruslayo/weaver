@@ -3,7 +3,7 @@
 // Deterministic generator for the canonical A2UI v0.9.1 Basic Catalog.
 //
 // It reads the pinned official fixtures (exact upstream copies) and produces the
-// Weaver-normalized production representation consumed by @weaver/core:
+// Weaver-normalized production representation consumed by @cylayo/weaver-core:
 //
 //   packages/core/src/protocol/a2ui/v0_9_1/inbound/fixtures/catalog.json
 //   packages/core/src/protocol/a2ui/v0_9_1/inbound/fixtures/common_types.json

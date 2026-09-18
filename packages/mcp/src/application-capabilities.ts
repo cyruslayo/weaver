@@ -7,7 +7,7 @@ import type {
   ToolAnnotations,
   ToolCallback,
 } from "@modelcontextprotocol/server";
-import type { JsonValue } from "@weaver/core";
+import type { JsonValue } from "@cylayo/weaver-core";
 
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
 const UNEXPECTED_FAILURE = "Application capability failed.";

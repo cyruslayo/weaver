@@ -14,21 +14,26 @@ const parseJson = (text, label) => {
   }
 };
 const packageDirs = ["core", "web", "mcp"];
-const expectedNames = { core: "@weaver/core", web: "@weaver/web", mcp: "@weaver/mcp" };
+const expectedNames = { core: "@cylayo/weaver-core", web: "@cylayo/weaver-web", mcp: "@cylayo/weaver-mcp" };
 const packageManifests = Object.fromEntries(await Promise.all(packageDirs.map(async (dir) => [
   dir,
   parseJson(await readFile(path.join(root, "packages", dir, "package.json"), "utf8"), `${dir}/package.json`),
 ])));
 const version = packageManifests.core.version;
-if (version !== "0.2.0") fail(`Expected Core release version 0.2.0, found ${version}`);
+if (version !== "0.2.1") fail(`Expected Core release version 0.2.1, found ${version}`);
 for (const dir of packageDirs) {
   if (packageManifests[dir].name !== expectedNames[dir]) fail(`${dir} package identity is incorrect`);
   if (packageManifests[dir].version !== version) fail(`${dir} package version is not synchronized at ${version}`);
+  if (packageManifests[dir].publishConfig?.access !== "public") fail(`${dir} package publish access is not public`);
 }
+const tarballFileName = (name, packageVersion) => {
+  const stem = name.startsWith("@") ? name.slice(1).replaceAll("/", "-") : name;
+  return `${stem}-${packageVersion}.tgz`;
+};
 const specs = packageDirs.map((dir) => ({
   dir,
   name: packageManifests[dir].name,
-  file: `${packageManifests[dir].name.replace("@weaver/", "weaver-")}-${packageManifests[dir].version}.tgz`,
+  file: tarballFileName(packageManifests[dir].name, packageManifests[dir].version),
 }));
 const run = (command, args, options = {}) => {
   const result = spawnSync(command, args, { encoding: "utf8", shell: process.platform === "win32", ...options });
@@ -51,6 +56,7 @@ const dependencyValues = (manifest) => Object.values({
   ...manifest.optionalDependencies,
   ...manifest.devDependencies,
 });
+const stalePublicPackageReference = new RegExp(String.raw`@weaver/(?:core|web|mcp)\b`);
 
 const temp = await mkdtemp(path.join(os.tmpdir(), "weaver-package-verification-"));
 const extractedRoot = path.join(temp, "extracted");
@@ -74,6 +80,8 @@ for (const spec of specs) {
   const packageDir = path.join(extractDir, "package");
   const manifestText = await readFile(path.join(packageDir, "package.json"), "utf8");
   const manifest = parseJson(manifestText, `${spec.file} package.json`);
+  if (stalePublicPackageReference.test(manifestText)) fail(`${spec.file}: stale public package reference in packed manifest`);
+  if (manifest.publishConfig?.access !== "public") fail(`${spec.file}: packed publish access is not public`);
   if (manifest.name !== spec.name || manifest.version !== version) fail(`${spec.file}: incorrect packed identity`);
   if (manifest.license !== "Apache-2.0") fail(`${spec.file}: incorrect license metadata`);
   const packageLicense = await readFile(path.join(packageDir, "LICENSE"));
@@ -82,7 +90,7 @@ for (const spec of specs) {
     const thirdParty = await readFile(path.join(packageDir, "THIRD_PARTY_LICENSES.txt"), "utf8");
     if (thirdParty === rootLicense.toString("utf8") || !thirdParty.includes("A2UI v0.9.1 Basic Catalog")) fail(`${spec.file}: third-party provenance material is missing or conflated`);
   }
-  if (spec.dir !== "core" && manifest.peerDependencies?.["@weaver/core"] !== "0.2.x") fail(`${spec.file}: Core peer range is not 0.2.x`);
+  if (spec.dir !== "core" && manifest.peerDependencies?.["@cylayo/weaver-core"] !== "0.2.x") fail(`${spec.file}: Core peer range is not 0.2.x`);
   for (const value of dependencyValues(manifest)) {
     if (typeof value === "string" && /^(workspace:|link:|file:)|(^|[\\/])\.\.([\\/]|$)|^[A-Za-z]:[\\/]|^\//.test(value)) fail(`${spec.file}: local dependency leaked: ${value}`);
   }
@@ -92,7 +100,8 @@ for (const spec of specs) {
   }
   for (const file of files.filter((file) => /package\/dist\/.*\.(?:js|d\.ts)$/.test(file))) {
     const text = await readFile(path.join(extractDir, file), "utf8");
-    if (/packages[\\/].*[\\/]src|\.\.\/\.\.\/src|@weaver\/[^"']+\/src|docs\/references|Zynra/i.test(text)) fail(`${spec.file}: source/reference path leaked in ${file}`);
+    if (stalePublicPackageReference.test(text)) fail(`${spec.file}: stale public package reference in ${file}`);
+    if (/packages[\\/].*[\\/]src|\.\.\/\.\.\/src|@[^/"']+\/[^/"']+\/src|docs\/references|Zynra/i.test(text)) fail(`${spec.file}: source/reference path leaked in ${file}`);
     if (file.endsWith(".js") && /(?:from\s+|import\()["'][^"']*(?:packages[\\/].*[\\/]src|\.\.\/\.\.\/src)/.test(text)) fail(`${spec.file}: runtime source import leaked in ${file}`);
     if (/(?:NPM_TOKEN|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|password\s*[:=]\s*["'][^"']+)/i.test(text)) fail(`${spec.file}: credential-like material found in ${file}`);
   }
@@ -121,10 +130,12 @@ await writeFile(path.join(consumer, "package.json"), `${JSON.stringify(fixtureMa
 run("pnpm", ["install", "--ignore-workspace"], { cwd: consumer, stdio: "pipe" });
 run("pnpm", ["run", "typecheck"], { cwd: consumer, stdio: "pipe" });
 run("pnpm", ["run", "smoke"], { cwd: consumer, stdio: "pipe" });
-const installedCore = parseJson(await readFile(path.join(consumer, "node_modules", "@weaver", "core", "package.json"), "utf8"), "installed Core package.json");
+const corePackagePathParts = expectedNames.core.split("/");
+const installedCore = parseJson(await readFile(path.join(consumer, "node_modules", ...corePackagePathParts, "package.json"), "utf8"), "installed Core package.json");
 if (installedCore.version !== version) fail(`Consumer installed Core ${installedCore.version}`);
 const storeEntries = await readdir(path.join(consumer, "node_modules", ".pnpm"));
-const coreCopies = storeEntries.filter((entry) => entry.startsWith(`@weaver+core@`));
+const coreStorePrefix = `${expectedNames.core.replace("/", "+")}@`;
+const coreCopies = storeEntries.filter((entry) => entry.startsWith(coreStorePrefix));
 if (coreCopies.length !== 1) fail(`Expected one Core package instance, found ${coreCopies.length}`);
 for (const dependency of ["client", "server"]) {
   if (!storeEntries.some((entry) => entry.startsWith(`@modelcontextprotocol+${dependency}@2.0.0`))) fail(`MCP runtime dependency missing: @modelcontextprotocol/${dependency}`);

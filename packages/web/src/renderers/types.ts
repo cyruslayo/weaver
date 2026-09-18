@@ -6,7 +6,7 @@ import type {
   JsonValue,
   WeaverActionResult,
   WeaverInputResult,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 
 export type WebInteractionError =
   | { code: "STALE_RENDER_INTERACTION" }

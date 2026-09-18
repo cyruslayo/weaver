@@ -3,15 +3,15 @@
 ## Package dependencies
 
 ```text
-@weaver/core
+@cylayo/weaver-core
     ^
     |
-@weaver/web
+@cylayo/weaver-web
 
-@weaver/core
+@cylayo/weaver-core
     ^
     |
-@weaver/mcp
+@cylayo/weaver-mcp
 ```
 
 MCP inbound integration is concrete and transport-independent:
@@ -21,13 +21,13 @@ MCP Server
    ↓ resources/read or tools/call
 official MCP Client
    ↓
-@weaver/mcp
+@cylayo/weaver-mcp
    ↓
 A2UITransportSession
    ↓
 WeaverRuntime
    ↓
-@weaver/web
+@cylayo/weaver-web
 ```
 
 This A2UI UI-delivery direction is separate from application capability invocation:
@@ -37,7 +37,7 @@ Application Agent
    ↓ MCP tools/call
 official MCP server
    ↓
-@weaver/mcp application capability adapter
+@cylayo/weaver-mcp application capability adapter
    ↓
 application integration handler
    ↓
@@ -53,7 +53,7 @@ A2UI interaction
    ↓
 session routed delivery
    ↓
-@weaver/mcp
+@cylayo/weaver-mcp
    ↓
 tools/call
    ├── a2ui_action
@@ -75,7 +75,7 @@ Weaver handles interface runtime behavior. A2UI will define interface messages.
 MCP will expose application capabilities. Applications own business rules and
 data. Agents may coordinate MCP and A2UI. Weaver does not require an agent.
 
-A2UI runtime behavior lives in Core/Web; the narrow MCP client bridge and separate application-capability adapter live only in `@weaver/mcp`. The adapter has no global registry or implicit tool state. Applications needing state expose explicit opaque handles and remain responsible for authorization on each use.
+A2UI runtime behavior lives in Core/Web; the narrow MCP client bridge and separate application-capability adapter live only in `@cylayo/weaver-mcp`. The adapter has no global registry or implicit tool state. Applications needing state expose explicit opaque handles and remain responsible for authorization on each use.
 
 ## A2UI protocol boundary
 
@@ -85,7 +85,7 @@ prefer `v0.9.1`. Validation preserves the version supplied on the wire. The
 canonical requirement and gap tracker is
 [`conformance-v0.9.1.md`](conformance-v0.9.1.md).
 
-Application backends can use `createA2UIV091Producer` from `@weaver/core` to
+Application backends can use `createA2UIV091Producer` from `@cylayo/weaver-core` to
 construct the supported `createSurface`, `updateComponents`,
 `updateDataModel`, and `deleteSurface` messages. The producer owns the returned
 JSON and checks the generic protocol envelope, but deliberately does not check
@@ -109,7 +109,7 @@ The producer is construction only: it does not call a model or make untrusted
 model output safe. Invalid JSON-like caller values throw `TypeError` rather than
 being repaired. Core remains transport-neutral and provider-neutral.
 
-`@weaver/core` provides one safe runtime entry point for untrusted A2UI
+`@cylayo/weaver-core` provides one safe runtime entry point for untrusted A2UI
 objects:
 
 ```text
@@ -372,7 +372,7 @@ Basic renderer registrations are a composable allowlist, not a global registry. 
 
 The prototype `ComponentRegistry` supplied the useful trusted-allowlist idea;
 `CatalogRegistry` is the protocol-aligned, framework-independent replacement
-for schema trust. `@weaver/web` owns the separate trusted DOM renderer allowlist.
+for schema trust. `@cylayo/weaver-web` owns the separate trusted DOM renderer allowlist.
 
 ## Trusted function execution
 
@@ -620,7 +620,7 @@ engine. The legacy public structural query returns copied direct field arrays. `
 
 ```text
 CatalogRegistry → structural locations → ComponentTreeResolver
-  → ComponentInstanceResolver → hydrated relationships → @weaver/web
+  → ComponentInstanceResolver → hydrated relationships → @cylayo/weaver-web
 ```
 
 A runtime location such as `/tabs/1/child` describes component-property structure, not DataModel scope. Nested static children inherit the current instance `scopePath`; only existing `ChildList` template expansion creates collection-item DataContexts. `ComponentId` and `ChildList` values are structural metadata, so hydration removes those leaves while preserving surrounding objects, arrays, indices, and nonstructural fields. Resolved children travel separately through relationships.
@@ -1138,7 +1138,7 @@ The renderer boundary is:
 ```text
 runtime.resolveSurface()
         ↓
-@weaver/web renderer
+@cylayo/weaver-web renderer
 
 browser interaction
         ↓
@@ -1244,7 +1244,7 @@ One transport session processes inbound A2UI messages synchronously in the order
 supplied by its adapter. Core adds no queue or lock. An adapter that receives
 messages concurrently must serialize calls before `processInbound()`.
 
-The first concrete binding lives in `@weaver/web`:
+The first concrete binding lives in `@cylayo/weaver-web`:
 
 ```text
 remote HTTP/SSE peer
@@ -1345,7 +1345,7 @@ The first framework-free browser layer consumes only Core's public derived API:
 ```
 
 ```text
-                        @weaver/core
+                        @cylayo/weaver-core
 
                       WeaverRuntime
                            │
@@ -1353,7 +1353,7 @@ The first framework-free browser layer consumes only Core's public derived API:
                  WeaverResolvedSurface
                            │
                            ↓
-                        @weaver/web
+                        @cylayo/weaver-web
                            │
                   WebSurfaceRenderer
                            │
@@ -1541,7 +1541,7 @@ See [Web rendering](./web-rendering.md) for the renderer, interaction, and mount
 Weaver repository
       |
       v build and package
-@weaver/core / @weaver/web / @weaver/mcp
+@cylayo/weaver-core / @cylayo/weaver-web / @cylayo/weaver-mcp
       |
       v install published-shaped artifacts
 external application

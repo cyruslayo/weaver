@@ -2,7 +2,7 @@
 
 > **This is a Weaver transport binding. It is not a normative A2UI v0.9.1 HTTP/SSE binding.**
 
-`@weaver/web` provides `createBrowserA2UIHttpSseTransport`. One adapter represents one trusted host-assigned `routeId`, one stream endpoint, and one send endpoint. Routes never appear in a body, query, or Weaver-created remote header. An SSE event ID is only a replay cursor: it is not a route, surface, authentication, or session identity.
+`@cylayo/weaver-web` provides `createBrowserA2UIHttpSseTransport`. One adapter represents one trusted host-assigned `routeId`, one stream endpoint, and one send endpoint. Routes never appear in a body, query, or Weaver-created remote header. An SSE event ID is only a replay cursor: it is not a route, surface, authentication, or session identity.
 
 ## Stream and resume
 

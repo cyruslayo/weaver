@@ -3,7 +3,7 @@ import type {
   WeaverRuntime,
   WeaverRuntimeConfig,
   WeaverRuntimeConfigurationError,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 import type { BasicCatalogRendererRegistrationOptions } from "../basic/index.js";
 import type {
   RendererRegistration,
