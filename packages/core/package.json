@@ -1,7 +1,10 @@
 {
-  "name": "@weaver/core",
-  "version": "0.2.0",
+  "name": "@cylayo/weaver-core",
+  "version": "0.2.1",
   "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "description": "Weaver protocol, runtime, catalog, state, and action foundation",
   "type": "module",
   "repository": {

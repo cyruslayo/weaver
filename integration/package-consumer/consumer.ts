@@ -1,6 +1,6 @@
-import { createA2UIV091Producer, createA2UIV091StreamIngestion, WEAVER_CORE_VERSION, createWeaverRuntime, type A2UIV091StreamIngestionEvent, type WeaverRuntime, type WeaverRuntimeSafetyConfig, type ResolutionBudgetExceededError } from "@weaver/core";
-import { RendererRegistry, createBasicWebRuntime, createBrowserA2UIHttpSseTransport, createBasicCatalogRendererRegistrations, type BasicWebRuntime, type BasicWebRuntimeConfig, type DateTimeInputLocalValueRequest, type DateTimeInputLocalValueResult } from "@weaver/web";
-import { createA2UIMcpClientBridge, registerMcpApplicationCapabilities } from "@weaver/mcp";
+import { createA2UIV091Producer, createA2UIV091StreamIngestion, WEAVER_CORE_VERSION, createWeaverRuntime, type A2UIV091StreamIngestionEvent, type WeaverRuntime, type WeaverRuntimeSafetyConfig, type ResolutionBudgetExceededError } from "@cylayo/weaver-core";
+import { RendererRegistry, createBasicWebRuntime, createBrowserA2UIHttpSseTransport, createBasicCatalogRendererRegistrations, type BasicWebRuntime, type BasicWebRuntimeConfig, type DateTimeInputLocalValueRequest, type DateTimeInputLocalValueResult } from "@cylayo/weaver-web";
+import { createA2UIMcpClientBridge, registerMcpApplicationCapabilities } from "@cylayo/weaver-mcp";
 
 const version: string = WEAVER_CORE_VERSION;
 const producer = createA2UIV091Producer();

@@ -2,7 +2,7 @@ import {
   A2UI_V091_BASIC_CATALOG_ID,
   createBasicCatalogV091Registration,
   createWeaverRuntime,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 import {
   createBasicCatalogRendererRegistrations,
   createBasicCatalogThemeAdapter,

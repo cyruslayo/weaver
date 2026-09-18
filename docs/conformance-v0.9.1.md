@@ -12,7 +12,7 @@ Detached descendant/resource construction is **ACCEPTED FOR WEAVER V0.9.1 BASELI
 |---|---|
 | Target protocol | A2UI v0.9.1 |
 | Weaver status | pre-1.0 |
-| Audit scope | `@weaver/core`, `@weaver/web`, `@weaver/mcp`, playground where relevant |
+| Audit scope | `@cylayo/weaver-core`, `@cylayo/weaver-web`, `@cylayo/weaver-mcp`, playground where relevant |
 | Audit method | Official schemas and documents → implementation → status → test/code evidence → action |
 
 ## Status vocabulary and summary
@@ -147,7 +147,7 @@ Important source detail: the v0.9.1 files retain `$id`, `$ref`, `catalogId`, and
 | R080 | Message framing (P Transport contract; protocol) | Core JSONL text decoder available; Weaver SSE binding uses one JSON envelope per event | PASS | Other transports own own framing |
 | R081 | Metadata carriage (P Transport contract; protocol) | Real loopback POST wrappers carry exact capabilities on every request and optional routed client-data-model metadata | PASS | None |
 | R082 | Bidirectional action channel (P optional contract; protocol) | Weaver Web adapter provides loopback-tested SSE server-to-client and POST client-to-server integration | PASS | None |
-| R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | `@weaver/mcp` performs exact, parameter-safe MIME interception for resource text and tool embedded resources; non-A2UI media never enters the runtime | PASS | None |
+| R083 | `application/a2ui+json` interception (C MIME checklist; checklist) | `@cylayo/weaver-mcp` performs exact, parameter-safe MIME interception for resource text and tool embedded resources; non-A2UI media never enters the runtime | PASS | None |
 | R084 | A2A mapping/capability metadata (P A2A binding; protocol) | No A2A adapter by design | DEFERRED-BY-ARCHITECTURE | Future A2A adapter |
 | R085 | MCP delivery (P Other transports; protocol) | Official SDK v2 modern HTTP harness proves MCP 2026-07-28 resource/tool delivery, per-request capabilities, routed actions/errors, and route isolation through `A2UITransportSession` | PASS | Application-domain server helpers remain separate |
 | R086 | Arbitrary text chunks (C JSONL; checklist) | Incremental character buffer; JSONL tests | PASS | None |

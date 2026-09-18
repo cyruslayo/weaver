@@ -1,6 +1,6 @@
 # Weaver A2UI over MCP
 
-`@weaver/mcp` targets **MCP 2026-07-28** with the official TypeScript SDK v2. It accepts an already-connected official `Client`; the bridge does not connect, authenticate, select a transport, or close that client. The same bridge can therefore operate over Streamable HTTP, stdio, or another valid MCP transport.
+`@cylayo/weaver-mcp` targets **MCP 2026-07-28** with the official TypeScript SDK v2. It accepts an already-connected official `Client`; the bridge does not connect, authenticate, select a transport, or close that client. The same bridge can therefore operate over Streamable HTTP, stdio, or another valid MCP transport.
 
 The A2UI-over-MCP guide's initialize-based capability-negotiation example targets the older stateful MCP model. Weaver uses per-request A2UI metadata with the current stateless MCP model. The guide's resource, tool, MIME, action, and error delivery concepts still apply.
 

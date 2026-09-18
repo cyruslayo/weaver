@@ -1,4 +1,4 @@
-import type { A2UIRoutedDelivery, MessageProcessorResult } from "@weaver/core";
+import type { A2UIRoutedDelivery, MessageProcessorResult } from "@cylayo/weaver-core";
 import { SseDecoder } from "./SseDecoder.js";
 import type { BrowserA2UIHttpSseDiagnostic, BrowserA2UIHttpSseRunOptions, BrowserA2UIHttpSseRunResult, BrowserA2UIHttpSseSendResult, BrowserA2UIHttpSseTransport, BrowserA2UIHttpSseTransportOptions } from "./types.js";
 

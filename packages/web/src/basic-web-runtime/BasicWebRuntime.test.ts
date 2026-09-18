@@ -4,7 +4,7 @@ import {
   A2UI_V091_BASIC_CATALOG_ID,
   createBasicCatalogV091Registration,
   type JsonObject,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import { RendererRegistryConfigurationError } from "../renderers/index.js";
 import { createBasicWebRuntime, type BasicWebRuntimeConfig } from "./index.js";

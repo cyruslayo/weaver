@@ -1,4 +1,4 @@
-import type { FunctionRegistration } from "@weaver/core";
+import type { FunctionRegistration } from "@cylayo/weaver-core";
 import { createOpenUrlImplementation } from "./openUrl.js";
 import type { BasicCatalogBrowserFunctionOptions } from "./types.js";
 

@@ -2,21 +2,21 @@
 
 Weaver produces three independently consumable, ESM-only packages:
 
-- `@weaver/core`: protocol, runtime, catalog, state, and action foundation.
-- `@weaver/web`: browser renderer plus browser transport and policies.
-- `@weaver/mcp`: MCP A2UI bridge plus application capability helpers.
+- `@cylayo/weaver-core`: protocol, runtime, catalog, state, and action foundation.
+- `@cylayo/weaver-web`: browser renderer plus browser transport and policies.
+- `@cylayo/weaver-mcp`: MCP A2UI bridge plus application capability helpers.
 
 All intended APIs are reachable from each package's root export. Internal directories are not package subpath exports.
 
 ## Dependency direction
 
 ```text
-@weaver/web --peer--> @weaver/core
-@weaver/mcp --peer--> @weaver/core
+@cylayo/weaver-web --peer--> @cylayo/weaver-core
+@cylayo/weaver-mcp --peer--> @cylayo/weaver-core
 
-@weaver/core -X-> web
-@weaver/core -X-> mcp
-@weaver/web  -X-> mcp
+@cylayo/weaver-core -X-> web
+@cylayo/weaver-core -X-> mcp
+@cylayo/weaver-web  -X-> mcp
 ```
 
 Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.2.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
@@ -25,16 +25,16 @@ A frontend application normally installs:
 
 ```text
 external frontend
-  @weaver/core
-  @weaver/web
+  @cylayo/weaver-core
+  @cylayo/weaver-web
 ```
 
 A backend integration installs:
 
 ```text
 external backend
-  @weaver/core
-  @weaver/mcp
+  @cylayo/weaver-core
+  @cylayo/weaver-mcp
 ```
 
 Core is mandatory in both examples because Web and MCP declare it as a peer dependency.
@@ -89,6 +89,6 @@ pnpm verify:worker-core
 
 No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced. The existing Ubuntu CI Verify job runs every release gate, including `verify:worker-core`.
 
-`@weaver/mcp` declares `engines.node >= 20` because its pinned MCP runtime dependencies (`@modelcontextprotocol/client`, `@modelcontextprotocol/server`) require it. Core and Web make no Node-version support declaration yet.
+`@cylayo/weaver-mcp` declares `engines.node >= 20` because its pinned MCP runtime dependencies (`@modelcontextprotocol/client`, `@modelcontextprotocol/server`) require it. Core and Web make no Node-version support declaration yet.
 
 Weaver is licensed under the Apache License 2.0 (SPDX: `Apache-2.0`). The canonical project license is in the repository root and is copied into each publishable package so packed artifacts carry it. `packages/core/THIRD_PARTY_LICENSES.txt` remains separate provenance and attribution for redistributed A2UI-derived material; it is not Weaver's project license.

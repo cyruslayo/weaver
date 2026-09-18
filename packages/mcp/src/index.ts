@@ -7,7 +7,7 @@ import type {
   A2UIRoutedDelivery,
   A2UIRoutingError,
   A2UITransportSession,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 
 const A2UI_MIME = "application/a2ui+json";
 const DEFAULT_MAX_PAYLOAD_BYTES = 1024 * 1024;

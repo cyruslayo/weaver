@@ -7,7 +7,7 @@ For the canonical A2UI v0.9.1 Basic Catalog, browser hosts can use
 registry, theme adapter, and surface renderer themselves:
 
 ```ts
-import { createBasicWebRuntime } from "@weaver/web";
+import { createBasicWebRuntime } from "@cylayo/weaver-web";
 
 const created = createBasicWebRuntime({
   basic: { resourcePolicy, iconResolver, regexMatcher },
@@ -43,7 +43,7 @@ composition.
 ## Pipeline
 
 ```text
-                        @weaver/core
+                        @cylayo/weaver-core
 
                       WeaverRuntime
                            │
@@ -51,7 +51,7 @@ composition.
                  WeaverResolvedSurface
                            │
                            ↓
-                        @weaver/web
+                        @cylayo/weaver-web
                            │
                   WebSurfaceRenderer
                            │

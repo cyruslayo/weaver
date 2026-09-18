@@ -1,4 +1,4 @@
-import type { WeaverSurfaceResolutionError } from "@weaver/core";
+import type { WeaverSurfaceResolutionError } from "@cylayo/weaver-core";
 
 export type WebRenderError =
   | { code: "SURFACE_RESOLUTION_FAILED"; cause: WeaverSurfaceResolutionError }

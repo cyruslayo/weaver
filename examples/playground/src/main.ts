@@ -1,5 +1,5 @@
-import { WEAVER_CORE_VERSION } from "@weaver/core";
-import { createBasicWebRuntime } from "@weaver/web";
+import { WEAVER_CORE_VERSION } from "@cylayo/weaver-core";
+import { createBasicWebRuntime } from "@cylayo/weaver-web";
 
 const app = document.querySelector<HTMLElement>("#app");
 if (app === null) throw new Error("Playground root element was not found");

@@ -1,4 +1,4 @@
-import type { BasicRegexMatcher } from "@weaver/core";
+import type { BasicRegexMatcher } from "@cylayo/weaver-core";
 import type { RendererRegistration } from "../renderers/index.js";
 import {
   renderButton,

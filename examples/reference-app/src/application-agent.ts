@@ -2,8 +2,8 @@ import type {
   A2UIComponent,
   A2UIServerMessage,
   JsonObject,
-} from "@weaver/core";
-import { createA2UIV091Producer } from "@weaver/core";
+} from "@cylayo/weaver-core";
+import { createA2UIV091Producer } from "@cylayo/weaver-core";
 
 export const REFERENCE_SURFACE_ID = "reference-request";
 export const REFERENCE_CREATE_REQUEST = "reference.createRequest";

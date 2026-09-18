@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { A2UIClientActionMessage, JsonObject } from "@weaver/core";
+import type { A2UIClientActionMessage, JsonObject } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import {
   createReferenceAgent,
@@ -9,7 +9,7 @@ import {
 } from "./application-agent.js";
 import { encodeA2UIMessage } from "./agent-stream.js";
 import { createReferenceApplication } from "./reference-app.js";
-import type { WebServerEventHandoff } from "@weaver/web";
+import type { WebServerEventHandoff } from "@cylayo/weaver-web";
 
 function dom() {
   const window = new Window();

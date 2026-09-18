@@ -5,7 +5,7 @@ import type {
   JsonValue,
   WeaverResolvedSurface,
   WeaverRuntime,
-} from "@weaver/core";
+} from "@cylayo/weaver-core";
 import type {
   RendererRegistry,
   WebComponentInteractions,

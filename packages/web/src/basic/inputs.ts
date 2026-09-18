@@ -1,4 +1,4 @@
-import type { BasicRegexMatcher, ComponentCheckSnapshot, HydratedValue } from "@weaver/core";
+import type { BasicRegexMatcher, ComponentCheckSnapshot, HydratedValue } from "@cylayo/weaver-core";
 import type { WebComponentRenderInput, WebComponentRenderer } from "../renderers/index.js";
 import { applyBasicHook } from "./layout.js";
 import { appendBasicStyle, applyBasicMargin, basicControl, basicOutline, basicRadius, basicSpace } from "./styles.js";

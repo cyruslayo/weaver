@@ -1,4 +1,4 @@
-import type { FunctionImplementation } from "@weaver/core";
+import type { FunctionImplementation } from "@cylayo/weaver-core";
 import type { BasicCatalogBrowserFunctionOptions } from "./types.js";
 
 function requireHttpUrl(value: string, baseUrl?: string): URL {

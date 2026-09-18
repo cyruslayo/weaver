@@ -1,4 +1,4 @@
-import type { A2UIRouteId, A2UIRoutedDelivery, A2UITransportSession } from "@weaver/core";
+import type { A2UIRouteId, A2UIRoutedDelivery, A2UITransportSession } from "@cylayo/weaver-core";
 
 export type BrowserA2UIHttpSseDiagnostic = Readonly<{
   code: "SSE_EVENT_TOO_LARGE" | "SSE_INVALID_JSON" | "INBOUND_PROCESS_FAILED" | "VALIDATION_DELIVERY_FAILED" | "VALIDATION_DELIVERY_ROUTE_MISMATCH" | "RECONNECT_SCHEDULED" | "RESUME_UNAVAILABLE";

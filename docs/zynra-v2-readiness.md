@@ -18,7 +18,7 @@ Weaver evidence reviewed:
 
 - [`PLAN.md`](./PLAN.md), [`architecture.md`](./architecture.md), and [`conformance-v0.9.1.md`](./conformance-v0.9.1.md)
 - [`http-sse-transport.md`](./http-sse-transport.md), [`mcp.md`](./mcp.md), and [`web-rendering.md`](./web-rendering.md)
-- the relevant public `@weaver/mcp` package contract
+- the relevant public `@cylayo/weaver-mcp` package contract
 
 Zynra evidence result:
 
@@ -41,7 +41,7 @@ Browser
   ↓ Zynra-authenticated fetch
 Zynra Web Host
   ↓
-@weaver/web + @weaver/core
+@cylayo/weaver-web + @cylayo/weaver-core
   ↓
 A2UITransportSession (host-assigned route)
   ↓
@@ -80,7 +80,7 @@ refreshed A2UI to the same surface owner
 external/application agent
   ↓ official MCP Streamable HTTP
 Zynra Hono MCP endpoint
-  ↓ @weaver/mcp registration helper
+  ↓ @cylayo/weaver-mcp registration helper
 Zynra integration handler
   ↓ existing domain service
 ```

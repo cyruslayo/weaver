@@ -20,17 +20,17 @@ JavaScript compilation) and works in browsers, Node, and Worker runtimes.
 The three packages have strict, one-directional dependencies:
 
 ```text
-@weaver/core   (protocol, runtime, catalog, state, actions)
+@cylayo/weaver-core   (protocol, runtime, catalog, state, actions)
     ^                ^
     |                |
-@weaver/web    @weaver/mcp   (both optional, peer-depend on core)
+@cylayo/weaver-web    @cylayo/weaver-mcp   (both optional, peer-depend on core)
 ```
 
-- `@weaver/core` — browser-independent runtime foundation. It must not depend
+- `@cylayo/weaver-core` — browser-independent runtime foundation. It must not depend
   on Web or MCP.
-- `@weaver/web` — browser rendering and the browser HTTP/SSE transport. It may
+- `@cylayo/weaver-web` — browser rendering and the browser HTTP/SSE transport. It may
   depend on Core only.
-- `@weaver/mcp` — optional MCP bridge. It may depend on Core only.
+- `@cylayo/weaver-mcp` — optional MCP bridge. It may depend on Core only.
 
 ```text
                   WeaverRuntime (core)
@@ -58,13 +58,13 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture.
 
 | Package | Version | Runtime | Responsibilities |
 | --- | --- | --- | --- |
-| `@weaver/core` | 0.2.0 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
-| `@weaver/web` | 0.2.0 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
-| `@weaver/mcp` | 0.2.0 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
+| `@cylayo/weaver-core` | 0.2.1 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
+| `@cylayo/weaver-web` | 0.2.1 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
+| `@cylayo/weaver-mcp` | 0.2.1 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
 
 All three packages are ESM-only with a single root export, and they release
 together at one synchronized version. Core is mandatory; Web and MCP declare
-`@weaver/core` as a peer dependency (`0.2.x`). MCP is optional and not required
+`@cylayo/weaver-core` as a peer dependency (`0.2.x`). MCP is optional and not required
 by Core or Web. See [docs/packaging.md](docs/packaging.md).
 
 ## Current maturity / support status
@@ -82,9 +82,9 @@ Weaver is pre-1.0. The public API is evolving and should not be assumed stable.
   (`examples/http-sse-server/`) is a single-peer loopback test peer, not a
   production server.
 
-Runtime support declarations are package-specific: `@weaver/mcp` requires
-Node >=20 (its pinned MCP runtime dependencies do), while `@weaver/core` and
-`@weaver/web` currently make no Node-version support declaration.
+Runtime support declarations are package-specific: `@cylayo/weaver-mcp` requires
+Node >=20 (its pinned MCP runtime dependencies do), while `@cylayo/weaver-core` and
+`@cylayo/weaver-web` currently make no Node-version support declaration.
 
 ## Current consumption / install workflow
 
@@ -99,9 +99,9 @@ pnpm verify:packages
 This builds the workspace and produces three ignored tarballs in `artifacts/`:
 
 ```text
-artifacts/weaver-core-0.2.0.tgz
-artifacts/weaver-web-0.2.0.tgz
-artifacts/weaver-mcp-0.2.0.tgz
+artifacts/cylayo-weaver-core-0.2.1.tgz
+artifacts/cylayo-weaver-web-0.2.1.tgz
+artifacts/cylayo-weaver-mcp-0.2.1.tgz
 ```
 
 An external application installs them by relative file path (shown with a
@@ -110,8 +110,8 @@ placeholder for the Weaver checkout directory):
 ```json
 {
   "dependencies": {
-    "@weaver/core": "file:<path-to-weaver>/artifacts/weaver-core-0.2.0.tgz",
-    "@weaver/web": "file:<path-to-weaver>/artifacts/weaver-web-0.2.0.tgz"
+    "@cylayo/weaver-core": "file:<path-to-weaver>/artifacts/cylayo-weaver-core-0.2.1.tgz",
+    "@cylayo/weaver-web": "file:<path-to-weaver>/artifacts/cylayo-weaver-web-0.2.1.tgz"
   }
 }
 ```
@@ -127,7 +127,7 @@ workflow and release gate.
 ## Minimal working example
 
 Weaver's trust model is explicit: the host registers every trusted A2UI catalog
-and renderer during initialization. `@weaver/core` bundles the canonical A2UI
+and renderer during initialization. `@cylayo/weaver-core` bundles the canonical A2UI
 v0.9.1 Basic Catalog registration helper (`createBasicCatalogV091Registration`)
 for hosts that want the canonical catalog without hand-copying its schema;
 custom catalogs are registered the same low-level way.
@@ -137,7 +137,7 @@ custom catalogs are registered the same low-level way.
 Application code can use the version-explicit producer for the common server-message lifecycle instead of repeating the wire version and envelope keys:
 
 ```ts
-import { createA2UIV091Producer } from "@weaver/core";
+import { createA2UIV091Producer } from "@cylayo/weaver-core";
 
 const producer = createA2UIV091Producer();
 const messages = [
@@ -157,7 +157,7 @@ The producer constructs caller-owned A2UI v0.9.1 JSON and checks the protocol en
 For untrusted provider text, use the Core stream-ingestion API with an existing runtime:
 
 ```ts
-import { createA2UIV091StreamIngestion } from "@weaver/core";
+import { createA2UIV091StreamIngestion } from "@cylayo/weaver-core";
 
 const ingestion = createA2UIV091StreamIngestion({ runtime });
 for (const textDelta of providerTextDeltas) {
@@ -173,7 +173,7 @@ The application/provider owns the model stream and text extraction. Weaver owns 
 ### Core only (any platform)
 
 ```ts
-import { createWeaverRuntime, type JsonObject } from "@weaver/core";
+import { createWeaverRuntime, type JsonObject } from "@cylayo/weaver-core";
 
 // 1. Build a minimal Text-only A2UI v0.9.1 catalog for this example.
 const catalogId = "basic";
@@ -249,7 +249,7 @@ deep non-structural JSON remains stack-safe without silently truncating data.
 The recommended canonical Basic Catalog path uses the high-level Web facade:
 
 ```ts
-import { createBasicWebRuntime } from "@weaver/web";
+import { createBasicWebRuntime } from "@cylayo/weaver-web";
 
 const created = createBasicWebRuntime({
   basic: {
@@ -315,8 +315,8 @@ descendants) is documented there.
 
 ## Optional MCP integration
 
-`@weaver/mcp` is optional. A frontend-only installation (`@weaver/core` +
-`@weaver/web`) needs no MCP at all, and Core/Web have no MCP dependency.
+`@cylayo/weaver-mcp` is optional. A frontend-only installation (`@cylayo/weaver-core` +
+`@cylayo/weaver-web`) needs no MCP at all, and Core/Web have no MCP dependency.
 
 The MCP package targets MCP **2026-07-28** with the official TypeScript SDK v2:
 
@@ -346,7 +346,7 @@ boundaries. Agent-controlled input is data and never executable:
   Implementations are host-registered trusted code; catalog data is never
   executed. Function effects are classified `pure` or `action` by the host and
   can only run at the root of a direct local action.
-- **Deny-by-default media.** `@weaver/web` loads no agent-supplied media URL
+- **Deny-by-default media.** `@cylayo/weaver-web` loads no agent-supplied media URL
   unless the host installs a `resourcePolicy`. `openUrl` requires an explicit
   host-installed factory plus policy.
 - **Inert attribution claims.** `theme.agentDisplayName` / `theme.iconUrl` are
@@ -364,9 +364,9 @@ untrusted input. See [docs/architecture.md](docs/architecture.md) and
 
 ```text
 packages/
-  core/    @weaver/core    protocol, runtime, catalog, state, actions
-  web/     @weaver/web     browser rendering + HTTP/SSE transport
-  mcp/     @weaver/mcp     optional MCP bridge + capability helpers
+  core/    @cylayo/weaver-core    protocol, runtime, catalog, state, actions
+  web/     @cylayo/weaver-web     browser rendering + HTTP/SSE transport
+  mcp/     @cylayo/weaver-mcp     optional MCP bridge + capability helpers
 examples/
   playground/              renderer and Basic component exploration
   reference-app/           full producer/ingestion/runtime/action round trip
@@ -404,7 +404,7 @@ pnpm verify:worker-core
 
 Scope boundaries to respect:
 
-- `@weaver/core` must remain browser-independent and free of MCP and Web
+- `@cylayo/weaver-core` must remain browser-independent and free of MCP and Web
   dependencies.
 - MCP remains optional; model providers remain outside Weaver; Weaver must work
   without an AI model and must not contain application business logic.

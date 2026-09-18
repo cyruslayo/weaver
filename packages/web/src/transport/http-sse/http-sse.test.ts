@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createA2UITransportSession, createWeaverRuntime, type A2UIRoutedDelivery, type A2UITransportSession, type JsonObject } from "@weaver/core";
+import { createA2UITransportSession, createWeaverRuntime, type A2UIRoutedDelivery, type A2UITransportSession, type JsonObject } from "@cylayo/weaver-core";
 import { createBrowserA2UIHttpSseTransport } from "./createBrowserA2UIHttpSseTransport.js";
 import { startReferenceServer, type ReceivedClientMessage } from "./reference-server.test-helper.js";
 

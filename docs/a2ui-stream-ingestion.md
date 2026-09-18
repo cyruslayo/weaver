@@ -4,7 +4,7 @@
 newline-delimited A2UI v0.9.1 text to an existing `WeaverRuntime`.
 
 ```ts
-import { createA2UIV091StreamIngestion } from "@weaver/core";
+import { createA2UIV091StreamIngestion } from "@cylayo/weaver-core";
 
 const ingestion = createA2UIV091StreamIngestion({
   runtime,

@@ -1,10 +1,10 @@
-import type { JsonObject } from "@weaver/core";
+import type { JsonObject } from "@cylayo/weaver-core";
 import {
   createBasicWebRuntime,
   type BasicWebRuntime,
   type WebServerEventHandoff,
   type WebSurfaceMount,
-} from "@weaver/web";
+} from "@cylayo/weaver-web";
 import {
   createReferenceAgent,
   isReferencePriority,

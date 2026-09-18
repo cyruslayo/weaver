@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
-import type { BasicRegexMatcher } from "@weaver/core";
+import type { BasicRegexMatcher } from "@cylayo/weaver-core";
 import { RendererRegistry, type WebComponentInteractions, type WebComponentRenderInput, type WebComponentRenderer } from "../renderers/index.js";
 import { createBasicCatalogRendererRegistrations } from "./createBasicCatalogRendererRegistrations.js";
 import type { BasicIconResolver } from "./icon.js";
