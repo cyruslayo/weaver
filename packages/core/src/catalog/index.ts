@@ -1,3 +1,8 @@
+export { defineCatalog } from "./definition.js";
+export type {
+  A2UIV091CatalogSchema,
+  CatalogDefinition,
+} from "./definition.js";
 export { CatalogRegistry } from "./CatalogRegistry.js";
 export type { CatalogRegistryError, CatalogRegistryErrorCode } from "./errors.js";
 export type {
