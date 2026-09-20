@@ -1,0 +1,51 @@
+# Weaver
+
+> Weaver is an independent, model-independent runtime for dynamic interfaces using A2UI v0.9.1. Agent output is untrusted data; Weaver validates and processes it, maintains state, renders trusted components, and dispatches host-controlled interactions.
+
+## Packages
+
+The published npm packages are:
+
+- `@cylayo/weaver-core` — required platform-independent protocol, runtime, catalog, state, action, producer, stream-ingestion, and transport-session foundation.
+- `@cylayo/weaver-web` — optional browser renderer, browser interaction layer, Basic Catalog facade, and HTTP/SSE adapter; peer-depends on Core.
+- `@cylayo/weaver-mcp` — optional MCP A2UI bridge and application-capability helpers; peer-depends on Core and requires Node 20 or later.
+
+All packages are ESM-only, version `0.2.1`, and expose one root package export. Core and Web do not declare a Node version requirement. Core is required by Web and MCP.
+
+## Installation
+
+Browser application:
+
+```sh
+npm install @cylayo/weaver-core @cylayo/weaver-web
+```
+
+Core-only application:
+
+```sh
+npm install @cylayo/weaver-core
+```
+
+MCP integration:
+
+```sh
+npm install @cylayo/weaver-core @cylayo/weaver-mcp
+```
+
+MCP requires Node 20 or later. Do not install MCP for a normal frontend application. The npm installation commands above are current for published version `0.2.1`.
+
+## Documentation
+
+- [Architecture](docs/architecture.md) — package boundaries, runtime pipeline, trust, state, and transport sessions.
+- [A2UI stream ingestion](docs/a2ui-stream-ingestion.md) — strict JSONL ingestion through Core.
+- [Web rendering](docs/web-rendering.md) — trusted renderer pipeline, browser interaction, media, theme, and attribution policies.
+- [HTTP/SSE transport](docs/http-sse-transport.md) — the opt-in browser transport binding, reconnect, resume, and reference-server limits.
+- [MCP integration](docs/mcp.md) — A2UI bridge and trusted application capability helpers.
+- [Packaging](docs/packaging.md) — ESM package boundaries, dependencies, and release checks.
+- [A2UI v0.9.1 conformance](docs/conformance-v0.9.1.md) — conformance baseline and known limitations.
+
+## Examples
+
+- [Reference application](examples/reference-app/) — preferred full application flow: producer, JSONL ingestion, runtime, Web renderer, trusted input, and action round trip.
+- [Playground](examples/playground/) — component and renderer exploration.
+- [HTTP/SSE reference server](examples/http-sse-server/) — dependency-free single-peer loopback transport example; not a production server.
