@@ -86,40 +86,43 @@ Runtime support declarations are package-specific: `@cylayo/weaver-mcp` requires
 Node >=20 (its pinned MCP runtime dependencies do), while `@cylayo/weaver-core` and
 `@cylayo/weaver-web` currently make no Node-version support declaration.
 
-## Current consumption / install workflow
+## Installation
 
-Weaver is not currently published to a package registry. Today's verified
-workflow is local packed tarballs:
+Weaver `0.2.1` is published on npm. The published packages are:
+
+- `@cylayo/weaver-core` — required protocol, runtime, catalog, state, and action foundation.
+- `@cylayo/weaver-web` — optional browser renderer, browser interaction layer, and HTTP/SSE transport.
+- `@cylayo/weaver-mcp` — optional MCP bridge and application-capability helpers.
+
+All three packages are ESM-only and expose one root package export. Web and MCP
+peer-depend on `@cylayo/weaver-core` at `0.2.x`. Core remains required; Web and
+MCP are optional. Core and Web currently declare no Node version requirement,
+while MCP requires Node 20 or later.
+
+For a normal browser application:
 
 ```sh
-pnpm install
-pnpm verify:packages
+npm install @cylayo/weaver-core @cylayo/weaver-web
 ```
 
-This builds the workspace and produces three ignored tarballs in `artifacts/`:
+For Core-only use:
 
-```text
-artifacts/cylayo-weaver-core-0.2.1.tgz
-artifacts/cylayo-weaver-web-0.2.1.tgz
-artifacts/cylayo-weaver-mcp-0.2.1.tgz
+```sh
+npm install @cylayo/weaver-core
 ```
 
-An external application installs them by relative file path (shown with a
-placeholder for the Weaver checkout directory):
+For MCP integration:
 
-```json
-{
-  "dependencies": {
-    "@cylayo/weaver-core": "file:<path-to-weaver>/artifacts/cylayo-weaver-core-0.2.1.tgz",
-    "@cylayo/weaver-web": "file:<path-to-weaver>/artifacts/cylayo-weaver-web-0.2.1.tgz"
-  }
-}
+```sh
+npm install @cylayo/weaver-core @cylayo/weaver-mcp
 ```
 
-`verify:packages` also installs the tarballs into an isolated consumer outside
-the workspace and runs strict declaration and runtime-import checks against
-them, so a passing run demonstrates the artifacts are consumable. `pnpm
-verify:worker-core` runs the same packaged Core inside `workerd`.
+MCP is not required for normal browser applications.
+
+During repository development, maintainers can run `pnpm verify:packages` to
+build packed tarballs and test them in an isolated consumer. The separate
+`pnpm verify:worker-core` command is the packaged Core verification gate for
+Cloudflare `workerd`; neither command is the normal consumer installation path.
 
 See [docs/packaging.md](docs/packaging.md) for the complete local artifact
 workflow and release gate.
