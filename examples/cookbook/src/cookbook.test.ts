@@ -156,7 +156,7 @@ test("invalid trusted context is rejected before any state or rendering changes"
   assert.match(target.textContent ?? "", /Saved: Docs/);
 });
 
-test("the package depends only on Core, Web, Vite, and happy-dom", () => {
+test("the package depends only on Core, Web, Vite, happy-dom, and the e2e test runner", () => {
   const manifest = JSON.parse(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   ) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
@@ -165,7 +165,9 @@ test("the package depends only on Core, Web, Vite, and happy-dom", () => {
     "@cylayo/weaver-core",
     "@cylayo/weaver-web",
   ]);
+  // @playwright/test is the e2e runner only (WVR-045). It is not used by the node:test suite.
   assert.deepEqual(Object.keys(manifest.devDependencies ?? {}).sort(), [
+    "@playwright/test",
     "happy-dom",
     "vite",
   ]);

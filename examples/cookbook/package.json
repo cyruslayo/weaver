@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "e2e": "pnpm run build && tsc -p tsconfig.e2e.json && playwright test",
     "test": "tsc -p tsconfig.json && node --test dist/cookbook.test.js dist/custom-catalog/catalog.test.js dist/form.test.js dist/screens/dashboard.test.js dist/ticket-board.test.js",
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
@@ -15,6 +16,7 @@
     "@cylayo/weaver-web": "workspace:*"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "happy-dom": "^20.11.2",
     "vite": "^8.2.0"
   }
