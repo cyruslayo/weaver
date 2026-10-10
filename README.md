@@ -65,7 +65,8 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture.
 All three packages are ESM-only with a single root export, and they release
 together at one synchronized version. Core is mandatory; Web and MCP declare
 `@cylayo/weaver-core` as a peer dependency (`0.3.x`). MCP is optional and not required
-by Core or Web. See [docs/packaging.md](docs/packaging.md).
+by Core or Web. See [docs/packaging.md](docs/packaging.md). Release notes are in
+[CHANGELOG.md](CHANGELOG.md).
 
 ## Current maturity / support status
 
