@@ -4,7 +4,7 @@ title: Define an app-owned cookbook catalog with defineCatalog()
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05, §4.E
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-041]
 estimate: S
 ---
@@ -78,3 +78,4 @@ Merged.
   to the Basic `catalogId`. Drawing a surface under this catalog therefore
   needs renderers for `Column`, `Text`, `Card`, `DataTable`, and `BarChart`
   under the cookbook `catalogId`. This issue adds no renderers.
+- 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)

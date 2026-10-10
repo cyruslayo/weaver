@@ -4,7 +4,7 @@ title: Regression tests — malformed input leaves last good state and DOM; host
 epic: E3 Error presentation
 audit_ref: WVR-03 (acceptance), §5 fail-safe behaviour
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-032]
 estimate: S
 ---

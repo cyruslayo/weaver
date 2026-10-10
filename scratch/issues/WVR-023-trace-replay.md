@@ -4,7 +4,7 @@ title: replayWeaverTrace() with per-step divergence report
 epic: E2 Trace and replay
 audit_ref: WVR-02 (acceptance: same final surface, no extra side effects)
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-022]
 estimate: M
 ---

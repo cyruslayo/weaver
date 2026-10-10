@@ -4,7 +4,7 @@ title: Validate prompt examples through a scratch runtime before emitting them
 epic: E1 Prompt generation
 audit_ref: WVR-01
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-011]
 estimate: S
 ---
@@ -56,3 +56,4 @@ Merged. Tests registered.
   - Assumption: the edit example is a three-message sequence (create, component, initial value) followed by the edit `updateDataModel`. A lone `updateDataModel` cannot pass a fresh runtime, because it has no surface. The title says only the last line is the edit.
   - Existing tests that used `deleteSurface` without a create now create first. The `describeWeaverError` fixture gained the new fields.
   - Tests: `packages/core/src/prompt/examples.test.ts` (registered in the core test script), 18 cases.
+- 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)

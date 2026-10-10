@@ -4,7 +4,7 @@ title: Web describeWebRenderError() for WebRenderError and interaction errors
 epic: E3 Error presentation
 audit_ref: WVR-03
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-031]
 estimate: S
 ---
@@ -51,3 +51,4 @@ Merged.
   - Core is unchanged. Gate: typecheck, build, `verify:packages`,
     `verify:worker-core`, `check:generated`, full `pnpm test`, and
     `conformance:v0.9.1` all pass.
+- 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)
