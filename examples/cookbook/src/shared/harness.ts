@@ -3,6 +3,8 @@ import {
   createA2UIV091StreamIngestion,
   type A2UIComponent,
   type A2UIServerMessage,
+  type BasicRegexMatcher,
+  type FunctionRegistration,
   type JsonObject,
   type WeaverRuntime,
 } from "@cylayo/weaver-core";
@@ -39,6 +41,11 @@ export interface CookbookScreenDefinition<TState> {
   readonly components: () => A2UIComponent[];
   /** The only event names that reach the agent. Keys are matched with `Object.hasOwn`. */
   readonly actions: Readonly<Record<string, CookbookAction<TState>>>;
+  /** Optional trusted Basic functions and regex matcher for the screen's client checks. */
+  readonly web?: {
+    readonly functions?: readonly FunctionRegistration[];
+    readonly regexMatcher?: BasicRegexMatcher;
+  };
 }
 
 export type CookbookEventResult =
@@ -165,7 +172,13 @@ export function mountCookbookScreen<TState>(
   };
 
   const created = createBasicWebRuntime({
-    runtime: { safety: COOKBOOK_SAFETY_BUDGETS },
+    runtime: {
+      safety: COOKBOOK_SAFETY_BUDGETS,
+      ...(definition.web?.functions === undefined ? {} : { functions: definition.web.functions }),
+    },
+    ...(definition.web?.regexMatcher === undefined
+      ? {}
+      : { basic: { regexMatcher: definition.web.regexMatcher } }),
     rendering: {
       attributionProvider: () => ({ displayName: definition.attributionName }),
       onServerEvent: (event) => handoff(event),
