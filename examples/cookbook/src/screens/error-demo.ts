@@ -132,11 +132,10 @@ export function mountErrorDemo(surface: Element, panel: HTMLElement): ErrorDemoR
     }
     const frame = events.find((event) => event.ok)?.frame;
     for (const error of renderErrors) {
-      // The budget failure carries no surface id, so the host adds the id of the surface it mounted.
+      // The Web error carries the id of the surface that failed, so the library's description names it.
       const described = describeWebRenderError(error);
       descriptions.push({
         ...described,
-        surfaceId: described.surfaceId ?? ERROR_DEMO_SURFACE_ID,
         ...(frame === undefined ? {} : { frame }),
       });
     }

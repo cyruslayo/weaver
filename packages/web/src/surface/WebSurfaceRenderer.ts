@@ -141,7 +141,7 @@ export class WebSurfaceRenderer {
     appliedThemeProperties: Set<string>,
   ): WebSurfaceRenderResult {
     const resolved = this.#runtime.resolveSurface(surfaceId);
-    if (!resolved.ok) return { ok: false, error: { code: "SURFACE_RESOLUTION_FAILED", cause: resolved.error } };
+    if (!resolved.ok) return { ok: false, error: { code: "SURFACE_RESOLUTION_FAILED", surfaceId, cause: resolved.error } };
 
     const theme = this.#resolveTheme(resolved.value);
     if (!theme.ok) return theme;
