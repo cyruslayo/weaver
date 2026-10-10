@@ -116,13 +116,8 @@ test("Refresh changes the values and emits only updateDataModel messages", () =>
   );
 });
 
-// Known gap, tracked in WVR-043: the Basic Button renderer never calls registerControl, so the
-// existing focus restoration (packages/web/src/surface/WebSurfaceRenderer.ts) cannot move focus back
-// to a re-rendered Button. The todo keeps the expected behavior tested without failing the run.
-test(
-  "focus stays on the Refresh button across updates",
-  { todo: "Basic Button is not registered for focus restoration; needs a Web change outside this issue" },
-  () => {
+// The Basic Button registers its control for focus restoration (packages/web basic/renderers.ts renderButton).
+test("focus stays on the Refresh button across updates", () => {
   const { target, document } = mount();
 
   // Boolean assertions only: a failing assert.equal on a DOM node tries to inspect it, which is very slow.
@@ -139,8 +134,7 @@ test(
       `Refresh keeps focus after update ${click + 1}`,
     );
   }
-  },
-);
+});
 
 test("the existing focus restoration keeps focus on a Filter option across a Refresh update", () => {
   const { target, document } = mount();

@@ -24,9 +24,8 @@ estimate: M
 ## Acceptance criteria
 - [x] Refresh changes the values without any `updateComponents`. Assert on the
       emitted messages.
-- [ ] Focus stays on the Refresh button across updates. This exercises the
-      existing focus restoration. **Not met.** The test exists as a node:test
-      `todo`. See the Log.
+- [x] Focus stays on the Refresh button across updates. This exercises the
+      existing focus restoration. Met by the follow-up Web change. See the Log.
 - [x] The List renders N items from data, and N changes when filtered.
 
 ## Verification
@@ -72,3 +71,21 @@ Merged.
 - Verification: `pnpm typecheck`, `pnpm build`, `pnpm test` (root, exit 0),
   `pnpm --filter @weaver/cookbook test` (11 pass, 1 todo), and
   `pnpm verify:packages` all pass.
+- 2026-10-10 follow-up, criterion 2 met. This is a separate commit,
+  `fix(web): register Basic Button as a focus-restorable control (WVR-043)`.
+  `renderButton` in `packages/web/src/basic/renderers.ts` now calls
+  `interactions.registerControl(button, "action")`. The identity is the same
+  `(sourceComponentId, scopePath, localKey)` triple that tabs and the modal
+  use, so it is stable across rerenders and unique per button instance. The
+  Web test `a focused Basic Button survives a data-model rerender, and sibling
+  buttons never take its focus` is in `WebSurfaceRenderer.test.ts`. The Web
+  suite passes with 122 tests, all existing tests included. The todo in
+  `dashboard.test.ts` is now a real passing test. The cookbook passes 12 of 12.
+- Harness coexistence with WVR-042: the screen definition takes the same
+  optional `web.functions` field that WVR-042 adds. The harness uses
+  `definition.web?.functions` when a screen provides it, and the
+  `createBasicCatalogFunctionImplementations` default otherwise, so no function
+  name is registered twice. Dashboard, placeholder, and any screen that supplies
+  nothing get the default. WVR-042 also adds `web.regexMatcher`, which this
+  branch does not touch. When the two branches merge, the `harness.ts` conflict
+  is expected and should keep both fields.

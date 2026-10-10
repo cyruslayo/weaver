@@ -5,6 +5,7 @@ import {
   createBasicCatalogFunctionImplementations,
   type A2UIComponent,
   type A2UIServerMessage,
+  type FunctionRegistration,
   type JsonObject,
   type WeaverRuntime,
 } from "@cylayo/weaver-core";
@@ -41,6 +42,10 @@ export interface CookbookScreenDefinition<TState> {
   readonly components: () => A2UIComponent[];
   /** The only event names that reach the agent. Keys are matched with `Object.hasOwn`. */
   readonly actions: Readonly<Record<string, CookbookAction<TState>>>;
+  /** Optional trusted Basic functions for the screen's client checks. When set, they replace the harness default. */
+  readonly web?: {
+    readonly functions?: readonly FunctionRegistration[];
+  };
 }
 
 export type CookbookEventResult =
@@ -175,8 +180,9 @@ export function mountCookbookScreen<TState>(
   const created = createBasicWebRuntime({
     runtime: {
       safety: COOKBOOK_SAFETY_BUDGETS,
-      // Basic functions (formatNumber, formatCurrency, ...) are opt-in. They are trusted, pure, and Basic-catalog-scoped.
-      functions: createBasicCatalogFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
+      // Basic functions (formatNumber, formatCurrency, ...) are opt-in. The harness registers them once by default.
+      // A screen that supplies its own list replaces the default, so no name is registered twice.
+      functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
     },
     rendering: {
       attributionProvider: () => ({ displayName: definition.attributionName }),
