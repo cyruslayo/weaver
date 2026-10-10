@@ -4,7 +4,7 @@ title: Add generateA2UIV091Prompt() to Core (API, types, errors, determinism)
 epic: E1 Prompt generation
 audit_ref: WVR-01, §4.A, §4.B
 priority: P0
-status: ready
+status: in-review
 depends_on: []
 estimate: M
 ---
@@ -79,17 +79,17 @@ Errors, defined as typed values in `errors.ts`:
 - Reuse: `CatalogRegistry` and `cloneJson` (from `data-model/clone.ts`)
 
 ## Acceptance criteria
-- [ ] Identical input produces byte-identical output across runs. Object keys
+- [x] Identical input produces byte-identical output across runs. Object keys
       are sorted, and the output contains no time or randomness.
-- [ ] A component or function not in the catalog never appears. A catalog
+- [x] A component or function not in the catalog never appears. A catalog
       function that is not registered is not listed.
-- [ ] Changing a component's schema `description` changes the output.
-- [ ] Output above `maxCharacters` returns `PROMPT_TOO_LARGE`.
-- [ ] An invalid catalog returns `CATALOG_INVALID`. A duplicate action name
+- [x] Changing a component's schema `description` changes the output.
+- [x] Output above `maxCharacters` returns `PROMPT_TOO_LARGE`.
+- [x] An invalid catalog returns `CATALOG_INVALID`. A duplicate action name
       returns `ACTION_NAME_INVALID`.
-- [ ] Generating the prompt for the Basic catalog succeeds and lists all 18
+- [x] Generating the prompt for the Basic catalog succeeds and lists all 18
       components.
-- [ ] `architecture-independence.test.ts` still passes: no DOM, `eval` or Web
+- [x] `architecture-independence.test.ts` still passes: no DOM, `eval` or Web
       imports.
 
 ## Verification
@@ -100,3 +100,4 @@ Merged. The API is exported. Tests are registered in the package test script.
 PLAN.md has a task entry.
 
 ## Log
+- 2026-10-10: Implemented on branch `wvr-011-prompt-generator`. Added `packages/core/src/prompt/` (`generateA2UIV091Prompt`, types, typed errors, tests). Exported it from `packages/core/src/index.ts` and registered `dist/prompt/generateA2UIV091Prompt.test.js` in the core `test` script. `pnpm --filter @cylayo/weaver-core test` passes 335/335, with 28 new prompt tests. `pnpm typecheck` passes. The Basic prompt is 15,525 characters and lists all 18 components. Not done here: the docs/PLAN.md task entry (the orchestrator handles it) and the scratch/BOARD.md update.
