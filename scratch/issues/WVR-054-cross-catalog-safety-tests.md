@@ -5,7 +5,7 @@ epic: E5 Custom catalog recipe
 audit_ref: WVR-05 (acceptance)
 priority: P0
 status: in-review
-depends_on: [WVR-052, WVR-053]
+depends_on: [WVR-052, WVR-053, WVR-057]
 estimate: S
 ---
 
@@ -23,7 +23,7 @@ Cookbook tests, plus Web tests if a gap is found:
   (manual check, or covered by WVR-045).
 
 ## Acceptance criteria
-- [ ] All the cases above are tested and pass.
+- [x] All the cases above are tested and pass.
 
 ## Verification
 `pnpm --filter @weaver/cookbook test`
@@ -46,3 +46,10 @@ Merged.
   - M3, `packages/web/src/surface/describeWebRenderError.ts`: RENDERER_NOT_FOUND hint emptied. (c) fails on "the description gives a hint" (`false !== true`). (a) and (b) still pass.
 - Gate: `pnpm install`, `pnpm build` (exit 0). `pnpm --filter @weaver/cookbook test`: 76/76 pass (includes the 3 new). `pnpm typecheck`: exit 0. `pnpm test`: 427, 10, 133, 76, 8 tests, 0 fail. `pnpm check:generated`: up to date. `pnpm verify:packages`: 3 tarballs verified. `pnpm --filter @weaver/cookbook e2e`: 20/20 pass (Chromium at both widths).
 - Criteria: "All the cases above are tested and pass" is unticked because (d) is not covered.
+
+### 2026-10-10: integration on `wvr-integration-5`, criterion ticked, status in-review
+
+- Case (d), the standalone browser check, is now covered. WVR-057 (`examples/cookbook/e2e/orders-report.spec.ts`, merged into `wvr-integration-5`) opens the built `orders-report.html` through `vite preview`. It mounts the custom catalog, which is shown by `data-cookbook-component="DataTable"`, and Refresh is driven from the keyboard and updates both the table and the BarChart. The spec runs at 1280px and 360px.
+- Added WVR-057 to `depends_on`.
+- E2E: `pnpm --filter @weaver/cookbook e2e` 30/30 pass (Chromium at both widths). The orders-report spec is 5 of those per width. The cookbook `test` script reports 87/87.
+- Status stays `in-review` until the branch is reviewed and merged to `main`.

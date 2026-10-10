@@ -15,7 +15,7 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-022](issues/WVR-022-trace-recorder.md) | createWeaverTraceRecorder + weaver-trace v1 format + ingestion frame-error capture | E2 Trace and replay | P0 | `done` | WVR-021 | M |
 | [WVR-023](issues/WVR-023-trace-replay.md) | replayWeaverTrace() with per-step divergence report | E2 Trace and replay | P0 | `done` | WVR-022 | M |
 | [WVR-024](issues/WVR-024-playground-inspector.md) | Playground inspector page (load trace, step, snapshots, suppressed outbound log) | E2 Trace and replay | P0 | `in-review` | WVR-023 | L |
-| [WVR-025](issues/WVR-025-debugging-docs.md) | Document tracing, replay and the inspector (docs/debugging.md) | E2 Trace and replay | P0 | `todo` | WVR-024 | S |
+| [WVR-025](issues/WVR-025-debugging-docs.md) | Document tracing, replay and the inspector (docs/debugging.md) | E2 Trace and replay | P0 | `in-review` | WVR-024 | S |
 | [WVR-031](issues/WVR-031-describe-weaver-error.md) | Core describeWeaverError() — exhaustive, human-actionable error descriptions | E3 Error presentation | P0 | `done` | — | M |
 | [WVR-032](issues/WVR-032-describe-web-render-error.md) | Web describeWebRenderError() for WebRenderError and interaction errors | E3 Error presentation | P0 | `done` | WVR-031 | S |
 | [WVR-033](issues/WVR-033-last-good-state-regressions.md) | Regression tests — malformed input leaves last good state and DOM; host gets described error | E3 Error presentation | P0 | `done` | WVR-032 | S |
@@ -28,41 +28,45 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-051](issues/WVR-051-cookbook-custom-catalog.md) | Define an app-owned cookbook catalog with defineCatalog() | E5 Custom catalog recipe | P0 | `done` | WVR-041 | S |
 | [WVR-052](issues/WVR-052-datatable-renderer.md) | Trusted DataTable renderer (accessible, no innerHTML) | E5 Custom catalog recipe | P0 | `done` | WVR-051 | M |
 | [WVR-053](issues/WVR-053-barchart-renderer.md) | Trusted dependency-free SVG BarChart renderer | E5 Custom catalog recipe | P0 | `done` | WVR-051 | M |
-| [WVR-054](issues/WVR-054-cross-catalog-safety-tests.md) | Cross-catalog safety tests — unknown components fail safely, no fallback | E5 Custom catalog recipe | P0 | `in-review` | WVR-052, WVR-053 | S |
-| [WVR-055](issues/WVR-055-custom-catalog-docs.md) | Document the custom catalog recipe (docs/custom-catalogs.md) | E5 Custom catalog recipe | P0 | `todo` | WVR-054, WVR-016 | S |
+| [WVR-054](issues/WVR-054-cross-catalog-safety-tests.md) | Cross-catalog safety tests — unknown components fail safely, no fallback | E5 Custom catalog recipe | P0 | `in-review` | WVR-052, WVR-053, WVR-057 | S |
+| [WVR-055](issues/WVR-055-custom-catalog-docs.md) | Document the custom catalog recipe (docs/custom-catalogs.md) | E5 Custom catalog recipe | P0 | `todo` | WVR-054, WVR-016, WVR-057 | S |
 | [WVR-056](issues/WVR-056-row-scoped-action-dispatch.md) | Row-scoped action dispatch for DataTable rows | E5 Custom catalog recipe | P1 | `gated` | WVR-052 | M |
+| [WVR-057](issues/WVR-057-cookbook-orders-report-screen.md) | Cookbook orders-report screen that mounts the custom catalog | E5 Custom catalog recipe | P1 | `in-review` | WVR-052, WVR-053 | S |
 | [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `todo` | WVR-016, WVR-025, WVR-033 | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `gated` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 20, ready: 0, in-review: 3, todo: 4, gated: 4 (31 issues)
+**Totals:** done: 20, ready: 0, in-review: 5, todo: 3, gated: 4 (32 issues)
 
-## Start here (0 ready; 3 in-review; 20 done)
+## Start here (0 ready; 5 in-review; 20 done)
 
 As of 2026-10-10, 20 issues are `done`. WVR-000, 011, 021, 031 and 041 were done
 earlier. WVR-012, 014, 022, 032, 042, 043, 044 and 051 merged to `main` in
 cyruslayo/weaver#21 (`c2fc058`). WVR-013, 015, 023, 033, 045, 052 and 053 merged to
 `main` in cyruslayo/weaver#23 (`6094797`).
 
-Nothing is `ready`. Three issues are `in-review`, all on the local integration branch
-`wvr-integration-4` (not pushed, no PR yet). Each is waiting on review.
+Nothing is `ready`. Five issues are `in-review` on the local integration branch
+`wvr-integration-5` (built from `f909d50`, not pushed, no PR yet). Each is waiting on
+review and merge to `main`.
 
 - **WVR-016**, document prompt generation (`docs/prompt-generation.md`, README section,
   packed-package doc snippet check).
 - **WVR-024**, playground inspector page (`examples/playground`). Its Playwright e2e
   is not in required CI.
-- **WVR-054**, cross-catalog safety tests (`examples/cookbook`). Open criterion: case
-  (d), standalone browser custom screen in the built cookbook, is unticked. No cookbook
-  screen mounts the custom catalog, so it awaits an owner decision on adding a small
-  custom-catalog screen. Do not tick it or mark WVR-054 `done` until that is decided.
+- **WVR-025**, debugging docs (`docs/debugging.md`). Its snippets run in
+  `verify:packages`. Its front matter was already `in-review`; the board row is now too.
+- **WVR-054**, cross-catalog safety tests (`examples/cookbook`). Case (d), the standalone
+  custom-catalog browser check, is now covered by WVR-057's Playwright spec, so its
+  criterion is ticked. It stays `in-review` until merged.
+- **WVR-057**, cookbook orders-report screen on the custom catalog. It supplies the
+  runnable case (d) and the Playwright spec for WVR-054.
 
 Still `todo`, each waiting on a dependency that is not `done` yet:
 
-- WVR-025 waits on WVR-024 (in-review).
 - WVR-034 waits on WVR-024 (in-review).
-- WVR-055 waits on WVR-054 (in-review) and WVR-016 (in-review).
-- WVR-060 waits on WVR-016 (in-review) and WVR-025 (todo).
+- WVR-055 waits on WVR-054, WVR-016 and WVR-057 (all in-review).
+- WVR-060 waits on WVR-016 and WVR-025 (both in-review).
 
 Gated, do not start: WVR-056 (row-scoped action dispatch, parked by owner decision on
 2026-10-10; row actions use a List template instead), WVR-080, WVR-081 and WVR-090.
@@ -83,7 +87,7 @@ E2: 021 → 022 → 023 → 024 → 025
 E3: 031 → 032 → 033
               └→ 034 (also needs 024, 041)
 E4: 041 → {042, 043, 044} → 045
-E5: 041 → 051 → {052, 053} → 054 → 055 (also needs 016)
+E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
 Release: {016, 025, 033} → 060 → 081 (gated)
 Bench:   {013, 044} → 080 (gated)
 ```

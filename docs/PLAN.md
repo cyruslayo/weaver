@@ -225,6 +225,14 @@ Complete, pending review. `examples/playground` adds an inspector page that load
 
 Complete, pending review. Cases (a)-(c) covered; case (d) open pending a custom-catalog screen. The tests are in `examples/cookbook/src/custom-catalog/crossCatalogSafety.test.ts`, registered in the cookbook `test` script. No production code changed.
 
+## Task 83 — Debugging, replay and inspector docs (WVR-025)
+
+Complete, pending review. Adds `docs/debugging.md`, which covers the observer and recorder in development, trace export, the playground inspector, replay guarantees and limits, and a security and privacy section. It is linked from the README and `docs/architecture.md`. Its TypeScript snippets are checked by `integration/package-consumer/doc-snippets.mjs`, and they run in `verify:packages` against the packed tarballs.
+
+## Task 84 — Cookbook orders-report screen on the custom catalog (WVR-057)
+
+Complete, pending review. Adds an Orders report screen to the cookbook. It runs on the custom catalog through the new optional `catalog` field on the shared harness, with a read-only DataTable, a BarChart and a Refresh button that updates both. The custom catalog now declares `Button`. The DataTable scroll wrapper is a labelled, keyboard-focusable region, so keyboard users can reach hidden columns. The Playwright spec covers the built page at 1280px and 360px, and it closes WVR-054 case (d).
+
 ## Deferred work
 
 - additional network bindings, including A2A placement
