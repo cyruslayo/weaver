@@ -1,0 +1,342 @@
+{
+  "format": "weaver-trace",
+  "version": 1,
+  "truncated": false,
+  "entries": [
+    {
+      "seq": 1,
+      "at": "2026-10-10T09:00:01.000Z",
+      "kind": "message",
+      "input": {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "reference-request",
+          "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+          "sendDataModel": true
+        }
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "operation": "surfaceCreated",
+          "surfaceId": "reference-request"
+        }
+      }
+    },
+    {
+      "seq": 2,
+      "at": "2026-10-10T09:00:02.000Z",
+      "kind": "message",
+      "input": {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "reference-request",
+          "value": {
+            "draft": {
+              "title": "",
+              "priority": [
+                "normal"
+              ]
+            },
+            "result": {
+              "count": 0,
+              "status": "Ready for a request",
+              "countLabel": "Submitted: 0"
+            }
+          }
+        }
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "operation": "dataModelUpdated",
+          "surfaceId": "reference-request"
+        }
+      }
+    },
+    {
+      "seq": 3,
+      "at": "2026-10-10T09:00:03.000Z",
+      "kind": "message",
+      "input": {
+        "version": "v0.9.1",
+        "updateComponents": {
+          "surfaceId": "reference-request",
+          "components": [
+            {
+              "id": "root",
+              "component": "Column",
+              "children": [
+                "heading",
+                "title",
+                "priority",
+                "submit",
+                "status"
+              ]
+            },
+            {
+              "id": "heading",
+              "component": "Text",
+              "variant": "h1",
+              "text": "Model Draft Request"
+            },
+            {
+              "id": "title",
+              "component": "TextField",
+              "label": "Request title",
+              "value": {
+                "path": "/draft/title"
+              }
+            },
+            {
+              "id": "priority",
+              "component": "ChoicePicker",
+              "label": "Priority",
+              "variant": "mutuallyExclusive",
+              "displayStyle": "chips",
+              "options": [
+                {
+                  "label": "Normal",
+                  "value": "normal"
+                },
+                {
+                  "label": "High",
+                  "value": "high"
+                },
+                {
+                  "label": "Urgent",
+                  "value": "urgent"
+                }
+              ],
+              "value": {
+                "path": "/draft/priority"
+              }
+            },
+            {
+              "id": "submit",
+              "component": "Button",
+              "variant": "primary",
+              "child": "submit-label",
+              "action": {
+                "event": {
+                  "name": "reference.createRequest",
+                  "context": {
+                    "title": {
+                      "path": "/draft/title"
+                    },
+                    "priority": {
+                      "path": "/draft/priority"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "id": "submit-label",
+              "component": "Text",
+              "text": "Create request"
+            },
+            {
+              "id": "status",
+              "component": "Text",
+              "text": {
+                "path": "/result/status"
+              }
+            }
+          ]
+        }
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "operation": "componentsUpdated",
+          "surfaceId": "reference-request"
+        }
+      }
+    },
+    {
+      "seq": 4,
+      "at": "2026-10-10T09:00:04.000Z",
+      "kind": "frame-error",
+      "input": "{\"version\":\"v0.9.1\",\"updateDataModel\":{\"surfaceId\":\"reference-request\"\n",
+      "outcome": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_JSON",
+          "frame": 4
+        }
+      }
+    },
+    {
+      "seq": 5,
+      "at": "2026-10-10T09:00:05.000Z",
+      "kind": "message",
+      "input": {
+        "version": "v0.9.1",
+        "createSurface": {
+          "surfaceId": "preview",
+          "catalogId": "https://example.test/catalogs/unregistered.json",
+          "sendDataModel": false
+        }
+      },
+      "outcome": {
+        "ok": false,
+        "error": {
+          "code": "CATALOG_REGISTRY_ERROR",
+          "catalogError": {
+            "code": "CATALOG_NOT_FOUND",
+            "catalogId": "https://example.test/catalogs/unregistered.json",
+            "message": "Catalog is not registered"
+          }
+        }
+      }
+    },
+    {
+      "seq": 6,
+      "at": "2026-10-10T09:00:06.000Z",
+      "kind": "input",
+      "input": {
+        "surfaceId": "reference-request",
+        "sourceComponentId": "title",
+        "scopePath": "/",
+        "property": "value",
+        "value": "Ship the inspector"
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "surfaceId": "reference-request",
+          "sourceComponentId": "title",
+          "property": "value",
+          "path": "/draft/title"
+        }
+      }
+    },
+    {
+      "seq": 7,
+      "at": "2026-10-10T09:00:07.000Z",
+      "kind": "input",
+      "input": {
+        "surfaceId": "reference-request",
+        "sourceComponentId": "priority",
+        "scopePath": "/",
+        "property": "value",
+        "value": [
+          "high"
+        ]
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "surfaceId": "reference-request",
+          "sourceComponentId": "priority",
+          "property": "value",
+          "path": "/draft/priority"
+        }
+      }
+    },
+    {
+      "seq": 8,
+      "at": "2026-10-10T09:00:08.000Z",
+      "kind": "action",
+      "input": {
+        "surfaceId": "reference-request",
+        "sourceComponentId": "submit",
+        "scopePath": "/",
+        "actionProperty": "action"
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "kind": "serverEvent",
+          "message": {
+            "version": "v0.9.1",
+            "action": {
+              "name": "reference.createRequest",
+              "surfaceId": "reference-request",
+              "sourceComponentId": "submit",
+              "timestamp": "2026-10-10T09:00:00.000Z",
+              "context": {
+                "title": "Ship the inspector",
+                "priority": [
+                  "high"
+                ]
+              }
+            }
+          },
+          "metadata": {
+            "a2uiClientDataModel": {
+              "version": "v0.9.1",
+              "surfaces": {
+                "reference-request": {
+                  "draft": {
+                    "title": "Ship the inspector",
+                    "priority": [
+                      "high"
+                    ]
+                  },
+                  "result": {
+                    "count": 0,
+                    "status": "Ready for a request",
+                    "countLabel": "Submitted: 0"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "seq": 9,
+      "at": "2026-10-10T09:00:09.000Z",
+      "kind": "message",
+      "input": {
+        "version": "v0.9.1",
+        "updateDataModel": {
+          "surfaceId": "reference-request",
+          "value": {
+            "draft": {
+              "title": "",
+              "priority": [
+                "normal"
+              ]
+            },
+            "result": {
+              "count": 1,
+              "status": "Created: Ship the inspector",
+              "countLabel": "Submitted: 1"
+            }
+          }
+        }
+      },
+      "outcome": {
+        "ok": true,
+        "summary": {
+          "operation": "dataModelUpdated",
+          "surfaceId": "reference-request"
+        }
+      }
+    },
+    {
+      "seq": 10,
+      "at": "2026-10-10T09:00:10.000Z",
+      "kind": "action",
+      "input": {
+        "surfaceId": "reference-request",
+        "sourceComponentId": "removed-button",
+        "scopePath": "/",
+        "actionProperty": "action"
+      },
+      "outcome": {
+        "ok": false,
+        "error": {
+          "code": "INSTANCE_NOT_FOUND",
+          "surfaceId": "reference-request",
+          "sourceComponentId": "removed-button",
+          "scopePath": "/"
+        }
+      }
+    }
+  ]
+}

@@ -5,7 +5,7 @@ epic: E5 Custom catalog recipe
 audit_ref: WVR-05
 priority: P0
 status: todo
-depends_on: [WVR-054, WVR-016]
+depends_on: [WVR-054, WVR-016, WVR-057]
 estimate: S
 ---
 
@@ -32,3 +32,5 @@ from the README.
 Merged.
 
 ## Log
+
+- 2026-10-10: depends on WVR-057. The recipe should link the orders-report screen (`examples/cookbook/orders-report.html`, source `src/screens/orders-report.ts`) as the runnable example.

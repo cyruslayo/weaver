@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { docSnippets } from "../integration/package-consumer/doc-snippets.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fail = (message) => { throw new Error(message); };
@@ -122,7 +123,7 @@ if (JSON.stringify(artifactFiles) !== JSON.stringify(specs.map((spec) => spec.fi
 
 const consumer = path.join(temp, "consumer");
 await mkdir(consumer);
-for (const file of ["consumer.ts", "smoke.mjs", "tsconfig.json"]) await cp(path.join(root, "integration", "package-consumer", file), path.join(consumer, file));
+for (const file of ["consumer.ts", "smoke.mjs", "tsconfig.json", "tsconfig.doc-snippets.json"]) await cp(path.join(root, "integration", "package-consumer", file), path.join(consumer, file));
 for (const spec of specs) await cp(path.join(root, "artifacts", spec.file), path.join(consumer, spec.file));
 const fixtureManifest = parseJson(await readFile(path.join(root, "integration", "package-consumer", "package.json"), "utf8"), "package consumer fixture package.json");
 for (const spec of specs) fixtureManifest.dependencies[spec.name] = `file:./${spec.file}`;
@@ -130,6 +131,25 @@ await writeFile(path.join(consumer, "package.json"), `${JSON.stringify(fixtureMa
 run("pnpm", ["install", "--ignore-workspace"], { cwd: consumer, stdio: "pipe" });
 run("pnpm", ["run", "typecheck"], { cwd: consumer, stdio: "pipe" });
 run("pnpm", ["run", "smoke"], { cwd: consumer, stdio: "pipe" });
+// The Prompt generation docs' ts examples, read from the docs at run time, must compile and run
+// against the packed packages. A changed or broken example fails here, with the snippet name and output.
+const snippetDir = path.join(consumer, "doc-snippets");
+await mkdir(snippetDir);
+const snippets = await docSnippets(root);
+for (const snippet of snippets) await writeFile(path.join(snippetDir, snippet.name), snippet.source);
+try {
+  run("pnpm", ["exec", "tsc", "-p", "tsconfig.doc-snippets.json"], { cwd: consumer, stdio: "pipe" });
+} catch (error) {
+  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, and docs-debugging-N.ts is block N of docs/debugging.md.\n${error.message}`);
+}
+for (const snippet of snippets) {
+  try {
+    run(process.execPath, ["--experimental-strip-types", "--no-warnings", path.join("doc-snippets", snippet.name)], { cwd: consumer, stdio: "pipe" });
+  } catch (error) {
+    fail(`Documentation snippet ${snippet.name} failed to run.\n${error.message}`);
+  }
+}
+console.log(`Ran ${snippets.length} documentation snippets against the packed packages`);
 const corePackagePathParts = expectedNames.core.split("/");
 const installedCore = parseJson(await readFile(path.join(consumer, "node_modules", ...corePackagePathParts, "package.json"), "utf8"), "installed Core package.json");
 if (installedCore.version !== version) fail(`Consumer installed Core ${installedCore.version}`);

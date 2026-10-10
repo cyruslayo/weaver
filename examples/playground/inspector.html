@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weaver Trace Inspector</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#step-controls">Skip to step controls</a>
+    <header class="page-header">
+      <h1>Weaver trace inspector</h1>
+      <p class="notice" role="note">
+        <strong>Development artifact.</strong> A trace can hold data-model values and
+        text that a user typed. This page reads the trace in your browser and renders it
+        as text. Nothing is sent, uploaded, or saved, and the page makes no network requests.
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="source-heading">
+        <h2 id="source-heading">Trace</h2>
+        <div class="stack">
+          <label class="file-label" for="trace-file">Load a trace file (JSON)</label>
+          <input id="trace-file" type="file" accept="application/json,.json" />
+          <button type="button" id="load-sample">Use the bundled sample</button>
+          <p id="source-status" role="status">Loading the bundled sample.</p>
+          <p id="load-error" class="error" role="alert" hidden></p>
+        </div>
+      </section>
+
+      <section class="panel" id="step-controls" aria-labelledby="step-heading">
+        <h2 id="step-heading">Step</h2>
+        <div class="button-row" role="group" aria-label="Step controls">
+          <button type="button" id="first" aria-keyshortcuts="Home">First</button>
+          <button type="button" id="previous" aria-keyshortcuts="ArrowLeft">Previous</button>
+          <button type="button" id="next" aria-keyshortcuts="ArrowRight">Next</button>
+          <button type="button" id="last" aria-keyshortcuts="End">Last</button>
+        </div>
+        <div class="slider-row">
+          <label for="step-slider">Step position</label>
+          <input id="step-slider" type="range" min="0" max="0" value="0" step="1" />
+          <output id="step-output" for="step-slider">0 of 0</output>
+        </div>
+        <p id="step-summary" role="status" class="summary"></p>
+        <p class="hint">
+          Keyboard shortcuts: Left and Right step, Home and End jump to the first and last step.
+          They work when focus is not in a text field, the slider, or the live surface.
+        </p>
+        <h3>Timeline</h3>
+        <ol id="timeline" class="timeline" aria-label="Trace entries"></ol>
+      </section>
+
+      <section class="panel" aria-labelledby="entry-heading">
+        <h2 id="entry-heading">Entry</h2>
+        <p><span id="validity" class="badge" data-state="valid">Valid</span></p>
+        <section id="error-panel" class="error-panel" aria-label="Error for this entry" hidden></section>
+        <pre id="entry-json" class="code" tabindex="0" aria-label="Raw entry JSON"></pre>
+      </section>
+
+      <section class="panel" aria-labelledby="surface-heading">
+        <h2 id="surface-heading">Surface and data model</h2>
+        <pre id="surface-json" class="code" tabindex="0" aria-label="Surface snapshot and data model"></pre>
+      </section>
+
+      <section class="panel" aria-labelledby="resolved-heading">
+        <h2 id="resolved-heading">Resolved tree and issues</h2>
+        <pre id="resolved-json" class="code" tabindex="0" aria-label="Resolved tree and issues"></pre>
+        <h3>Check results</h3>
+        <pre id="checks-json" class="code" tabindex="0" aria-label="Check results"></pre>
+      </section>
+
+      <section class="panel" aria-labelledby="outcome-heading">
+        <h2 id="outcome-heading">Action outcome and replay</h2>
+        <pre id="outcome-json" class="code" tabindex="0" aria-label="Action outcome and replay"></pre>
+      </section>
+
+      <section class="panel panel-wide" aria-labelledby="live-heading">
+        <h2 id="live-heading">Live surface at this step</h2>
+        <p class="hint">
+          The surface is rebuilt from the trace at each step. Clicks here change only this
+          rebuilt view. Server events are suppressed (see below).
+        </p>
+        <div id="stage" class="stage"></div>
+        <p id="stage-empty" class="hint" hidden>No surface exists at this step.</p>
+      </section>
+
+      <section class="panel panel-wide" aria-labelledby="suppressed-heading">
+        <h2 id="suppressed-heading">Suppressed outbound</h2>
+        <p class="hint">
+          Each server event that the live surface raised is listed here. Nothing is sent.
+          The log is for inspection only.
+        </p>
+        <div class="button-row">
+          <button type="button" id="clear-suppressed">Clear the log</button>
+        </div>
+        <p id="suppressed-count" role="status" class="hint"></p>
+        <ol id="suppressed-log" class="suppressed-log" aria-label="Suppressed outbound events"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="/src/inspector.ts"></script>
+  </body>
+</html>

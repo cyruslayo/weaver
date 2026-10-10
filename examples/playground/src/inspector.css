@@ -1,0 +1,319 @@
+/* Development-only trace inspector. Layout must hold at 360px with no page-level horizontal scroll. */
+
+:root {
+  color-scheme: light;
+  --ink: #1d1b20;
+  --muted: #49454f;
+  --paper: #fdfbf7;
+  --panel: #ffffff;
+  --line: #cac4d0;
+  --accent: #6750a4;
+  --focus: #0b57d0;
+  --valid-bg: #e6f4ea;
+  --valid-ink: #0d5a2a;
+  --invalid-bg: #fbe4e4;
+  --invalid-ink: #8c1d18;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 0 1rem 2rem;
+  overflow-wrap: anywhere;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  background: var(--panel);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--focus);
+  border-radius: 0.5rem;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+.page-header,
+.layout {
+  max-width: 72rem;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.page-header {
+  padding-top: 1.25rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+  margin: 0.5rem 0;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.5rem;
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.notice {
+  background: #fff4d6;
+  border: 1px solid #d9b24c;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 1rem;
+}
+
+@media (min-width: 62rem) {
+  .layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-width: 0;
+}
+
+.stack {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+input[type="file"] {
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: var(--ink);
+  background: #f3edf7;
+  border: 1px solid #79747e;
+  border-radius: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+button:hover {
+  background: #e8def8;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.slider-row input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+}
+
+.summary {
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--invalid-ink);
+  background: var(--invalid-bg);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.timeline-step {
+  width: 100%;
+  text-align: left;
+  min-height: 2.5rem;
+}
+
+.timeline-step.is-error {
+  border-left: 6px solid #b3261e;
+  background: var(--invalid-bg);
+}
+
+.timeline [aria-current="step"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  font-weight: 700;
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.badge[data-state="valid"] {
+  background: var(--valid-bg);
+  color: var(--valid-ink);
+}
+
+.badge[data-state="invalid"] {
+  background: var(--invalid-bg);
+  color: var(--invalid-ink);
+}
+
+.error-panel {
+  border: 2px solid #b3261e;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  min-width: 0;
+}
+
+.error-summary {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.fields dt {
+  font-weight: 600;
+}
+
+.fields dd {
+  margin: 0;
+}
+
+.causes {
+  padding-left: 1.25rem;
+  margin: 0.25rem 0 0;
+}
+
+.code {
+  background: #f7f5fa;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin: 0;
+  font: 0.85rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.stage {
+  background: #fffdf9;
+  border: 1px solid #ded7ca;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The Basic Row renders a non-wrapping flex line, and its children keep their
+ * content width. Narrow screens would overflow the page. Rows wrap, and children
+ * may shrink. Desktop widths keep one line. The same rules are used by the cookbook.
+ */
+[data-weaver-mount] {
+  max-width: 100%;
+  min-width: 0;
+}
+
+[data-weaver-mount] [data-a2ui-component="Row"] {
+  flex-wrap: wrap;
+}
+
+[data-weaver-mount] [data-a2ui-component="Row"] > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-weaver-mount] [data-a2ui-component="Row"] > [data-a2ui-component="Column"] {
+  flex: 1 1 12rem;
+}
+
+[data-weaver-mount] [data-a2ui-component="Row"] > [data-a2ui-component="Card"] {
+  flex-basis: 8rem;
+}
+
+.suppressed-log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.suppressed-log li {
+  border: 1px dashed #79747e;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.suppressed-log .code {
+  margin-top: 0.5rem;
+}

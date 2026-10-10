@@ -170,6 +170,29 @@ ingestion.finish();
 
 The application/provider owns the model stream and text extraction. Weaver owns strict JSONL framing and canonical runtime processing; it does not repair JSON, strip Markdown, retry output, call a model, or authorize actions. See [validated A2UI stream ingestion](docs/a2ui-stream-ingestion.md).
 
+### Prompt generation
+
+`generateA2UIV091Prompt()` compiles a trusted catalog into model instructions, so the
+prompt lists only components the catalog declares and functions that are both declared and
+registered. It is deterministic and calls no model; your code sends the text to your own provider.
+
+```ts
+import { createBasicCatalogV091Registration, generateA2UIV091Prompt } from "@cylayo/weaver-core";
+
+const result = generateA2UIV091Prompt({
+  catalogs: [createBasicCatalogV091Registration()],
+  actions: [
+    { name: "submit_signup", description: "Submit the sign-up form.", context: { name: { path: "/form/name" } } },
+  ],
+});
+if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`);
+
+// Pass this text to your own model call as the system prompt.
+const systemPrompt = result.value.text;
+```
+
+See [prompt generation](docs/prompt-generation.md) for modes, examples, the size budget and errors.
+
 ### Core only (any platform)
 
 ```ts
@@ -302,6 +325,14 @@ full application-agent -> producer -> JSONL ingestion -> runtime -> Web ->
 trusted action round trip. The loopback browser transport is demonstrated by
 the [HTTP/SSE reference server](examples/http-sse-server/).
 
+### Debugging and replay
+
+An opt-in runtime observer and trace recorder keep what a runtime was given and what it
+returned. `replayWeaverTrace()` re-applies a saved trace to a fresh runtime, and the
+[trace inspector](examples/playground/inspector.html) steps through it. These are development
+tools. A trace holds data-model values and user input, so Weaver never sends or persists one.
+See [debugging, replay and the inspector](docs/debugging.md).
+
 ## A2UI conformance
 
 Weaver targets A2UI **v0.9.1**. Accepted wire versions are `v0.9` and `v0.9.1`;
@@ -383,6 +414,7 @@ docs/                      detailed documentation (below)
 | [docs/architecture.md](docs/architecture.md) | Package rules, runtime pipeline, trust boundaries, derived state, transport sessions, rendering |
 | [docs/packaging.md](docs/packaging.md) | ESM packaging, local tarball workflow, release gate, versioning |
 | [docs/web-rendering.md](docs/web-rendering.md) | Renderer pipeline, Basic Catalog renderers, media/theme/attribution policies, focus |
+| [docs/debugging.md](docs/debugging.md) | Runtime observer, trace recording and replay, the development-only trace inspector, security and privacy of traces |
 | [docs/http-sse-transport.md](docs/http-sse-transport.md) | Browser HTTP/SSE binding, reconnect and resume |
 | [docs/mcp.md](docs/mcp.md) | MCP A2UI bridge and application-capability helpers |
 | [docs/conformance-v0.9.1.md](docs/conformance-v0.9.1.md) | Requirement-by-requirement A2UI v0.9.1 conformance tracker |

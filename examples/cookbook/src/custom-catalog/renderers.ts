@@ -6,11 +6,11 @@ import { COOKBOOK_CATALOG_ID } from "./catalog.js";
 import { createBarChartRegistration } from "./barChart.js";
 import { dataTableRegistration } from "./dataTableRenderer.js";
 
-/** The layout primitives the cookbook catalog declares. Their Basic renderers are reused, not copied. */
-const COOKBOOK_LAYOUT_COMPONENTS: readonly string[] = ["Text", "Column", "Card"];
+/** The primitives the cookbook catalog declares. Their Basic renderers are reused, not copied. */
+const COOKBOOK_LAYOUT_COMPONENTS: readonly string[] = ["Text", "Column", "Card", "Button"];
 
 /**
- * Basic's trusted Text, Column and Card renderers, keyed to the cookbook
+ * Basic's trusted Text, Column, Card and Button renderers, keyed to the cookbook
  * catalog id. Basic keys its renderers to the Basic catalog id, so a cookbook
  * surface needs them again under its own id.
  */

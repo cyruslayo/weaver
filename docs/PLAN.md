@@ -213,6 +213,26 @@ Complete, pending review. The cookbook adds a trusted, accessible DataTable rend
 
 Complete, pending review. The cookbook adds a dependency-free SVG BarChart renderer with a visually hidden fallback table, clamped negative values, and `maxBars`. It is registered once, in `examples/cookbook/src/custom-catalog/renderers.ts`, next to DataTable, Column, Text and Card. The shipped catalog binds `values` through Core.
 
+## Task 80 — Document prompt generation (WVR-016)
+
+Complete, pending review. Adds `docs/prompt-generation.md` and a README section. The doc snippets compile and run against the packed packages through `integration/package-consumer/doc-snippets.mjs`, and `scripts/verify-packages.mjs` checks them. The cookbook README's custom catalog section is corrected.
+
+## Task 81 — Playground trace inspector (WVR-024)
+
+Complete, pending review. `examples/playground` adds an inspector page that loads a weaver-trace file, steps through frames, shows snapshots and the suppressed outbound log, and flags a malformed frame. It has a committed sample trace and Playwright e2e under `examples/playground/e2e/`. The playground e2e is not in required CI; run it with `pnpm --filter @weaver/playground e2e`.
+
+## Task 82 — Cross-catalog safety tests (WVR-054)
+
+Complete, pending review. Cases (a)-(c) covered; case (d) open pending a custom-catalog screen. The tests are in `examples/cookbook/src/custom-catalog/crossCatalogSafety.test.ts`, registered in the cookbook `test` script. No production code changed.
+
+## Task 83 — Debugging, replay and inspector docs (WVR-025)
+
+Complete, pending review. Adds `docs/debugging.md`, which covers the observer and recorder in development, trace export, the playground inspector, replay guarantees and limits, and a security and privacy section. It is linked from the README and `docs/architecture.md`. Its TypeScript snippets are checked by `integration/package-consumer/doc-snippets.mjs`, and they run in `verify:packages` against the packed tarballs.
+
+## Task 84 — Cookbook orders-report screen on the custom catalog (WVR-057)
+
+Complete, pending review. Adds an Orders report screen to the cookbook. It runs on the custom catalog through the new optional `catalog` field on the shared harness, with a read-only DataTable, a BarChart and a Refresh button that updates both. The custom catalog now declares `Button`. The DataTable scroll wrapper is a labelled, keyboard-focusable region, so keyboard users can reach hidden columns. The Playwright spec covers the built page at 1280px and 360px, and it closes WVR-054 case (d).
+
 ## Deferred work
 
 - additional network bindings, including A2A placement
