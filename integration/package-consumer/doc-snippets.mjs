@@ -7,11 +7,17 @@
 //   sit before "### Core only (any platform)".
 // - docs/prompt-generation.md: every ts block in the file.
 // - docs/debugging.md: every ts block in the file.
+// - docs/custom-catalogs.md: every ts block that is NOT preceded by a
+//   `<!-- from: path -->` line. A marked block quotes cookbook source, which
+//   imports cookbook files and cannot compile here. The cookbook test
+//   examples/cookbook/src/custom-catalog/customCatalogDoc.test.ts checks each
+//   marked block as a verbatim substring of the file it cites.
 // If the README section moves or loses its block, or a doc has fewer blocks
 // than expected, extraction throws. A changed or broken example then fails
 // `pnpm verify:packages` with the file name and the compiler or runtime output.
-// Snippet names say where they came from: docs-prompt-generation-N.ts and
-// docs-debugging-N.ts are the Nth ts block of that doc, counting from 0.
+// Snippet names say where they came from: docs-prompt-generation-N.ts,
+// docs-debugging-N.ts and docs-custom-catalogs-N.ts are the Nth runnable ts
+// block of that doc, counting from 0.
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -20,6 +26,9 @@ const README_SECTION_START = "### Prompt generation";
 const README_SECTION_END = "### Core only (any platform)";
 const DOC_MIN_EXAMPLES = 3;
 const DEBUGGING_MIN_EXAMPLES = 6;
+const CUSTOM_CATALOGS_MIN_EXAMPLES = 1;
+/** A ts block marked as quoting cookbook source. It is removed before extraction. */
+const FROM_MARKED_BLOCK = /^<!-- from: \S+ -->\n```ts\n[\s\S]*?^```$/gm;
 
 /** The bodies of the fenced ```ts blocks in `text`, in order. */
 function tsBlocks(text) {
@@ -54,9 +63,16 @@ export async function docSnippets(root) {
     throw new Error(`docs/debugging.md must contain at least ${DEBUGGING_MIN_EXAMPLES} ts blocks, found ${debuggingBlocks.length}`);
   }
 
+  const customCatalogs = await readFile(path.join(root, "docs", "custom-catalogs.md"), "utf8");
+  const customCatalogsBlocks = tsBlocks(customCatalogs.replace(FROM_MARKED_BLOCK, ""));
+  if (customCatalogsBlocks.length < CUSTOM_CATALOGS_MIN_EXAMPLES) {
+    throw new Error(`docs/custom-catalogs.md must contain at least ${CUSTOM_CATALOGS_MIN_EXAMPLES} runnable ts block, found ${customCatalogsBlocks.length}`);
+  }
+
   return [
     ...readmeBlocks.map((source, index) => ({ name: `readme-prompt-generation-${index}.ts`, source })),
     ...docBlocks.map((source, index) => ({ name: `docs-prompt-generation-${index}.ts`, source })),
     ...debuggingBlocks.map((source, index) => ({ name: `docs-debugging-${index}.ts`, source })),
+    ...customCatalogsBlocks.map((source, index) => ({ name: `docs-custom-catalogs-${index}.ts`, source })),
   ];
 }

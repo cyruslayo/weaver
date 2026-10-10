@@ -140,7 +140,7 @@ for (const snippet of snippets) await writeFile(path.join(snippetDir, snippet.na
 try {
   run("pnpm", ["exec", "tsc", "-p", "tsconfig.doc-snippets.json"], { cwd: consumer, stdio: "pipe" });
 } catch (error) {
-  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, and docs-debugging-N.ts is block N of docs/debugging.md.\n${error.message}`);
+  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, docs-debugging-N.ts is block N of docs/debugging.md, and docs-custom-catalogs-N.ts is runnable block N of docs/custom-catalogs.md (blocks marked "<!-- from: path -->" are excluded).\n${error.message}`);
 }
 for (const snippet of snippets) {
   try {

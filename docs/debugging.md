@@ -406,4 +406,4 @@ console.log(description.code, description.componentId, description.hint);
 - [Validated A2UI stream ingestion](a2ui-stream-ingestion.md): the frame and chunk path that `recordIngestion()` follows.
 - [Prompt generation](prompt-generation.md): compiling the trusted catalog into model instructions.
 - [Web rendering](web-rendering.md): the renderer pipeline behind `describeWebRenderError()`.
-- A dedicated custom-catalog guide, `docs/custom-catalogs.md`, is planned under WVR-055. It does not exist yet.
+- [Custom catalogs](custom-catalogs.md): the recipe for a trusted renderer whose errors this page describes.
