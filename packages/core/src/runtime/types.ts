@@ -28,6 +28,7 @@ import type {
   InputBindingWriteError,
   InputBindingWriteSuccess,
 } from "../input-binding/index.js";
+import type { MessageProcessorResult } from "../message-processor/index.js";
 import type { JsonValue } from "../protocol/index.js";
 import type { WeaverRuntime } from "./WeaverRuntime.js";
 import type {
@@ -40,7 +41,33 @@ export interface WeaverRuntimeConfig {
   functions?: readonly FunctionRegistration[];
   now?: () => Date;
   safety?: WeaverRuntimeSafetyConfig;
+  /**
+   * Opt-in observer. It receives a defensive copy of each message, input write
+   * and action outcome, in order. Exceptions it throws are ignored, so it can
+   * never change runtime results or state.
+   */
+  observer?: WeaverRuntimeObserver;
 }
+
+/**
+ * Event delivered to a WeaverRuntime observer. Payloads are defensive copies.
+ * An input that is not JSON-safe and was rejected by validation is delivered
+ * as `{ unserializable: true }` in place of the original value.
+ */
+export type WeaverRuntimeEvent =
+  | { kind: "message"; input: unknown; result: MessageProcessorResult }
+  | {
+      kind: "input";
+      request: WeaverInputRequest;
+      result: WeaverInputResult;
+    }
+  | {
+      kind: "action";
+      request: WeaverActionRequest;
+      result: WeaverActionResult;
+    };
+
+export type WeaverRuntimeObserver = (event: WeaverRuntimeEvent) => void;
 
 export type WeaverRuntimeConfigurationError =
   | { code: "CATALOG_CONFIGURATION_FAILED"; catalogError: CatalogRegistryError }

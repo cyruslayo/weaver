@@ -11,6 +11,7 @@ export * from "./input-binding/index.js";
 export * from "./data-context/index.js";
 export * from "./data-model/index.js";
 export * from "./message-processor/index.js";
+export * from "./prompt/index.js";
 export * from "./protocol/index.js";
 export * from "./runtime/index.js";
 export * from "./surfaces/index.js";
@@ -18,3 +19,4 @@ export * from "./stream-ingestion/index.js";
 export * from "./transport/index.js";
 
 export const WEAVER_CORE_VERSION = "0.2.1";
+export * from "./diagnostics/index.js";

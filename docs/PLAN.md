@@ -1,7 +1,7 @@
 # Weaver Framework Plan
 
 Weaver is an independent interface runtime framework. Package boundaries remain
-strict: `@weaver/core` has no Web or MCP dependency; adapters depend on Core.
+strict: `@cylayo/weaver-core` has no Web or MCP dependency; adapters depend on Core.
 
 ## Completed Core milestones
 
@@ -103,11 +103,11 @@ Complete. Web now supports explicit per-run finite fixed-delay reconnect, adapte
 
 ## Task 45 — MCP v2 A2UI client bridge
 
-Complete. `@weaver/mcp` now maps MCP 2026-07-28 resource and tool results to one trusted `A2UITransportSession` route and maps routed actions and validation errors back to narrow MCP tools. It receives an already-connected official SDK v2 client and owns no MCP connection lifecycle.
+Complete. `@cylayo/weaver-mcp` now maps MCP 2026-07-28 resource and tool results to one trusted `A2UITransportSession` route and maps routed actions and validation errors back to narrow MCP tools. It receives an already-connected official SDK v2 client and owns no MCP connection lifecycle.
 
 ## Task 46 — MCP application capability server helpers
 
-Complete. `@weaver/mcp` now provides thin, Standard-Schema-neutral helpers for registering trusted application handlers as ordinary official MCP tools. The helpers add atomic batch preflight, safe result mapping, JSON-safe defensive output ownership, and an exception diagnostic boundary while leaving validation, protocol behavior, authorization, and tool lifecycle with the SDK and host application.
+Complete. `@cylayo/weaver-mcp` now provides thin, Standard-Schema-neutral helpers for registering trusted application handlers as ordinary official MCP tools. The helpers add atomic batch preflight, safe result mapping, JSON-safe defensive output ownership, and an exception diagnostic boundary while leaving validation, protocol behavior, authorization, and tool lifecycle with the SDK and host application.
 
 ## Task 47 — Zynra V2 integration readiness review
 
@@ -135,10 +135,38 @@ Complete. Core now uses an interpreting validator for runtime and request-time t
 
 ## Task 53 — Install Weaver 0.1.1 artifacts in Zynra
 
-Next. Install the synchronized Core, Web, and MCP 0.1.1 tarballs in Zynra, then complete and reverify Task 51 there.
+Status unknown — tracked outside this repo (Zynra). Intended scope: install the synchronized Core, Web, and MCP 0.1.1 tarballs in Zynra, then complete and reverify Task 51 there.
+
+## Task 61 — Core A2UI v0.9.1 prompt generator (WVR-011)
+
+Complete, pending review. Core now exports `generateA2UIV091Prompt()`, which builds the A2UI v0.9.1 model prompt from a trusted catalog. It returns either the prompt or a typed `A2UIPromptGenerationError`, never a partial prompt. The implementation, types, and tests live in `packages/core/src/prompt/`. Example shape checks (WVR-012) are not part of this task.
+
+## Task 62 — Opt-in runtime observer hook (WVR-021)
+
+Complete, pending review. `WeaverRuntime` accepts an optional `observer` that receives runtime events from `process`, `writeInput`, and `dispatchAction`. Events are built only when an observer is set, and observer exceptions are swallowed so tracing cannot change runtime behavior. The event and observer types are exported from the Core runtime module.
+
+## Task 63 — Core describeWeaverError() (WVR-031)
+
+Complete, pending review. Core exports `describeWeaverError()`, which turns typed Core errors into host-readable summaries, severities, and actionable hints, with the cause chain flattened in order. It is exhaustive over every error union it accepts, including `A2UIPromptGenerationError`, and a fixture reaches each code.
+
+## Task 64 — Cookbook scaffold (WVR-041)
+
+Complete, pending review. `examples/cookbook` (`@weaver/cookbook`) is a Vite multi-page app with a landing page and a placeholder screen. It uses a shared harness that drives deterministic agent streams, plus a happy-dom smoke test. Its only dependencies are Core, Web, Vite, and happy-dom. The real form, dashboard, and ticket-board screens are separate issues (WVR-042 to WVR-044).
 
 ## Deferred work
 
 - additional network bindings, including A2A placement
 - stable collection item identity beyond v0.9.1 positional scopes
 - Zynra V2 application integration
+
+## Roadmap: OpenUI-informed improvements
+
+The planned work is in [`scratch/ROADMAP.md`](../scratch/ROADMAP.md). Its live status is in [`scratch/BOARD.md`](../scratch/BOARD.md). It borrows OpenUI's developer-loop patterns, not its code, DSL, or protocol.
+
+- **E1 Prompt generation:** generate the A2UI v0.9.1 model prompt from the trusted catalog in Core.
+- **E2 Trace and replay:** record, replay, and inspect runtime frames through an opt-in observer.
+- **E3 Error presentation:** turn typed Core and Web errors into described, actionable messages.
+- **E4 Cookbook:** runnable form, dashboard, and ticket-board examples, checked for keyboard use and 360px screens.
+- **E5 Custom catalog recipe:** an app-owned catalog with trusted DataTable and BarChart renderers.
+
+The remaining audit items are gated. They proceed only when the evidence in `scratch/ROADMAP.md` justifies them.

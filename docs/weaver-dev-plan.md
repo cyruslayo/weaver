@@ -29,10 +29,10 @@ The target architecture is:
                  Web Browser
                       |
                       v
-                @weaver/web
+                @cylayo/weaver-web
                       |
                       v
-                @weaver/core
+                @cylayo/weaver-core
                       |
                    A2UI
                       |
@@ -520,7 +520,7 @@ The application defines their visual meaning.
 
 ---
 
-# 12. Phase 6 — Build @weaver/web
+# 12. Phase 6 — Build @cylayo/weaver-web
 
 ## Goal
 
@@ -538,7 +538,7 @@ packages/web/src/
 └── index.ts
 ```
 
-The web renderer depends on `@weaver/core`.
+The web renderer depends on `@cylayo/weaver-core`.
 
 Core must never depend on Web.
 
@@ -777,11 +777,11 @@ Weaver 0.1.0
 It should contain:
 
 ```text
-@weaver/core
-@weaver/web
+@cylayo/weaver-core
+@cylayo/weaver-web
 ```
 
-Do not publish `@weaver/mcp` yet.
+Do not publish `@cylayo/weaver-mcp` yet.
 
 Version `0.1.0` must support:
 
@@ -831,17 +831,17 @@ Use Streamable HTTP for remote MCP.
 
 ## Package Boundary
 
-`@weaver/mcp` may depend on:
+`@cylayo/weaver-mcp` may depend on:
 
 ```text
-@weaver/core
+@cylayo/weaver-core
 MCP SDK
 ```
 
 It must not depend on:
 
 ```text
-@weaver/web
+@cylayo/weaver-web
 Zynra
 Cloudflare
 ```
@@ -933,9 +933,9 @@ The interface must update without a page reload.
 Release:
 
 ```text
-@weaver/core
-@weaver/web
-@weaver/mcp
+@cylayo/weaver-core
+@cylayo/weaver-web
+@cylayo/weaver-mcp
 ```
 
 Create package tarballs before publication.
