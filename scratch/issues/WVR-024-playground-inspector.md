@@ -4,7 +4,7 @@ title: Playground inspector page (load trace, step, snapshots, suppressed outbou
 epic: E2 Trace and replay
 audit_ref: WVR-02, §4.D (OpenUI Inspect/Debug equivalent)
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-023]
 estimate: L
 ---

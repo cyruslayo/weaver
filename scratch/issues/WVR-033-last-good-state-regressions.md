@@ -4,7 +4,7 @@ title: Regression tests — malformed input leaves last good state and DOM; host
 epic: E3 Error presentation
 audit_ref: WVR-03 (acceptance), §5 fail-safe behaviour
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-032]
 estimate: S
 ---
@@ -70,3 +70,5 @@ Merged.
     append mutations. The file-level SIGKILL comes from the existing
     `rerender failure is atomic` test, which passes DOM nodes to `assert.equal`
     and hangs when it fails; it is not fixed here.
+
+- 2026-10-10 merged in cyruslayo/weaver#23 (6094797)

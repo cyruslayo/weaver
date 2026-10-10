@@ -4,7 +4,7 @@ title: Cross-catalog safety tests — unknown components fail safely, no fallbac
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05 (acceptance)
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-052, WVR-053]
 estimate: S
 ---

@@ -4,7 +4,7 @@ title: Golden Basic-catalog prompt fixture with --check script wired into CI
 epic: E1 Prompt generation
 audit_ref: WVR-01 (acceptance "deterministic snapshot tests")
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-012]
 estimate: S
 ---
@@ -63,3 +63,5 @@ Merged. CI is green.
   - Evidence (Verification): (1) A hand-edited fixture makes `--check` exit 1, and regeneration restores it. (2) A Basic description changed in `generated-basic-catalog.ts` makes `pnpm check:generated` fail and makes the prompt check fail alone. The file was then restored from git.
   - Gate, run locally: `pnpm install`; `pnpm check:generated`; `pnpm typecheck`; `pnpm build`; `pnpm test` (Core 417, MCP 10, Web 132, cookbook 43, reference-app 3, all pass, 0 fail); `pnpm conformance:v0.9.1` (Core 417 and Web 132 pass); `pnpm verify:packages`; `pnpm verify:worker-core` (2 pass). Core's package test script registers `dist/prompt/basicPromptFixtures.test.js`.
   - Not verified: remote CI, since nothing was pushed. The "CI is green" part of the definition of done is still open.
+
+- 2026-10-10 merged in cyruslayo/weaver#23 (6094797)

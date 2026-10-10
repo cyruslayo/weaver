@@ -4,7 +4,7 @@ title: Document prompt generation (docs/prompt-generation.md + README section)
 epic: E1 Prompt generation
 audit_ref: WVR-01
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-013, WVR-015]
 estimate: S
 ---

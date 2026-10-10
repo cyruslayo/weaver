@@ -4,7 +4,7 @@ title: Trusted DataTable renderer (accessible, no innerHTML)
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05, WVR-09 groundwork
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-051]
 estimate: M
 ---
@@ -122,3 +122,5 @@ Merged.
     checks that the DataTable renders no button.
   - Criterion 2 is ticked with that test evidence. Status stays `in-review`.
   - README (custom-catalog section) and PLAN.md Task 78 updated to match.
+
+- 2026-10-10 merged in cyruslayo/weaver#23 (6094797)

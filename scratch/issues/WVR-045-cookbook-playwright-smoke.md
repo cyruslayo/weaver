@@ -4,7 +4,7 @@ title: Playwright smoke — 360px viewport and keyboard reachability for cookboo
 epic: E4 Cookbook
 audit_ref: WVR-04, Slice 3 ("keyboard and narrow-screen acceptance checks")
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-042, WVR-043, WVR-044]
 estimate: M
 ---
@@ -118,3 +118,5 @@ Merged.
     include `@playwright/test`, because the new devDependency is the reason it failed.
   - No happy-dom or e2e coverage was added beyond the existing checks. The
     overflow checks in the e2e specs are the coverage for this fix.
+
+- 2026-10-10 merged in cyruslayo/weaver#23 (6094797)
