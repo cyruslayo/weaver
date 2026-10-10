@@ -4,7 +4,7 @@ title: Render-budget failures carry the surface id in describeWebRenderError
 epic: F Follow-ups
 audit_ref: follow-up to WVR-032 / WVR-034 (error presentation)
 priority: P2
-status: ready
+status: in-progress
 depends_on: []
 estimate: S
 ---
@@ -102,3 +102,9 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   is not committed.
 - 2026-10-10: no approach is chosen yet. The recommendation is option 1 (carry the id on the Web
   error), because the Web layer holds the id and the change stays inside `@cylayo/weaver-web`.
+- 2026-10-10: approach chosen: option 1 (carry the id on the Web error). Owner approved. Add
+  `surfaceId: string` to the `SURFACE_RESOLUTION_FAILED` variant (additive), set it where
+  `WebSurfaceRenderer` has the id in scope, prefer it in `describeWebRenderError`, and fall back to
+  Core's id. No Core change. Reason: the Web layer already holds the id, and the change stays inside
+  `@cylayo/weaver-web`. Option 2 touches Core's public error shapes for the same result. Option 3 is
+  the status quo the issue rejects.
