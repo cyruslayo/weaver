@@ -4,7 +4,7 @@ title: Cookbook screen — validated form with server round-trip
 epic: E4 Cookbook
 audit_ref: WVR-04
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-041]
 estimate: M
 ---
@@ -24,7 +24,7 @@ Test with Basic opt-in functions (`required`, `email` and similar) using
 ## Acceptance criteria
 - [x] First render is correct.
 - [x] Keyboard only: Tab through the fields, type, Space toggles the CheckBox,
-      Enter/Space on Submit dispatches.
+      Enter/Space on Submit dispatches. (verified in happy-dom at the control-structure/order level; real Tab/Space/Enter in a browser is verified by WVR-045)
 - [x] Invalid input shows the check message and blocks submit, if the
       catalog checks disable the action.
 - [x] The accepted and rejected round-trips update only the data model. Assert
@@ -73,3 +73,6 @@ Merged.
   cookbook 14, reference-app 3, all pass), `pnpm verify:packages`,
   `pnpm check:generated`, `pnpm conformance:v0.9.1`, and
   `pnpm verify:worker-core` all pass. Build outputs and tarballs are git-ignored.
+- 2026-10-10 Keyboard criterion unticked at merge. happy-dom does not send Tab, Space or Enter, so the test checks DOM order only. Real keyboard checks are in WVR-045.
+- 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)
+- 2026-10-10 Keyboard criterion re-ticked on orchestrator review, with caveat: verified at the control-structure/order level in happy-dom. Real Tab/Space/Enter in a browser is verified by WVR-045.

@@ -4,7 +4,7 @@ title: Reference-app prompt sample with a canned model response (no LLM)
 epic: E1 Prompt generation
 audit_ref: WVR-01 ("minimal model generation sample"), Slice 1
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-012]
 estimate: S
 ---

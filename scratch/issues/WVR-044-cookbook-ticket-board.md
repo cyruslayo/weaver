@@ -4,7 +4,7 @@ title: Cookbook screen — ticket board (move / assign / close)
 epic: E4 Cookbook
 audit_ref: WVR-04
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-041]
 estimate: L
 ---
@@ -27,7 +27,7 @@ estimate: L
 - [x] Moving a ticket updates both columns. Old-scope buttons are inert after
       the update, thanks to the existing stale-generation guard. Test this.
 - [x] Keyboard only: reach every action and open and close the Modal; focus
-      returns to the trigger.
+      returns to the trigger. (verified in happy-dom at the control-structure/order level; real Tab/Space/Enter in a browser is verified by WVR-045)
 - [x] Only `updateDataModel` is emitted for move, assign and close.
 
 ## Verification
@@ -68,3 +68,6 @@ Merged.
     the trigger on close. Real Enter and Tab behaviour is for WVR-045's browser
     smoke test. Test helpers avoid identity assertions on DOM nodes, because a
     failing one makes Node print the whole DOM graph and hang.
+- 2026-10-10 Keyboard criterion unticked at merge. The happy-dom tests move focus with `focus()` and do not send real key presses. Real keyboard checks are in WVR-045.
+- 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)
+- 2026-10-10 Keyboard criterion re-ticked on orchestrator review, with caveat: verified at the control-structure/order level in happy-dom. Real Tab/Space/Enter in a browser is verified by WVR-045.

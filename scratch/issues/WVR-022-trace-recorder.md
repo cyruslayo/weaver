@@ -4,7 +4,7 @@ title: createWeaverTraceRecorder + weaver-trace v1 format + ingestion frame-erro
 epic: E2 Trace and replay
 audit_ref: WVR-02
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-021]
 estimate: M
 ---
@@ -84,3 +84,4 @@ Merged.
     `pnpm verify:packages`, and `pnpm verify:worker-core` all pass.
   - Not done here: no PR and no push. `scratch/BOARD.md` and `docs/PLAN.md`
     were left alone, as the session asked.
+- 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)

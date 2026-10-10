@@ -4,7 +4,7 @@ title: Playwright smoke — 360px viewport and keyboard reachability for cookboo
 epic: E4 Cookbook
 audit_ref: WVR-04, Slice 3 ("keyboard and narrow-screen acceptance checks")
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-042, WVR-043, WVR-044]
 estimate: M
 ---
@@ -37,5 +37,9 @@ happy-dom cannot check layout. Chromium is pre-installed in cloud sessions
 
 ## Definition of done
 Merged.
+
+## Notes
+
+- This issue covers the real-browser checks that happy-dom cannot run: real Tab, Space and Enter behaviour, and the 360px layout. The keyboard criteria unticked on WVR-042 and WVR-044 are verified here.
 
 ## Log

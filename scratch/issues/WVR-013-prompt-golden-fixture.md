@@ -4,7 +4,7 @@ title: Golden Basic-catalog prompt fixture with --check script wired into CI
 epic: E1 Prompt generation
 audit_ref: WVR-01 (acceptance "deterministic snapshot tests")
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-012]
 estimate: S
 ---
@@ -46,5 +46,9 @@ confirm the check fails.
 
 ## Definition of done
 Merged. CI is green.
+
+## Notes
+
+- `prompt.txt` for the cookbook form (WVR-042) comes from `generateA2UIV091Prompt`, but no script regenerates it. `examples/cookbook/src/form.test.ts` checks it against the generator, so a stale file fails the test and has to be refreshed by hand. Decide here whether this issue's script also covers it.
 
 ## Log

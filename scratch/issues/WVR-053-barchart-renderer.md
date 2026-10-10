@@ -4,7 +4,7 @@ title: Trusted dependency-free SVG BarChart renderer
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05 ("small chart"), §5 (avoid D3-scale dependencies)
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-051]
 estimate: M
 ---
@@ -32,5 +32,9 @@ estimate: M
 
 ## Definition of done
 Merged.
+
+## Notes
+
+- `createBasicWebRuntime` keys its Basic renderers to the Basic catalog id. Cookbook surfaces use the cookbook catalog id (WVR-051), so this issue must also register renderers for `Column`, `Text` and `Card` under that id, not only for `BarChart`.
 
 ## Log
