@@ -4,7 +4,7 @@ title: Scaffold examples/cookbook (Vite multi-page, deterministic agents, happy-
 epic: E4 Cookbook
 audit_ref: WVR-04, §4.F
 priority: P0
-status: ready
+status: in-review
 depends_on: []
 estimate: M
 ---
@@ -34,10 +34,10 @@ components. Each screen runs with no LLM and no network.
 - Custom catalogs (E5).
 
 ## Acceptance criteria
-- [ ] `pnpm --filter @weaver/cookbook test|build|typecheck` passes.
-- [ ] The root `pnpm test` and `pnpm build` include the cookbook through the
+- [x] `pnpm --filter @weaver/cookbook test|build|typecheck` passes.
+- [x] The root `pnpm test` and `pnpm build` include the cookbook through the
       workspace.
-- [ ] The cookbook has no dependency other than Core, Web, Vite and
+- [x] The cookbook has no dependency other than Core, Web, Vite and
       happy-dom.
 
 ## Verification
@@ -47,3 +47,16 @@ components. Each screen runs with no LLM and no network.
 Merged.
 
 ## Log
+
+- 2026-10-10: Branch `wvr-041-cookbook-scaffold`, status `in-review`. Added
+  `examples/cookbook` as `@weaver/cookbook` with a Vite multi-page layout
+  (landing page plus a placeholder screen), the shared harness in
+  `src/shared/harness.ts` (generalised from the reference app's agent-stream),
+  a smoke test, and a README. Dependencies are only Core, Web, Vite and
+  happy-dom, locked in `pnpm-lock.yaml`. `pnpm --filter @weaver/cookbook`
+  test, build, and typecheck pass. The root `pnpm build` and `pnpm test` pass
+  and include the cookbook. The placeholder button needed `context: {}` on its
+  event action; without it the Web dispatcher rejects the action as
+  `ACTION_INVALID` with no visible error. The harness does not catch this
+  because it never sees the event. Note: `scratch/` was not tracked on this
+  branch, so only this issue file was brought in from commit `e250867`.
