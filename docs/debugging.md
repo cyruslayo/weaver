@@ -400,6 +400,10 @@ Use a leading slash only for a value that really lives at the DataModel root. Se
 
 Weaver does not add a diagnostic for this case, because an absolute path can
 legitimately point at missing data, and Weaver does not guess author intent.
+The render-level behaviour is pinned by
+[`list-template-paths.test.ts`](../examples/cookbook/src/list-template-paths.test.ts),
+which mounts both forms and checks the item text, the render error count, and
+`resolveSurface`.
 
 ## Security and privacy
 

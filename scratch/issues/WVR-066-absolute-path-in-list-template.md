@@ -138,3 +138,10 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   - Not done: a Web-level List test. `scratch/BOARD.md` and `docs/PLAN.md` were not edited, per the owner's
     instruction. `BOARD.md` still lists this issue as `ready` and needs the `in-review` change made by the owner.
   - Options 2 and 3 remain considered and deferred, as recorded above.
+- 2026-10-10 review follow-up: added a render-level test, `examples/cookbook/src/list-template-paths.test.ts`
+  (registered in the cookbook `test` script). It mounts a List template through the real harness, with the item
+  Text bound to `name` and then `/name`. Relative renders `Alpha`, `Beta`. Absolute renders `""`, `""`. Both
+  have 0 render errors and `resolveSurface` ok. Mutation (absolute path prepended with the item scope in
+  `path.ts`): `not ok 64` with a clear `+ 'Alpha', 'Beta' / - '', ''` diff, no hang. Ticket-board test 93 also
+  failed under the mutation, which is expected. Reverted with `git checkout`. The debugging symptom entry links
+  this test.
