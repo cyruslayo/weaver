@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { describeWeaverError, type WeaverErrorDescription, type WeaverSurfaceResolutionError } from "@cylayo/weaver-core";
 import type { WebInteractionError } from "../renderers/types.js";
 import type { WebRenderError } from "./errors.js";
-import { describeWebRenderError, type DescribableWebError } from "./describeWebRenderError.js";
+import { describeWebRenderError, type DescribableWebError, type WebLocalStateError } from "./describeWebRenderError.js";
 
 // ---------------------------------------------------------------------------
 // Code inventory. Every code in the Web unions the describer accepts. The
@@ -14,10 +14,11 @@ const ALL_CODES = [
   "SURFACE_RESOLUTION_FAILED", "THEME_ADAPTER_FAILED", "ATTRIBUTION_PROVIDER_FAILED",
   "INVALID_VERIFIED_ATTRIBUTION", "RENDERER_NOT_FOUND", "RENDERER_EXECUTION_FAILED",
   "INVALID_RENDERER_RESULT", "STALE_RENDER_INTERACTION", "SERVER_EVENT_HANDOFF_FAILED",
+  "INVALID_LOCAL_STATE_VALUE",
 ] as const;
 
 type WebErrorCode = (typeof ALL_CODES)[number];
-type UnionCodes = WebRenderError["code"] | WebInteractionError["code"];
+type UnionCodes = WebRenderError["code"] | WebInteractionError["code"] | WebLocalStateError["code"];
 
 // Compile-time: these fail the typecheck if a code is missing from ALL_CODES
 // or if ALL_CODES names something no Web union defines.
@@ -58,6 +59,7 @@ const fixtures: { code: WebErrorCode; error: DescribableWebError }[] = [
   { code: "INVALID_RENDERER_RESULT", error: { code: "INVALID_RENDERER_RESULT", ...rendererLocation } },
   { code: "STALE_RENDER_INTERACTION", error: { code: "STALE_RENDER_INTERACTION" } },
   { code: "SERVER_EVENT_HANDOFF_FAILED", error: { code: "SERVER_EVENT_HANDOFF_FAILED" } },
+  { code: "INVALID_LOCAL_STATE_VALUE", error: { code: "INVALID_LOCAL_STATE_VALUE" } },
 ];
 
 const UNKNOWN_FALLBACK = /cannot describe/;
@@ -145,5 +147,17 @@ test("a code from a newer JavaScript caller gets a generic description rather th
   const description: WeaverErrorDescription = describeWebRenderError({ code: "FUTURE_CODE" } as unknown as DescribableWebError);
   assert.equal(description.code, "FUTURE_CODE");
   assert.match(description.summary, UNKNOWN_FALLBACK);
+  assert.deepEqual(description.causes, []);
+});
+
+test("INVALID_LOCAL_STATE_VALUE says the value is not JSON-safe and gives the JSON-safe hint", () => {
+  const description = describeWebRenderError({ code: "INVALID_LOCAL_STATE_VALUE" });
+  assert.equal(description.code, "INVALID_LOCAL_STATE_VALUE");
+  assert.match(description.summary, /not JSON-safe/);
+  assert.match(description.summary, /local state was not changed/);
+  assert.equal(
+    description.hint,
+    "Pass a JSON-safe value to setLocalState: a string, finite number, boolean, null, array, or plain object.",
+  );
   assert.deepEqual(description.causes, []);
 });

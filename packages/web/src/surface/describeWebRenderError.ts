@@ -2,8 +2,11 @@ import { describeWeaverError, type WeaverErrorDescription } from "@cylayo/weaver
 import type { WebInteractionError } from "../renderers/types.js";
 import type { WebRenderError } from "./errors.js";
 
+/** The local-state failure returned by `setLocalState` for a value that is not JSON-safe. */
+export type WebLocalStateError = { code: "INVALID_LOCAL_STATE_VALUE" };
+
 /** Every Web error union that `describeWebRenderError()` accepts. */
-export type DescribableWebError = WebRenderError | WebInteractionError;
+export type DescribableWebError = WebRenderError | WebInteractionError | WebLocalStateError;
 
 interface Location {
   surfaceId?: string;
@@ -127,6 +130,12 @@ function describeWebError(error: DescribableWebError): WeaverErrorDescription {
         "SERVER_EVENT_HANDOFF_FAILED",
         "The server event could not be handed to the host's onServerEvent handler.",
         "Check the onServerEvent handler passed to WebSurfaceRenderer.",
+      );
+    case "INVALID_LOCAL_STATE_VALUE":
+      return leaf(
+        "INVALID_LOCAL_STATE_VALUE",
+        "The value passed to setLocalState is not JSON-safe, so the local state was not changed.",
+        "Pass a JSON-safe value to setLocalState: a string, finite number, boolean, null, array, or plain object.",
       );
     default:
       return unknownWebError(error);
