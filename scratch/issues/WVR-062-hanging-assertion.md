@@ -4,7 +4,7 @@ title: No assert.* receives DOM nodes, so a failing Web test reports instead of 
 epic: F Follow-ups
 audit_ref: follow-up to WVR-033 (browser review)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -98,3 +98,4 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
 - 2026-10-10: gates on the final tree: `pnpm install`, `pnpm build`, `pnpm typecheck`, `pnpm test`, `pnpm check:generated`, `pnpm check:docs`, `pnpm conformance:v0.9.1`, `pnpm verify:packages`, `pnpm verify:worker-core`, all exit 0. `pnpm --filter @cylayo/weaver-web test` 139/139. `pnpm --filter @weaver/cookbook test` 99/99. `pnpm --filter @weaver/cookbook e2e` 40 passed. Playground e2e not run, because no playground test file changed.
 - 2026-10-10: follow-up fix for the ambiguous selector (coordinator review). `renderers.test.ts` asserted `querySelector("table")` for "DataTable must render as a table", but BarChart's visually hidden table also matches. It now reads `const dataTable = target.querySelector('[data-cookbook-component="DataTable"]')` and asserts `assert.equal(dataTable !== null && dataTable.querySelector("table") !== null, true, "DataTable must render its own table")`. Still boolean-only, with no DOM node passed to assert. Passes on the real renderer. Proof: temporary `document.createElement("div")` in place of the DataTable's `table` in `dataTableRenderer.ts` (reverted with git checkout). `node --test dist/custom-catalog/renderers.test.js` exited 1 in about 1 s (22:10:02 to 22:10:03). 4 tests, 3 pass, 1 fail, with message `DataTable must render its own table` (`false !== true`). Neighbour scan: `dataTableRenderer.test.ts` `table(target)` uses an unscoped `querySelector("table")`, but its mount renders no BarChart (verified: no BarChart in that file's screens), so it is unambiguous today. It is left unchanged. The `wrapper.contains(table(target))` check is also left as it is, since scoping the helper would make it trivially true. Every other `renderers.test.ts` assertion uses `data-a2ui-component` or `button` selectors, which BarChart cannot satisfy in a way that changes the result. Test counts unchanged (renderers 4, cookbook 99).
 - 2026-10-10: the scanner was not committed. This change is test-only and the diff must stay test files plus this issue. It lives in the session scratchpad, and the command above reproduces it. Branch `wvr-062-dom-assertions`, based on `e40daf9`. Not pushed, no PR.
+- 2026-10-10 merged in cyruslayo/weaver#31 (6a94d52)
