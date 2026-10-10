@@ -55,6 +55,8 @@ test("the list passed as additionalRenderers creates the cookbook web runtime wi
   for (const component of ["Column", "Text", "Card", "BarChart"]) {
     assert.ok(target.querySelector(`[data-a2ui-component=${component}]`) !== null, `${component} must render`);
   }
-  assert.ok(target.querySelector("table") !== null, "DataTable must render as a table");
+  // Scoped to the DataTable wrapper: BarChart's visually hidden table would also match a bare "table" selector.
+  const dataTable = target.querySelector('[data-cookbook-component="DataTable"]');
+  assert.equal(dataTable !== null && dataTable.querySelector("table") !== null, true, "DataTable must render its own table");
   assert.equal(target.querySelectorAll("button").length, 0, "the read-only DataTable renders no button");
 });
