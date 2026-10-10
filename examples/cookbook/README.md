@@ -32,8 +32,25 @@ harness owns everything else:
 | Screen | Page | Source | Status |
 |---|---|---|---|
 | Placeholder | `placeholder.html` | `src/screens/placeholder.ts` | Pipeline smoke screen |
+| Ticket board | `ticket-board.html` | `src/screens/ticket-board.ts` | Move, assign, and close tickets |
 
-The form, dashboard, and ticket board screens arrive in later issues.
+The form and dashboard screens arrive in later issues.
+
+### Positional template identity (ticket board)
+
+The ticket board renders each column as a List template over `/board/<status>`.
+In A2UI v0.9.1, template items are identified by their position in the
+collection. The scope path is `/board/<status>/<index>`, so:
+
+- Moving an item re-indexes every item after it in both columns. Weaver does
+  not claim stable item identity, and the cookbook does not pretend otherwise.
+- A Button built for one index is stale after any update. The stale-generation
+  guard makes it inert, and the board test covers this.
+- The Assign Modal's open state is kept per scope index. After a move, a
+  Modal that was open can belong to a different ticket. The Assign flow does
+  not move tickets while its Modal is open, so this does not arise in the demo.
+- The Basic Modal has no data-driven close. Confirm assigns the ticket and
+  keeps the dialog open, and the user dismisses it with Close or Escape.
 
 ## Run
 
