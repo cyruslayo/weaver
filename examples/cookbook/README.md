@@ -35,6 +35,7 @@ harness owns everything else:
 | Support request | `form.html` | `src/screens/form/screen.ts` | Validated form with a server round trip |
 | Dashboard | `dashboard.html` | `src/screens/dashboard.ts` | KPI tiles and a filtered list. Refresh and filter send data-model updates only. |
 | Ticket board | `ticket-board.html` | `src/screens/ticket-board.ts` | Move, assign, and close tickets |
+| Orders report | `orders-report.html` | `src/screens/orders-report.ts` | Read-only table and bar chart on the custom catalog. Refresh sends data-model updates only. |
 
 ### Positional template identity (ticket board)
 
@@ -105,13 +106,15 @@ custom catalog, or framework.
 
 The custom catalog recipe lives in `src/custom-catalog/catalog.ts`. It is an
 app-owned catalog with `DataTable` and `BarChart`, plus the `Column`, `Text`,
-and `Card` layout primitives copied from the Basic registration.
+`Card`, and `Button` primitives reused from the Basic registration. The Orders
+report (`orders-report.html`, `src/screens/orders-report.ts`) is the screen that
+mounts it. Its harness field is `catalog`, and every other screen uses Basic.
 
 **One catalog per surface.** A surface is created with exactly one `catalogId`,
 so a surface that uses `DataTable` must declare every component it uses in the
 same catalog. The canonical Basic catalog is never modified. The custom catalog
 has its own `catalogId` and is registered next to Basic with
-`additionalCatalogs`. A component outside the catalog (for example `Button`) is
+`additionalCatalogs`. A component outside the catalog (for example `TextField`) is
 rejected at message validation.
 
 - `DataTable`: `caption`, `columns` (1 to 12 `{ key, header, align? }`), and `rows`
@@ -132,4 +135,4 @@ validation, and the generated prompt. The Basic Web renderers are keyed to the
 Basic `catalogId`, so this catalog's components need their own renderers.
 `src/custom-catalog/dataTableRenderer.ts` renders `DataTable` and
 `src/custom-catalog/barChart.ts` renders `BarChart`. `src/custom-catalog/renderers.ts`
-registers both, and reuses the Basic renderers for `Column`, `Text` and `Card`.
+registers both, and reuses the Basic renderers for `Column`, `Text`, `Card` and `Button`.

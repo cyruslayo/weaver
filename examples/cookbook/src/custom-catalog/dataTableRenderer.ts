@@ -91,6 +91,14 @@ export const renderDataTable: WebComponentRenderer = ({ document, properties }) 
   // The wrapper scrolls sideways, so a wide table never widens the page.
   wrapper.style.maxWidth = "100%";
   wrapper.style.overflowX = "auto";
+  // A scrollable region with no focusable content is a keyboard trap for hidden columns. Make it
+  // a named, focusable region on purpose, so a keyboard user can scroll the table at any width.
+  wrapper.setAttribute("role", "region");
+  wrapper.setAttribute("tabindex", "0");
+  wrapper.setAttribute(
+    "aria-label",
+    typeof properties.caption === "string" && properties.caption.length > 0 ? properties.caption : "Data table",
+  );
 
   const table = document.createElement("table");
   table.style.borderCollapse = "collapse";
@@ -137,6 +145,8 @@ export const renderDataTable: WebComponentRenderer = ({ document, properties }) 
       const td = document.createElement("td");
       td.style.textAlign = alignmentOf(column, numeric.get(column.key) === true);
       td.style.padding = "6px 12px";
+      // Each cell stays on one line. The wrapper scrolls, so a narrow screen never wraps an identifier.
+      td.style.whiteSpace = "nowrap";
       td.style.borderBlockEnd = "1px solid rgba(127, 127, 127, 0.35)";
       td.textContent = cellText(cellValue(row, column.key));
       tr.append(td);

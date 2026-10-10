@@ -6,6 +6,7 @@ import {
   type A2UIComponent,
   type A2UIServerMessage,
   type BasicRegexMatcher,
+  type CatalogRegistration,
   type FunctionRegistration,
   type JsonObject,
   type JsonValue,
@@ -14,6 +15,7 @@ import {
 import {
   createBasicWebRuntime,
   type BasicWebRuntime,
+  type RendererRegistration,
   type WebServerEventHandoff,
   type WebSurfaceMount,
 } from "@cylayo/weaver-web";
@@ -58,6 +60,19 @@ export interface CookbookScreenDefinition<TState> {
     readonly functions?: readonly FunctionRegistration[];
     readonly regexMatcher?: BasicRegexMatcher;
   };
+  /**
+   * Optional app-owned catalog for this screen. When it is set, the surface uses
+   * this catalog's id, and its renderers are registered next to Basic's. A surface
+   * uses exactly one catalog, so the catalog must declare every component the
+   * screen uses. When it is omitted, the screen uses the canonical Basic catalog.
+   */
+  readonly catalog?: CookbookCatalogSetup;
+}
+
+/** An app-owned catalog and the trusted renderers that belong to it. */
+export interface CookbookCatalogSetup {
+  readonly catalog: CatalogRegistration;
+  readonly renderers: readonly RendererRegistration[];
 }
 
 export type CookbookEventResult =
@@ -211,6 +226,12 @@ export function mountCookbookScreen<TState>(
       // A screen that supplies its own list replaces the default, so no name is registered twice.
       functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
     },
+    ...(definition.catalog === undefined
+      ? {}
+      : {
+          additionalCatalogs: [definition.catalog.catalog],
+          additionalRenderers: definition.catalog.renderers,
+        }),
     ...(definition.web?.regexMatcher === undefined
       ? {}
       : { basic: { regexMatcher: definition.web.regexMatcher } }),
@@ -225,7 +246,10 @@ export function mountCookbookScreen<TState>(
     );
 
   const web = created.value;
-  const agent = createCookbookAgent(definition, { catalogId: web.catalogId });
+  // A screen with its own catalog creates its surface under that catalog's id, not the Basic id.
+  const agent = createCookbookAgent(definition, {
+    catalogId: definition.catalog?.catalog.catalogId ?? web.catalogId,
+  });
   const stream = createCookbookStream(web.runtime);
 
   stream.send(agent.start());
