@@ -137,6 +137,22 @@ Complete. Core now uses an interpreting validator for runtime and request-time t
 
 Status unknown — tracked outside this repo (Zynra). Intended scope: install the synchronized Core, Web, and MCP 0.1.1 tarballs in Zynra, then complete and reverify Task 51 there.
 
+## Task 61 — Core A2UI v0.9.1 prompt generator (WVR-011)
+
+Complete, pending review. Core now exports `generateA2UIV091Prompt()`, which builds the A2UI v0.9.1 model prompt from a trusted catalog. It returns either the prompt or a typed `A2UIPromptGenerationError`, never a partial prompt. The implementation, types, and tests live in `packages/core/src/prompt/`. Example shape checks (WVR-012) are not part of this task.
+
+## Task 62 — Opt-in runtime observer hook (WVR-021)
+
+Complete, pending review. `WeaverRuntime` accepts an optional `observer` that receives runtime events from `process`, `writeInput`, and `dispatchAction`. Events are built only when an observer is set, and observer exceptions are swallowed so tracing cannot change runtime behavior. The event and observer types are exported from the Core runtime module.
+
+## Task 63 — Core describeWeaverError() (WVR-031)
+
+Complete, pending review. Core exports `describeWeaverError()`, which turns typed Core errors into host-readable summaries, severities, and actionable hints, with the cause chain flattened in order. It is exhaustive over every error union it accepts, including `A2UIPromptGenerationError`, and a fixture reaches each code.
+
+## Task 64 — Cookbook scaffold (WVR-041)
+
+Complete, pending review. `examples/cookbook` (`@weaver/cookbook`) is a Vite multi-page app with a landing page and a placeholder screen. It uses a shared harness that drives deterministic agent streams, plus a happy-dom smoke test. Its only dependencies are Core, Web, Vite, and happy-dom. The real form, dashboard, and ticket-board screens are separate issues (WVR-042 to WVR-044).
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

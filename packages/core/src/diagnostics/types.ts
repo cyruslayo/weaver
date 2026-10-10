@@ -3,6 +3,7 @@ import type { MessageProcessorError } from "../message-processor/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
 import type { WeaverRuntimeConfigurationError, WeaverRuntimeInteractionError, WeaverSurfaceResolutionError } from "../runtime/index.js";
 import type { FunctionRegistryError } from "../functions/index.js";
+import type { A2UIPromptGenerationError } from "../prompt/errors.js";
 
 export type WeaverErrorSeverity = "error" | "warning";
 
@@ -35,9 +36,10 @@ export interface DescribeWeaverErrorContext {
 /**
  * Every Core error union that `describeWeaverError()` accepts. The first five
  * are the surfaces a host sees from message processing, streaming, and
- * runtime interaction. The last two are the runtime and function-registry
- * configuration errors, which only exist at setup time. They are listed so
- * every code in every `errors.ts` under `packages/core/src` has a description.
+ * runtime interaction. The next two are the runtime and function-registry
+ * configuration errors, which only exist at setup time. The last is the
+ * prompt generator's failure union. They are listed so every code in every
+ * `errors.ts` in Core's source tree has a description.
  */
 export type DescribableWeaverError =
   | MessageProcessorError
@@ -46,4 +48,5 @@ export type DescribableWeaverError =
   | WeaverRuntimeInteractionError
   | A2UIV091StreamIngestionError
   | WeaverRuntimeConfigurationError
-  | FunctionRegistryError;
+  | FunctionRegistryError
+  | A2UIPromptGenerationError;

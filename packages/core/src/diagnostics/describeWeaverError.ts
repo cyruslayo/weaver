@@ -19,6 +19,7 @@ import type {
   WeaverRuntimeInteractionError,
   WeaverSurfaceResolutionError,
 } from "../runtime/index.js";
+import type { A2UIPromptGenerationError } from "../prompt/errors.js";
 import type { SurfaceStoreError } from "../surfaces/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
 import type {
@@ -867,6 +868,54 @@ function runtimeConfigurationError(error: WeaverRuntimeConfigurationError): Erro
 // Entry point.
 // ---------------------------------------------------------------------------
 
+function promptGenerationError(error: A2UIPromptGenerationError): ErrorNode {
+  switch (error.code) {
+    case "CATALOG_INVALID":
+      return node(
+        "CATALOG_INVALID",
+        `Prompt generation stopped because the catalog${error.catalogId ? ` "${error.catalogId}"` : ""} is invalid: ${trimPeriod(error.message)}.`,
+        {
+          children: error.cause ? [catalogRegistryError(error.cause)] : [],
+          hint: "Fix the catalog definition named in the cause, then generate the prompt again.",
+        },
+      );
+    case "ACTION_NAME_INVALID":
+      return node(
+        "ACTION_NAME_INVALID",
+        error.reason === "empty"
+          ? "An action name in the prompt catalog is empty."
+          : `Action name "${error.actionName}" appears more than once in the prompt catalog.`,
+        {
+          hint:
+            error.reason === "empty"
+              ? "Give every action a non-empty name, then generate the prompt again."
+              : "Give each action a unique name, then generate the prompt again.",
+        },
+      );
+    case "PROMPT_TOO_LARGE":
+      return node(
+        "PROMPT_TOO_LARGE",
+        `The generated prompt is ${error.characters} characters, over the limit of ${error.maxCharacters}.`,
+        {
+          hint: "Reduce the number of components, functions, or examples in the catalog so the prompt fits the limit.",
+        },
+      );
+    case "EXAMPLE_INVALID": {
+      const where =
+        error.exampleTitle !== undefined
+          ? `example "${error.exampleTitle}"`
+          : error.exampleIndex !== undefined
+            ? `example ${error.exampleIndex}`
+            : "an example";
+      return node("EXAMPLE_INVALID", `Prompt generation stopped because ${where} is invalid: ${trimPeriod(error.message)}.`, {
+        hint: "Correct the example so it is valid A2UI v0.9.1 for this catalog, then generate the prompt again.",
+      });
+    }
+    default:
+      return unknownError(error);
+  }
+}
+
 function describeTop(error: DescribableWeaverError): ErrorNode {
   switch (error.code) {
     case "PROTOCOL_VALIDATION_FAILED":
@@ -905,6 +954,11 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "FUNCTION_NOT_ALLOWED":
     case "FUNCTION_VALIDATION_FAILED":
       return functionRegistryError(error as FunctionRegistryError);
+    case "CATALOG_INVALID":
+    case "ACTION_NAME_INVALID":
+    case "PROMPT_TOO_LARGE":
+    case "EXAMPLE_INVALID":
+      return promptGenerationError(error as A2UIPromptGenerationError);
     default:
       return unknownError(error);
   }

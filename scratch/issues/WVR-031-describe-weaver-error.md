@@ -70,3 +70,10 @@ Merged.
   - Skipped: `A2UIPromptGenerationError` (WVR-011 not available), as instructed.
   - Not done: the workflow asks for a `docs/PLAN.md` entry. Left out because the
     task said not to edit `docs/PLAN.md`. `BOARD.md` is also untouched.
+- 2026-10-10: Integration (`wvr-integration`). WVR-011 is now merged, so
+  `A2UIPromptGenerationError` joins the accepted union. Its four codes
+  (`CATALOG_INVALID`, `ACTION_NAME_INVALID`, `PROMPT_TOO_LARGE`,
+  `EXAMPLE_INVALID`) each get a summary and an actionable hint. `CATALOG_INVALID`
+  nests its `CatalogRegistryError` cause. The inventory and fixtures cover all
+  four codes, and the switch is exhaustive, with a `never` check in the default.
+  The `docs/PLAN.md` entry (Task 63) is now written.

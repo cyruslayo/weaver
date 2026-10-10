@@ -25,6 +25,7 @@ import type {
 import { SurfaceStore } from "../surfaces/index.js";
 import type { SurfaceStoreError } from "../surfaces/errors.js";
 import type { JsonlDecodeError } from "../transport/jsonl/errors.js";
+import type { A2UIPromptGenerationError } from "../prompt/errors.js";
 import { describeWeaverError } from "./describeWeaverError.js";
 import type { DescribableWeaverError, DescribeWeaverErrorContext, WeaverErrorDescription } from "./types.js";
 
@@ -51,6 +52,8 @@ const ALL_CODES = [
   "INVALID_CATALOG_SCHEMA", "CATALOG_ALREADY_REGISTERED", "CATALOG_NOT_FOUND", "THEME_SCHEMA_NOT_FOUND",
   "THEME_VALIDATION_FAILED", "COMPONENT_NOT_ALLOWED", "COMPONENT_STRUCTURE_NOT_FOUND",
   "COMPONENT_VALIDATION_FAILED", "FUNCTION_NOT_ALLOWED", "FUNCTION_VALIDATION_FAILED",
+  // A2UIPromptGenerationError
+  "CATALOG_INVALID", "ACTION_NAME_INVALID", "PROMPT_TOO_LARGE", "EXAMPLE_INVALID",
   // FunctionRegistryError
   "FUNCTION_IMPLEMENTATION_ALREADY_REGISTERED", "FUNCTION_IMPLEMENTATION_NOT_FOUND",
   // FunctionEvaluationError
@@ -103,7 +106,8 @@ type UnionCodes =
   | DataContextError["code"]
   | DataModelError["code"]
   | SurfaceStoreError["code"]
-  | InputBindingWriteError["code"];
+  | InputBindingWriteError["code"]
+  | A2UIPromptGenerationError["code"];
 
 // Compile-time: these fail the typecheck if a code is missing from ALL_CODES
 // or if ALL_CODES names something no errors.ts union defines.
@@ -358,6 +362,32 @@ fixtures.push(
   { code: "COMPONENT_STRUCTURE_NOT_FOUND", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[6]! } },
   { code: "SURFACE_NOT_FOUND", error: { code: "INPUT_WRITE_FAILED", cause: { code: "SURFACE_NOT_FOUND", surfaceId: "main" } } },
   { code: "SURFACE_NOT_FOUND", error: { code: "SURFACE_STORE_ERROR", storeError: { code: "SURFACE_NOT_FOUND", surfaceId: "main" } } },
+);
+
+// A2UIPromptGenerationError: one fixture per code. CATALOG_INVALID also
+// carries its CatalogRegistryError cause so the chain is exercised.
+fixtures.push(
+  {
+    code: "CATALOG_INVALID",
+    error: {
+      code: "CATALOG_INVALID",
+      message: "Catalog failed registry validation",
+      catalogId: "basic",
+      cause: catalogCodes[2]!,
+    } satisfies A2UIPromptGenerationError,
+  },
+  {
+    code: "ACTION_NAME_INVALID",
+    error: { code: "ACTION_NAME_INVALID", message: "Action name is empty", actionName: "", reason: "empty" },
+  },
+  {
+    code: "PROMPT_TOO_LARGE",
+    error: { code: "PROMPT_TOO_LARGE", message: "Prompt is too large", characters: 90000, maxCharacters: 65536 },
+  },
+  {
+    code: "EXAMPLE_INVALID",
+    error: { code: "EXAMPLE_INVALID", message: "Example has no root component", exampleTitle: "Login", exampleIndex: 0 },
+  },
 );
 
 // The describer reports each fixture's full tree, so a code counts as covered
