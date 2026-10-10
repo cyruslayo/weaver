@@ -304,3 +304,27 @@ test("a rejected cyclic input is delivered as a marker without the observer walk
   assert.ok(events[0]?.kind === "message");
   assert.deepEqual(events[0].input, { unserializable: true });
 });
+
+test("without an observer the runtime does no extra reads of the input beyond validation", () => {
+  const countedInput = () => {
+    const reads = { count: 0 };
+    const input = new Proxy({ version: "bad", payload: { items: [1, "two", null] } }, {
+      get(target, key, receiver) {
+        reads.count += 1;
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    return { input, reads };
+  };
+  const unobserved = runtime();
+  assert.ok(unobserved.ok);
+  const plain = countedInput();
+  const plainResult = unobserved.value.process(plain.input);
+  const observed = runtime({ observer: () => undefined });
+  assert.ok(observed.ok);
+  const copied = countedInput();
+  const copiedResult = observed.value.process(copied.input);
+  assert.deepEqual(plainResult, copiedResult);
+  // An observer forces a copy of the rejected input, so it reads strictly more than the unobserved run.
+  assert.ok(copied.reads.count > plain.reads.count, `observed reads ${copied.reads.count} vs unobserved ${plain.reads.count}`);
+});
