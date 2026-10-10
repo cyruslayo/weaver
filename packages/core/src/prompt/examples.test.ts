@@ -383,3 +383,44 @@ test("generating with the shipped examples twice gives identical output", () => 
   };
   assert.deepEqual(generate(config), generate(config));
 });
+
+test("shipped Basic examples are frozen at every depth", () => {
+  const unfrozen: string[] = [];
+  let visited = 0;
+  const visit = (value: unknown, path: string): void => {
+    if (value === null || typeof value !== "object") return;
+    visited += 1;
+    if (!Object.isFrozen(value)) unfrozen.push(path);
+    for (const [key, child] of Object.entries(value)) visit(child, `${path}/${key}`);
+  };
+  visit(A2UI_V091_BASIC_PROMPT_EXAMPLES, "");
+  assert.deepEqual(unfrozen, []);
+  assert.ok(visited > 3 * 10, `expected the examples and their messages, visited ${visited} objects`);
+});
+
+test("shipped Basic examples reject mutation and stay unchanged", () => {
+  const example = A2UI_V091_BASIC_PROMPT_EXAMPLES[0]!;
+  const before = JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES);
+  assert.throws(() => {
+    (example as { title: string }).title = "changed";
+  }, TypeError);
+  assert.throws(() => {
+    (example.messages as unknown[]).push({});
+  }, TypeError);
+  assert.throws(() => {
+    (example.messages[0] as Record<string, unknown>).version = "v0.0";
+  }, TypeError);
+  assert.equal(JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES), before);
+});
+
+test("the shipped Basic examples generate a prompt without changing their input", () => {
+  const before = JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES);
+  const result = generateA2UIV091Prompt({
+    catalogs: [basicCatalog()],
+    examples: A2UI_V091_BASIC_PROMPT_EXAMPLES,
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.value.sections.some((section) => section.id === "examples"));
+  assert.equal(JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES), before);
+});

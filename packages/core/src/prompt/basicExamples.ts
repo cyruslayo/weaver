@@ -9,8 +9,20 @@ const producer = createA2UIV091Producer();
  * producer, and `generateA2UIV091Prompt()` validates each one before it can
  * appear in a prompt. Pass them as `examples` to teach the model the shapes.
  */
+/**
+ * Freezes a value and everything reachable from it, so a host that imports the
+ * shared examples cannot change them for every later prompt. Runs once, at load.
+ */
+function deepFreeze<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+}
+
 export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
-  Object.freeze([
+  deepFreeze([
     {
       title: "Simple card",
       messages: [
