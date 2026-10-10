@@ -37,18 +37,16 @@ The single source of truth for status. Keep it in sync with each issue's front m
 
 **Totals:** gated: 3, in-review: 5, todo: 22
 
-## Start here (ready now, independent, parallelizable)
+## Start here (nothing ready; five in review)
 
-| Lane | First issue | Touches |
-|---|---|---|
-| Docs | WVR-000 | `docs/` |
-| E1 Prompt | WVR-011 | `packages/core/src/prompt/` |
-| E2 Trace | WVR-021 | `packages/core/src/runtime/` |
-| E3 Errors | WVR-031 | `packages/core/src/diagnostics/` |
-| E4 Cookbook | WVR-041 | `examples/cookbook/` |
+As of 2026-10-10, the five original lanes are `in-review`: WVR-000 (Docs),
+WVR-011 (E1 Prompt), WVR-021 (E2 Trace), WVR-031 (E3 Errors), and WVR-041
+(E4 Cookbook). No issue is `ready`. Each remaining `todo` issue depends on
+work that is not yet `done`, so none can be promoted. Promote an issue to
+`ready` only when all its dependencies are `done`.
 
-Lanes only share `packages/core/src/index.ts`, where they add exports, plus
-the package test lists. Rebase and resolve those two conflicts trivially.
+Lanes share `packages/core/src/index.ts`, where they add exports, plus the
+package test lists. Rebase and resolve those two conflicts trivially.
 
 ## Dependency view
 
