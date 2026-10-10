@@ -233,6 +233,18 @@ Complete, pending review. Adds `docs/debugging.md`, which covers the observer an
 
 Complete, pending review. Adds an Orders report screen to the cookbook. It runs on the custom catalog through the new optional `catalog` field on the shared harness, with a read-only DataTable, a BarChart and a Refresh button that updates both. The custom catalog now declares `Button`. The DataTable scroll wrapper is a labelled, keyboard-focusable region, so keyboard users can reach hidden columns. The Playwright spec covers the built page at 1280px and 360px, and it closes WVR-054 case (d).
 
+## Task 85 — Basic primary Button contrast (WVR-058)
+
+Complete, pending review. Patch-level visual change to `@cylayo/weaver-web`: the default primary accent is now `#0969da` (contrast 5.19:1 with white text) for the Button, the Tabs selected label and underline, and the Basic control accents. It was `#1177ee` (4.29:1). Hosts that set `--a2ui-color-primary` or `theme.primaryColor` see no change. Record for the 0.3.0 release notes.
+
+## Task 86 — Custom catalog recipe docs and `pnpm check:docs` (WVR-055)
+
+Complete, pending review. Adds `docs/custom-catalogs.md`, a six-step recipe whose cookbook snippets are quoted verbatim and checked by a cookbook test. Adds `pnpm check:docs`, which checks relative links and anchors in tracked Markdown, and runs it as a CI step.
+
+## Task 87 — Diagnostics panel and cookbook error demo (WVR-034)
+
+Complete, pending review. Adds a framework-free diagnostics panel, shared by the inspector and the cookbook. It lives in the new private `@weaver/shared` workspace package (`examples/shared`), which is not packed or published; `pnpm pack:packages` still produces the three public tarballs. Adds the cookbook Error demo screen, which feeds three bad updates and shows the diagnostics beside the last good render.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement
