@@ -11,6 +11,7 @@ export default defineConfig({
       input: {
         index: page("./index.html"),
         placeholder: page("./placeholder.html"),
+        dashboard: page("./dashboard.html"),
       },
     },
   },

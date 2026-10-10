@@ -1,6 +1,8 @@
 import {
+  A2UI_V091_BASIC_CATALOG_ID,
   createA2UIV091Producer,
   createA2UIV091StreamIngestion,
+  createBasicCatalogFunctionImplementations,
   type A2UIComponent,
   type A2UIServerMessage,
   type JsonObject,
@@ -154,10 +156,16 @@ export interface CookbookScreen<TState> {
   handleServerEvent(event: WebServerEventHandoff): CookbookEventResult;
 }
 
+export interface CookbookMountOptions {
+  /** Observes the messages the agent emits in answer to an accepted action. Tests use it to assert on them. */
+  readonly onOutbound?: (messages: readonly A2UIServerMessage[]) => void;
+}
+
 /** Wires the full pipeline for one screen and mounts it into `target`. */
 export function mountCookbookScreen<TState>(
   target: Element,
   definition: CookbookScreenDefinition<TState>,
+  options: CookbookMountOptions = {},
 ): CookbookScreen<TState> {
   const rejectedEventNames: string[] = [];
   let handoff: (event: WebServerEventHandoff) => CookbookEventResult = () => {
@@ -165,7 +173,11 @@ export function mountCookbookScreen<TState>(
   };
 
   const created = createBasicWebRuntime({
-    runtime: { safety: COOKBOOK_SAFETY_BUDGETS },
+    runtime: {
+      safety: COOKBOOK_SAFETY_BUDGETS,
+      // Basic functions (formatNumber, formatCurrency, ...) are opt-in. They are trusted, pure, and Basic-catalog-scoped.
+      functions: createBasicCatalogFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
+    },
     rendering: {
       attributionProvider: () => ({ displayName: definition.attributionName }),
       onServerEvent: (event) => handoff(event),
@@ -196,6 +208,7 @@ export function mountCookbookScreen<TState>(
       return outcome;
     }
     stream.send(outcome.messages);
+    options.onOutbound?.(outcome.messages);
     return { accepted: true };
   };
 
