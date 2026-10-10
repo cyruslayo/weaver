@@ -34,19 +34,20 @@ Merged.
 
 ## Log
 - 2026-10-10: Branch `wvr-032-describe-web-error` (not pushed, no PR). The
-  implementation is commit `a2af0cc`, and this commit is the issue update.
+  implementation is commit `a2af0cc`. A review follow-up on the same branch adds
+  `INVALID_LOCAL_STATE_VALUE`.
   - Added `packages/web/src/surface/describeWebRenderError.ts`, exported from
     the surface barrel as `describeWebRenderError` and `DescribableWebError`.
     It returns Core's `WeaverErrorDescription` shape.
-  - All 9 codes are described: 5 `WebRenderError` codes, 2 `WebInteractionError`
-    codes, `RENDERER_*` naming catalogId, component, sourceComponentId and
-    scopePath, and `SURFACE_RESOLUTION_FAILED` delegating to Core with its
-    cause chain kept.
-  - Tests: `describeWebRenderError.test.ts`, 9 cases, registered in the Web
-    `test` script. Includes a compile-time code inventory and a generic fallback
-    for unknown codes. `pnpm --filter @cylayo/weaver-web test` passes (130/130).
-  - Not covered: `INVALID_LOCAL_STATE_VALUE` is an inline code on the
-    `setLocalState` result, not a named `WebInteractionError`, so it is out of scope.
+  - All 10 codes are described: 5 `WebRenderError` codes, 2 `WebInteractionError`
+    codes, `INVALID_LOCAL_STATE_VALUE` (the `setLocalState` failure, added by
+    review so hosts get a description), `RENDERER_*` naming catalogId, component,
+    sourceComponentId and scopePath, and `SURFACE_RESOLUTION_FAILED` delegating
+    to Core with its cause chain kept.
+  - Tests: `describeWebRenderError.test.ts`, 10 cases, registered in the Web
+    `test` script. Includes a compile-time code inventory covering all three
+    unions and a generic fallback for unknown codes.
+    `pnpm --filter @cylayo/weaver-web test` passes.
   - Core is unchanged. Gate: typecheck, build, `verify:packages`,
     `verify:worker-core`, `check:generated`, full `pnpm test`, and
     `conformance:v0.9.1` all pass.
