@@ -136,3 +136,6 @@ Basic `catalogId`, so this catalog's components need their own renderers.
 `src/custom-catalog/dataTableRenderer.ts` renders `DataTable` and
 `src/custom-catalog/barChart.ts` renders `BarChart`. `src/custom-catalog/renderers.ts`
 registers both, and reuses the Basic renderers for `Column`, `Text`, `Card` and `Button`.
+
+The step-by-step recipe for building a catalog like this one, with the security checklist and
+the failure tests, is in [docs/custom-catalogs.md](../../docs/custom-catalogs.md).
