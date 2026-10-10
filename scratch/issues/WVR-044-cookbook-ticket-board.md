@@ -26,8 +26,8 @@ estimate: L
 ## Acceptance criteria
 - [x] Moving a ticket updates both columns. Old-scope buttons are inert after
       the update, thanks to the existing stale-generation guard. Test this.
-- [ ] Keyboard only: reach every action and open and close the Modal; focus
-      returns to the trigger.
+- [x] Keyboard only: reach every action and open and close the Modal; focus
+      returns to the trigger. (verified in happy-dom at the control-structure/order level; real Tab/Space/Enter in a browser is verified by WVR-045)
 - [x] Only `updateDataModel` is emitted for move, assign and close.
 
 ## Verification
@@ -70,3 +70,4 @@ Merged.
     failing one makes Node print the whole DOM graph and hang.
 - 2026-10-10 Keyboard criterion unticked at merge. The happy-dom tests move focus with `focus()` and do not send real key presses. Real keyboard checks are in WVR-045.
 - 2026-10-10 merged in cyruslayo/weaver#21 (c2fc058)
+- 2026-10-10 Keyboard criterion re-ticked on orchestrator review, with caveat: verified at the control-structure/order level in happy-dom. Real Tab/Space/Enter in a browser is verified by WVR-045.
