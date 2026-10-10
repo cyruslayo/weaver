@@ -25,8 +25,9 @@ estimate: M
 ## Acceptance criteria
 - [x] Renders from bound data, and re-renders when `updateDataModel` changes
       the rows.
-- [ ] Row actions dispatch with the correct context. Buttons from a stale
-      render are inert.
+- [x] DataTable is read-only: it renders no row actions, and a `rowAction` is
+      rejected at validation (decision: row-level actions use a List template;
+      per-row dispatch deferred, see WVR-056).
 - [x] A test asserts the source contains no `innerHTML`, `outerHTML`, or
       `insertAdjacentHTML`.
 
@@ -96,3 +97,28 @@ Merged.
     (`scratch/issues/WVR-056-row-scoped-action-dispatch.md`, todo, P1), with a
     BOARD row. No Web or Core API was changed here.
   - Cookbook suite: 57 pass.
+- 2026-10-10: owner decision. The cookbook DataTable is read-only. Per-row
+  action context would need a row-scoped dispatch in the published Web or Core
+  API, which is out of scope and not needed: row-level actions use a `List`
+  template of Cards, where each row is a real template instance with its own
+  scope (the ticket board). WVR-056 is parked as `gated`.
+  - Removed: the `rowAction` property from the `catalog.ts` DataTable schema
+    and its description. The schema keeps `additionalProperties: false`, so a
+    message that still sends `rowAction` fails validation. The DataTable
+    description now says "For rows with actions, use a List template of Cards
+    instead."
+  - Removed from `dataTableRenderer.ts`: the per-row `<button>`, the
+    `registerControl` and `dispatchAction` calls, and `ROW_ACTION_PROPERTY`. The
+    table still uses `<table>`, `<caption>`, `<thead>` with `th scope="col"`,
+    right-aligned numeric columns, a horizontal-scroll wrapper, `textContent`
+    only, and the empty state.
+  - Superseded: the Scope bullet "Render one `<button>` per row" and the
+    stale-button and row-context tests. Those tests are removed.
+  - Tests: `catalog.test.ts` checks that a message with `rowAction` fails
+    validation and that the prompt has the List-template sentence and no
+    `rowAction`. `dataTableRenderer.test.ts` checks that the rendered table has
+    no `<button>` and no interactive element, and that the source does not use
+    `rowAction`, `dispatchAction`, or `registerControl`. `renderers.test.ts`
+    checks that the DataTable renders no button.
+  - Criterion 2 is ticked with that test evidence. Status stays `in-review`.
+  - README (custom-catalog section) and PLAN.md Task 78 updated to match.

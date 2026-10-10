@@ -4,7 +4,7 @@ title: Row-scoped action dispatch for DataTable rows
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05 / §4.E (follow-up to WVR-052)
 priority: P1
-status: todo
+status: gated
 depends_on: [WVR-052]
 estimate: M
 ---
@@ -65,5 +65,8 @@ its per-row `registerControl` identity.
 
 ## Definition of done
 Merged.
+
+## Gate
+Parked 2026-10-10 by owner decision: no demonstrated need (List templates already give per-row scope) and it requires a Core row-scope design. Do not start without a product decision and a real screen that needs it.
 
 ## Log

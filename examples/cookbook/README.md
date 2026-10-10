@@ -114,8 +114,13 @@ has its own `catalogId` and is registered next to Basic with
 `additionalCatalogs`. A component outside the catalog (for example `Button`) is
 rejected at message validation.
 
-- `DataTable`: `caption`, `columns` (1 to 12 `{ key, header, align? }`), `rows`
-  (a data binding to an array of objects), and an optional `rowAction`.
+- `DataTable`: `caption`, `columns` (1 to 12 `{ key, header, align? }`), and `rows`
+  (a data binding to an array of objects). It is **read-only**: it renders no
+  row actions, and a `rowAction` property is rejected at message validation.
+  For per-row actions, use a `List` template of `Card`s instead. The ticket
+  board screen (`src/screens/ticket-board.ts`) shows this pattern, where each
+  row is a real template instance with its own scope. Per-row dispatch from a
+  table is deferred (WVR-056).
 - `BarChart`: `title`, `values` (a data binding to `{ label, value }` items), and
   `maxBars` (an integer from 1 to 50).
 

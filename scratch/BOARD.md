@@ -30,13 +30,13 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-053](issues/WVR-053-barchart-renderer.md) | Trusted dependency-free SVG BarChart renderer | E5 Custom catalog recipe | P0 | `in-review` | WVR-051 | M |
 | [WVR-054](issues/WVR-054-cross-catalog-safety-tests.md) | Cross-catalog safety tests — unknown components fail safely, no fallback | E5 Custom catalog recipe | P0 | `todo` | WVR-052, WVR-053 | S |
 | [WVR-055](issues/WVR-055-custom-catalog-docs.md) | Document the custom catalog recipe (docs/custom-catalogs.md) | E5 Custom catalog recipe | P0 | `todo` | WVR-054, WVR-016 | S |
-| [WVR-056](issues/WVR-056-row-scoped-action-dispatch.md) | Row-scoped action dispatch for DataTable rows | E5 Custom catalog recipe | P1 | `todo` | WVR-052 | M |
+| [WVR-056](issues/WVR-056-row-scoped-action-dispatch.md) | Row-scoped action dispatch for DataTable rows | E5 Custom catalog recipe | P1 | `gated` | WVR-052 | M |
 | [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `todo` | WVR-016, WVR-025, WVR-033 | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `gated` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 13, in-review: 7, todo: 8, gated: 3 (31 issues, 0 ready)
+**Totals:** done: 13, in-review: 7, todo: 7, gated: 4 (31 issues, 0 ready)
 
 ## Start here (0 ready; 7 in-review; 13 done)
 
@@ -51,7 +51,7 @@ are merged, unpushed, on the local integration branch `wvr-integration-3`, on to
 - WVR-016 waits on WVR-013 and WVR-015 (both in-review).
 - WVR-024 waits on WVR-023 (in-review). WVR-025 waits on WVR-024. WVR-034 waits on WVR-024.
 - WVR-054 waits on WVR-052 and WVR-053 (both in-review). WVR-055 waits on WVR-054 and WVR-016.
-- WVR-056 (P1) waits on WVR-052 (in-review). It holds the per-row action context that WVR-052 criterion 2 leaves open.
+- WVR-056 (P1) is `gated` by owner decision (2026-10-10). Row-level actions use List templates, so per-row dispatch waits for a product decision and a real screen that needs it. Do not start it.
 - WVR-060 waits on WVR-016, WVR-025 and WVR-033.
 
 Notes:

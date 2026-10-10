@@ -167,7 +167,27 @@ test("the generated prompt presents the binding as preferred and names the liter
   if (!result.ok) return;
   assert.match(result.value.text, /data binding such as \{"path": "\/orders"\} \(preferred\) or a literal array/);
   assert.match(result.value.text, /data binding such as \{"path": "\/stats\/byStatus"\} \(preferred\) or a literal array/);
-  assert.match(result.value.text, /It is a table-level action/);
+});
+
+test("the generated prompt says DataTable is read-only and points row actions to a List template of Cards", () => {
+  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  if (!result.ok) return;
+  assert.match(result.value.text, /A read-only table of rows/);
+  assert.match(result.value.text, /For rows with actions, use a List template of Cards instead\./);
+  assert.doesNotMatch(result.value.text, /rowAction/, "the prompt never offers a rowAction");
+});
+
+test("the DataTable schema declares no rowAction and its description points to a List template", () => {
+  const components = cookbookCatalogSchema.components as Record<string, JsonObject>;
+  const dataTable = components.DataTable as {
+    description?: string;
+    additionalProperties?: unknown;
+    properties: Record<string, JsonObject>;
+  };
+  assert.equal("rowAction" in dataTable.properties, false, "rowAction is removed from the DataTable schema");
+  assert.equal(dataTable.additionalProperties, false, "unknown DataTable properties are rejected");
+  assert.match(dataTable.description ?? "", /For rows with actions, use a List template of Cards instead\./);
 });
 
 test("DataTable rejects a bad column shape at message validation", () => {
@@ -288,6 +308,26 @@ test("the prompt carries the schema descriptions and the cap", () => {
   if (!result.ok) return;
   assert.match(result.value.text, /A read-only table of rows/);
   assert.match(result.value.text, /The most bars to draw, from 1 to 50/);
+});
+
+test("a DataTable message that still sends rowAction is rejected at message validation", () => {
+  const components = screenComponents().map((component) =>
+    component.id === "table"
+      ? ({
+          ...component,
+          rowAction: { event: { name: "cookbook.orders.open", context: { source: "orders" } } },
+        } as unknown as A2UIComponent)
+      : component,
+  );
+  const result = processComponents(components);
+  assert.equal(result.ok, false, "a DataTable with rowAction must be rejected");
+  if (!result.ok) {
+    assert.equal(result.error.code, "CATALOG_REGISTRY_ERROR");
+    assert.ok(
+      validationIssues(result.error).some((issue) => issue.keyword === "additionalProperties"),
+      "the rejection names the unknown rowAction property",
+    );
+  }
 });
 
 test("registering the cookbook catalog twice is rejected rather than silently replaced", () => {

@@ -56,4 +56,5 @@ test("the list passed as additionalRenderers creates the cookbook web runtime wi
     assert.notEqual(target.querySelector(`[data-a2ui-component=${component}]`), null, `${component} must render`);
   }
   assert.notEqual(target.querySelector("table"), null, "DataTable must render as a table");
+  assert.equal(target.querySelectorAll("button").length, 0, "the read-only DataTable renders no button");
 });

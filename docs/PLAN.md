@@ -207,7 +207,7 @@ Complete, pending review. `examples/cookbook/e2e/` adds Playwright checks at 360
 
 ## Task 78 — Trusted DataTable renderer (WVR-052)
 
-Complete, pending review. The cookbook adds a trusted, accessible DataTable renderer built with DOM APIs only, with no `innerHTML`. Its `rows` and the BarChart `values` accept a data binding or a literal array, and Core hydrates both. Per-row action context is deferred to WVR-056. The single registration list is `examples/cookbook/src/custom-catalog/renderers.ts`.
+Complete, pending review. The cookbook adds a trusted, accessible DataTable renderer built with DOM APIs only, with no `innerHTML`. Its `rows` and the BarChart `values` accept a data binding or a literal array, and Core hydrates both. DataTable is read-only; row-level actions use List templates; per-row dispatch is gated as WVR-056. The single registration list is `examples/cookbook/src/custom-catalog/renderers.ts`.
 
 ## Task 79 — Trusted SVG BarChart renderer (WVR-053)
 

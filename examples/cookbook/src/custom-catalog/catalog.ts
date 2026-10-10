@@ -47,7 +47,7 @@ const basicFunctions = basic.functions as Record<string, JsonObject> | undefined
 const dataTable: JsonObject = {
   type: "object",
   description:
-    "A read-only table of rows. Use it for lists of records such as orders, tickets, or results. Columns name the fields to show, and the rows come from a data binding.",
+    "A read-only table of rows. Use it for lists of records such as orders, tickets, or results. Columns name the fields to show, and the rows come from a data binding. For rows with actions, use a List template of Cards instead.",
   properties: {
     id: {
       type: "string",
@@ -106,11 +106,6 @@ const dataTable: JsonObject = {
       ],
       description:
         "The rows to show, as a data binding such as {\"path\": \"/orders\"} (preferred) or a literal array of row objects. Each object supplies the values for the columns.",
-    },
-    rowAction: {
-      $ref: "common_types.json#/$defs/Action",
-      description:
-        "An optional event fired when a row is activated. It is a table-level action: its context is resolved once, at the table's scope, and every row sends the same context.",
     },
   },
   required: ["id", "component", "columns", "rows"],

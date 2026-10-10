@@ -11,7 +11,6 @@ import {
   createBasicCatalogRendererRegistrations,
   createBasicWebRuntime,
   RendererRegistry,
-  type WebServerEventHandoff,
 } from "@cylayo/weaver-web";
 import { Window } from "happy-dom";
 import { COOKBOOK_CATALOG_ID, cookbookCatalog } from "./catalog.js";
@@ -20,9 +19,6 @@ import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 
 const SURFACE_ID = "cookbook-data-table";
 const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
-const ROW_ACTION_NAME = "cookbook.orders.open";
-const ROW_ACTION_CONTEXT: JsonObject = { source: "orders-table" };
-
 
 const ORDERS: JsonObject[] = [
   { id: "A-1", status: "Paid", total: 1250 },
@@ -46,29 +42,25 @@ function screenComponents(): A2UIComponent[] {
         { key: "total", header: "Total" },
       ],
       rows: { path: "/orders" },
-      rowAction: { event: { name: ROW_ACTION_NAME, context: ROW_ACTION_CONTEXT } },
     } as unknown as A2UIComponent,
   ];
 }
 
 interface MountedTable {
   readonly target: Element;
-  readonly events: WebServerEventHandoff[];
   setOrders(orders: readonly JsonObject[]): void;
 }
 
-/** Builds a surface on the cookbook catalog, mounts it, and records every server event. */
+/** Builds a surface on the cookbook catalog, mounts it, and returns the mounted target. */
 function mountTable(): MountedTable {
   const window = new Window();
   // Attached to the document so focus and click behavior match a browser.
   const target = window.document.body.appendChild(
     window.document.createElement("main"),
   ) as unknown as Element;
-  const events: WebServerEventHandoff[] = [];
   const created = createBasicWebRuntime({
     additionalCatalogs: [cookbookCatalog],
     additionalRenderers: cookbookCatalogRendererRegistrations,
-    rendering: { onServerEvent: (event) => events.push(event) },
   });
   assert.equal(created.ok, true, "the cookbook renderers must register next to Basic");
   if (!created.ok) throw new Error("unreachable");
@@ -88,7 +80,6 @@ function mountTable(): MountedTable {
 
   return {
     target,
-    events,
     setOrders(orders) {
       send(producer.updateDataModel({ surfaceId: SURFACE_ID, path: "/orders", value: [...orders] }));
     },
@@ -103,10 +94,6 @@ function table(target: Element): HTMLTableElement {
 
 function bodyRows(target: Element): HTMLTableRowElement[] {
   return [...table(target).querySelectorAll<HTMLTableRowElement>("tbody > tr")];
-}
-
-function rowButtons(target: Element): HTMLButtonElement[] {
-  return [...table(target).querySelectorAll<HTMLButtonElement>("tbody button")];
 }
 
 test("the cookbook renderer list gives the cookbook catalog Text, Column, Card and DataTable", () => {
@@ -166,37 +153,18 @@ test("the table re-renders when updateDataModel changes the rows", () => {
   const rows = bodyRows(screen.target);
   assert.equal(rows.length, 1, "the old rows are gone");
   assert.equal(rows[0]?.children[0]?.textContent, "B-9");
-  assert.equal(rowButtons(screen.target).length, 1, "the row action is rendered once per current row");
   assert.doesNotMatch(screen.target.textContent ?? "", /A-1/);
 });
 
-// Core resolves the action context once, at the table's scope. A renderer cannot pass a row
-// identity, so every row dispatches the same table-level context (see the WVR-052 log).
-test("row buttons dispatch the rowAction with the context resolved at the table scope", () => {
-  const screen = mountTable();
-  assert.equal(rowButtons(screen.target).length, ORDERS.length, "one keyboard-reachable button per row");
-
-  rowButtons(screen.target)[1]!.click();
-  assert.equal(screen.events.length, 1);
-  const action = screen.events[0]!.message.action;
-  assert.equal(action.name, ROW_ACTION_NAME);
-  assert.equal(action.surfaceId, SURFACE_ID);
-  assert.deepEqual(action.context, ROW_ACTION_CONTEXT);
-});
-
-test("buttons from a stale render are inert after the rows change", () => {
-  const screen = mountTable();
-  const stale = rowButtons(screen.target)[0]!;
-
-  screen.setOrders([{ id: "C-7", status: "Paid", total: 5 }]);
-  assert.equal(stale.isConnected, false, "the earlier button was replaced by the re-render");
-
-  stale.click();
-  assert.equal(screen.events.length, 0, "a stale button dispatches nothing");
-
-  const fresh = rowButtons(screen.target)[0]!;
-  fresh.click();
-  assert.equal(screen.events.length, 1, "a button from the current render still dispatches");
+test("the rendered table is read-only: it contains no button and no interactive control", () => {
+  const { target } = mountTable();
+  assert.equal(bodyRows(target).length, ORDERS.length, "rows are rendered");
+  assert.equal(target.querySelectorAll("button").length, 0, "the table renders no <button>");
+  assert.equal(
+    table(target).querySelectorAll("a, input, select, textarea, [tabindex], [role=button]").length,
+    0,
+    "no focusable or interactive element is rendered inside the table",
+  );
 });
 
 test("an empty row list renders one labelled empty row and no buttons", () => {
@@ -205,7 +173,7 @@ test("an empty row list renders one labelled empty row and no buttons", () => {
   const rows = bodyRows(screen.target);
   assert.equal(rows.length, 1);
   assert.equal(rows[0]?.textContent, "No rows");
-  assert.equal(rowButtons(screen.target).length, 0);
+  assert.equal(screen.target.querySelectorAll("button").length, 0);
 });
 
 test("a wide table scrolls inside its own wrapper, so the page never overflows", () => {
@@ -217,7 +185,7 @@ test("a wide table scrolls inside its own wrapper, so the page never overflows",
   assert.equal(wrapper.contains(table(target)), true, "the table sits inside the scrolling wrapper");
 });
 
-test("the DataTable renderer source contains no HTML-parsing or eval sinks", () => {
+test("the DataTable renderer source contains no HTML-parsing, eval, or action-dispatch sinks", () => {
   const sources = [
     "../../src/custom-catalog/dataTableRenderer.ts",
     "../../src/custom-catalog/renderers.ts",
@@ -226,4 +194,6 @@ test("the DataTable renderer source contains no HTML-parsing or eval sinks", () 
     assert.doesNotMatch(source, /innerHTML|outerHTML|insertAdjacentHTML/);
     assert.doesNotMatch(source, /\beval\s*\(|new Function\s*\(/);
   }
+  const renderer = sources[0] ?? "";
+  assert.doesNotMatch(renderer, /rowAction|dispatchAction|registerControl/, "the read-only table dispatches nothing");
 });

@@ -13,7 +13,6 @@ import { COOKBOOK_CATALOG_ID } from "./catalog.js";
  */
 
 export const DATA_TABLE_COMPONENT = "DataTable";
-const ROW_ACTION_PROPERTY = "rowAction";
 
 type ColumnAlign = "start" | "center" | "end";
 const COLUMN_ALIGNS: readonly ColumnAlign[] = ["start", "center", "end"];
@@ -78,10 +77,13 @@ function alignmentOf(column: DataTableColumn, numeric: boolean): ColumnAlign {
   return column.align ?? (numeric ? "end" : "start");
 }
 
-export const renderDataTable: WebComponentRenderer = ({ document, properties, interactions }) => {
+/**
+ * Read-only: the table renders no controls. Row-level actions use a List template of Cards,
+ * where each row is a real template instance with its own scope.
+ */
+export const renderDataTable: WebComponentRenderer = ({ document, properties }) => {
   const columns = readColumns(properties.columns);
   const rows = readRows(properties.rows);
-  const hasRowAction = properties[ROW_ACTION_PROPERTY] !== undefined;
   const numeric = new Map(columns.map((column) => [column.key, isNumericColumn(rows, column.key)]));
 
   const wrapper = document.createElement("div");
@@ -129,28 +131,14 @@ export const renderDataTable: WebComponentRenderer = ({ document, properties, in
     emptyRow.append(empty);
     body.append(emptyRow);
   }
-  rows.forEach((row, rowIndex) => {
+  rows.forEach((row) => {
     const tr = document.createElement("tr");
-    columns.forEach((column, columnIndex) => {
+    columns.forEach((column) => {
       const td = document.createElement("td");
       td.style.textAlign = alignmentOf(column, numeric.get(column.key) === true);
       td.style.padding = "6px 12px";
       td.style.borderBlockEnd = "1px solid rgba(127, 127, 127, 0.35)";
-      const text = cellText(cellValue(row, column.key));
-      if (hasRowAction && columnIndex === 0) {
-        // The first cell carries the row action, so every row has one keyboard-reachable button.
-        const button = document.createElement("button");
-        button.type = "button";
-        button.textContent = text;
-        // Identity is (sourceComponentId, scopePath, "row:<index>"), so it is stable across rerenders.
-        interactions.registerControl(button, `row:${rowIndex}`);
-        button.addEventListener("click", () => {
-          interactions.dispatchAction(ROW_ACTION_PROPERTY);
-        });
-        td.append(button);
-      } else {
-        td.textContent = text;
-      }
+      td.textContent = cellText(cellValue(row, column.key));
       tr.append(td);
     });
     body.append(tr);
