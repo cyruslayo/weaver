@@ -4,7 +4,7 @@ title: Release prep 0.3.0 — synchronized version bump, README, PLAN.md
 epic: Release
 audit_ref: —
 priority: P0
-status: ready
+status: in-review
 depends_on: [WVR-016, WVR-025, WVR-033]
 estimate: S
 ---
@@ -24,9 +24,9 @@ E1–E3 add public Core and Web API: `generateA2UIV091Prompt`, the runtime
 - Update `docs/PLAN.md`.
 
 ## Acceptance criteria
-- [ ] The full CI gate passes, including `verify:packages` (the consumer
+- [x] The full CI gate passes, including `verify:packages` (the consumer
       smoke imports the new exports) and `verify:worker-core`.
-- [ ] Extend `integration/package-consumer/consumer.ts` to typecheck the new
+- [x] Extend `integration/package-consumer/consumer.ts` to typecheck the new
       exports.
 
 ## Verification
@@ -36,3 +36,74 @@ The full gate (see `scratch/README.md`, step 6).
 Merged and tagged by the maintainer.
 
 ## Log
+- 2026-10-10: **base.** `git checkout -B wvr-060-release-0.3.0 56e1f49`. Dependencies WVR-016, WVR-025 and WVR-033 are `done`. `git show cada149:packages/core/package.json` reports `0.2.1`, as the brief expects. Tags `v0.2.0` and `v0.2.1` exist. `v0.2.1` (commit `05cd279`) is an ancestor of `cada149`, and `cada149` (`feat(core): add catalog definition helper (#19)`) adds `defineCatalog()` after that tag. Since the tag, that commit is the only one that changes the public API before the 0.3.0 features.
+- 2026-10-10: **commits on `wvr-060-release-0.3.0`.** `27bbb05` version bump to 0.3.0. `2616456` CHANGELOG.md and its README link. `bac0794` consumer typecheck and runtime smoke. This entry, with the `docs/PLAN.md` Task 91 entry, is the last commit.
+- 2026-10-10: **version grep, before the bump.** Command: `grep -rn -E '0\.2\.(0|1|x)'` over the repo, excluding `node_modules`, `dist`, `artifacts`, `.git` and `pnpm-lock.yaml`. It found 31 lines in 15 files. The escaped regex in `scripts/verify-worker-core.mjs:45` does not match this pattern, so a second search found it. Decisions:
+  - `packages/core/package.json`, `packages/web/package.json`, `packages/mcp/package.json`: `version` `0.2.1` → `0.3.0`. Changed.
+  - `packages/web/package.json`, `packages/mcp/package.json`: peer `@cylayo/weaver-core` `0.2.x` → `0.3.x`. Changed.
+  - `packages/core/src/index.ts:22`: `WEAVER_CORE_VERSION` → `"0.3.0"`. Changed.
+  - `packages/core/src/index.test.ts:7`: assertion → `"0.3.0"`. Changed.
+  - `README.md`: version table (3 rows), tarball paths (3), install example (2 `file:` paths), peer note `(0.2.x)` → `0.3.x`. Changed.
+  - `docs/packaging.md:22`: "strict `0.2.x` Core peer" → `0.3.x`. Changed.
+  - `scripts/verify-packages.mjs:24`: expected version. `:94`: peer check and message. Changed.
+  - `scripts/verify-worker-core.mjs:23-25`: version check and message. Changed. `:45`: the local-core lock-entry regex, which names `cylayo-weaver-core-0\.2\.1\.tgz` and `version: 0\.2\.1`. Changed to `0\.3\.0`, or the integrity sync would stop matching.
+  - `integration/package-consumer/package.json`: three `file:../../artifacts/…-0.2.1.tgz` paths. Changed.
+  - `integration/package-consumer/smoke.mjs:8`: `WEAVER_CORE_VERSION` expected value. Changed.
+  - `integration/workerd-consumer/package.json`: `file:./cylayo-weaver-core-0.2.1.tgz`. Changed.
+  - `integration/workerd-consumer/pnpm-lock.yaml`: the specifier, the `version: file:` line, and the `@cylayo/weaver-core@file:…` entry (name, integrity, version). Regenerated with pnpm, not by hand: the packed 0.3.0 core tarball was copied in, `pnpm install --lockfile-only --ignore-workspace` ran, and the copy was deleted. Besides the 0.3.0 entry, the diff has one line that pnpm added from registry metadata: `deprecated:` on `@cloudflare/vitest-pool-workers`. That line is unrelated to this change and was kept.
+  - `pnpm-lock.yaml` (root): unchanged by `pnpm install`. The lock does not record workspace versions or peer ranges.
+  - `integration/package-consumer/pnpm-lock.yaml`: gitignored and generated on each `verify:packages` run. No action.
+  - `docs/PLAN.md`, `scratch/issues/*` (Logs and bodies), `scratch/ROADMAP.md`: no `0.2.x` hits. No change.
+  - `docs/weaver-dev-plan.md:931` (`Release Weaver 0.2.0`) and `:1432` (`release weaver 0.2`): historical planning text. Not changed.
+  - `docs/references/zynra-backend-reference.txt:334,857`, root `package.json`: `typescript` `^6.0.2`, a dependency version, not Weaver's. Not changed.
+- 2026-10-10: **version grep, after all edits.** The same grep, plus `cylayo-weaver-…-0.2` names, finds only historical or unrelated hits. Those are `CHANGELOG.md` (the `v0.2.x` tags, the 0.2.1 `defineCatalog` note, and the 0.2.x peer before the bump), `docs/weaver-dev-plan.md`, dependency versions in the workerd lockfile (`birpc@0.2.14`, `tinyglobby@0.2.17`), and the Zynra reference text.
+- 2026-10-10: **CHANGELOG.md (step 2).** Keep a Changelog format, with a `## [0.3.0] - 2026-10-10` section and a note that the maintainer tags and publishes. The Added, Changed, Fixed, Documented behaviour and Notes subsections were each checked against code:
+  - Prompt generator: `packages/core/src/prompt/generateA2UIV091Prompt.ts`. Create and edit modes. Typed errors `CATALOG_INVALID`, `ACTION_NAME_INVALID`, `PROMPT_TOO_LARGE`, `EXAMPLE_INVALID`. `stage` is `runtime`, `process` or `resolve` (`errors.ts`). Example validation runs in a scratch runtime per example. The shipped `A2UI_V091_BASIC_PROMPT_EXAMPLES` are exported (`basicExamples.ts`).
+  - Observer: `WeaverRuntimeConfig.observer` and `WeaverRuntimeEvent` (`runtime/types.ts`). Calls are in `WeaverRuntime.ts` (`process`, `writeInput`, `dispatchAction`). Observer exceptions are caught in `#observe`.
+  - Trace: `createWeaverTraceRecorder`, `parseWeaverTrace`, `replayWeaverTrace`, and `weaver-trace` v1 (`trace/*.ts`).
+  - Describers: `describeWeaverError` (Core) and `describeWebRenderError` (Web).
+  - Visual change (WVR-058): `basicPrimaryFallback = "#0969da"` at `packages/web/src/basic/styles.ts:10`. Call sites: `renderers.ts:186` (Tabs selected label and underline), `renderers.ts:346` (primary Button), `inputs.ts:58` (CheckBox), `inputs.ts:78` (Slider), `inputs.ts:134` (ChoicePicker options), `inputs.ts:144` (ChoicePicker selected border), `inputs.ts:222` (`applyPrimaryAccent`). The WCAG 2.x contrast was recomputed: `#1177ee` 4.2882:1, `#0969da` 5.1921:1 with white text.
+  - Focus (WVR-043): `renderers.ts:357` registers the Button as a control, from commit `f2d0104`.
+  - `surfaceId` (WVR-064): optional in `packages/web/src/surface/errors.ts`, set by `WebSurfaceRenderer.ts` and preferred by `describeWebRenderError`.
+  - Documented behaviour: `web-rendering.md` (last good render, and accent precedence), `debugging.md` (render failures), and `architecture.md` (template absolute paths, WVR-066).
+  - Corrections made while checking. (a) The brief names a Basic `Radio`. No such component exists. The radio-style options are ChoicePicker's, so the notes name ChoicePicker. (b) An agent `theme.primaryColor` overrides the accent only when the host opts into `createBasicCatalogThemeAdapter`, and only for `#rrggbb` values (`basic/theme.ts`). (c) `defineCatalog()` was added after the 0.2.1 tag, so it is listed under Added. (d) The Fixed section repeats the contrast and focus fixes and cross-refers to Changed, to avoid two definitions.
+  - The 0.2.x history is not rewritten. The changelog points to `docs/PLAN.md` and to the existing `v0.2.0` and `v0.2.1` tags.
+  - `pnpm check:docs` reads git-tracked files, so `CHANGELOG.md` was staged before the check. All 20 links and anchors in it resolve. The check reports 157 OK, 0 broken, across 64 Markdown files.
+- 2026-10-10: **API review (step 3).** Method: `dist/index.d.ts` was built for `cada149` (via `git archive` into a scratch directory, `pnpm install --frozen-lockfile`, then `pnpm build`) and for HEAD. A TypeScript 6 compiler-API script read each root's exports. It resolved aliases and recorded each export's kind, declaring file, declaration text and resolved type. The two exports sets were then diffed. Every shared `.d.ts` was also diffed, to catch changes behind an export.
+  - Counts at `cada149` → HEAD: core 206 → 244 (+38, −0). web 55 → 57 (+2, −0). mcp 14 → 14 (0, 0).
+  - **ADDED, core (38):** functions `generateA2UIV091Prompt`, `createWeaverTraceRecorder`, `parseWeaverTrace`, `replayWeaverTrace`, `describeWeaverError`. Consts `A2UI_V091_BASIC_PROMPT_EXAMPLES`, `WEAVER_TRACE_FORMAT`, `WEAVER_TRACE_VERSION`, `WEAVER_TRACE_REPLAY_INVALID_INPUT`. Types: `A2UIPromptAction`, `A2UIPromptExample`, `A2UIPromptMode`, `A2UIPromptSection`, `A2UIPromptSectionId`, `A2UIV091PromptConfig`, `A2UIV091PromptResult`, `A2UIPromptGenerationError`, `A2UIPromptGenerationErrorCode`, `A2UIPromptExampleInvalidError`, `A2UIPromptSurfaceNotReadyCause`, `WeaverRuntimeEvent`, `WeaverRuntimeObserver`, `WeaverTrace`, `WeaverTraceEntry`, `WeaverTraceEntryKind`, `WeaverTraceOutcome`, `WeaverTraceParseError`, `WeaverTraceParseResult`, `WeaverTraceRecorder`, `WeaverTraceRecorderOptions`, `WeaverTraceReplayOptions`, `WeaverTraceReplayOutcome`, `WeaverTraceReplayResult`, `WeaverTraceReplayStep`, `DescribeWeaverErrorContext`, `DescribableWeaverError`, `WeaverErrorDescription`, `WeaverErrorSeverity`.
+  - **ADDED, web (2):** `describeWebRenderError` (function), `DescribableWebError` (type).
+  - **ADDED, mcp:** none.
+  - **REMOVED:** none, in any package.
+  - **CHANGED (declaration or value):** (1) core `WEAVER_CORE_VERSION` `"0.2.1"` → `"0.3.0"`, as intended. (2) core `WeaverRuntimeConfig` gains the optional `observer?: WeaverRuntimeObserver`. This is additive. (3) web `WebRenderError`, `SURFACE_RESOLUTION_FAILED` variant, gains the optional `surfaceId?: string`. This is additive.
+  - **Internal changes that are not exported:** the `RuntimeServices` interface in `WeaverRuntime.d.ts` gains `observer`. `basicPrimaryFallback` is declared in `web/dist/basic/styles.d.ts` but is not on the web root, which the export list confirms.
+  - **Against the 0.2.1 tag** (`v0.2.1`, `05cd279`) the counts are core +41, web +2, mcp 0, with no removals. The three extra core exports are `defineCatalog`, `CatalogDefinition` and `A2UIV091CatalogSchema` (`cada149`). The CHANGELOG lists them under Added.
+  - **Review of the added surface:**
+    - Naming: the prompt types use two prefixes. See finding F2.
+    - Error codes: all new codes are SCREAMING_SNAKE. Typed unions: `A2UIPromptGenerationError`, `WeaverTraceParseError`. Replay outcome codes are `string` (see F4).
+    - Exhaustive describers: each `switch` in `describeWeaverError.ts` ends in a `never`-typed default, and `describeWebRenderError.ts` does the same. `DescribableWeaverError` lists every Core error union, including `A2UIPromptGenerationError`. Adding a code without a description fails the typecheck.
+    - JSON-safety: the recorder copies every payload through `jsonCopy` and returns a copy from `getTrace()`. The parser rejects non-JSON values with an iterative cycle check, and returns a fresh copy. The observer copies payloads through `observedValue` and `cloneRuntimeJson`. Prompt errors carry strings, numbers and JSON-shaped causes. `describeWeaverError` output is plain data.
+    - Leaks: no internal name is exported. `basicPrimaryFallback`, `isJsonValue`, `observedValue`, `ExampleStageFields` and the test helpers do not appear in the export lists. The packed tarballs contain no `*.test.*`, `*.test-helper.*`, `src/`, or `fixtures/`. The one fixture-like file is F1.
+  - **Findings.** None blocks 0.3.0. Nothing below was fixed here. Each one needs an owner decision.
+    - **F1 (packaging, pre-existing since v0.2.1).** `packages/core/src/protocol/a2ui/v0_9_1/fixtures.ts` exports the test fixture `validA2UIFixtures`. Only `validation.test.ts` imports it. It compiles to `dist/protocol/a2ui/v0_9_1/fixtures.{js,d.ts,map}` and ships in `cylayo-weaver-core-0.3.0.tgz`. It is not re-exported from the root. Proposed fix: add `"!dist/**/fixtures.*"` to `packages/core/package.json` `files`, and add a `fixtures\.` pattern to the forbidden-file regex in `scripts/verify-packages.mjs`. Not a documented limitation, so it is not in CHANGELOG Notes.
+    - **F2 (naming, new in 0.3.0).** Nine prompt types use `A2UIPrompt*`: `A2UIPromptAction` (`prompt/types.ts:7`), `A2UIPromptExample` (`:18`), `A2UIPromptMode` (`:23`), `A2UIPromptSectionId` (`:37`), `A2UIPromptSection` (`:45`), `A2UIPromptGenerationError` (`prompt/errors.ts:13`), `A2UIPromptSurfaceNotReadyCause` (`:39`), `A2UIPromptExampleInvalidError` (`:59`), `A2UIPromptGenerationErrorCode` (`:80`). Two other prompt types, `A2UIV091PromptConfig` (`types.ts:25`) and `A2UIV091PromptResult` (`:52`), and the function `generateA2UIV091Prompt`, use `A2UIV091`. The Core convention is `A2UIV091…` (for example `A2UIV091StreamIngestionEvent`). Proposed fix: a type-only rename of the nine names to `A2UIV091Prompt…`, before the tag. After the tag, the rename would be breaking.
+    - **F3 (immutability, low).** `A2UI_V091_BASIC_PROMPT_EXAMPLES` (`prompt/basicExamples.ts:12`) is typed `readonly A2UIPromptExample[]`. Its example objects and `messages` arrays are mutable at runtime. A host that mutates a shared example changes every later prompt. Proposed fix: deep-freeze the export, or return copies from a function.
+    - **F4 (naming, low).** `WEAVER_TRACE_REPLAY_INVALID_INPUT` (`trace/replayWeaverTrace.ts:60`) has the value `"REPLAY_INVALID_INPUT"`, so the value lacks the `WEAVER_TRACE_` prefix. The replay outcome `code` is `string` (`replayWeaverTrace.ts:19`), not a typed union. Proposed fix: either make the value match its name, or type the set of codes. Either choice changes a value, so decide before the tag.
+    - **F5 (silent drop, low).** In `WeaverRuntime.ts:118-126`, `#observe` builds the event inside its `try`. A failure while copying a payload is therefore dropped without a signal, the same as an observer exception. The only copy that can throw is `cloneRuntimeJson(request)` in `dispatchAction`. A typed `WeaverActionRequest` (four strings) rules that out for typed callers. Proposed fix: document it, or emit a marker. This is not in `debugging.md`.
+- 2026-10-10: **consumer smoke (step 4).** `consumer.ts` imports and typechecks the new exports: the prompt generator and its error and example types, the catalog definition types, the observer types, the recorder, parser and replay, and both describers. `smoke.mjs` checks by name that every new value export exists. It also runs a prompt, checks it for determinism and for an empty-catalog rejection, records and replays `A2UI_V091_BASIC_PROMPT_EXAMPLES[0]` with no divergence, checks the unsupported-version parse error, and calls both describers. The docs snippets are unchanged. The prompt, debugging and custom-catalog examples already run against the packed packages, so the prompt generator stays in the workerd gate as WVR-014 intends.
+- 2026-10-10: **mutation proof.** Each mutation was made in `packages/core/src/trace/index.ts`, then reverted with `git checkout --`. Neither was committed.
+  - (1) Deleted the whole `replayWeaverTrace` re-export line. `pnpm verify:packages` exited 2 during the workspace build. The error was `examples/playground/src/inspector-model.ts(3,3): error TS2305: Module '"@cylayo/weaver-core"' has no exported member 'replayWeaverTrace'`, plus two more TS errors in `sample.test.ts`. The workspace build typechecks the examples, so the example build caught it first.
+  - (2) Removed only `WEAVER_TRACE_REPLAY_INVALID_INPUT` from the barrel. The workspace build passed, which shows the examples do not use it. `pnpm verify:packages` then exited 1 at the consumer typecheck: `Error: pnpm run typecheck failed`, then `consumer.ts(4,92): error TS2305: Module '"@cylayo/weaver-core"' has no exported member 'WEAVER_TRACE_REPLAY_INVALID_INPUT'`. Running the packed `smoke.mjs` in the same temporary consumer also failed by name: `Error: Packed @cylayo/weaver-core is missing export WEAVER_TRACE_REPLAY_INVALID_INPUT`. The file was restored with `git checkout --`. `git status` was clean afterwards.
+- 2026-10-10: **gate results** (worktree at `bac0794`, then this entry's docs changes):
+  - `pnpm install`: exit 0. `pnpm install --frozen-lockfile`: exit 0. The root lockfile is unchanged.
+  - `pnpm check:generated`: exit 0. Basic Catalog and prompt fixtures are up to date.
+  - `pnpm check:docs`: exit 0. 157 links OK, 0 broken, 64 Markdown files.
+  - `pnpm typecheck`: exit 0. `pnpm build`: exit 0.
+  - `pnpm test`: exit 0. **710 pass, 0 fail.** Per package: core 428, web 139, `@weaver/cookbook` 99, `@weaver/playground` 15, `@weaver/shared` 11, mcp 10, `@weaver/reference-app` 8.
+  - `pnpm conformance:v0.9.1`: exit 0. 567 pass, 0 fail (core 428 and web 139).
+  - `pnpm verify:packages`: exit 0. Three tarballs were verified, 11 documentation snippets ran against the packed packages, and the consumer smoke passed.
+  - `pnpm verify:worker-core`: exit 0. The workerd suite passes 2 of 2.
+  - `pnpm --filter @weaver/cookbook e2e`: exit 0, **40 passed**. `pnpm --filter @weaver/playground e2e`: exit 0, **24 passed**. Chromium was preinstalled, and `playwright install` was not run.
+  - `pnpm pack:packages`: exit 0. Exactly three tarballs: `artifacts/cylayo-weaver-core-0.3.0.tgz`, `cylayo-weaver-web-0.3.0.tgz`, `cylayo-weaver-mcp-0.3.0.tgz`.
+  - **Fresh export (CI order).** This sandbox refused `git clone` for this branch. The check therefore used `git archive HEAD` of `wvr-060-release-0.3.0` at `bac0794` into an empty directory, which has no `.git`, `dist`, `node_modules` or `artifacts`. In CI order: `pnpm install --frozen-lockfile` exit 0, `pnpm check:generated` exit 0, `pnpm typecheck` exit 0, `pnpm test` exit 0 (710 pass), `pnpm build` exit 0, `pnpm verify:packages` exit 0 (three tarballs), and `pnpm verify:worker-core` exit 0. `pnpm check:docs` exited 1 there only because it runs `git ls-files`, and the export has no `.git`. The same checker, given the same Markdown file list explicitly, reported 157 OK and 0 broken.
+- 2026-10-10: **acceptance.** Both criteria are ticked on the evidence above: the full gate, with `verify:packages` and `verify:worker-core`, and the consumer typecheck of the new exports. Status is `in-review`. The Definition of done, merged and tagged by the maintainer, is not ticked. `scratch/BOARD.md` was not edited, as the orchestrator asked.
