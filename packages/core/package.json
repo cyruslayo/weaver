@@ -17,7 +17,8 @@
     "LICENSE",
     "THIRD_PARTY_LICENSES.txt",
     "!dist/**/*.test.*",
-    "!dist/**/*.test-helper.*"
+    "!dist/**/*.test-helper.*",
+    "!dist/**/fixtures.*"
   ],
   "types": "./dist/index.d.ts",
   "exports": {
