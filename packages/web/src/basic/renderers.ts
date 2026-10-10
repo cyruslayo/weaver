@@ -353,6 +353,8 @@ export const renderButton: WebComponentRenderer = ({ document, properties, relat
   button.disabled = children.length === 0
     || (checks !== undefined && checks.status !== "valid");
   if (button.disabled) appendBasicStyle(button, "opacity: 0.6");
+  // Identity is (sourceComponentId, scopePath, "action"), so it is stable across rerenders and unique per button instance.
+  interactions.registerControl(button, "action");
   button.addEventListener("click", () => {
     interactions.dispatchAction("action");
   });
