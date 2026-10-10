@@ -32,8 +32,9 @@ harness owns everything else:
 | Screen | Page | Source | Status |
 |---|---|---|---|
 | Placeholder | `placeholder.html` | `src/screens/placeholder.ts` | Pipeline smoke screen |
+| Support request | `form.html` | `src/screens/form/screen.ts` | Validated form with a server round trip |
 
-The form, dashboard, and ticket board screens arrive in later issues.
+The dashboard and ticket board screens arrive in later issues.
 
 ## Run
 

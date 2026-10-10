@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.json && node --test dist/cookbook.test.js dist/custom-catalog/catalog.test.js",
+    "test": "tsc -p tsconfig.json && node --test dist/cookbook.test.js dist/custom-catalog/catalog.test.js dist/form.test.js",
     "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
   },
   "dependencies": {
