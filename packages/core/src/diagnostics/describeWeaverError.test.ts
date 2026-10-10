@@ -386,7 +386,15 @@ fixtures.push(
   },
   {
     code: "EXAMPLE_INVALID",
-    error: { code: "EXAMPLE_INVALID", message: "Example has no root component", exampleTitle: "Login", exampleIndex: 0 },
+    error: {
+      code: "EXAMPLE_INVALID",
+      message: "Example has no root component",
+      exampleTitle: "Login",
+      exampleIndex: 0,
+      stage: "resolve",
+      surfaceId: "main",
+      cause: { code: "SURFACE_NOT_READY", surfaceId: "main", treeReady: false, checksReady: false, issues: { tree: [], instances: [], properties: [] } },
+    },
   },
 );
 
