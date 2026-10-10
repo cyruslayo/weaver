@@ -420,6 +420,31 @@ last good render.
 asks for it. Until then it stays in examples, so the published API does not grow to suit
 a demo. A host that needs it earlier can copy the module, which is small.
 
+## Render failures and the stale DOM
+
+A render failure is not a rejected update. Core accepts the data first, so the store
+takes it, and then the render fails. The surface keeps the last good render. For example,
+a 70-row list over a 64-instance budget fails with `SURFACE_RESOLUTION_FAILED`, and the
+store holds 70 rows while the DOM still shows the previous list. The
+[web rendering guide](web-rendering.md#render-failures-and-the-last-good-render) gives the
+full rule. In practice:
+
+- **Detect it.** Pass `onError` to `mount()`. It runs once per failed render with a
+  `WebRenderError`. Give that error to `describeWebRenderError()` for the code, summary,
+  and hint to show. Do not parse the error text.
+- **Do not trust the visible state.** The DOM is the last good render, and the store may
+  hold newer data. Controls in that DOM are not live. An interaction from them returns
+  `STALE_RENDER_INTERACTION` and never reaches Core. A host that keeps the stale DOM on
+  screen should say so in the UI.
+- **Recovery.** The next render that succeeds re-syncs the DOM to the store. A corrective
+  update that fits the budget does this. A status-only update does not, while the
+  over-budget list is still in the store, because that render fails too and calls
+  `onError` again.
+- **Test it.** Compare the store (`getSurface(surfaceId).dataModel`) and the DOM text in
+  your tests, and compare strings and booleans only. A failing assertion on a DOM node
+  can hang under happy-dom. The cookbook
+  [error demo test](../examples/cookbook/src/screens/error-demo.test.ts) shows the pattern.
+
 ## Related documents
 
 - [Architecture](architecture.md): the runtime pipeline, including the `WeaverRuntime` facade.

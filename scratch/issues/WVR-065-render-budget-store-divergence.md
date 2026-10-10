@@ -4,7 +4,7 @@ title: Decide what the store keeps after a render-budget failure, and make it vi
 epic: F Follow-ups
 audit_ref: follow-up to WVR-033 / WVR-034 (last good state)
 priority: P2
-status: in-progress
+status: in-review
 depends_on: []
 estimate: M
 ---
@@ -70,22 +70,22 @@ Considered and deferred (not part of this change):
 - `scratch/issues/WVR-065-render-budget-store-divergence.md`, `scratch/BOARD.md`
 
 ## Acceptance criteria
-- [ ] The Log records the chosen option (option 1) and the reason, before any code change.
-- [ ] A cookbook test asserts the store's `/items` length (70) after the 70-row update, and the DOM
+- [x] The Log records the chosen option (option 1) and the reason, before any code change.
+- [x] A cookbook test asserts the store's `/items` length (70) after the 70-row update, and the DOM
       after it (a string check that "Add dark mode" is rendered and "Ticket 70" is not, with no DOM
       nodes passed to assertions).
-- [ ] `docs/web-rendering.md` documents what a render failure leaves behind, how to detect it via
+- [x] `docs/web-rendering.md` documents what a render failure leaves behind, how to detect it via
       `onError` and `describeWebRenderError`, the re-sync on the next successful render, and that
       interactions from the stale DOM are against the previously rendered state.
-- [ ] `docs/debugging.md` has the same operational guidance in a short section, and every relative
+- [x] `docs/debugging.md` has the same operational guidance in a short section, and every relative
       link in both files resolves (`pnpm check:docs`).
-- [ ] A still-over-budget update (status-only) keeps failing, and a corrective `/items` update
+- [x] A still-over-budget update (status-only) keeps failing, and a corrective `/items` update
       re-syncs the store (length 3) and the DOM ("Invoice PDF is blank" rendered), in the same test.
-- [ ] The regression test bites: a temporary mutation of the renderer or the store makes it fail with
+- [x] The regression test bites: a temporary mutation of the renderer or the store makes it fail with
       a clear message and no hang. The mutation is reverted and never committed.
-- [ ] The existing tests still pass, with no test removed: `pnpm --filter @weaver/cookbook test` and
+- [x] The existing tests still pass, with no test removed: `pnpm --filter @weaver/cookbook test` and
       `pnpm --filter @cylayo/weaver-web test`.
-- [ ] `pnpm conformance:v0.9.1` passes (no public Core or Web type changes).
+- [x] `pnpm conformance:v0.9.1` passes (no public Core or Web type changes).
 
 ## Verification
 - `pnpm --filter @weaver/cookbook test`, `pnpm --filter @cylayo/weaver-web test`, `pnpm typecheck`.
@@ -129,3 +129,30 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   is the `CookbookMountOptions` block. Its doc comment that says the previous DOM stays is at `:218-221`.
   Not checked in this pass: `packages/web/src/surface/WebSurfaceRenderer.ts` and `errors.ts` (only needed
   for option 2, which is deferred).
+- 2026-10-10: **Implemented option 1** on `wvr-065-document-divergence`. No Core or Web code changed.
+  - `examples/cookbook/src/screens/error-demo.test.ts`: two tests, plus a helper that mounts the screen
+    alone and keeps each render error. Test 1 pins the store's `/items` length (70), the render
+    failure count, `describeWebRenderError(...).code === "SURFACE_RESOLUTION_FAILED"`, and the DOM text
+    equal to the last good render (a string). Test 2 pins that a status-only update still fails and
+    leaves the DOM unchanged while the store takes the status, and that the corrective `/items` update
+    re-syncs the store (length 3) and the DOM ("Invoice PDF is blank" and the new status shown, no
+    "Ticket 70"). Only strings and booleans are asserted.
+  - `docs/web-rendering.md`: new section "Render failures and the last good render". Its `ts` example
+    is type-checked against the built Web package, and `verify:packages` does not extract it (only
+    prompt-generation, debugging and custom-catalogs blocks are extracted).
+  - `docs/debugging.md`: new section "Render failures and the stale DOM", with no `ts` block, so the
+    snippet count is unchanged (11).
+  - The stale-DOM warning (controls return `STALE_RENDER_INTERACTION`) is backed by the generation
+    logic in `WebSurfaceRenderer.ts` (a failed attempt advances the generation) and by the existing
+    "successful, failed, refresh, and unmount render attempts invalidate retained DOM interactions" test.
+- 2026-10-10: **Mutation check.** A temporary `container.replaceChildren()` on render failure in
+  `WebSurfaceRenderer.ts`. Both new tests failed with a clear string diff (`actual ''`, expected the
+  last good render), no hang, exit 1. Reverted with `git checkout`, rebuilt, and not committed. A
+  store-side mutation was not run, because one mutation was enough for this check.
+- 2026-10-10: **Gate.** `pnpm install`, `pnpm build` (exit 0). `pnpm check:generated` (up to date).
+  `pnpm typecheck` (exit 0). `pnpm test` (exit 0; suites 427, 11, 10, 136, 97, 15, 8, all passing;
+  cookbook 97). `pnpm check:docs` (127 relative links in 63 files, 0 broken). `pnpm conformance:v0.9.1`
+  (core 427 and web 136, all passing). `pnpm verify:packages` (exit 0; 11 documentation snippets ran
+  against the packed packages). `pnpm verify:worker-core` (exit 0). `pnpm --filter @weaver/cookbook e2e`
+  (40 passed). The temporary reproduction probe was not re-run after the change. The new tests make the
+  same checks, and the probe file was deleted.

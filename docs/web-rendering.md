@@ -205,6 +205,55 @@ complete detached tree before replacement, so a missing renderer, invalid
 renderer result, or trusted renderer exception leaves the previous successful
 DOM intact. Returned nodes become owned by the Weaver mount.
 
+## Render failures and the last good render
+
+A render that fails keeps the mount's previous successful DOM. The failure covers a
+missing renderer, an invalid renderer result, a trusted renderer exception, and a Basic
+resolution budget such as `maxResolvedInstances`. Each failed render calls the mount's
+`onError` once with a `WebRenderError`. `describeWebRenderError()` turns that error into
+a `code`, `summary`, and `hint` that the host can show.
+
+```ts
+import {
+  createBasicWebRuntime,
+  describeWebRenderError,
+  type WebRenderError,
+} from "@cylayo/weaver-web";
+
+// Mounts one surface and reports each render failure beside it. The DOM keeps the last good render.
+export function mountWithRenderErrors(target: Element, showError: (line: string) => void) {
+  const created = createBasicWebRuntime({});
+  if (!created.ok) throw new Error(created.error.code);
+  const web = created.value;
+
+  const mounted = web.mount({
+    surfaceId: "main",
+    target,
+    onError: (error: WebRenderError) => {
+      const description = describeWebRenderError(error);
+      showError(`${description.code}: ${description.summary}`);
+    },
+  });
+  if (!mounted.ok) throw new Error(mounted.error.code);
+  return mounted.value;
+}
+```
+
+A failed render does not roll back Core. An update that Core accepts stays in the store,
+so the store and the DOM can disagree: the store holds the accepted data, and the DOM
+holds the last good render. The disagreement ends when a later render succeeds, for
+example after a corrective data update that fits the budget. An update that still fails
+keeps the DOM unchanged and calls `onError` again. The cookbook
+[error demo test](../examples/cookbook/src/screens/error-demo.test.ts) pins this with a
+70-row list against a 64-instance budget.
+
+Controls in the DOM left by a failed render are not live. The failed attempt advances the
+mount generation, so an interaction from that DOM returns `STALE_RENDER_INTERACTION` and
+never reaches Core, as described in [Generation safety](#generation-safety). The visible
+DOM therefore shows the previously rendered state, not the store. A host that keeps it on
+screen should say so, and should not read a visible value as the store's current value.
+See also [Debugging](debugging.md#render-failures-and-the-stale-dom).
+
 ## Basic theme bridge
 
 `A2UI createSurface.theme` is catalog-defined surface data. Weaver Core validates it and retains it in the defensive `SurfaceSnapshot` and runtime resolution. Web styling is a separate, explicit host trust choice:
