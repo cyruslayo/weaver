@@ -361,7 +361,7 @@ test("Button appends child, emits one action, and exposes only safe variant hook
   const rendered = setup("Button", { properties: { variant: "primary" }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: label }] });
   assert.equal(rendered.node.tagName, "BUTTON"); assert.equal((rendered.node as HTMLButtonElement).type, "button"); assert.equal(rendered.node.textContent, "Go");
   assert.equal(rendered.node.getAttribute("data-a2ui-variant"), "primary");
-  assert.match(rendered.node.getAttribute("style") ?? "", /background-color: var\(--a2ui-color-primary, #17e\)/);
+  assert.match(rendered.node.getAttribute("style") ?? "", /background-color: var\(--a2ui-color-primary, #0969da\)/);
   assert.match(rendered.node.getAttribute("style") ?? "", /color: var\(--a2ui-color-on-primary, white\)/);
   rendered.node.click(); assert.deepEqual(rendered.calls, ["action"]);
   const fallback = setup("Button", { properties: { variant: "anything" } }).node;
@@ -378,6 +378,75 @@ test("Button variants have closed visual treatments and preserve child color inh
     if (variant === "primary") { assert.match(style, /--a2ui-color-primary/); assert.match(style, /--a2ui-color-on-primary/); }
     if (variant === "borderless") { assert.equal(button.style.backgroundColor, "transparent"); assert.match(button.style.border, /transparent/); }
   }
+});
+
+// WVR-058: WCAG 2.x contrast computed from real renderer output. happy-dom does not resolve var(), so the
+// fallback is read explicitly from the rendered style and must be a plain #RRGGBB or "white" literal.
+const relativeLuminance = (hex: string): number => {
+  const [r, g, b] = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255)
+    .map((channel) => (channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+};
+const contrastRatio = (first: string, second: string): number => {
+  const [lighter, darker] = [relativeLuminance(first), relativeLuminance(second)].sort((a, b) => b - a) as [number, number];
+  return (lighter + 0.05) / (darker + 0.05);
+};
+const literalColour = (value: string): string => {
+  const colour = value.trim().toLowerCase();
+  if (colour === "white") return "#ffffff";
+  if (/^#[0-9a-f]{3}$/.test(colour)) return `#${[...colour.slice(1)].map((digit) => digit + digit).join("")}`;
+  if (/^#[0-9a-f]{6}$/.test(colour)) return colour;
+  throw new Error(`unresolvable colour literal: ${value}`);
+};
+const varFallback = (css: string, variable: string): string => {
+  const match = new RegExp(`var\\(${variable}, ([^)]+)\\)`).exec(css);
+  assert.ok(match !== null, `no var(${variable}) with a fallback in ${css}`);
+  return literalColour(match![1]!);
+};
+
+test("primary Button text meets WCAG AA 4.5:1 with the default fallback, enabled and focused (WVR-058)", () => {
+  const label = child(setup("Button").document, "Go");
+  const { document, node } = setup("Button", { properties: { variant: "primary" }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: label }] });
+  document.body.append(node);
+  const button = node as HTMLButtonElement;
+  const style = button.getAttribute("style") ?? "";
+  const background = varFallback(style, "--a2ui-color-primary");
+  const text = varFallback(style, "--a2ui-color-on-primary");
+  assert.equal(button.disabled, false);
+  const enabledRatio = contrastRatio(text, background);
+  assert.ok(enabledRatio >= 4.5, `enabled primary Button contrast ${enabledRatio.toFixed(4)} is below 4.5`);
+  button.focus();
+  assert.equal(document.activeElement === button, true);
+  const focusedRatio = contrastRatio(text, background);
+  assert.ok(focusedRatio >= 4.5, `focused primary Button contrast ${focusedRatio.toFixed(4)} is below 4.5`);
+});
+
+test("selected Tabs label meets 4.5:1 and its underline meets 3:1 against white (WVR-058)", () => {
+  const first = child(setup("Tabs").document, "first");
+  const node = setup("Tabs", {
+    properties: { tabs: [{ title: "Overview" }] },
+    relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }], child: first }],
+  }).node;
+  const selected = node.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+  assert.equal(selected !== null, true);
+  const style = selected?.getAttribute("style") ?? "";
+  const labelRatio = contrastRatio(varFallback(style, "--a2ui-color-primary"), "#ffffff");
+  const underlineRatio = contrastRatio(varFallback(style.slice(style.indexOf("border-block-end")), "--a2ui-color-primary"), "#ffffff");
+  assert.ok(labelRatio >= 4.5, `Tabs label contrast ${labelRatio.toFixed(4)} is below 4.5`);
+  assert.ok(underlineRatio >= 3, `Tabs underline contrast ${underlineRatio.toFixed(4)} is below 3`);
+});
+
+test("checked CheckBox, Slider and ChoicePicker accents meet 3:1 non-text contrast against white (WVR-058)", () => {
+  const checkBox = setup("CheckBox", { properties: { label: "Ready", value: true } }).node.querySelector<HTMLInputElement>("input");
+  const slider = setup("Slider", { properties: { max: 10, value: 2.5 } }).node.querySelector<HTMLInputElement>("input");
+  const chips = setup("ChoicePicker", { properties: { options: [{ label: "A", value: "a" }], value: ["a"], displayStyle: "chips" } }).node.querySelector<HTMLElement>("label");
+  assert.equal(checkBox !== null && slider !== null && chips !== null, true);
+  const ratios = [
+    contrastRatio(varFallback(checkBox?.style.accentColor ?? "", "--a2ui-color-primary"), "#ffffff"),
+    contrastRatio(varFallback(slider?.style.accentColor ?? "", "--a2ui-color-primary"), "#ffffff"),
+    contrastRatio(varFallback(chips?.getAttribute("style") ?? "", "--a2ui-color-primary"), "#ffffff"),
+  ];
+  for (const ratio of ratios) assert.ok(ratio >= 3, `non-text accent contrast ${ratio.toFixed(4)} is below 3`);
 });
 
 test("Button mirrors supplied checks and disables a progressively empty control", () => {
@@ -399,8 +468,8 @@ test("Basic inputs use native controls and normalized writes", () => {
     const rendered = setup(component, { properties, interactions: interactions(writes) }).node;
     const control = rendered.querySelector(selector) as HTMLInputElement;
     if (component === "TextField") { assert.equal(control.type, "number"); control.value = "7.5"; }
-    if (component === "CheckBox") { assert.equal(control.checked, true); assert.equal(control.style.accentColor, "var(--a2ui-color-primary, #17e)"); control.checked = false; }
-    if (component === "Slider") { assert.equal(control.style.accentColor, "var(--a2ui-color-primary, #17e)"); assert.equal(control.min, "0"); assert.equal(control.max, "10"); assert.equal(control.step, "any"); control.value = "4.25"; }
+    if (component === "CheckBox") { assert.equal(control.checked, true); assert.equal(control.style.accentColor, "var(--a2ui-color-primary, #0969da)"); control.checked = false; }
+    if (component === "Slider") { assert.equal(control.style.accentColor, "var(--a2ui-color-primary, #0969da)"); assert.equal(control.min, "0"); assert.equal(control.max, "10"); assert.equal(control.step, "any"); control.value = "4.25"; }
     fire(control, event);
     assert.deepEqual(writes[0], ["value", component === "CheckBox" ? false : component === "Slider" ? 4.25 : "7.5"]);
   }
@@ -462,7 +531,7 @@ test("ChoicePicker filters labels ephemerally and writes string arrays", () => {
   const filter = node.querySelector('input[type="search"]') as HTMLInputElement; filter.value = "BET"; fire(filter, "input");
   assert.deepEqual([...node.querySelectorAll('[data-a2ui-choice-options] > label:has(input[type="radio"])')].map((row) => (row as HTMLElement).hidden), [true, true, false]); assert.deepEqual(writes, []);
   const radio = node.querySelectorAll('input[type="radio"]')[2] as HTMLInputElement;
-  assert.equal(radio.style.accentColor, "var(--a2ui-color-primary, #17e)");
+  assert.equal(radio.style.accentColor, "var(--a2ui-color-primary, #0969da)");
   radio.checked = true; fire(radio, "change"); assert.deepEqual(writes, [["value", ["c"]]]);
 });
 
