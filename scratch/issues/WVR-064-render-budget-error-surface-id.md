@@ -4,7 +4,7 @@ title: Render-budget failures carry the surface id in describeWebRenderError
 epic: F Follow-ups
 audit_ref: follow-up to WVR-032 / WVR-034 (error presentation)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -139,3 +139,4 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
     and `@weaver/playground e2e` (24 passed).
   - Not run: the scratch probe in the Verification list. The new tests cover the same path.
   - No version bump or release note. WVR-060 owns the release.
+- 2026-10-10 merged in cyruslayo/weaver#29 (8f586dd)

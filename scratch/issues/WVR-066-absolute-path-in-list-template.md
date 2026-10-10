@@ -4,7 +4,7 @@ title: An absolute path inside a List template renders empty with no diagnostic
 epic: F Follow-ups
 audit_ref: follow-up to WVR-034 (cookbook error demo, found while building it)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -145,3 +145,4 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   `path.ts`): `not ok 64` with a clear `+ 'Alpha', 'Beta' / - '', ''` diff, no hang. Ticket-board test 93 also
   failed under the mutation, which is expected. Reverted with `git checkout`. The debugging symptom entry links
   this test.
+- 2026-10-10 merged in cyruslayo/weaver#29 (8f586dd)

@@ -4,7 +4,7 @@ title: Decide what the store keeps after a render-budget failure, and make it vi
 epic: F Follow-ups
 audit_ref: follow-up to WVR-033 / WVR-034 (last good state)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: M
 ---
@@ -156,3 +156,4 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   against the packed packages). `pnpm verify:worker-core` (exit 0). `pnpm --filter @weaver/cookbook e2e`
   (40 passed). The temporary reproduction probe was not re-run after the change. The new tests make the
   same checks, and the probe file was deleted.
+- 2026-10-10 merged in cyruslayo/weaver#29 (8f586dd)
