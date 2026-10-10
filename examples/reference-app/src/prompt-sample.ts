@@ -2,8 +2,8 @@ import {
   createBasicCatalogV091Registration,
   createA2UIV091Producer,
   generateA2UIV091Prompt,
-  type A2UIPromptAction,
-  type A2UIPromptExample,
+  type A2UIV091PromptAction,
+  type A2UIV091PromptExample,
 } from "@cylayo/weaver-core";
 import {
   REFERENCE_CREATE_REQUEST,
@@ -12,7 +12,7 @@ import {
 } from "./application-agent.js";
 
 /** The app's single trusted action. Its context matches the Submit button's bindings. */
-export const REFERENCE_PROMPT_ACTION: A2UIPromptAction = {
+export const REFERENCE_PROMPT_ACTION: A2UIV091PromptAction = {
   name: REFERENCE_CREATE_REQUEST,
   description: `Create a reference request. title is the request title text. priority is a one-element list holding one of ${REFERENCE_PRIORITIES.join(", ")}.`,
   context: {
@@ -24,7 +24,7 @@ export const REFERENCE_PROMPT_ACTION: A2UIPromptAction = {
 const producer = createA2UIV091Producer();
 
 /** A worked example that the generator validates through a scratch runtime before it reaches the prompt. */
-const REFERENCE_PROMPT_EXAMPLE: A2UIPromptExample = {
+const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
   title: "Request form with a bound title and priority",
   messages: [
     producer.createSurface({

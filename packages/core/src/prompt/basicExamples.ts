@@ -1,6 +1,6 @@
 import { A2UI_V091_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
 import { createA2UIV091Producer } from "../protocol/index.js";
-import type { A2UIPromptExample } from "./types.js";
+import type { A2UIV091PromptExample } from "./types.js";
 
 const producer = createA2UIV091Producer();
 
@@ -9,7 +9,7 @@ const producer = createA2UIV091Producer();
  * producer, and `generateA2UIV091Prompt()` validates each one before it can
  * appear in a prompt. Pass them as `examples` to teach the model the shapes.
  */
-export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIPromptExample[] =
+export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
   Object.freeze([
     {
       title: "Simple card",

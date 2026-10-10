@@ -10,7 +10,7 @@ import type {
  * Typed failures from `generateA2UIV091Prompt()`. The generator never returns
  * a partial prompt: every failure is one of these values.
  */
-export type A2UIPromptGenerationError =
+export type A2UIV091PromptGenerationError =
   | {
       code: "CATALOG_INVALID";
       message: string;
@@ -30,13 +30,13 @@ export type A2UIPromptGenerationError =
       characters: number;
       maxCharacters: number;
     }
-  | A2UIPromptExampleInvalidError;
+  | A2UIV091PromptExampleInvalidError;
 
 /**
  * A surface that resolves without a returned error but is not complete: no
  * root, a dangling reference, or a property or instance issue.
  */
-export interface A2UIPromptSurfaceNotReadyCause {
+export interface A2UIV091PromptSurfaceNotReadyCause {
   code: "SURFACE_NOT_READY";
   surfaceId: string;
   treeReady: boolean;
@@ -44,7 +44,7 @@ export interface A2UIPromptSurfaceNotReadyCause {
   issues: WeaverResolvedSurface["issues"];
 }
 
-interface A2UIPromptExampleInvalidBase {
+interface A2UIV091PromptExampleInvalidBase {
   code: "EXAMPLE_INVALID";
   message: string;
   /** Position of the example in `config.examples`. */
@@ -56,7 +56,7 @@ interface A2UIPromptExampleInvalidBase {
  * An example failed the strict pipeline in a fresh scratch runtime. `stage`
  * says which step rejected it, so a host knows where to look.
  */
-export type A2UIPromptExampleInvalidError = A2UIPromptExampleInvalidBase &
+export type A2UIV091PromptExampleInvalidError = A2UIV091PromptExampleInvalidBase &
   (
     | {
         /** The scratch runtime could not be created from the prompt config. */
@@ -73,8 +73,8 @@ export type A2UIPromptExampleInvalidError = A2UIPromptExampleInvalidBase &
         /** Resolution of `surfaceId` failed, or the surface is not complete. */
         stage: "resolve";
         surfaceId: string;
-        cause: WeaverSurfaceResolutionError | A2UIPromptSurfaceNotReadyCause;
+        cause: WeaverSurfaceResolutionError | A2UIV091PromptSurfaceNotReadyCause;
       }
   );
 
-export type A2UIPromptGenerationErrorCode = A2UIPromptGenerationError["code"];
+export type A2UIV091PromptGenerationErrorCode = A2UIV091PromptGenerationError["code"];

@@ -10,8 +10,8 @@ import { createWeaverRuntime } from "../runtime/index.js";
 import {
   A2UI_V091_BASIC_PROMPT_EXAMPLES,
   generateA2UIV091Prompt,
-  type A2UIPromptExample,
-  type A2UIPromptExampleInvalidError,
+  type A2UIV091PromptExample,
+  type A2UIV091PromptExampleInvalidError,
   type A2UIV091PromptConfig,
   type A2UIV091PromptResult,
 } from "./index.js";
@@ -31,7 +31,7 @@ function components(surfaceId: string, list: JsonObject[]): JsonObject {
 }
 
 /** A small valid example: one Text component at the root. */
-function validExample(title = "Valid"): A2UIPromptExample {
+function validExample(title = "Valid"): A2UIV091PromptExample {
   return {
     title,
     messages: [
@@ -46,7 +46,7 @@ function generate(config: A2UIV091PromptConfig): A2UIV091PromptResult {
 }
 
 /** Asserts the result is an EXAMPLE_INVALID error and returns it. */
-function invalid(result: A2UIV091PromptResult): A2UIPromptExampleInvalidError {
+function invalid(result: A2UIV091PromptResult): A2UIV091PromptExampleInvalidError {
   assert.equal(result.ok, false, "expected the example to be rejected");
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.error.code, "EXAMPLE_INVALID");
@@ -325,7 +325,7 @@ test("each shipped Basic example passes in a runtime of its own", () => {
 test("a failing example returns no prompt text and leaves the caller's input unchanged", () => {
   const catalog = basicCatalog();
   const catalogBefore = cloneJson(catalog.schema);
-  const examples: A2UIPromptExample[] = [
+  const examples: A2UIV091PromptExample[] = [
     {
       title: "Bad",
       messages: [create("main"), components("main", [{ id: "root", component: "Gizmo" }])],
@@ -362,7 +362,7 @@ test("a surface created by one example is not visible to a later example", () =>
 
 test("validation keeps no state between generations", () => {
   const catalogs = [basicCatalog()];
-  const relies: A2UIPromptExample = {
+  const relies: A2UIV091PromptExample = {
     title: "Relies on main",
     messages: [components("main", [{ id: "root", component: "Text", text: "a" }])],
   };

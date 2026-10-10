@@ -1,7 +1,7 @@
 import { createA2UIV091Producer, createA2UIV091StreamIngestion, WEAVER_CORE_VERSION, createWeaverRuntime, type A2UIV091StreamIngestionEvent, type WeaverRuntime, type WeaverRuntimeSafetyConfig, type ResolutionBudgetExceededError } from "@cylayo/weaver-core";
 import { RendererRegistry, createBasicWebRuntime, createBrowserA2UIHttpSseTransport, createBasicCatalogRendererRegistrations, type BasicWebRuntime, type BasicWebRuntimeConfig, type DateTimeInputLocalValueRequest, type DateTimeInputLocalValueResult } from "@cylayo/weaver-web";
 import { createA2UIMcpClientBridge, registerMcpApplicationCapabilities } from "@cylayo/weaver-mcp";
-import { A2UI_V091_BASIC_CATALOG_ID, A2UI_V091_BASIC_PROMPT_EXAMPLES, WEAVER_TRACE_FORMAT, WEAVER_TRACE_REPLAY_INVALID_INPUT, createBasicCatalogV091Registration, createWeaverTraceRecorder, defineCatalog, describeWeaverError, generateA2UIV091Prompt, parseWeaverTrace, replayWeaverTrace, type A2UIPromptExampleInvalidError, type A2UIPromptGenerationError, type A2UIPromptGenerationErrorCode, type A2UIV091CatalogSchema, type A2UIV091PromptResult, type CatalogDefinition, type DescribableWeaverError, type WeaverErrorDescription, type WeaverRuntimeEvent, type WeaverRuntimeObserver, type WeaverTrace, type WeaverTraceEntry, type WeaverTraceParseResult, type WeaverTraceRecorder, type WeaverTraceRecorderOptions, type WeaverTraceReplayOptions, type WeaverTraceReplayResult, type WeaverTraceReplayStep } from "@cylayo/weaver-core";
+import { A2UI_V091_BASIC_CATALOG_ID, A2UI_V091_BASIC_PROMPT_EXAMPLES, WEAVER_TRACE_FORMAT, WEAVER_TRACE_REPLAY_INVALID_INPUT, createBasicCatalogV091Registration, createWeaverTraceRecorder, defineCatalog, describeWeaverError, generateA2UIV091Prompt, parseWeaverTrace, replayWeaverTrace, type A2UIV091PromptExampleInvalidError, type A2UIV091PromptGenerationError, type A2UIV091PromptGenerationErrorCode, type A2UIV091CatalogSchema, type A2UIV091PromptResult, type CatalogDefinition, type DescribableWeaverError, type WeaverErrorDescription, type WeaverRuntimeEvent, type WeaverRuntimeObserver, type WeaverTrace, type WeaverTraceEntry, type WeaverTraceParseResult, type WeaverTraceRecorder, type WeaverTraceRecorderOptions, type WeaverTraceReplayOptions, type WeaverTraceReplayResult, type WeaverTraceReplayStep } from "@cylayo/weaver-core";
 import { describeWebRenderError, type DescribableWebError, type WebRenderError } from "@cylayo/weaver-web";
 
 const version: string = WEAVER_CORE_VERSION;
@@ -36,9 +36,9 @@ const basicRegistrations = createBasicCatalogRendererRegistrations({ catalogId: 
 void [version, producerMessages, runtimeFactory, safetyConfig, budgetErrorCode, runtimeType, streamIngestionFactory, streamIngestionEventType, streamEvents, rendererRegistry, basicWebRuntimeFactory, basicWebRuntimeType, basicWebRuntimeConfigType, browserTransport, mcpBridge, applicationCapabilities, basicRegistrations];
 
 // Prompt generation, runtime observer, trace recorder and replay, and error descriptions (added in 0.3.0).
-const promptCodeType: A2UIPromptGenerationErrorCode = "CATALOG_INVALID";
-const promptErrorType = null as A2UIPromptGenerationError | null;
-const exampleInvalidType = null as A2UIPromptExampleInvalidError | null;
+const promptCodeType: A2UIV091PromptGenerationErrorCode = "CATALOG_INVALID";
+const promptErrorType = null as A2UIV091PromptGenerationError | null;
+const exampleInvalidType = null as A2UIV091PromptExampleInvalidError | null;
 const promptResultType = null as A2UIV091PromptResult | null;
 const catalogSchemaType = null as A2UIV091CatalogSchema | null;
 const catalogDefinitionType = null as CatalogDefinition | null;

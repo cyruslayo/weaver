@@ -25,7 +25,7 @@ snapshot the primary button colour.
   trusted catalog into the A2UI v0.9.1 model prompt, so the allowed components, functions
   and actions match the catalog the runtime enforces. `mode: "create"` (the default) or
   `mode: "edit"` adds the incremental-update section. It returns `{ ok: true, value: { text,
-  sections } }` or a typed `A2UIPromptGenerationError`, and never a partial prompt. Its
+  sections } }` or a typed `A2UIV091PromptGenerationError`, and never a partial prompt. Its
   error codes are `CATALOG_INVALID`, `ACTION_NAME_INVALID`, `PROMPT_TOO_LARGE` (default
   budget 24,000 characters) and `EXAMPLE_INVALID`. `EXAMPLE_INVALID` carries `stage`
   (`runtime`, `process` or `resolve`) and the Core error that caused it. See

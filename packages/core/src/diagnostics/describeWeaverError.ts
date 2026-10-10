@@ -20,9 +20,9 @@ import type {
   WeaverSurfaceResolutionError,
 } from "../runtime/index.js";
 import type {
-  A2UIPromptExampleInvalidError,
-  A2UIPromptGenerationError,
-  A2UIPromptSurfaceNotReadyCause,
+  A2UIV091PromptExampleInvalidError,
+  A2UIV091PromptGenerationError,
+  A2UIV091PromptSurfaceNotReadyCause,
 } from "../prompt/errors.js";
 import type { SurfaceStoreError } from "../surfaces/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
@@ -872,7 +872,7 @@ function runtimeConfigurationError(error: WeaverRuntimeConfigurationError): Erro
 // Entry point.
 // ---------------------------------------------------------------------------
 
-function promptGenerationError(error: A2UIPromptGenerationError): ErrorNode {
+function promptGenerationError(error: A2UIV091PromptGenerationError): ErrorNode {
   switch (error.code) {
     case "CATALOG_INVALID":
       return node(
@@ -911,7 +911,7 @@ function promptGenerationError(error: A2UIPromptGenerationError): ErrorNode {
   }
 }
 
-function surfaceNotReady(error: A2UIPromptSurfaceNotReadyCause): ErrorNode {
+function surfaceNotReady(error: A2UIV091PromptSurfaceNotReadyCause): ErrorNode {
   const issueCount = error.issues.tree.length + error.issues.instances.length + error.issues.properties.length;
   const gaps: string[] = [];
   if (!error.treeReady) gaps.push("the component tree is incomplete");
@@ -931,7 +931,7 @@ function surfaceNotReady(error: A2UIPromptSurfaceNotReadyCause): ErrorNode {
  * The example's typed cause is attached as a child node, so `causes` carries
  * the whole chain below it. `stage` decides which Core union that cause is.
  */
-function exampleInvalidError(error: A2UIPromptExampleInvalidError): ErrorNode {
+function exampleInvalidError(error: A2UIV091PromptExampleInvalidError): ErrorNode {
   const example = `example ${error.exampleIndex} ("${error.exampleTitle}")`;
   const hint = "Correct the example so it is valid A2UI v0.9.1 for this catalog, then generate the prompt again.";
   const message = trimPeriod(error.message);
@@ -1009,7 +1009,7 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "ACTION_NAME_INVALID":
     case "PROMPT_TOO_LARGE":
     case "EXAMPLE_INVALID":
-      return promptGenerationError(error as A2UIPromptGenerationError);
+      return promptGenerationError(error as A2UIV091PromptGenerationError);
     default:
       return unknownError(error);
   }
