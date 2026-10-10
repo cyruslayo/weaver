@@ -38,20 +38,24 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-061](issues/WVR-061-barchart-sizing.md) | BarChart keeps its label text readable at 360px and stays within a height cap at 1280px | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-062](issues/WVR-062-hanging-assertion.md) | No assert.* receives DOM nodes, so a failing Web test reports instead of hanging | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-063](issues/WVR-063-playground-row-css-e2e.md) | Exercise the playground inspector's Row layout rules with a trace that contains a Row | F Follow-ups | P2 | `ready` | — | S |
-| [WVR-064](issues/WVR-064-render-budget-error-surface-id.md) | Render-budget failures carry the surface id in describeWebRenderError | F Follow-ups | P2 | `ready` | — | S |
-| [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `ready` | — | M |
-| [WVR-066](issues/WVR-066-absolute-path-in-list-template.md) | An absolute path inside a List template renders empty with no diagnostic | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-064](issues/WVR-064-render-budget-error-surface-id.md) | Render-budget failures carry the surface id in describeWebRenderError | F Follow-ups | P2 | `in-review` | — | S |
+| [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `in-review` | — | M |
+| [WVR-066](issues/WVR-066-absolute-path-in-list-template.md) | An absolute path inside a List template renders empty with no diagnostic | F Follow-ups | P2 | `in-review` | — | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `gated` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 28, in-review: 0, ready: 8, gated: 4 (40 issues)
+**Totals:** done: 28, in-review: 3, ready: 5, gated: 4 (40 issues)
 
-## Start here (8 ready; 0 in-review; 28 done)
+## Start here (5 ready; 3 in-review; 28 done)
 
 As of 2026-10-10, WVR-034, WVR-055 and WVR-058 are merged to `main` in
-cyruslayo/weaver#27 (merge commit `dfb55dd`) and are `done`. Nothing is
-pushed from this board branch and no PR is open.
+cyruslayo/weaver#27 (merge commit `dfb55dd`) and are `done`.
+
+WVR-064, WVR-065 and WVR-066 are `in-review`. Each one is merged, with its
+own branch, into the local integration branch `wvr-integration-7`. That branch
+is not pushed and no PR is open. Each issue's Log and `docs/PLAN.md` tasks 88
+to 90 record its change. They wait for review and are not `done`.
 
 Ready, in lane order (pick the lowest ID inside the highest priority):
 
@@ -59,8 +63,8 @@ Roadmap lane:
 
 - **WVR-060**, P0, Release. Release prep 0.3.0: synchronized version bump, README and
   `docs/PLAN.md`. Its dependencies (WVR-016, 025, 033) are all `done`, so it stays `ready`.
-  Advice, not a dependency: wait for the follow-ups WVR-064, 065 and 066 to be `done` before
-  cutting 0.3.0. WVR-058 changes the default Basic primary colour (`#1177ee` to `#0969da`),
+  It should wait. Do not cut 0.3.0 until WVR-064, 065 and 066 are `done`. This is advice,
+  not a dependency. WVR-058 changes the default Basic primary colour (`#1177ee` to `#0969da`),
   a patch-level visual change for the 0.3.0 release notes (see its Log).
 
 F Follow-ups lane (no dependencies; all P2):
@@ -74,14 +78,6 @@ F Follow-ups lane (no dependencies; all P2):
   hanging. Touches Web test files in `packages/web` and the cookbook tests.
 - **WVR-063**, S. Exercise the playground inspector's Row layout rules with a trace that contains
   a Row. Touches `examples/playground/samples/`, `examples/playground/e2e/inspector.spec.ts`.
-- **WVR-064**, S. Render-budget failures from `describeWebRenderError()` carry the surface id, so
-  the cookbook fill-in can go. Touches `packages/web/src/surface/` (errors, renderer, describer)
-  and `examples/cookbook/src/screens/error-demo.ts`.
-- **WVR-065**, M. Decide what the store keeps after a render-budget failure, and make it visible.
-  Touches the cookbook error-demo tests and the render-error docs (`docs/web-rendering.md`,
-  `docs/debugging.md`).
-- **WVR-066**, S. An absolute path such as `/name` inside a List template renders empty with no
-  diagnostic. Touches `docs/architecture.md` (scope rules) and the core DataContext tests.
 
 Gated, do not start: WVR-056, WVR-080, WVR-081 and WVR-090. WVR-080 has all its dependencies
 `done`, but it is gated and is not promoted until its evidence gate is met.
@@ -105,9 +101,9 @@ E3: 031 → 032 → 033
               └→ 034 (also needs 024, 041)
 E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
-Release: {016, 025, 033} → 060 → 081 (gated); advice, not a dependency: 060 should wait for 064, 065, 066 to be done
+Release: {016, 025, 033} → 060 → 081 (gated); advice, not a dependency: 060 should wait for 064, 065, 066 to be done (all in-review)
 Bench:   {013, 044} → 080 (gated)
-F:       058 (done), 059, 061, 062, 063, 064, 065, 066 (no dependencies; 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration)
+F:       058 (done), 059, 061, 062, 063 (ready), 064, 065, 066 (in-review); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```
 
 ## Milestones
