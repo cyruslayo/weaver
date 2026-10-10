@@ -59,3 +59,9 @@ Merged.
   - Gate: `pnpm install`, `pnpm typecheck`, `pnpm build`, `pnpm test` (exit 0;
     core 413/413, web 133/133, mcp 10/10, cookbook 43/43, reference-app 3/3),
     `pnpm verify:packages` and `pnpm verify:worker-core` all exit 0.
+  - Mutation check (temporary, reverted, not committed): a catalog-invalid
+    frame that writes to the last good surface fails the new Core case at the
+    surface-snapshot assertion (`dataModel.name` `MUTATED` vs `Ada`). Skipping
+    `onError` fails the new Web case at `errors.length` (0 vs 1). Mutating the
+    Web DOM on a failed rerender kills the whole Web test file (SIGKILL), which
+    is a failure but not an assertion-level one.
