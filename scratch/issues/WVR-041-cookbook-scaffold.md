@@ -4,7 +4,7 @@ title: Scaffold examples/cookbook (Vite multi-page, deterministic agents, happy-
 epic: E4 Cookbook
 audit_ref: WVR-04, §4.F
 priority: P0
-status: in-review
+status: done
 depends_on: []
 estimate: M
 ---
@@ -60,3 +60,4 @@ Merged.
   `ACTION_INVALID` with no visible error. The harness does not catch this
   because it never sees the event. Note: `scratch/` was not tracked on this
   branch, so only this issue file was brought in from commit `e250867`.
+- 2026-10-10 merged in cyruslayo/weaver#20 (619d4ef)

@@ -4,7 +4,7 @@ title: Cookbook screen — validated form with server round-trip
 epic: E4 Cookbook
 audit_ref: WVR-04
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-041]
 estimate: M
 ---

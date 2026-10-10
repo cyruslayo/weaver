@@ -4,7 +4,7 @@ title: Web describeWebRenderError() for WebRenderError and interaction errors
 epic: E3 Error presentation
 audit_ref: WVR-03
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-031]
 estimate: S
 ---

@@ -4,7 +4,7 @@ title: Exercise the prompt generator inside the packed-Core workerd gate
 epic: E1 Prompt generation
 audit_ref: WVR-01, §3.2 (Core portability)
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-011]
 estimate: S
 ---

@@ -4,7 +4,7 @@ title: Cookbook screen — dashboard with data-model-only refresh
 epic: E4 Cookbook
 audit_ref: WVR-04, §4.B (changed-only updates), WVR-07 groundwork
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-041]
 estimate: M
 ---

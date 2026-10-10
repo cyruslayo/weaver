@@ -4,7 +4,7 @@ title: Define an app-owned cookbook catalog with defineCatalog()
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05, §4.E
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-041]
 estimate: S
 ---

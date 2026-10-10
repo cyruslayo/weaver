@@ -4,7 +4,7 @@ title: Add generateA2UIV091Prompt() to Core (API, types, errors, determinism)
 epic: E1 Prompt generation
 audit_ref: WVR-01, §4.A, §4.B
 priority: P0
-status: in-review
+status: done
 depends_on: []
 estimate: M
 ---
@@ -101,3 +101,4 @@ PLAN.md has a task entry.
 
 ## Log
 - 2026-10-10: Implemented on branch `wvr-011-prompt-generator`. Added `packages/core/src/prompt/` (`generateA2UIV091Prompt`, types, typed errors, tests). Exported it from `packages/core/src/index.ts` and registered `dist/prompt/generateA2UIV091Prompt.test.js` in the core `test` script. `pnpm --filter @cylayo/weaver-core test` passes 335/335, with 28 new prompt tests. `pnpm typecheck` passes. The Basic prompt is 15,525 characters and lists all 18 components. Not done here: the docs/PLAN.md task entry (the orchestrator handles it) and the scratch/BOARD.md update.
+- 2026-10-10 merged in cyruslayo/weaver#20 (619d4ef)

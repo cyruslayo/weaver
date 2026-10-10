@@ -4,7 +4,7 @@ title: Validate prompt examples through a scratch runtime before emitting them
 epic: E1 Prompt generation
 audit_ref: WVR-01
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-011]
 estimate: S
 ---

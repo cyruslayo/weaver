@@ -4,7 +4,7 @@ title: createWeaverTraceRecorder + weaver-trace v1 format + ingestion frame-erro
 epic: E2 Trace and replay
 audit_ref: WVR-02
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-021]
 estimate: M
 ---

@@ -4,7 +4,7 @@ title: Add opt-in observer hook to WeaverRuntime
 epic: E2 Trace and replay
 audit_ref: WVR-02, §4.D
 priority: P0
-status: in-review
+status: done
 depends_on: []
 estimate: M
 ---
@@ -85,3 +85,4 @@ Merged. PLAN.md task entry added.
   - Not done: `docs/PLAN.md` task entry and `BOARD.md` status, both left to the
     orchestrator as instructed. The `scratch/` tracker is not in this git
     tree, so this log lives in an uncommitted file in this worktree.
+- 2026-10-10 merged in cyruslayo/weaver#20 (619d4ef)

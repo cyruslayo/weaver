@@ -4,7 +4,7 @@ title: Fix stale package names and status in docs/PLAN.md; add roadmap pointer
 epic: E0 Housekeeping
 audit_ref: —
 priority: P0
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -54,3 +54,4 @@ Merged to main. BOARD updated.
   - Added "Roadmap: OpenUI-informed improvements" to `docs/PLAN.md`. It links to `../scratch/ROADMAP.md` and `../scratch/BOARD.md` and has a one-line summary for E1 to E5. It notes that the remaining audit items are gated.
   - `pnpm install` and `pnpm typecheck` pass. No code changed. `scratch/BOARD.md` was not edited (the orchestrator owns it).
   - Not run: the full CI gate (`check:generated`, `test`, `build`, conformance). It is docs-only, and the issue's verification calls for typecheck only.
+- 2026-10-10 merged in cyruslayo/weaver#20 (619d4ef)
