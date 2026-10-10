@@ -27,15 +27,65 @@ import type {
   WeaverInputResult,
   WeaverRuntimeConfig,
   WeaverRuntimeCreationResult,
+  WeaverRuntimeEvent,
+  WeaverRuntimeObserver,
   WeaverSurfaceResolutionResult,
   WeaverSurfaceSubscriber,
 } from "./types.js";
+import type { JsonValue } from "../protocol/index.js";
 
 function cloneRuntimeJson<T>(value: T): T {
   // SAFETY: runtime snapshots cloned here are JSON-shaped protocol values.
   return cloneJson(
     value as unknown as import("../protocol/index.js").JsonValue,
   ) as unknown as T;
+}
+
+/**
+ * Returns true when the value is JSON-safe: finite numbers, strings, booleans,
+ * null, arrays, and plain objects, with no cycles and no undefined members.
+ * Iterative, so deep or cyclic host input cannot exhaust the stack or hang.
+ */
+function isJsonValue(root: unknown): boolean {
+  const stack: { value: unknown; leave: boolean }[] = [
+    { value: root, leave: false },
+  ];
+  const ancestors = new Set<object>();
+  while (stack.length > 0) {
+    const frame = stack.pop()!;
+    if (frame.leave) {
+      ancestors.delete(frame.value as object);
+      continue;
+    }
+    const value = frame.value;
+    if (value === null || typeof value === "string" || typeof value === "boolean")
+      continue;
+    if (typeof value === "number") {
+      if (Number.isFinite(value)) continue;
+      return false;
+    }
+    if (typeof value !== "object" || ancestors.has(value)) return false;
+    const isArray = Array.isArray(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (!isArray && prototype !== Object.prototype && prototype !== null)
+      return false;
+    ancestors.add(value);
+    stack.push({ value, leave: true });
+    const children: unknown[] = isArray
+      ? Array.from(value as unknown[])
+      : Object.keys(value).map((key) => (value as Record<string, unknown>)[key]);
+    for (const child of children) stack.push({ value: child, leave: false });
+  }
+  return true;
+}
+
+/**
+ * Copies a value for an observer. A value the validator rejected that is not
+ * JSON-safe is replaced with a marker, so the copy never walks hostile data.
+ */
+function observedValue(value: unknown, accepted: boolean): JsonValue {
+  if (!accepted && !isJsonValue(value)) return { unserializable: true };
+  return cloneRuntimeJson(value as JsonValue);
 }
 
 interface RuntimeServices {
@@ -50,6 +100,7 @@ interface RuntimeServices {
   inputs: InputBindingWriter;
   actions: ActionDispatcher;
   safety: import("./safety.js").ResolutionSafetyPolicy;
+  observer?: WeaverRuntimeObserver;
 }
 
 export class WeaverRuntime {
@@ -60,8 +111,28 @@ export class WeaverRuntime {
     this.#services = services;
   }
 
+  /**
+   * Delivers an event to the observer. The event is built lazily, so nothing is
+   * copied when no observer is configured. Observer exceptions are ignored.
+   */
+  #observe(build: () => WeaverRuntimeEvent): void {
+    const observer = this.#services.observer;
+    if (observer === undefined) return;
+    try {
+      observer(build());
+    } catch {
+      // An observer must never change runtime results or state.
+    }
+  }
+
   process(input: unknown): ReturnType<A2UIMessageProcessor["process"]> {
-    return this.#services.processor.process(input);
+    const result = this.#services.processor.process(input);
+    this.#observe(() => ({
+      kind: "message",
+      input: observedValue(input, result.ok),
+      result: cloneRuntimeJson(result),
+    }));
+    return result;
   }
 
   processMany(
@@ -139,6 +210,32 @@ export class WeaverRuntime {
   }
 
   writeInput(request: WeaverInputRequest): WeaverInputResult {
+    const result = this.#writeInput(request);
+    this.#observe(() => ({
+      kind: "input",
+      request: {
+        surfaceId: request.surfaceId,
+        sourceComponentId: request.sourceComponentId,
+        scopePath: request.scopePath,
+        property: request.property,
+        value: observedValue(request.value, result.ok),
+      },
+      result: cloneRuntimeJson(result),
+    }));
+    return result;
+  }
+
+  dispatchAction(request: WeaverActionRequest): WeaverActionResult {
+    const result = this.#dispatchAction(request);
+    this.#observe(() => ({
+      kind: "action",
+      request: cloneRuntimeJson(request),
+      result: cloneRuntimeJson(result),
+    }));
+    return result;
+  }
+
+  #writeInput(request: WeaverInputRequest): WeaverInputResult {
     const current = this.#resolveCurrentInstance(request);
     if (!current.ok) return current;
     const written = this.#services.inputs.write({
@@ -155,7 +252,7 @@ export class WeaverRuntime {
         };
   }
 
-  dispatchAction(request: WeaverActionRequest): WeaverActionResult {
+  #dispatchAction(request: WeaverActionRequest): WeaverActionResult {
     const current = this.#resolveCurrentInstance(request);
     if (!current.ok) return current;
     const dispatched = this.#services.actions.dispatch({
@@ -322,6 +419,7 @@ export function createWeaverRuntime(
         ...(config.now === undefined ? {} : { now: config.now }),
       }),
       safety: safety.value,
+      ...(config.observer === undefined ? {} : { observer: config.observer }),
     }),
   };
 }

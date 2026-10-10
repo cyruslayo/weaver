@@ -44,6 +44,16 @@ test("creates the canonical Basic Web runtime with the canonical catalog ID", ()
   assert.equal(created.value.catalogId, A2UI_V091_BASIC_CATALOG_ID);
 });
 
+test("passes the runtime observer through to the Core runtime it creates", () => {
+  const kinds: string[] = [];
+  const created = createBasicWebRuntime({ runtime: { observer: (event) => kinds.push(event.kind) } });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+  for (const input of message("observed", created.value.catalogId)) assert.equal(created.value.runtime.process(input).ok, true);
+  assert.equal(created.value.runtime.writeInput({ surfaceId: "observed", sourceComponentId: "root", scopePath: "/", property: "value", value: "x" }).ok, false);
+  assert.deepEqual(kinds, ["message", "message", "input"]);
+});
+
 test("cannot override the canonical Basic renderer catalog ID at runtime", () => {
   const maliciousBasic = { catalogId: "attacker-controlled" };
   const created = createBasicWebRuntime({ basic: maliciousBasic as BasicWebRuntimeConfig["basic"] });
