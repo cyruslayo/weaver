@@ -245,6 +245,18 @@ Complete, pending review. Adds `docs/custom-catalogs.md`, a six-step recipe whos
 
 Complete, pending review. Adds a framework-free diagnostics panel, shared by the inspector and the cookbook. It lives in the new private `@weaver/shared` workspace package (`examples/shared`), which is not packed or published; `pnpm pack:packages` still produces the three public tarballs. Adds the cookbook Error demo screen, which feeds three bad updates and shows the diagnostics beside the last good render.
 
+## Task 88 — Render-budget errors carry the surface id (WVR-064)
+
+Complete, pending review. Additive optional `surfaceId` on the Web SURFACE_RESOLUTION_FAILED error; describeWebRenderError prefers it.
+
+## Task 89 — Store and DOM after a render-budget failure (WVR-065)
+
+Complete, pending review. Documented and pinned: after a failed render the store keeps the accepted data and the DOM keeps the last good render; no behaviour change; deferred options recorded.
+
+## Task 90 — Absolute paths inside a List template (WVR-066)
+
+Complete, pending review. Documented and pinned: absolute path inside a template resolves from the DataModel root; no behaviour change.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

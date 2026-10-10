@@ -675,6 +675,18 @@ Collection-item scope
     └── absolute paths still resolve from the DataModel root
 ```
 
+**Inside a template, a leading slash means the DataModel root.** A List template
+item's own field is written without a slash: `{ "path": "name" }` reads `name`
+from the current item. `{ "path": "/name" }` reads `name` from the DataModel
+root, not from the item. If the root has no `name`, the text renders empty, the
+render succeeds, and no diagnostic is raised. Weaver does not report this, because
+an absolute path can legitimately point at missing data. This is pinned by a
+regression test in `packages/core/src/data-context/DataContext.test.ts`
+(WVR-066). Authors can find the troubleshooting entry in
+[Debugging: symptom, template text is empty with no error](debugging.md#symptom-template-text-is-empty-with-no-error),
+and the List guidance in the
+[cookbook README](../examples/cookbook/README.md#paths-inside-a-template).
+
 A relative path at root returns `RELATIVE_PATH_OUTSIDE_COLLECTION`; Weaver does
 not guess sender intent. Creating an item scope first resolves its collection
 path, which may itself be relative. Nested collections therefore compose paths

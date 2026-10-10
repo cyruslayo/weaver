@@ -375,6 +375,38 @@ const description = describeWebRenderError(failure);
 console.log(description.code, description.componentId, description.hint);
 ```
 
+A `SURFACE_RESOLUTION_FAILED` error carries `surfaceId`, the id of the surface that failed to render, and its description has the same `surfaceId`. That includes a render-budget failure, where the surface has more components than the budget allows. The host does not need to add the id itself.
+
+## Symptoms and fixes
+
+### Symptom: template text is empty with no error
+
+A List template renders its items, but a Text inside each item is blank. The
+render reports no error, `resolveSurface` is ok, and `describeWeaverError` has
+nothing to describe.
+
+**Cause.** The Text binds an absolute path, such as `{ "path": "/name" }`. Inside
+a template, a leading slash means the DataModel root, not the current item. The
+root has no `name`, so the value is absent. The render treats that as valid data,
+so no error is raised.
+
+**Fix.** Write the item's own field without a slash:
+
+```json
+{ "id": "ticketName", "component": "Text", "text": { "path": "name" } }
+```
+
+Use a leading slash only for a value that really lives at the DataModel root. See
+[the scope rules in the architecture doc](architecture.md#derived-data-scopes) and
+[the cookbook's paths-inside-a-template note](../examples/cookbook/README.md#paths-inside-a-template).
+
+Weaver does not add a diagnostic for this case, because an absolute path can
+legitimately point at missing data, and Weaver does not guess author intent.
+The render-level behaviour is pinned by
+[`list-template-paths.test.ts`](../examples/cookbook/src/list-template-paths.test.ts),
+which mounts both forms and checks the item text, the render error count, and
+`resolveSurface`.
+
 ## Security and privacy
 
 - **What a trace contains.** Every `message` value, every `input` value (text a
@@ -419,6 +451,31 @@ last good render.
 **Promotion rule:** move the panel into `@cylayo/weaver-web` only when an adopting host
 asks for it. Until then it stays in examples, so the published API does not grow to suit
 a demo. A host that needs it earlier can copy the module, which is small.
+
+## Render failures and the stale DOM
+
+A render failure is not a rejected update. Core accepts the data first, so the store
+takes it, and then the render fails. The surface keeps the last good render. For example,
+a 70-row list over a 64-instance budget fails with `SURFACE_RESOLUTION_FAILED`, and the
+store holds 70 rows while the DOM still shows the previous list. The
+[web rendering guide](web-rendering.md#render-failures-and-the-last-good-render) gives the
+full rule. In practice:
+
+- **Detect it.** Pass `onError` to `mount()`. It runs once per failed render with a
+  `WebRenderError`. Give that error to `describeWebRenderError()` for the code, summary,
+  and hint to show. Do not parse the error text.
+- **Do not trust the visible state.** The DOM is the last good render, and the store may
+  hold newer data. Controls in that DOM are not live. An interaction from them returns
+  `STALE_RENDER_INTERACTION` and never reaches Core. A host that keeps the stale DOM on
+  screen should say so in the UI.
+- **Recovery.** The next render that succeeds re-syncs the DOM to the store. A corrective
+  update that fits the budget does this. A status-only update does not, while the
+  over-budget list is still in the store, because that render fails too and calls
+  `onError` again.
+- **Test it.** Compare the store (`getSurface(surfaceId).dataModel`) and the DOM text in
+  your tests, and compare strings and booleans only. A failing assertion on a DOM node
+  can hang under happy-dom. The cookbook
+  [error demo test](../examples/cookbook/src/screens/error-demo.test.ts) shows the pattern.
 
 ## Related documents
 

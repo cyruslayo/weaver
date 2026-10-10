@@ -48,12 +48,20 @@ function leaf(code: string, summary: string, hint?: string): WeaverErrorDescript
   };
 }
 
-/** Wraps a Core description as a child of a Web code, reusing its location when the wrapper has none. */
-function wrapCoreDescription(code: string, summary: string, inner: WeaverErrorDescription): WeaverErrorDescription {
+/**
+ * Wraps a Core description as a child of a Web code, reusing its location when the wrapper has none.
+ * A surface id the Web layer knows (`preferredSurfaceId`) wins over Core's id.
+ */
+function wrapCoreDescription(
+  code: string,
+  summary: string,
+  inner: WeaverErrorDescription,
+  preferredSurfaceId?: string,
+): WeaverErrorDescription {
   const flat = [inner, ...inner.causes];
   const pick = <K extends keyof Location>(key: K): string | undefined =>
     flat.find((candidate) => candidate[key] !== undefined)?.[key];
-  const surfaceId = pick("surfaceId");
+  const surfaceId = preferredSurfaceId ?? pick("surfaceId");
   const componentId = pick("componentId");
   const scopePath = pick("scopePath");
   return {
@@ -79,6 +87,7 @@ function describeWebError(error: DescribableWebError): WeaverErrorDescription {
         "SURFACE_RESOLUTION_FAILED",
         "The surface could not be resolved, so it was not rendered.",
         describeWeaverError(error.cause),
+        error.surfaceId,
       );
     case "THEME_ADAPTER_FAILED":
       return leaf(

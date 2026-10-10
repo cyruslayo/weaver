@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
-import { ERROR_DEMO_SURFACE_ID, errorDemoBadUpdates, mountErrorDemo } from "./error-demo.js";
+import { createA2UIV091Producer } from "@cylayo/weaver-core";
+import { describeWebRenderError, type WebRenderError } from "@cylayo/weaver-web";
+import { encodeA2UIMessage, mountCookbookScreen, type CookbookScreen } from "../shared/harness.js";
+import {
+  ERROR_DEMO_SURFACE_ID,
+  errorDemoBadUpdates,
+  errorDemoScreen,
+  mountErrorDemo,
+  type ErrorDemoState,
+} from "./error-demo.js";
 
 function mount() {
   const window = new Window();
@@ -52,6 +61,7 @@ test("the render failure is attributed to the frame that caused it, and names th
   const render = run.descriptions.find((description) => description.code === "SURFACE_RESOLUTION_FAILED");
   assert.ok(render !== undefined);
   assert.equal(render.frame, 6);
+  // The screen no longer adds this id: the value comes from describeWebRenderError() in the library.
   assert.equal(render.surfaceId, ERROR_DEMO_SURFACE_ID);
 });
 
@@ -70,4 +80,73 @@ test("the panel is rendered beside the surface, and it is not inside it", () => 
   // Booleans only: a failing assertion on a DOM node would hang under happy-dom.
   assert.equal(surface.querySelector(".diagnostics-panel") === null, true);
   assert.equal(panel.querySelector(".diagnostics-panel") !== null, true);
+});
+
+/** Mounts the error demo screen alone, so each push can be observed and every render error kept. */
+function mountObserved() {
+  const window = new Window();
+  const surface = window.document.body.appendChild(window.document.createElement("div")) as unknown as Element;
+  const renderErrors: WebRenderError[] = [];
+  const screen = mountCookbookScreen(surface, errorDemoScreen, {
+    onRenderError: (error) => {
+      renderErrors.push(error);
+    },
+  });
+  return { surface, screen, renderErrors };
+}
+
+/** One field of the runtime's store for the error demo surface, read as the runtime holds it. */
+function storeValue(screen: CookbookScreen<ErrorDemoState>, key: "items" | "status"): unknown {
+  const model = screen.web.runtime.getSurface(ERROR_DEMO_SURFACE_ID)?.dataModel as Record<string, unknown> | undefined;
+  return model?.[key];
+}
+
+function storeItemCount(screen: CookbookScreen<ErrorDemoState>): number {
+  const items = storeValue(screen, "items");
+  return Array.isArray(items) ? items.length : -1;
+}
+
+test("a render failure keeps the accepted data in the store and the last good render in the DOM", () => {
+  const { surface, screen, renderErrors } = mountObserved();
+  // Strings and booleans only: a failing assertion on a DOM node would hang under happy-dom.
+  const lastGoodText = surface.textContent ?? "";
+  const tooLong = errorDemoBadUpdates()[2]!;
+
+  const events = screen.stream.push(tooLong.chunk);
+  assert.equal(events.every((event) => event.ok), true, "the 70-row update is valid JSON and A2UI");
+  assert.equal(renderErrors.length, 1, "the render fails once");
+  assert.equal(describeWebRenderError(renderErrors[0]!).code, "SURFACE_RESOLUTION_FAILED");
+  assert.equal(storeItemCount(screen), 70, "the store keeps the accepted 70 rows");
+  assert.equal(surface.textContent ?? "", lastGoodText, "the DOM equals the last good render");
+  assert.equal((surface.textContent ?? "").includes("Ticket 70"), false, "the rejected rows are not rendered");
+});
+
+test("a still-over-budget update keeps failing, and a corrective update re-syncs the store and the DOM", () => {
+  const { surface, screen, renderErrors } = mountObserved();
+  const producer = createA2UIV091Producer();
+  const lastGoodText = surface.textContent ?? "";
+  screen.stream.push(errorDemoBadUpdates()[2]!.chunk);
+
+  // A status-only update still renders the 70-row store, so it fails the same budget.
+  const statusEvents = screen.stream.push(
+    encodeA2UIMessage(producer.updateDataModel({ surfaceId: ERROR_DEMO_SURFACE_ID, path: "/status", value: "Status only" })),
+  );
+  assert.equal(statusEvents.every((event) => event.ok), true);
+  assert.equal(renderErrors.length, 2, "a status-only update still fails");
+  assert.equal(describeWebRenderError(renderErrors[1]!).code, "SURFACE_RESOLUTION_FAILED");
+  assert.equal(storeValue(screen, "status"), "Status only", "the store takes the status");
+  assert.equal(storeItemCount(screen), 70, "the store still holds the 70 rows");
+  assert.equal(surface.textContent ?? "", lastGoodText, "the DOM still shows the last good render");
+
+  const good = [{ name: "Login fails on Safari" }, { name: "Invoice PDF is blank" }, { name: "Add dark mode" }];
+  const correctiveEvents = screen.stream.push(
+    encodeA2UIMessage(producer.updateDataModel({ surfaceId: ERROR_DEMO_SURFACE_ID, path: "/items", value: good })),
+  );
+  assert.equal(correctiveEvents.every((event) => event.ok), true);
+  assert.equal(renderErrors.length, 2, "the corrective update renders without a new error");
+  assert.equal(storeItemCount(screen), 3, "the store holds the three good tickets");
+  const text = surface.textContent ?? "";
+  assert.equal(text.includes("Invoice PDF is blank"), true, "the DOM re-syncs to the store");
+  assert.equal(text.includes("Status only"), true, "the DOM shows the status the store holds");
+  assert.equal(text.includes("Ticket 70"), false, "the rejected rows are gone");
 });

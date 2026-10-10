@@ -60,6 +60,7 @@ function errorDemoComponents(): A2UIComponent[] {
       children: { componentId: "ticketName", path: "/items" },
     } as unknown as A2UIComponent,
     // A template item binds relative to its own scope, so the path has no leading slash.
+    // A leading slash reads the DataModel root and renders empty; see docs/debugging.md (WVR-066).
     { id: "ticketName", component: "Text", text: { path: "name" } },
   ];
 }
@@ -132,11 +133,10 @@ export function mountErrorDemo(surface: Element, panel: HTMLElement): ErrorDemoR
     }
     const frame = events.find((event) => event.ok)?.frame;
     for (const error of renderErrors) {
-      // The budget failure carries no surface id, so the host adds the id of the surface it mounted.
+      // The Web error carries the id of the surface that failed, so the library's description names it.
       const described = describeWebRenderError(error);
       descriptions.push({
         ...described,
-        surfaceId: described.surfaceId ?? ERROR_DEMO_SURFACE_ID,
         ...(frame === undefined ? {} : { frame }),
       });
     }
