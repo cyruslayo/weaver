@@ -61,8 +61,44 @@ pnpm --filter @weaver/cookbook build
 pnpm --filter @weaver/cookbook typecheck
 ```
 
+### Browser smoke test (Playwright)
+
+`e2e/*.spec.ts` checks the three screens in a real Chromium, which happy-dom
+cannot do. For each screen, at 1280px and 360px, it checks:
+
+- no horizontal page scroll (`scrollWidth <= innerWidth`);
+- real Tab presses reach every enabled control, in DOM order, and each control
+  shows a visible focus indicator when Tab first reaches it (a radio group is one stop);
+- the primary flow works by keyboard (for example, Enter submits the form, and
+  arrow keys choose a radio option).
+
+```sh
+pnpm --filter @weaver/cookbook e2e
+```
+
+The script builds the cookbook, type-checks the e2e files, and runs Playwright.
+Playwright starts `vite preview` on port 4173 itself. Run `pnpm build` at the
+repository root first, because the cookbook uses the built `@cylayo/weaver-core`
+and `@cylayo/weaver-web` packages.
+
+The browser comes from `PLAYWRIGHT_BROWSERS_PATH`, or from
+`PW_CHROMIUM_EXECUTABLE` when that is set to a Chromium binary. Never run
+`playwright install`. The pinned `@playwright/test` is 1.56.1, which matches
+the preinstalled Chromium 141 in cloud sessions, where `PW_CHROMIUM_EXECUTABLE`
+can be `/opt/pw-browsers/chromium`.
+
+The e2e run is not part of the required CI gate (`.github/workflows/ci.yml`).
+CI must not download browsers. Once the run has been green for 10 consecutive
+local runs with no flakes, add a follow-up job that installs Chromium with
+`playwright install --with-deps chromium`, runs `pnpm --filter @weaver/cookbook e2e`,
+and uploads `playwright-report/` on failure.
+
+Failing checks are real findings and are not skipped. Each failure names the
+screen, the viewport and the control. Known failures are listed in
+`scratch/issues/WVR-045-cookbook-playwright-smoke.md`.
+
 The cookbook depends only on `@cylayo/weaver-core`, `@cylayo/weaver-web`, Vite,
-and happy-dom. It has no routing, persistence, accounts, networking, backend,
+and happy-dom. `@playwright/test` is a devDependency for the browser smoke test only. It has no routing, persistence, accounts, networking, backend,
 custom catalog, or framework.
 
 ## Custom catalog
