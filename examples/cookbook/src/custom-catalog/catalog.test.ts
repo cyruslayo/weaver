@@ -238,7 +238,7 @@ test("DataTable rejects a rows value of the wrong shape", () => {
   }
 });
 
-test("a component outside the cookbook catalog is rejected, so one surface uses one catalog", () => {
+test("Button is declared by the cookbook catalog, so a Button message is accepted", () => {
   const components: A2UIComponent[] = [
     { id: "root", component: "Column", children: ["button"] },
     {
@@ -250,7 +250,18 @@ test("a component outside the cookbook catalog is rejected, so one surface uses 
     { id: "label", component: "Text", text: "Go" },
   ];
   const result = processComponents(components);
-  assert.equal(result.ok, false, "Button is not declared by the cookbook catalog");
+  assert.equal(result.ok, true, JSON.stringify(result));
+});
+
+test("a component outside the cookbook catalog is rejected, so one surface uses one catalog", () => {
+  // Divider is a valid Basic component that this catalog does not declare, so only the catalog membership fails.
+  const components: A2UIComponent[] = [
+    { id: "root", component: "Column", children: ["rule", "label"] },
+    { id: "rule", component: "Divider" },
+    { id: "label", component: "Text", text: "Go" },
+  ];
+  const result = processComponents(components);
+  assert.equal(result.ok, false, "Divider is not declared by the cookbook catalog");
 });
 
 test("the generated prompt lists DataTable and BarChart and no undeclared component", () => {
@@ -263,10 +274,10 @@ test("the generated prompt lists DataTable and BarChart and no undeclared compon
   const headings = [...components.text.matchAll(/^### (\w+)$/gm)].map((match) => match[1]);
   assert.deepEqual(
     [...headings].sort(),
-    ["BarChart", "Card", "Column", "DataTable", "Text"],
+    ["BarChart", "Button", "Card", "Column", "DataTable", "Text"],
     "only the components this catalog declares appear",
   );
-  for (const undeclared of ["Button", "Row", "List", "TextField", "Tabs", "Modal"]) {
+  for (const undeclared of ["Divider", "Row", "List", "TextField", "Tabs", "Modal"]) {
     assert.doesNotMatch(result.value.text, new RegExp(`^### ${undeclared}$`, "m"));
   }
 

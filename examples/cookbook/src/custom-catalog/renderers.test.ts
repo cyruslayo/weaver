@@ -7,7 +7,7 @@ import { COOKBOOK_CATALOG_ID, cookbookCatalog } from "./catalog.js";
 import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 
 const SURFACE_ID = "cookbook-renderers";
-const COOKBOOK_COMPONENTS = ["Column", "Text", "Card", "DataTable", "BarChart"] as const;
+const COOKBOOK_COMPONENTS = ["Column", "Text", "Card", "Button", "DataTable", "BarChart"] as const;
 
 test("the single registration list covers all five cookbook components exactly once", () => {
   for (const component of COOKBOOK_COMPONENTS) {

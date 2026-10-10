@@ -96,20 +96,20 @@ function bodyRows(target: Element): HTMLTableRowElement[] {
   return [...table(target).querySelectorAll<HTMLTableRowElement>("tbody > tr")];
 }
 
-test("the cookbook renderer list gives the cookbook catalog Text, Column, Card and DataTable", () => {
+test("the cookbook renderer list gives the cookbook catalog Text, Column, Card, Button and DataTable", () => {
   const registry = new RendererRegistry(cookbookCatalogRendererRegistrations);
-  for (const component of ["Text", "Column", "Card", DATA_TABLE_COMPONENT]) {
+  for (const component of ["Text", "Column", "Card", "Button", DATA_TABLE_COMPONENT]) {
     assert.equal(registry.has(COOKBOOK_CATALOG_ID, component), true, `${component} under the cookbook id`);
   }
-  for (const component of ["Button", "TextField", "Tabs", "Modal"]) {
+  for (const component of ["TextField", "Tabs", "Modal"]) {
     assert.equal(registry.has(COOKBOOK_CATALOG_ID, component), false, `${component} is not a cookbook renderer`);
   }
   assert.equal(registry.has(BASIC_CATALOG_ID, DATA_TABLE_COMPONENT), false, "DataTable is never added to Basic");
 });
 
-test("Text, Column and Card under the cookbook id reuse the Basic renderer functions", () => {
+test("Text, Column, Card and Button under the cookbook id reuse the Basic renderer functions", () => {
   const basic = createBasicCatalogRendererRegistrations({ catalogId: BASIC_CATALOG_ID });
-  for (const component of ["Text", "Column", "Card"]) {
+  for (const component of ["Text", "Column", "Card", "Button"]) {
     const basicRender = basic.find((registration) => registration.component === component)?.render;
     const cookbookRender = cookbookCatalogRendererRegistrations.find(
       (registration) => registration.catalogId === COOKBOOK_CATALOG_ID && registration.component === component,
@@ -165,6 +165,15 @@ test("the rendered table is read-only: it contains no button and no interactive 
     0,
     "no focusable or interactive element is rendered inside the table",
   );
+});
+
+test("the scroll wrapper is one named, focusable region, so keyboard users can scroll hidden columns", () => {
+  const { target } = mountTable();
+  const wrapper = target.querySelector('[data-cookbook-component="DataTable"]');
+  assert.ok(wrapper !== null, "the DataTable wrapper is rendered");
+  assert.equal(wrapper?.getAttribute("role"), "region");
+  assert.equal(wrapper?.getAttribute("tabindex"), "0");
+  assert.equal(wrapper?.getAttribute("aria-label"), table(target).querySelector("caption")?.textContent);
 });
 
 test("an empty row list renders one labelled empty row and no buttons", () => {

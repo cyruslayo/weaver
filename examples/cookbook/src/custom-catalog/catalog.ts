@@ -7,7 +7,7 @@ import {
 
 /**
  * The app-owned cookbook catalog: DataTable and BarChart, plus the layout
- * primitives (Column, Text, Card) that the screen needs.
+ * primitives (Column, Text, Card) and the Button that the screens need.
  *
  * ONE CATALOG PER SURFACE. A surface is created with exactly one catalogId,
  * so this catalog must declare every component the surface uses. It does not
@@ -169,12 +169,13 @@ export const cookbookCatalogSchema = {
   $id: COOKBOOK_CATALOG_ID,
   title: "Weaver Cookbook Catalog",
   description:
-    "App-owned components for the cookbook screens: DataTable and BarChart, plus the Column, Text, and Card layout primitives.",
+    "App-owned components for the cookbook screens: DataTable and BarChart, plus the Column, Text, Card, and Button primitives.",
   catalogId: COOKBOOK_CATALOG_ID,
   components: {
     Column: basicComponent("Column"),
     Text: basicComponent("Text"),
     Card: basicComponent("Card"),
+    Button: basicComponent("Button"),
     DataTable: dataTable,
     BarChart: barChart,
   },
