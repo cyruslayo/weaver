@@ -94,8 +94,8 @@ local runs with no flakes, add a follow-up job that installs Chromium with
 and uploads `playwright-report/` on failure.
 
 Failing checks are real findings and are not skipped. Each failure names the
-screen, the viewport and the control. Known failures are listed in
-`scratch/issues/WVR-045-cookbook-playwright-smoke.md`.
+screen, the viewport and the control. The 360px layout of the Row containers is
+handled by the scoped rules at the end of `src/shared/style.css`.
 
 The cookbook depends only on `@cylayo/weaver-core`, `@cylayo/weaver-web`, Vite,
 and happy-dom. `@playwright/test` is a devDependency for the browser smoke test only. It has no routing, persistence, accounts, networking, backend,

@@ -37,3 +37,30 @@ main {
   border-radius: 0.75rem;
   padding: 1rem;
 }
+
+/*
+ * The Basic Row renders a non-wrapping flex line, and its children keep their
+ * content width. At 360px, the KPI tiles and the three ticket columns then
+ * overflow the page. Rows wrap, and children may shrink, so narrow screens
+ * stack the items. Desktop widths keep the single line.
+ */
+[data-weaver-mount] [data-a2ui-component="Row"] {
+  flex-wrap: wrap;
+}
+
+[data-weaver-mount] [data-a2ui-component="Row"] > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/*
+ * Ticket columns and KPI tiles get a basis, so three of them share a desktop
+ * line and wrap only when the line is too narrow. The tile weight stays inline.
+ */
+[data-weaver-mount] [data-a2ui-component="Row"] > [data-a2ui-component="Column"] {
+  flex: 1 1 12rem;
+}
+
+[data-weaver-mount] [data-a2ui-component="Row"] > [data-a2ui-component="Card"] {
+  flex-basis: 8rem;
+}
