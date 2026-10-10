@@ -259,6 +259,73 @@ test("a changed error code in the trace is reported as a divergence", () => {
   assert.equal(replay.steps.filter((step) => step.diverged).length, 1);
 });
 
+test("a session spanning two surfaces replays with zero divergence and every surface equal to the original", () => {
+  const recorder = createWeaverTraceRecorder();
+  const original = runtimeWith({ observer: recorder.observer });
+  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
+  original.process(producer.createSurface({ surfaceId: "other", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
+  original.process(producer.updateComponents({
+    surfaceId: "main",
+    components: [
+      { id: "root", component: "Column", children: ["name"] },
+      { id: "name", component: "TextField", value: { path: "/name" }, label: "Name" },
+    ],
+  }));
+  original.process(producer.updateComponents({
+    surfaceId: "other",
+    components: [{ id: "root", component: "Text", text: { path: "/title" } }],
+  }));
+  original.process(producer.updateDataModel({ surfaceId: "other", path: "/title", value: "Hello" }));
+  assert.equal(original.writeInput({
+    surfaceId: "main", sourceComponentId: "name", scopePath: "/", property: "value", value: "Grace",
+  }).ok, true);
+
+  const trace = storedTrace(recorder.getTrace());
+  const replay = replayWeaverTrace(trace, { runtime: runtimeWith() });
+
+  assert.equal(replay.steps.length, 6);
+  assert.deepEqual(replay.steps.map((step) => step.diverged), [false, false, false, false, false, false]);
+  assert.deepEqual(Object.keys(replay.surfaces).sort(), ["main", "other"]);
+  for (const surfaceId of ["main", "other"]) {
+    assert.deepEqual(replay.surfaces[surfaceId], original.getSurface(surfaceId), `surface ${surfaceId}`);
+  }
+  assert.deepEqual(replay.surfaces.other?.dataModel, { title: "Hello" });
+  assert.deepEqual(replay.surfaces.main?.dataModel, { name: "Grace" });
+});
+
+test("a frame-error mid-trace is reported without applying it, and later steps still replay correctly", () => {
+  const recorder = createWeaverTraceRecorder();
+  const runtime = runtimeWith({ observer: recorder.observer });
+  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const push = (chunk: string) => recorder.recordIngestion(ingestion.push(chunk), chunk);
+
+  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID })));
+  push('{"version":"v0.9.1",}\n');
+  push(frame(producer.updateComponents({
+    surfaceId: "main",
+    components: [
+      { id: "root", component: "Column", children: ["name"] },
+      { id: "name", component: "TextField", value: { path: "/name" }, label: "Name" },
+    ],
+  })));
+  push(frame(producer.updateDataModel({ surfaceId: "main", path: "/name", value: "Ada" })));
+  assert.equal(runtime.writeInput({
+    surfaceId: "main", sourceComponentId: "name", scopePath: "/", property: "value", value: "Grace",
+  }).ok, true);
+
+  const trace = storedTrace(recorder.getTrace());
+  assert.deepEqual(trace.entries.map((entry) => entry.kind), ["message", "frame-error", "message", "message", "input"]);
+  const replay = replayWeaverTrace(trace, { runtime: runtimeWith() });
+
+  assert.deepEqual(replay.steps.map((step) => step.kind), ["message", "frame-error", "message", "message", "input"]);
+  const frameError = replay.steps[1];
+  assert.equal(frameError?.replayed, null);
+  assert.equal(frameError?.diverged, false);
+  assert.deepEqual(replay.steps.map((step) => step.diverged), [false, false, false, false, false]);
+  assert.deepEqual(replay.surfaces.main, runtime.getSurface("main"));
+  assert.deepEqual(replay.surfaces.main?.dataModel, { name: "Grace" });
+});
+
 test("input and action entries without a valid request are reported as diverged, not thrown", () => {
   const trace: WeaverTrace = {
     format: WEAVER_TRACE_FORMAT,

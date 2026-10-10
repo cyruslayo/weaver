@@ -69,3 +69,6 @@ Merged.
     and `pnpm conformance:v0.9.1` all exit 0.
   - Not done here: no push and no PR. `scratch/BOARD.md` and `docs/PLAN.md`
     were left alone, as the session asked.
+  - Review follow-up: added a two-surface round-trip test, which checks every
+    surface deep-equals the original, and a mid-trace frame-error test. Tests
+    total 9 in `replayWeaverTrace.test.ts`. Core suite is now 421/421.
