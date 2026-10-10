@@ -1,0 +1,289 @@
+## Envelope rules
+
+- Output A2UI v0.9.1 messages as JSON Lines: one complete JSON object per line, with no prose and no code fences.
+- Every message has `"version": "v0.9.1"` and exactly one of `createSurface`, `updateComponents`, `updateDataModel` or `deleteSurface`.
+- `createSurface` takes `surfaceId` and `catalogId`. The `catalogId` must equal one of these catalog ids: "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json".
+- `updateComponents` takes `surfaceId` and `components`. Components are flat objects. Each has a unique `id` and a `component` name from the catalog. Refer to children by id.
+- The component tree is rooted at the component with id `"root"`.
+- `updateDataModel` takes `surfaceId`, `path` (a JSON Pointer such as `"/form/name"`) and `value`.
+- `deleteSurface` takes `surfaceId`.
+
+## Components
+
+Properties marked "binding allowed" accept a literal value, a data binding such as {"path": "/json/pointer"}, or a function call such as {"call": "<name>", "args": {...}}, as the property schema allows.
+
+Catalog `https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json`
+
+### AudioPlayer
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "AudioPlayer"; required.
+- `description`: string; optional; binding allowed. A description of the audio, such as a title or summary.
+- `id`: string; required.
+- `url`: string; required; binding allowed. The URL of the audio to be played.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Button
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `action`: reference Action; required.
+- `checks`: array of reference CheckRule; optional. A list of checks to perform. These are function calls that must return a boolean indicating validity.
+- `child`: reference ComponentId; required. The ID of the child component. Use a 'Text' component for a labeled button. Only use an 'Icon' if the requirements explicitly ask for an icon-only button.
+- `component`: const "Button"; required.
+- `id`: string; required.
+- `variant`: string; optional; enum "default", "primary", "borderless". A hint for the button style. If omitted, a default button style is used. 'primary' indicates this is the main call-to-action button. 'borderless' means the button has no visual border or background, making its child content appear like a clickable link.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Card
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `child`: reference ComponentId; required. The ID of the single child component to be rendered inside the card. To display multiple elements, you MUST wrap them in a layout component (like Column or Row) and pass that container's ID here. Do NOT pass multiple IDs or a non-existent ID.
+- `component`: const "Card"; required.
+- `id`: string; required.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### CheckBox
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `checks`: array of reference CheckRule; optional. A list of checks to perform. These are function calls that must return a boolean indicating validity.
+- `component`: const "CheckBox"; required.
+- `id`: string; required.
+- `label`: string; required; binding allowed. The text to display next to the checkbox.
+- `value`: boolean; required; binding allowed. The current state of the checkbox (true for checked, false for unchecked).
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### ChoicePicker
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `checks`: array of reference CheckRule; optional. A list of checks to perform. These are function calls that must return a boolean indicating validity.
+- `component`: const "ChoicePicker"; required.
+- `displayStyle`: string; optional; enum "checkbox", "chips". The display style of the component.
+- `filterable`: boolean; optional. If true, displays a search input to filter the options.
+- `id`: string; required.
+- `label`: string; optional; binding allowed. The label for the group of options.
+- `options`: array of object; required. The list of available options to choose from.
+- `value`: string list; required; binding allowed. The list of currently selected values. This should be bound to a string array in the data model.
+- `variant`: string; optional; enum "multipleSelection", "mutuallyExclusive". A hint for how the choice picker should be displayed and behave.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Column
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `align`: string; optional; enum "center", "end", "start", "stretch". Defines the alignment of children along the cross axis (horizontally). This is similar to the CSS 'align-items' property.
+- `children`: reference ChildList; required. Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
+- `component`: const "Column"; required.
+- `id`: string; required.
+- `justify`: string; optional; enum "start", "center", "end", "spaceBetween", "spaceAround", "spaceEvenly", "stretch". Defines the arrangement of children along the main axis (vertically). Use 'spaceBetween' to push items to the edges (e.g. header at top, footer at bottom), or 'start'/'end'/'center' to pack them together.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### DateTimeInput
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `checks`: array of reference CheckRule; optional. A list of checks to perform. These are function calls that must return a boolean indicating validity.
+- `component`: const "DateTimeInput"; required.
+- `enableDate`: boolean; optional. If true, allows the user to select a date.
+- `enableTime`: boolean; optional. If true, allows the user to select a time.
+- `id`: string; required.
+- `label`: string; optional; binding allowed. The text label for the input field.
+- `max`: any; optional. The maximum allowed date/time in ISO 8601 format.
+- `min`: any; optional. The minimum allowed date/time in ISO 8601 format.
+- `value`: string; required; binding allowed. The selected date and/or time value in ISO 8601 format. If not yet set, initialize with an empty string.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Divider
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `axis`: string; optional; enum "horizontal", "vertical". The orientation of the divider.
+- `component`: const "Divider"; required.
+- `id`: string; required.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Icon
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "Icon"; required.
+- `id`: string; required.
+- `name`: string or object or reference DataBinding; required; binding allowed. The name of the icon to display.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Image
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "Image"; required.
+- `description`: string; optional; binding allowed. Accessibility text for the image.
+- `fit`: string; optional; enum "contain", "cover", "fill", "none", "scaleDown". Specifies how the image should be resized to fit its container. This corresponds to the CSS 'object-fit' property.
+- `id`: string; required.
+- `url`: string; required; binding allowed. The URL of the image to display.
+- `variant`: string; optional; enum "icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header". A hint for the image size and style.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### List
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `align`: string; optional; enum "start", "center", "end", "stretch". Defines the alignment of children along the cross axis.
+- `children`: reference ChildList; required. Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list.
+- `component`: const "List"; required.
+- `direction`: string; optional; enum "vertical", "horizontal". The direction in which the list items are laid out.
+- `id`: string; required.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Modal
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "Modal"; required.
+- `content`: reference ComponentId; required. The ID of the component to be displayed inside the modal.
+- `id`: string; required.
+- `trigger`: reference ComponentId; required. The ID of the component that opens the modal when interacted with (e.g., a button).
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Row
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `align`: string; optional; enum "start", "center", "end", "stretch". Defines the alignment of children along the cross axis (vertically). This is similar to the CSS 'align-items' property, but uses camelCase values (e.g., 'start').
+- `children`: reference ChildList; required. Defines the children. Use an array of strings for a fixed set of children, or a template object to generate children from a data list. Children cannot be defined inline, they must be referred to by ID.
+- `component`: const "Row"; required.
+- `id`: string; required.
+- `justify`: string; optional; enum "center", "end", "spaceAround", "spaceBetween", "spaceEvenly", "start", "stretch". Defines the arrangement of children along the main axis (horizontally). Use 'spaceBetween' to push items to the edges, or 'start'/'end'/'center' to pack them together.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Slider
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `checks`: array of reference CheckRule; optional. A list of checks to perform. These are function calls that must return a boolean indicating validity.
+- `component`: const "Slider"; required.
+- `id`: string; required.
+- `label`: string; optional; binding allowed. The label for the slider.
+- `max`: number; required. The maximum value of the slider.
+- `min`: number; optional. The minimum value of the slider.
+- `value`: number; required; binding allowed. The current value of the slider.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Tabs
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "Tabs"; required.
+- `id`: string; required.
+- `tabs`: array of object; required. An array of objects, where each object defines a tab with a title and a child component.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Text
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "Text"; required.
+- `id`: string; required.
+- `text`: string; required; binding allowed. The text content to display. While simple Markdown formatting is supported (i.e. without HTML, images, or links), utilizing dedicated UI components is generally preferred for a richer and more structured presentation.
+- `variant`: string; optional; enum "h1", "h2", "h3", "h4", "h5", "caption", "body". A hint for the base text style.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### TextField
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `checks`: array of reference CheckRule; optional. A list of checks to perform. These are function calls that must return a boolean indicating validity.
+- `component`: const "TextField"; required.
+- `id`: string; required.
+- `label`: string; required; binding allowed. The text label for the input field.
+- `validationRegexp`: string; optional. A regular expression used for client-side validation of the input.
+- `value`: string; optional; binding allowed. The value of the text field.
+- `variant`: string; optional; enum "longText", "number", "shortText", "obscured". The type of input field to display.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+### Video
+- `accessibility`: reference AccessibilityAttributes; optional.
+- `component`: const "Video"; required.
+- `id`: string; required.
+- `url`: string; required; binding allowed. The URL of the video to display.
+- `weight`: number; optional. The relative weight of this component within a Row or Column. This is similar to the CSS 'flex-grow' property. Note: this may ONLY be set when the component is a direct descendant of a Row or Column.
+
+## Functions
+
+Only these functions may be called. No other function names are allowed.
+
+- `and` returns boolean. Performs a logical AND operation on a list of boolean values.
+  - `values`: arrayOfDynamicValues; required. The list of boolean values to evaluate.
+
+- `email` returns boolean. Checks that the value is a valid email address.
+  - `value`: dynamicString; required.
+
+- `formatCurrency` returns string. Formats a number as a currency string.
+  - `currency`: dynamicString; required. The ISO 4217 currency code (e.g., 'USD', 'EUR').
+  - `decimals`: dynamicNumber; optional. Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale.
+  - `grouping`: dynamicBoolean; optional. Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true.
+  - `value`: dynamicNumber; required. The monetary amount.
+
+- `formatDate` returns string. Formats a timestamp into a string using a pattern.
+  - `format`: dynamicString; required. A Unicode TR35 date pattern string.
+
+Token Reference:
+- Year: 'yy' (26), 'yyyy' (2026)
+- Month: 'M' (1), 'MM' (01), 'MMM' (Jan), 'MMMM' (January)
+- Day: 'd' (1), 'dd' (01), 'E' (Tue), 'EEEE' (Tuesday)
+- Hour (12h): 'h' (1-12), 'hh' (01-12) - requires 'a' for AM/PM
+- Hour (24h): 'H' (0-23), 'HH' (00-23) - Military Time
+- Minute: 'mm' (00-59)
+- Second: 'ss' (00-59)
+- Period: 'a' (AM/PM)
+
+Examples:
+- 'MMM dd, yyyy' -> 'Jan 16, 2026'
+- 'HH:mm' -> '14:30' (Military)
+- 'h:mm a' -> '2:30 PM'
+- 'EEEE, d MMMM' -> 'Friday, 16 January'
+  - `value`: dynamicValue; required. The date to format.
+
+- `formatNumber` returns string. Formats a number with the specified grouping and decimal precision.
+  - `decimals`: dynamicNumber; optional. Optional. The number of decimal places to show. Defaults to 0 or 2 depending on locale.
+  - `grouping`: dynamicBoolean; optional. Optional. If true, uses locale-specific grouping separators (e.g. '1,000'). If false, returns raw digits (e.g. '1000'). Defaults to true.
+  - `value`: dynamicNumber; required. The number to format.
+
+- `formatString` returns string. Performs string interpolation of data model values and other functions in the catalog functions list and returns the resulting string. The value string can contain interpolated expressions in the `${expression}` format. Supported expression types include: JSON Pointer paths to the data model (e.g., `${/absolute/path}` or `${relative/path}`), and client-side function calls (e.g., `${now()}`). Function arguments must be named (e.g., `${formatDate(value:${/currentDate}, format:'MM-dd')}`). To include a literal `${` sequence, escape it as `\${`.
+  - `value`: dynamicString; required.
+
+- `length` returns boolean. Checks string length constraints.
+  - `max`: literal; optional. The maximum allowed length.
+  - `min`: literal; optional. The minimum allowed length.
+  - `value`: dynamicString; required.
+
+- `not` returns boolean. Performs a logical NOT operation on a boolean value.
+  - `value`: dynamicBoolean; required. The boolean value to negate.
+
+- `numeric` returns boolean. Checks numeric range constraints.
+  - `max`: literal; optional. The maximum allowed value.
+  - `min`: literal; optional. The minimum allowed value.
+  - `value`: dynamicNumber; required.
+
+- `openUrl` returns void. Opens the specified URL in a browser or handler. This function has no return value.
+  - `url`: literal; required. The URL to open.
+
+- `or` returns boolean. Performs a logical OR operation on a list of boolean values.
+  - `values`: arrayOfDynamicValues; required. The list of boolean values to evaluate.
+
+- `pluralize` returns string. Returns a localized string based on the Common Locale Data Repository (CLDR) plural category of the count (zero, one, two, few, many, other). Requires an 'other' fallback. For English, just use 'one' and 'other'.
+  - `few`: dynamicString; optional. String for the 'few' category (e.g., small groups in Slavic languages).
+  - `many`: dynamicString; optional. String for the 'many' category (e.g., large groups in various languages).
+  - `one`: dynamicString; optional. String for the 'one' category (e.g., 1 item).
+  - `other`: dynamicString; required. The default/fallback string (used for general plural cases).
+  - `two`: dynamicString; optional. String for the 'two' category (used in Arabic, Welsh, etc.).
+  - `value`: dynamicNumber; required. The numeric value used to determine the plural category.
+  - `zero`: dynamicString; optional. String for the 'zero' category (e.g., 0 items).
+
+- `regex` returns boolean. Checks that the value matches a regular expression string.
+  - `pattern`: literal; required. The regex pattern to match against.
+  - `value`: dynamicString; required.
+
+- `required` returns boolean. Checks that the value is not null, undefined, or empty.
+  - `value`: dynamicValue; required. The value to check.
+
+## Actions
+
+Only these action names may appear in an event. No other action names are allowed. Context values may be literals or data bindings.
+- `submit_signup`: Submit the sign-up form. Carries the name entered in the form. Context: {"name":{"path":"/form/name"}}.
+
+## Edit mode
+
+Emit only changed components with `updateComponents` (upsert by id) and data changes with `updateDataModel`. Do not re-send unchanged components or recreate the surface.
+
+## Examples
+
+### Simple card
+```jsonl
+{"createSurface":{"catalogId":"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json","surfaceId":"notice"},"version":"v0.9.1"}
+{"updateComponents":{"components":[{"child":"message","component":"Card","id":"root"},{"component":"Text","id":"message","text":"Your order has shipped.","variant":"h3"}],"surfaceId":"notice"},"version":"v0.9.1"}
+```
+
+### Form with a bound field and a button action
+```jsonl
+{"createSurface":{"catalogId":"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json","surfaceId":"signup"},"version":"v0.9.1"}
+{"updateDataModel":{"path":"/form/name","surfaceId":"signup","value":""},"version":"v0.9.1"}
+{"updateComponents":{"components":[{"children":["name-field","submit"],"component":"Column","id":"root"},{"component":"TextField","id":"name-field","label":"Name","value":{"path":"/form/name"}},{"action":{"event":{"context":{"name":{"path":"/form/name"}},"name":"submit_signup"}},"child":"submit-label","component":"Button","id":"submit","variant":"primary"},{"component":"Text","id":"submit-label","text":"Sign up"}],"surfaceId":"signup"},"version":"v0.9.1"}
+```
+
+### Edit mode: change one value with updateDataModel
+```jsonl
+{"createSurface":{"catalogId":"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json","surfaceId":"order"},"version":"v0.9.1"}
+{"updateComponents":{"components":[{"component":"Text","id":"root","text":{"path":"/status"}}],"surfaceId":"order"},"version":"v0.9.1"}
+{"updateDataModel":{"path":"/status","surfaceId":"order","value":"Packed"},"version":"v0.9.1"}
+{"updateDataModel":{"path":"/status","surfaceId":"order","value":"Shipped"},"version":"v0.9.1"}
+```
