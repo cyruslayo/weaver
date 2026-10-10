@@ -1,7 +1,7 @@
 import type { WebComponentRenderer, WebRenderedRelationship } from "../renderers/index.js";
 import { applyBasicHook, mapAlign, mapJustify, relationshipChildren } from "./layout.js";
 import { renderBasicInlineMarkdown } from "./markdown.js";
-import { appendBasicStyle, applyBasicMargin, applyControlShape, basicCardShadow, basicControl, basicOutline, basicRadius, basicSpace } from "./styles.js";
+import { appendBasicStyle, applyBasicMargin, applyControlShape, basicCardShadow, basicControl, basicOutline, basicPrimaryFallback, basicRadius, basicSpace } from "./styles.js";
 
 const textElements = {
   h1: "h1",
@@ -183,7 +183,7 @@ export const renderTabs: WebComponentRenderer = ({ document, properties, relatio
     button.setAttribute("aria-selected", index === selectedIndex ? "true" : "false");
     button.tabIndex = index === selectedIndex ? 0 : -1;
     if (index === selectedIndex) {
-      button.setAttribute("style", "color: var(--a2ui-color-primary, #17e); border-block-end: solid var(--a2ui-color-primary, #17e)");
+      button.setAttribute("style", `color: var(--a2ui-color-primary, ${basicPrimaryFallback}); border-block-end: solid var(--a2ui-color-primary, ${basicPrimaryFallback})`);
     }
     if (typeof tab === "object" && tab !== null && !Array.isArray(tab) && typeof tab.title === "string") button.textContent = tab.title;
     interactions.registerControl(button, `tab:${index}`);
@@ -343,7 +343,7 @@ export const renderButton: WebComponentRenderer = ({ document, properties, relat
     : "default";
   button.setAttribute("data-a2ui-variant", variant);
   button.style.cursor = "pointer";
-  if (variant === "primary") appendBasicStyle(button, "background-color: var(--a2ui-color-primary, #17e); color: var(--a2ui-color-on-primary, white); border: 1px solid transparent");
+  if (variant === "primary") appendBasicStyle(button, `background-color: var(--a2ui-color-primary, ${basicPrimaryFallback}); color: var(--a2ui-color-on-primary, white); border: 1px solid transparent`);
   else if (variant === "borderless") appendBasicStyle(button, "background-color: transparent; color: inherit; border: 1px solid transparent");
   else appendBasicStyle(button, `background-color: ${basicControl}; color: inherit; border: 1px solid ${basicOutline}`);
   appendBasicStyle(button, `padding: ${basicSpace} calc(${basicSpace} * 1.5); border-radius: ${basicRadius}`);

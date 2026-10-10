@@ -2,6 +2,12 @@ export const basicSpace = "var(--a2ui-space, 8px)";
 export const basicRadius = "var(--a2ui-radius, 8px)";
 export const basicOutline = "var(--a2ui-color-outline, rgba(0, 0, 0, 0.22))";
 export const basicControl = "var(--a2ui-color-control, rgba(127, 127, 127, 0.10))";
+/**
+ * Fallback for the primary accent when no host sets --a2ui-color-primary. White text on this colour is
+ * 5.1921:1 (WCAG 2.x relative luminance, WVR-058); the prior #17e (#1177ee) was 4.2882:1 and failed 4.5:1.
+ * Used by the primary Button, the selected Tabs label and underline, and the ChoicePicker and CheckBox/Slider accents.
+ */
+export const basicPrimaryFallback = "#0969da";
 export const basicCardShadow = "var(--a2ui-card-shadow, 0 1px 3px rgba(0, 0, 0, 0.12))";
 
 /** Preserve host custom-property expressions even in lightweight DOM implementations. */
