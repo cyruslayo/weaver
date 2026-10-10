@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   A2UI_V091_BASIC_CATALOG_ID,
   createA2UIV091Producer,
+  describeWeaverError,
   createBasicCatalogV091Registration,
   createWeaverRuntime,
   type A2UIServerMessage,
@@ -232,4 +233,55 @@ test("malformed and protocol-invalid frames never mutate runtime state", () => {
     "PROTOCOL_VALIDATION_FAILED",
   ]);
   assert.deepEqual(runtime.getSurface("main"), undefined);
+});
+
+test("malformed and catalog-invalid frames keep the last good surface, describe the failure, and ingestion continues", () => {
+  const runtime = basicRuntime();
+  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const created = ingestion.push(lifecycleMessages("lkg").map(frame).join(""));
+  assert.deepEqual(created.map((event) => event.frame), [1, 2, 3]);
+  assert.ok(created.every((event) => event.ok));
+  const before = structuredClone(runtime.getSurface("lkg"));
+  assert.ok(before);
+  assert.equal(before.components.root?.text, "Hello");
+  assert.deepEqual(before.dataModel, { name: "Ada" });
+
+  // Frame 4: malformed JSON. The surface must not change.
+  const malformed = ingestion.push('{"version":"v0.9.1",}\n')[0]!;
+  assert.equal(malformed.frame, 4);
+  assert.equal(malformed.ok, false);
+  if (malformed.ok) throw new Error("expected decode failure");
+  assert.equal(malformed.error.code, "INVALID_JSON");
+  const malformedDescription = describeWeaverError(malformed.error, { frame: malformed.frame });
+  assert.equal(malformedDescription.code, "INVALID_JSON");
+  assert.equal(malformedDescription.frame, 4);
+  assert.match(malformedDescription.summary, /Frame 4 is not valid JSON/);
+  assert.deepEqual(runtime.getSurface("lkg"), before);
+
+  // Frame 5: well-formed JSON that fails the Basic catalog. The component is named "bad".
+  const invalid = ingestion.push(frame({
+    version: "v0.9.1",
+    updateComponents: { surfaceId: "lkg", components: [{ id: "bad", component: "Text", text: 42 as never }] },
+  }))[0]!;
+  assert.equal(invalid.frame, 5);
+  assert.equal(invalid.ok, false);
+  if (invalid.ok) throw new Error("expected catalog failure");
+  assert.equal(invalid.error.code, "CATALOG_REGISTRY_ERROR");
+  const invalidDescription = describeWeaverError(invalid.error, { frame: invalid.frame });
+  assert.equal(invalidDescription.code, "CATALOG_REGISTRY_ERROR");
+  assert.equal(invalidDescription.frame, 5);
+  assert.equal(invalidDescription.componentId, "bad");
+  assert.deepEqual(runtime.getSurface("lkg"), before);
+
+  // Frame 6: ingestion has continued past both bad frames and applies a valid update.
+  const recovered = ingestion.push(frame({
+    version: "v0.9.1",
+    updateDataModel: { surfaceId: "lkg", path: "/name", value: "Grace" },
+  }))[0]!;
+  assert.equal(recovered.frame, 6);
+  assert.equal(success(recovered).operation, "dataModelUpdated");
+  const after = runtime.getSurface("lkg");
+  assert.deepEqual(after?.dataModel, { name: "Grace" });
+  assert.equal(after?.components.root?.text, "Hello");
+  assert.equal(after?.components.bad, undefined);
 });

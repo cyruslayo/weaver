@@ -47,7 +47,7 @@ const basicFunctions = basic.functions as Record<string, JsonObject> | undefined
 const dataTable: JsonObject = {
   type: "object",
   description:
-    "A read-only table of rows. Use it for lists of records such as orders, tickets, or results. Columns name the fields to show, and the rows come from a data binding.",
+    "A read-only table of rows. Use it for lists of records such as orders, tickets, or results. Columns name the fields to show, and the rows come from a data binding. For rows with actions, use a List template of Cards instead.",
   properties: {
     id: {
       type: "string",
@@ -92,14 +92,20 @@ const dataTable: JsonObject = {
       },
     },
     rows: {
-      $ref: "common_types.json#/$defs/DataBinding",
+      // The Basic bindable-value pattern: a data binding, or a literal array of the same item shape.
+      // Core resolves the binding before the renderer runs, because the literal branch is declared.
+      oneOf: [
+        { $ref: "common_types.json#/$defs/DataBinding" },
+        {
+          type: "array",
+          items: {
+            type: "object",
+            description: "One row. Its keys are the field names that the columns read.",
+          },
+        },
+      ],
       description:
-        "A data binding, such as {\"path\": \"/orders\"}, to an array of row objects. Each object supplies the values for the columns.",
-    },
-    rowAction: {
-      $ref: "common_types.json#/$defs/Action",
-      description:
-        "An optional event fired when a row is activated. Its context may bind paths that are relative to the row.",
+        "The rows to show, as a data binding such as {\"path\": \"/orders\"} (preferred) or a literal array of row objects. Each object supplies the values for the columns.",
     },
   },
   required: ["id", "component", "columns", "rows"],
@@ -124,9 +130,24 @@ const barChart: JsonObject = {
       description: "The chart title shown above the bars.",
     },
     values: {
-      $ref: "common_types.json#/$defs/DataBinding",
+      // The same bindable-value pattern as rows: a binding, or a literal array of the same item shape.
+      oneOf: [
+        { $ref: "common_types.json#/$defs/DataBinding" },
+        {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              label: { type: "string", description: "The label shown under the bar." },
+              value: { type: "number", description: "The bar height. It is a number." },
+            },
+            required: ["label", "value"],
+            additionalProperties: false,
+          },
+        },
+      ],
       description:
-        "A data binding, such as {\"path\": \"/stats/byStatus\"}, to an array of {label, value} objects. Each object becomes one bar. The value is a number.",
+        "The bars, as a data binding such as {\"path\": \"/stats/byStatus\"} (preferred) or a literal array of {label, value} objects. Each object becomes one bar. The value is a number.",
     },
     maxBars: {
       type: "integer",

@@ -11,3 +11,10 @@ export type {
   WeaverTraceRecorder,
   WeaverTraceRecorderOptions,
 } from "./types.js";
+export { replayWeaverTrace, WEAVER_TRACE_REPLAY_INVALID_INPUT } from "./replayWeaverTrace.js";
+export type {
+  WeaverTraceReplayOptions,
+  WeaverTraceReplayOutcome,
+  WeaverTraceReplayResult,
+  WeaverTraceReplayStep,
+} from "./replayWeaverTrace.js";
