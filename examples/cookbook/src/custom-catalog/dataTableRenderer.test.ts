@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   createA2UIV091Producer,
-  defineCatalog,
   type A2UIComponent,
   type A2UIServerMessage,
   type JsonObject,
@@ -15,7 +14,7 @@ import {
   type WebServerEventHandoff,
 } from "@cylayo/weaver-web";
 import { Window } from "happy-dom";
-import { COOKBOOK_CATALOG_ID, cookbookCatalogSchema } from "./catalog.js";
+import { COOKBOOK_CATALOG_ID, cookbookCatalog } from "./catalog.js";
 import { DATA_TABLE_COMPONENT } from "./dataTableRenderer.js";
 import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 
@@ -24,37 +23,6 @@ const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/cat
 const ROW_ACTION_NAME = "cookbook.orders.open";
 const ROW_ACTION_CONTEXT: JsonObject = { source: "orders-table" };
 
-/**
- * The shipped cookbook catalog declares `rows` as a binding only. Core resolves
- * a bindable value only when the schema also declares a literal branch, so the
- * shipped catalog would hand the renderer the raw `{"path": ...}` object.
- * This test-only variant adds the literal branch to `rows`, the same shape Basic
- * uses for bound inputs, so the end-to-end tests exercise the renderer with
- * resolved data. The shipped catalog and its WVR-051 tests are unchanged.
- */
-const bindableRowsCatalog = (() => {
-  const components = cookbookCatalogSchema.components as unknown as Record<string, JsonObject>;
-  const dataTable = components[DATA_TABLE_COMPONENT] as { properties: Record<string, JsonObject> };
-  return defineCatalog({
-    ...cookbookCatalogSchema,
-    components: {
-      ...cookbookCatalogSchema.components,
-      [DATA_TABLE_COMPONENT]: {
-        ...dataTable,
-        properties: {
-          ...dataTable.properties,
-          rows: {
-            oneOf: [
-              { type: "array", items: { type: "object" } },
-              { $ref: "common_types.json#/$defs/DataBinding" },
-            ],
-            description: "Test-only: the row objects, from a data binding.",
-          },
-        },
-      },
-    },
-  } as unknown as typeof cookbookCatalogSchema);
-})();
 
 const ORDERS: JsonObject[] = [
   { id: "A-1", status: "Paid", total: 1250 },
@@ -98,7 +66,7 @@ function mountTable(): MountedTable {
   ) as unknown as Element;
   const events: WebServerEventHandoff[] = [];
   const created = createBasicWebRuntime({
-    additionalCatalogs: [bindableRowsCatalog],
+    additionalCatalogs: [cookbookCatalog],
     additionalRenderers: cookbookCatalogRendererRegistrations,
     rendering: { onServerEvent: (event) => events.push(event) },
   });

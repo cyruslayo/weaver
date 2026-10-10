@@ -139,6 +139,37 @@ test("BarChart rejects maxBars above the cap of 50 at message validation", () =>
   assert.equal(atCap.ok, true, "maxBars 50 is the cap and must be accepted");
 });
 
+test("BarChart accepts values as a data binding and as a literal array of {label, value}", () => {
+  assert.equal(processComponents(screenComponents()).ok, true, "a data binding is accepted");
+  const literal = processComponents(
+    screenComponents({ barChart: { values: [{ label: "Paid", value: 3 }, { label: "Open", value: 0 }] } }),
+  );
+  assert.equal(literal.ok, true, JSON.stringify(literal));
+});
+
+test("BarChart rejects a values array of the wrong shape", () => {
+  const wrongShapes: Array<[string, JsonValue]> = [
+    ["a string", "Paid"],
+    ["an item without a value", [{ label: "Paid" }]],
+    ["an item whose value is a string", [{ label: "Paid", value: "3" }]],
+    ["an item with an extra property", [{ label: "Paid", value: 3, colour: "red" }]],
+    ["a plain number array", [1, 2, 3]],
+  ];
+  for (const [label, values] of wrongShapes) {
+    const result = processComponents(screenComponents({ barChart: { values } }));
+    assert.equal(result.ok, false, `${label} must be rejected`);
+  }
+});
+
+test("the generated prompt presents the binding as preferred and names the literal alternative", () => {
+  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.match(result.value.text, /data binding such as \{"path": "\/orders"\} \(preferred\) or a literal array/);
+  assert.match(result.value.text, /data binding such as \{"path": "\/stats\/byStatus"\} \(preferred\) or a literal array/);
+  assert.match(result.value.text, /It is a table-level action/);
+});
+
 test("DataTable rejects a bad column shape at message validation", () => {
   const cases: Array<[string, JsonValue]> = [
     ["a column without a header", [{ key: "id" }]],
@@ -158,15 +189,33 @@ test("DataTable rejects a bad column shape at message validation", () => {
   }
 });
 
-test("DataTable rejects a literal rows array, which must be a data binding", () => {
+/** Replaces the `rows` property of the DataTable in the standard screen. */
+function screenWithRows(rows: JsonValue): A2UIComponent[] {
   const components = screenComponents();
   const table = components.find((component) => component.id === "table") as JsonObject;
-  const result = processComponents(
-    components.map((component) =>
-      component.id === "table" ? { ...table, rows: [{ id: "A-1" }] } : component,
-    ),
+  return components.map((component) =>
+    component.id === "table" ? ({ ...table, rows } as unknown as A2UIComponent) : component,
   );
-  assert.equal(result.ok, false, "a literal rows array must be rejected");
+}
+
+test("DataTable accepts rows as a data binding and as a literal array of row objects", () => {
+  assert.equal(processComponents(screenComponents()).ok, true, "a data binding is accepted");
+  const literal = processComponents(screenWithRows([{ id: "A-1", total: 10 }]));
+  assert.equal(literal.ok, true, JSON.stringify(literal));
+  const empty = processComponents(screenWithRows([]));
+  assert.equal(empty.ok, true, "an empty literal array is a valid list of rows");
+});
+
+test("DataTable rejects a rows value of the wrong shape", () => {
+  const wrongShapes: Array<[string, JsonValue]> = [
+    ["a string", "A-1"],
+    ["a number", 5],
+    ["an array of strings", ["A-1", "A-2"]],
+    ["an array containing an array", [["A-1"]]],
+  ];
+  for (const [label, rows] of wrongShapes) {
+    assert.equal(processComponents(screenWithRows(rows)).ok, false, `${label} must be rejected`);
+  }
 });
 
 test("a component outside the cookbook catalog is rejected, so one surface uses one catalog", () => {
