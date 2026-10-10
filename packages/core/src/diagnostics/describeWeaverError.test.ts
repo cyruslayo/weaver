@@ -386,7 +386,15 @@ fixtures.push(
   },
   {
     code: "EXAMPLE_INVALID",
-    error: { code: "EXAMPLE_INVALID", message: "Example has no root component", exampleTitle: "Login", exampleIndex: 0 },
+    error: {
+      code: "EXAMPLE_INVALID",
+      message: "Example has no root component",
+      exampleTitle: "Login",
+      exampleIndex: 0,
+      stage: "resolve",
+      surfaceId: "main",
+      cause: { code: "SURFACE_NOT_READY", surfaceId: "main", treeReady: false, checksReady: false, issues: { tree: [], instances: [], properties: [] } },
+    },
   },
 );
 
@@ -526,6 +534,71 @@ test("a blocked action is a warning, and every other code is an error", () => {
       assert.equal(entry.severity, "error", `${entry.code} severity`);
     }
   }
+});
+
+test("a process-stage EXAMPLE_INVALID names the example, stage, and message index, and flattens its cause", () => {
+  const description = describeWeaverError({
+    code: "EXAMPLE_INVALID",
+    message: "Example message was rejected.",
+    exampleIndex: 2,
+    exampleTitle: "Ticket",
+    stage: "process",
+    messageIndex: 4,
+    cause: {
+      code: "PROTOCOL_VALIDATION_FAILED",
+      issues: [{ code: "VALIDATION_FAILED", path: "/root", message: "missing root" }],
+    },
+  } satisfies A2UIPromptGenerationError);
+  assert.match(description.summary, /example 2 \("Ticket"\)/);
+  assert.match(description.summary, /stage "process", message 4/);
+  assert.match(description.summary, /Example message was rejected/);
+  assert.deepEqual(
+    treeCodes(description),
+    ["EXAMPLE_INVALID", "PROTOCOL_VALIDATION_FAILED", "VALIDATION_FAILED"],
+  );
+  assert.equal(description.causes.find((cause) => cause.code === "VALIDATION_FAILED")?.dataPath, "/root");
+  for (const cause of description.causes) assert.deepEqual(cause.causes, []);
+});
+
+test("a resolve-stage EXAMPLE_INVALID carries its surface and the not-ready cause", () => {
+  const description = describeWeaverError({
+    code: "EXAMPLE_INVALID",
+    message: "Example has no root component.",
+    exampleIndex: 0,
+    exampleTitle: "Login",
+    stage: "resolve",
+    surfaceId: "main",
+    cause: {
+      code: "SURFACE_NOT_READY",
+      surfaceId: "main",
+      treeReady: false,
+      checksReady: false,
+      issues: { tree: [], instances: [], properties: [] },
+    },
+  } satisfies A2UIPromptGenerationError);
+  assert.equal(description.surfaceId, "main");
+  assert.match(description.summary, /example 0 \("Login"\)/);
+  assert.match(description.summary, /stage "resolve", surface "main"/);
+  assert.deepEqual(treeCodes(description), ["EXAMPLE_INVALID", "SURFACE_NOT_READY"]);
+  const notReady = description.causes[0]!;
+  assert.equal(notReady.surfaceId, "main");
+  assert.match(notReady.summary, /component tree is incomplete/);
+  assert.match(notReady.summary, /checks are not ready/);
+});
+
+test("a runtime-stage EXAMPLE_INVALID flattens the configuration cause chain", () => {
+  const description = describeWeaverError({
+    code: "EXAMPLE_INVALID",
+    message: "Scratch runtime could not start.",
+    exampleIndex: 1,
+    exampleTitle: "Empty",
+    stage: "runtime",
+    cause: { code: "CATALOG_CONFIGURATION_FAILED", catalogError: catalogCodes[2]! },
+  } satisfies A2UIPromptGenerationError);
+  assert.match(description.summary, /stage "runtime"/);
+  assert.ok(treeCodes(description).includes("CATALOG_CONFIGURATION_FAILED"));
+  assert.ok(treeCodes(description).includes("CATALOG_NOT_FOUND"));
+  for (const cause of description.causes) assert.deepEqual(cause.causes, []);
 });
 
 test("a code from a newer JavaScript caller gets a generic description rather than a crash", () => {

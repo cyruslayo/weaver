@@ -153,6 +153,38 @@ Complete, pending review. Core exports `describeWeaverError()`, which turns type
 
 Complete, pending review. `examples/cookbook` (`@weaver/cookbook`) is a Vite multi-page app with a landing page and a placeholder screen. It uses a shared harness that drives deterministic agent streams, plus a happy-dom smoke test. Its only dependencies are Core, Web, Vite, and happy-dom. The real form, dashboard, and ticket-board screens are separate issues (WVR-042 to WVR-044).
 
+## Task 65 — Validate prompt examples through a scratch runtime (WVR-012)
+
+Complete, pending review. `generateA2UIV091Prompt()` runs each example through a fresh scratch runtime before it emits the prompt. A failure returns `EXAMPLE_INVALID` with the example's index, title, stage (`runtime`, `process`, or `resolve`), and the typed cause. Core also ships a basic example set in `packages/core/src/prompt/basicExamples.ts`. `describeWeaverError()` names those example fields and flattens the cause chain, as a follow-up to Task 63.
+
+## Task 66 — Prompt generator in the packed-Core workerd gate (WVR-014)
+
+Complete, pending review. The workerd consumer in `integration/workerd-consumer` exercises `generateA2UIV091Prompt()` from the packed Core tarball, so the prompt generator is covered by the same gate as the rest of Core.
+
+## Task 67 — Trace recorder and weaver-trace v1 (WVR-022)
+
+Complete, pending review. `createWeaverTraceRecorder()` records runtime observer events into the `weaver-trace` v1 format. `parseWeaverTrace()` validates a trace on load. Ingestion frame errors are captured in the trace. The code and tests live in `packages/core/src/trace/`.
+
+## Task 68 — Web describeWebRenderError() (WVR-032)
+
+Complete, pending review. Web exports `describeWebRenderError()` for `WebRenderError` and `WebInteractionError`. The code lives in `packages/web/src/surface/`.
+
+## Task 69 — Cookbook form screen (WVR-042)
+
+Complete, pending review. The cookbook adds a validated support-request form. Client checks run through Basic functions and a regex matcher supplied by the screen. Submit makes a server round trip, and the screen's tests cover the validation paths.
+
+## Task 70 — Cookbook dashboard screen (WVR-043)
+
+Complete, pending review. The cookbook adds a dashboard with KPI tiles and a filtered list. Refresh and filter send data-model updates only, with no new surface. This includes a Web change: Basic Button registers as a focus-restorable control. The harness registers the default Basic functions once, and a screen can replace that list.
+
+## Task 71 — Cookbook ticket board (WVR-044)
+
+Complete, pending review. The cookbook adds a ticket board with move, assign, and close actions. Each column is a List template over `/board/<status>`, and actions can supply their own data-model updates. The README records the positional template identity limits of v0.9.1.
+
+## Task 72 — Cookbook custom catalog (WVR-051)
+
+Complete, pending review. `examples/cookbook/src/custom-catalog/` defines an app-owned catalog with `defineCatalog()`, with DataTable and BarChart entries and their own tests. Core and the Basic catalog are unchanged.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

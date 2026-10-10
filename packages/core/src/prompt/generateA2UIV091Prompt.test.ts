@@ -163,7 +163,15 @@ test("identical input produces byte-identical output across runs", () => {
     actions: [
       { name: "submit", description: "Submit the form.", context: { b: 1, a: { d: 2, c: 3 } } },
     ],
-    examples: [{ title: "Hello", messages: [{ version: "v0.9.1", deleteSurface: { surfaceId: "main" } }] }],
+    examples: [
+      {
+        title: "Hello",
+        messages: [
+          { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: BASIC_CATALOG_ID } },
+          { version: "v0.9.1", deleteSurface: { surfaceId: "main" } },
+        ],
+      },
+    ],
   };
   const first = generateA2UIV091Prompt(config);
   const second = generateA2UIV091Prompt(config);
@@ -500,8 +508,8 @@ test("examples are rendered as JSONL blocks with sorted keys", () => {
       {
         title: "Greeting",
         messages: [
+          { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: LABEL_CATALOG_ID } },
           { version: "v0.9.1", deleteSurface: { surfaceId: "main" } },
-          { version: "v0.9.1", deleteSurface: { surfaceId: "second" } },
         ],
       },
     ],
@@ -509,7 +517,7 @@ test("examples are rendered as JSONL blocks with sorted keys", () => {
   assert.ok(text.includes("### Greeting\n```jsonl\n"));
   assert.ok(
     text.includes(
-      '```jsonl\n{"deleteSurface":{"surfaceId":"main"},"version":"v0.9.1"}\n{"deleteSurface":{"surfaceId":"second"},"version":"v0.9.1"}\n```',
+      `\`\`\`jsonl\n{"createSurface":{"catalogId":"${LABEL_CATALOG_ID}","surfaceId":"main"},"version":"v0.9.1"}\n{"deleteSurface":{"surfaceId":"main"},"version":"v0.9.1"}\n\`\`\``,
     ),
   );
 });

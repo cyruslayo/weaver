@@ -32,8 +32,25 @@ harness owns everything else:
 | Screen | Page | Source | Status |
 |---|---|---|---|
 | Placeholder | `placeholder.html` | `src/screens/placeholder.ts` | Pipeline smoke screen |
+| Support request | `form.html` | `src/screens/form/screen.ts` | Validated form with a server round trip |
+| Dashboard | `dashboard.html` | `src/screens/dashboard.ts` | KPI tiles and a filtered list. Refresh and filter send data-model updates only. |
+| Ticket board | `ticket-board.html` | `src/screens/ticket-board.ts` | Move, assign, and close tickets |
 
-The form, dashboard, and ticket board screens arrive in later issues.
+### Positional template identity (ticket board)
+
+The ticket board renders each column as a List template over `/board/<status>`.
+In A2UI v0.9.1, template items are identified by their position in the
+collection. The scope path is `/board/<status>/<index>`, so:
+
+- Moving an item re-indexes every item after it in both columns. Weaver does
+  not claim stable item identity, and the cookbook does not pretend otherwise.
+- A Button built for one index is stale after any update. The stale-generation
+  guard makes it inert, and the board test covers this.
+- The Assign Modal's open state is kept per scope index. After a move, a
+  Modal that was open can belong to a different ticket. The Assign flow does
+  not move tickets while its Modal is open, so this does not arise in the demo.
+- The Basic Modal has no data-driven close. Confirm assigns the ticket and
+  keeps the dialog open, and the user dismisses it with Close or Escape.
 
 ## Run
 
@@ -47,3 +64,28 @@ pnpm --filter @weaver/cookbook typecheck
 The cookbook depends only on `@cylayo/weaver-core`, `@cylayo/weaver-web`, Vite,
 and happy-dom. It has no routing, persistence, accounts, networking, backend,
 custom catalog, or framework.
+
+## Custom catalog
+
+The custom catalog recipe lives in `src/custom-catalog/catalog.ts`. It is an
+app-owned catalog with `DataTable` and `BarChart`, plus the `Column`, `Text`,
+and `Card` layout primitives copied from the Basic registration.
+
+**One catalog per surface.** A surface is created with exactly one `catalogId`,
+so a surface that uses `DataTable` must declare every component it uses in the
+same catalog. The canonical Basic catalog is never modified. The custom catalog
+has its own `catalogId` and is registered next to Basic with
+`additionalCatalogs`. A component outside the catalog (for example `Button`) is
+rejected at message validation.
+
+- `DataTable`: `caption`, `columns` (1 to 12 `{ key, header, align? }`), `rows`
+  (a data binding to an array of objects), and an optional `rowAction`.
+- `BarChart`: `title`, `values` (a data binding to `{ label, value }` items), and
+  `maxBars` (an integer from 1 to 50).
+
+The catalog schema is compiled by Core. Its descriptions feed the prompt
+generator. `src/custom-catalog/catalog.test.ts` proves registration, message
+validation, and the generated prompt. This issue adds no renderers. The Basic
+Web renderers are keyed to the Basic `catalogId`, so drawing a surface under this
+catalog also needs renderers for its components. The `DataTable` and `BarChart`
+renderers arrive in WVR-052 and WVR-053.

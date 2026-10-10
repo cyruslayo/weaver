@@ -4,7 +4,7 @@ title: Cookbook screen — validated form with server round-trip
 epic: E4 Cookbook
 audit_ref: WVR-04
 priority: P0
-status: todo
+status: in-review
 depends_on: [WVR-041]
 estimate: M
 ---
@@ -22,14 +22,14 @@ Test with Basic opt-in functions (`required`, `email` and similar) using
 `createBasicCatalogFunctionImplementations`.
 
 ## Acceptance criteria
-- [ ] First render is correct.
-- [ ] Keyboard only: Tab through the fields, type, Space toggles the CheckBox,
+- [x] First render is correct.
+- [x] Keyboard only: Tab through the fields, type, Space toggles the CheckBox,
       Enter/Space on Submit dispatches.
-- [ ] Invalid input shows the check message and blocks submit, if the
+- [x] Invalid input shows the check message and blocks submit, if the
       catalog checks disable the action.
-- [ ] The accepted and rejected round-trips update only the data model. Assert
+- [x] The accepted and rejected round-trips update only the data model. Assert
       that the agent emits no `updateComponents` on submit.
-- [ ] The screen ships its generated prompt (WVR-011, once available) as
+- [x] The screen ships its generated prompt (WVR-011, once available) as
       `prompt.txt` for reference.
 
 ## Verification
@@ -39,3 +39,37 @@ Test with Basic opt-in functions (`required`, `email` and similar) using
 Merged.
 
 ## Log
+
+- 2026-10-10: Branch `wvr-042-cookbook-form` (from `fa731b4`), status `in-review`.
+  Added the "Support request" screen at `form.html`, with the source in
+  `src/screens/form/screen.ts`. It has TextFields with checks and a
+  `validationRegexp`, a CheckBox, a mutually exclusive ChoicePicker, a
+  DateTimeInput, and a submit Button. The Button's `checks` disable it while
+  the form is invalid, and its action context binds the form paths. The agent
+  validates the context itself, never trusting the client checks. It answers
+  every submit with `updateDataModel` only: `/result` gets a ticket number
+  (`SR-1001`, then `SR-1002`, deterministic), or `/errors` gets the messages.
+  Client checks use `createBasicCatalogFunctionImplementations`. The
+  `validationRegexp` is evaluated by a trusted matcher that accepts only the
+  screen's own pattern and never runs agent text as a JavaScript RegExp.
+  The shared harness gained one optional `web` field on the screen definition,
+  for `functions` and `regexMatcher`. It is additive and changes nothing for the
+  placeholder. `prompt.txt` is the output of `generateA2UIV091Prompt` (20,363
+  characters, under the 24,000 limit). `src/form.test.ts` pins it to the generator
+  output. Shared-file edits are one line each: `vite.config.ts` (entry),
+  `index.html` (link), `README.md` (row, plus the "arrive in later issues" line),
+  and the `package.json` test script.
+  Finding: Basic `required` and `email` treat an empty value as invalid, not
+  pending. The required messages therefore show on first render, and the
+  submit button starts disabled. Basic checks have no "touched" state, so this
+  is how the catalog behaves. Fixing it would need a new check design, not a
+  change in this screen.
+  Keyboard criterion: `happy-dom` does not simulate key presses. The test
+  asserts the native controls and their DOM order (inputs, checkbox, radio
+  group, date, then the native button). Real Tab, Space and Enter behaviour is
+  left to the Playwright smoke test (WVR-045).
+  Gates: `pnpm install`, `pnpm --filter @weaver/cookbook test` (14 pass, 0 fail),
+  `pnpm typecheck`, `pnpm build`, `pnpm test` (core 351, mcp 10, web 121,
+  cookbook 14, reference-app 3, all pass), `pnpm verify:packages`,
+  `pnpm check:generated`, `pnpm conformance:v0.9.1`, and
+  `pnpm verify:worker-core` all pass. Build outputs and tarballs are git-ignored.

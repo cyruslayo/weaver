@@ -4,7 +4,7 @@ title: Exercise the prompt generator inside the packed-Core workerd gate
 epic: E1 Prompt generation
 audit_ref: WVR-01, §3.2 (Core portability)
 priority: P0
-status: todo
+status: in-review
 depends_on: [WVR-011]
 estimate: S
 ---
@@ -23,7 +23,7 @@ that the output contains `Text`.
 `integration/workerd-consumer/worker.test.js`
 
 ## Acceptance criteria
-- [ ] `pnpm verify:worker-core` passes and covers prompt generation.
+- [x] `pnpm verify:worker-core` passes and covers prompt generation.
 
 ## Verification
 `pnpm verify:packages && pnpm verify:worker-core`
@@ -32,3 +32,4 @@ that the output contains `Text`.
 Merged. CI is green.
 
 ## Log
+- 2026-10-10: Implemented on branch `wvr-014-prompt-workerd-gate` (base `fa731b4`). `integration/workerd-consumer/worker.test.js` now imports `generateA2UIV091Prompt` from the packed `@cylayo/weaver-core`. The request handler calls it with the same `worker-test` catalog and returns `prompt: { ok, containsText }`. A new test asserts `{ ok: true, containsText: true }`. The existing registration, validation and rejection assertions are unchanged. Evidence: `pnpm verify:packages` passes (3 tarballs). `pnpm verify:worker-core` passes with 2/2 workerd tests (`prompt generation` and the existing runtime test) inside `vpw` isolated runtimes. `pnpm typecheck`, `pnpm build` and `pnpm test` pass. Not done here: the docs/PLAN.md task entry and the scratch/BOARD.md update, which the orchestrator handles.
