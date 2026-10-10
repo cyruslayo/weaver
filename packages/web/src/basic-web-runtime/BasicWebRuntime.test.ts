@@ -88,8 +88,8 @@ test("installs only the safe canonical Basic theme adapter", () => {
   assert.ok(mounted.ok);
   const container = target.firstElementChild as HTMLElement;
   assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
-  assert.equal(target.querySelector("[data-weaver-surface-attribution]"), null);
-  assert.equal(target.querySelector("img"), null);
+  assert.equal(target.querySelector("[data-weaver-surface-attribution]") === null, true, "no attribution element");
+  assert.equal(target.querySelector("img") === null, true, "no img");
 });
 
 test("renders attribution only from an explicit trusted provider", () => {
@@ -151,7 +151,7 @@ test("does not install an icon resolver by default", () => {
   const { target } = dom();
   assert.equal(created.value.mount({ surfaceId, target }).ok, true);
   assert.equal(target.querySelector("[data-a2ui-icon-state=unresolved]")?.getAttribute("data-a2ui-component"), "Icon");
-  assert.equal(target.querySelector("path"), null);
+  assert.equal(target.querySelector("path") === null, true, "no path");
 });
 
 test("does not install a regex matcher by default", () => {
@@ -164,7 +164,7 @@ test("does not install a regex matcher by default", () => {
   const { target } = dom();
   assert.equal(created.value.mount({ surfaceId, target }).ok, true);
   assert.equal(target.querySelector("[data-a2ui-component=TextField]")?.getAttribute("data-a2ui-regexp-state"), "unavailable");
-  assert.equal(target.querySelector("[data-a2ui-validation-state=invalid]"), null);
+  assert.equal(target.querySelector("[data-a2ui-validation-state=invalid]") === null, true, "no invalid state");
 });
 
 test("keeps built-in datetime-local conversion without a custom resolver", () => {

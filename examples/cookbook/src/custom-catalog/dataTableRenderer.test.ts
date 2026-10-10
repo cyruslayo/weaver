@@ -130,7 +130,7 @@ test("the table renders semantic markup from bound data, with a caption and colu
   assert.equal(bodyRows(target).length, ORDERS.length);
   assert.equal(bodyRows(target)[1]?.children[2]?.textContent, "75.5");
   assert.equal(target.querySelector("h1, p, h2, h3")?.textContent, "Orders", "Text renders through the reused renderer");
-  assert.ok(target.querySelector('[data-a2ui-component="Card"]'), "Card renders through the reused renderer");
+  assert.ok(target.querySelector('[data-a2ui-component="Card"]') !== null, "Card renders through the reused renderer");
 });
 
 test("numeric columns are right aligned and text columns start aligned", () => {
@@ -188,7 +188,7 @@ test("an empty row list renders one labelled empty row and no buttons", () => {
 test("a wide table scrolls inside its own wrapper, so the page never overflows", () => {
   const { target } = mountTable();
   const wrapper = target.querySelector<HTMLElement>(`[data-cookbook-component="${DATA_TABLE_COMPONENT}"]`);
-  assert.ok(wrapper, "the DataTable wrapper is rendered");
+  assert.ok(wrapper !== null, "the DataTable wrapper is rendered");
   assert.equal(wrapper.style.overflowX, "auto");
   assert.equal(wrapper.style.maxWidth, "100%");
   assert.equal(wrapper.contains(table(target)), true, "the table sits inside the scrolling wrapper");

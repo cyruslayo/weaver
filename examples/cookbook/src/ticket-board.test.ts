@@ -167,7 +167,7 @@ test("the Assign Modal opens from its trigger, closes with its Close control, an
   trigger.focus();
   trigger.click();
   const dialog = target.querySelector('[role="dialog"]');
-  assert.ok(dialog, "the dialog must open");
+  assert.ok(dialog !== null, "the dialog must open");
   assert.deepEqual(
     screen.rejectedEventNames,
     [],
@@ -179,12 +179,12 @@ test("the Assign Modal opens from its trigger, closes with its Close control, an
 
   const close = buttonIn(dialog, "Close");
   close.click();
-  assert.equal(target.querySelector('[role="dialog"]'), null, "the dialog must close");
+  assert.equal(target.querySelector('[role="dialog"]') === null, true, "the dialog must close");
 
   const restored = target.querySelector<HTMLButtonElement>(
     '[data-a2ui-modal-trigger] button',
   );
-  assert.ok(restored, "the trigger must be rendered again");
+  assert.ok(restored !== null, "the trigger must be rendered again");
   // Identity checks use ok() so a failure prints a short message, not the DOM graph.
   assert.ok(document.activeElement === restored, "focus must return to the trigger");
 });
@@ -198,7 +198,7 @@ test("assign opens a ChoicePicker of people, writes the draft, and the confirm b
   assert.ok(labels.includes("Grace Hopper"));
 
   const grace = dialog.querySelector<HTMLInputElement>('input[value="grace"]');
-  assert.ok(grace, "the person must be an option");
+  assert.ok(grace !== null, "the person must be an option");
   grace.checked = true;
   const DomEvent = (window as unknown as typeof globalThis).Event;
   grace.dispatchEvent(new DomEvent("change"));
