@@ -155,25 +155,37 @@ The inspector is a private example in `examples/playground`. It is not part of a
 published package.
 
 1. Run `pnpm --filter @weaver/playground dev`, then open `/inspector.html`.
-2. Choose **Load a trace file (JSON)**, or **Use the bundled sample**.
-3. Step with **First**, **Previous**, **Next**, **Last**, the step slider, or a
-   timeline button. Left and Right step, and Home and End jump. The keys do nothing
-   while focus is in a field, the slider, or the live surface.
+2. In the **Trace** panel, choose a file with **Load a trace file (JSON)**, or press
+   **Use the bundled sample**. The status line then reads, for example,
+   `Loaded the bundled sample: 10 entries.` The step returns to 1.
+3. In the **Step** panel, step with **First**, **Previous**, **Next**, **Last**, the
+   **Step position** slider, or a timeline button. Left and Right step, and Home and
+   End jump to the first and last step. The shortcuts still work while a button has
+   focus. They do not work in the slider, where the arrow keys move the slider itself,
+   which also steps the trace. They do not work in the live surface either.
 
-The panels show:
+The page's panels, in order, are **Trace**, **Step** (with the **Timeline**),
+**Entry**, **Surface and data model**, **Resolved tree and issues** (with
+**Check results**), **Action outcome and replay**, **Live surface at this step**,
+and **Suppressed outbound**. They show:
 
-- **Timeline:** one button per entry, with its `seq`, `kind`, and `(error)` when
-  the outcome failed.
-- **Entry:** a **Valid**, **Rejected**, or **Invalid: malformed frame** badge, the
-  raw entry JSON, and for a failed entry the error from `describeWeaverError()`.
+- **Timeline:** one button per entry, labeled with its position, `kind`, and
+  `(error)` when the outcome failed, for example `4. frame-error (error)`.
+- **Entry:** a **Valid**, **Rejected**, or **Invalid: malformed frame** badge (the
+  malformed-frame badge is for `frame-error` entries), the raw entry JSON, and for a
+  failed entry an error panel. The panel shows the code, such as `INVALID_JSON
+  (error): Frame 4 is not valid JSON.`, then a `Fix:` hint and its causes, from
+  `describeWeaverError()`.
 - **Surface and data model**, **Resolved tree and issues**, and **Check results**,
   for the surface at this step.
-- **Action outcome and replay:** the recorded and replayed outcome for this entry,
-  and whether they diverged.
+- **Action outcome and replay:** `Recorded:` and `Replayed:` outcomes for this
+  entry, and `Diverged: yes` or `no`.
 - **Live surface at this step:** a surface rebuilt from the trace. Clicks change only
   this view.
-- **Suppressed outbound:** each server event the live surface raised, with the
-  note that nothing was sent.
+- **Suppressed outbound:** starts empty, with `No suppressed events yet.` It fills
+  only when you activate a control in the live surface, such as a submit button. Each
+  event is listed under its action name, marked `(not sent)`, with the count line
+  `1 suppressed event. Nothing was sent.` Replaying a trace raises no events.
 
 The bundled sample, `examples/playground/samples/reference-request.weaver-trace.json`,
 has 10 entries. It includes a torn frame (`frame-error`, `INVALID_JSON`), a message
@@ -186,7 +198,11 @@ Limits of the inspector:
 - It reads files and never writes them. It has no export button.
 - Each step replays the trace from its first entry into a new runtime, so a long
   trace gets slower at later steps.
-- A truncated trace is labeled as such. Its first steps may diverge (see below).
+- A truncated trace is labeled in the Trace panel's status line, which adds `Earlier
+  entries were dropped when it was recorded.` Its first steps may diverge (see below).
+- Loading a file that is not JSON, or that is not a weaver-trace, shows a sentence in
+  the Trace panel and keeps the trace already on screen. For example:
+  `This JSON is not a weaver-trace file. Its format field is "other".`
 
 ## Replay
 

@@ -50,3 +50,34 @@ Merged.
     (427 core + 133 web, 0 fail), verify:packages, verify:worker-core all exit 0.
   - Not done: the Definition of done ("Merged") needs review and merge. No product source
     changed.
+- 2026-10-10: review follow-up. The inspector section was re-checked against the built page
+  (`pnpm --filter @weaver/playground build`, `vite preview`, Chromium 1194 from
+  `/opt/pw-browsers`). Probe output:
+  - Headings in order: Trace (h2), Step (h2) with Timeline (h3), Entry, Surface and data model,
+    Resolved tree and issues (with Check results, h3), Action outcome and replay, Live surface at
+    this step, Suppressed outbound.
+  - Step controls: First (Home), Previous (ArrowLeft), Next (ArrowRight), Last (End), a range
+    slider "Step position" (max 9), and 10 timeline buttons such as `4. frame-error (error)`.
+  - Keys with focus on the page: ArrowRight, ArrowLeft, End and Home all step as documented.
+    With a button focused the shortcuts still work. In the slider, its own arrow keys move it.
+    In the live surface, ArrowLeft does nothing.
+  - Frame-error step: badge "Invalid: malformed frame", error panel `INVALID_JSON (error): Frame 4
+    is not valid JSON.` with a `Fix:` hint. Rejected message: "Rejected", CATALOG_REGISTRY_ERROR
+    with cause CATALOG_NOT_FOUND. OK message: "Valid".
+  - Suppressed outbound: "No suppressed events yet." until a live button is clicked, then
+    "1 suppressed event. Nothing was sent." with `reference.createRequest (not sent)`.
+  - Loading: the status reads `Loaded the bundled sample: 10 entries.` or `Loaded file "<name>":
+    N entries.`, and the step resets to 1. Non-JSON input reports "This file is not valid JSON,
+    so it is not a weaver-trace." A wrong format reports "This JSON is not a weaver-trace file.
+    Its format field is "other"." A truncated file adds "Earlier entries were dropped when it was
+    recorded." The page made no requests off its own origin.
+  - Corrected in docs/debugging.md: the keyboard sentence (the keys do not work in the slider or
+    the live surface, and they do work with a button focused); the panel list (it now starts with
+    Trace and Step, and the timeline sits under Step); the malformed-frame badge scope; the
+    error-panel text; the suppressed-log wording (it stays empty until a live control is
+    activated, and replay raises no events); the load and truncation wording.
+  - Links: 43 relative links across README.md, docs/prompt-generation.md, docs/debugging.md and
+    docs/architecture.md all resolve, anchors included. No pre-existing breakage was found in
+    those files.
+  - Gates re-run after the correction: check:generated, typecheck, build exit 0. test 669 pass,
+    0 fail. verify:packages exit 0, with 10 snippets run.
