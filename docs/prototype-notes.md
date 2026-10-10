@@ -41,10 +41,10 @@ future Web Renderer Registry
 implementation trust
 ```
 
-`@weaver/core` implements schema trust with `CatalogRegistry`: applications
+`@cylayo/weaver-core` implements schema trust with `CatalogRegistry`: applications
 register A2UI v0.9.1 catalog JSON Schemas during initialization, and components
 are checked for catalog membership and schema conformance before entering
-surface state. A future `@weaver/web` registry will decide which trusted renderer
+surface state. A future `@cylayo/weaver-web` registry will decide which trusted renderer
 implementation corresponds to an already schema-trusted component. This work
 does not migrate recursive DOM construction, actions, or the prototype's
 replacement-on-register behavior.
@@ -82,11 +82,11 @@ framework:
 
 | Prototype concept | Current realization |
 | --- | --- |
-| ComponentRegistry allowlist | `CatalogRegistry` in `@weaver/core` plus the trusted DOM `RendererRegistry` in `@weaver/web` |
-| StateActionBus state updates/subscriptions | `SurfaceStore`, `DataModel`, and `InputBindingWriter` in `@weaver/core` |
-| StreamingEngine incremental input | `JsonlDecoder` in `@weaver/core` (strict framing and parsing; no repair, no Markdown stripping) |
-| Browser action dispatch | `ActionDispatcher` in `@weaver/core` and the Web interaction bridge in `@weaver/web` |
-| Design token firewall | trusted `WebSurfaceThemeAdapter` allowlist in `@weaver/web` |
+| ComponentRegistry allowlist | `CatalogRegistry` in `@cylayo/weaver-core` plus the trusted DOM `RendererRegistry` in `@cylayo/weaver-web` |
+| StateActionBus state updates/subscriptions | `SurfaceStore`, `DataModel`, and `InputBindingWriter` in `@cylayo/weaver-core` |
+| StreamingEngine incremental input | `JsonlDecoder` in `@cylayo/weaver-core` (strict framing and parsing; no repair, no Markdown stripping) |
+| Browser action dispatch | `ActionDispatcher` in `@cylayo/weaver-core` and the Web interaction bridge in `@cylayo/weaver-web` |
+| Design token firewall | trusted `WebSurfaceThemeAdapter` allowlist in `@cylayo/weaver-web` |
 
 Prototype protocol shapes (`beginRendering`, `surfaceUpdate`, `streamComplete`,
 bare `{ rootId, components }` payloads, and silent JSON repair) remain
