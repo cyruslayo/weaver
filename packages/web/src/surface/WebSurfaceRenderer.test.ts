@@ -5,6 +5,8 @@ import { Window } from "happy-dom";
 import { createBasicCatalogRendererRegistrations, createBasicCatalogThemeAdapter } from "../basic/index.js";
 import { RendererRegistry, type RendererRegistration } from "../renderers/index.js";
 import { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
+import { describeWebRenderError } from "./describeWebRenderError.js";
+import type { WebRenderError } from "./errors.js";
 
 const ref = (name: string): JsonObject => ({ $ref: `common_types.json#/$defs/${name}` });
 const dynamic = (literal: JsonObject): JsonObject => ({ oneOf: [literal, ref("PathBinding"), ref("FunctionCall")] });
@@ -413,6 +415,22 @@ test("rerender failure is atomic, reports errors, and later valid state recovers
   rt.process(components([{ id: "root", component: "Text", text: "recovered" }]));
   assert.equal(target.textContent, "recovered"); assert.notEqual(target.querySelector("span"), oldNode);
   void document;
+});
+
+test("unregistered renderer on a later update keeps the last DOM, calls onError, and describes the component", () => {
+  const rt = runtime(); rt.process(create()); rt.process(components([{ id: "root", component: "Text", text: "old" }]));
+  const { target } = dom(); const errors: WebRenderError[] = [];
+  const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()) });
+  const mounted = web.mount({ surfaceId: "s", target, onError: (error) => errors.push(error) }); assert.ok(mounted.ok);
+  const previous = target.querySelector("span");
+  rt.process(components([{ id: "root", component: "Missing" }]));
+  assert.equal(target.textContent, "old"); assert.equal(target.querySelector("span"), previous);
+  assert.equal(errors.length, 1); assert.equal(errors[0]?.code, "RENDERER_NOT_FOUND");
+  const description = describeWebRenderError(errors[0]!);
+  assert.equal(description.code, "RENDERER_NOT_FOUND");
+  assert.equal(description.componentId, "root");
+  assert.match(description.summary, /Catalog "test", component "Missing"/);
+  assert.ok(description.hint);
 });
 
 test("Basic media policy receives bound hydrated URLs and policy exceptions preserve prior DOM", () => {
