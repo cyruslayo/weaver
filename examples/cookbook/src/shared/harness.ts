@@ -1,6 +1,8 @@
 import {
+  A2UI_V091_BASIC_CATALOG_ID,
   createA2UIV091Producer,
   createA2UIV091StreamIngestion,
+  createBasicCatalogFunctionImplementations,
   type A2UIComponent,
   type A2UIServerMessage,
   type BasicRegexMatcher,
@@ -41,7 +43,7 @@ export interface CookbookScreenDefinition<TState> {
   readonly components: () => A2UIComponent[];
   /** The only event names that reach the agent. Keys are matched with `Object.hasOwn`. */
   readonly actions: Readonly<Record<string, CookbookAction<TState>>>;
-  /** Optional trusted Basic functions and regex matcher for the screen's client checks. */
+  /** Optional trusted Basic functions and regex matcher for the screen's client checks. When `functions` is set, it replaces the harness default. */
   readonly web?: {
     readonly functions?: readonly FunctionRegistration[];
     readonly regexMatcher?: BasicRegexMatcher;
@@ -161,10 +163,16 @@ export interface CookbookScreen<TState> {
   handleServerEvent(event: WebServerEventHandoff): CookbookEventResult;
 }
 
+export interface CookbookMountOptions {
+  /** Observes the messages the agent emits in answer to an accepted action. Tests use it to assert on them. */
+  readonly onOutbound?: (messages: readonly A2UIServerMessage[]) => void;
+}
+
 /** Wires the full pipeline for one screen and mounts it into `target`. */
 export function mountCookbookScreen<TState>(
   target: Element,
   definition: CookbookScreenDefinition<TState>,
+  options: CookbookMountOptions = {},
 ): CookbookScreen<TState> {
   const rejectedEventNames: string[] = [];
   let handoff: (event: WebServerEventHandoff) => CookbookEventResult = () => {
@@ -174,7 +182,9 @@ export function mountCookbookScreen<TState>(
   const created = createBasicWebRuntime({
     runtime: {
       safety: COOKBOOK_SAFETY_BUDGETS,
-      ...(definition.web?.functions === undefined ? {} : { functions: definition.web.functions }),
+      // Basic functions (formatNumber, formatCurrency, ...) are opt-in. The harness registers them once by default.
+      // A screen that supplies its own list replaces the default, so no name is registered twice.
+      functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
     },
     ...(definition.web?.regexMatcher === undefined
       ? {}
@@ -209,6 +219,7 @@ export function mountCookbookScreen<TState>(
       return outcome;
     }
     stream.send(outcome.messages);
+    options.onOutbound?.(outcome.messages);
     return { accepted: true };
   };
 

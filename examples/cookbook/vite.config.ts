@@ -12,6 +12,7 @@ export default defineConfig({
         index: page("./index.html"),
         placeholder: page("./placeholder.html"),
         form: page("./form.html"),
+        dashboard: page("./dashboard.html"),
       },
     },
   },

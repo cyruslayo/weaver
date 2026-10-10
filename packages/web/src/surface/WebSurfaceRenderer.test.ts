@@ -597,6 +597,36 @@ test("closed Modal and inactive Tabs descendants are safely constructed detached
   assert.deepEqual(rt.getSurface("s")?.dataModel, {});
 });
 
+test("a focused Basic Button survives a data-model rerender, and sibling buttons never take its focus", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Column", children: ["first", "second"] },
+    { id: "first", component: "Button", child: "firstLabel", action: { event: { name: "first", context: {} } } },
+    { id: "firstLabel", component: "Text", text: { path: "/label" } },
+    { id: "second", component: "Button", child: "secondLabel", action: { event: { name: "second", context: {} } } },
+    { id: "secondLabel", component: "Text", text: "Second" },
+  ]));
+  rt.process(data({ label: "One", unrelated: 0 }));
+  const regs = createBasicCatalogRendererRegistrations({ catalogId: "test" });
+  const one = mount(rt, regs); assert.ok(one.result.ok);
+  one.target.ownerDocument.body.append(one.target);
+  const document = one.target.ownerDocument;
+  const buttons = (): HTMLButtonElement[] => [...one.target.querySelectorAll<HTMLButtonElement>("button")];
+
+  // Boolean assertions only: a failing assert.equal on a DOM node is very slow to format.
+  buttons()[0]!.focus();
+  const beforeRerender = buttons()[0];
+  rt.process(data({ label: "Uno", unrelated: 1 }));
+  assert.ok(buttons()[0] !== beforeRerender, "the rerender replaces the button node, so restoration is required");
+  assert.equal(buttons()[0]?.textContent, "Uno");
+  assert.ok(document.activeElement === buttons()[0], "focus is restored to the re-rendered first button");
+
+  buttons()[1]!.focus();
+  rt.process(data({ label: "Dos", unrelated: 2 }));
+  assert.ok(document.activeElement === buttons()[1], "focus stays on the second button");
+  assert.ok(document.activeElement !== buttons()[0], "the first button does not take focus from the second");
+});
+
 test("nested Basic Modals keep the closest dialog open, focused, and keyboard-contained", () => {
   const rt = runtime(); rt.process(create());
   rt.process(components([

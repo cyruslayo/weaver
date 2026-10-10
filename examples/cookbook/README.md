@@ -33,8 +33,9 @@ harness owns everything else:
 |---|---|---|---|
 | Placeholder | `placeholder.html` | `src/screens/placeholder.ts` | Pipeline smoke screen |
 | Support request | `form.html` | `src/screens/form/screen.ts` | Validated form with a server round trip |
+| Dashboard | `dashboard.html` | `src/screens/dashboard.ts` | KPI tiles and a filtered list. Refresh and filter send data-model updates only. |
 
-The dashboard and ticket board screens arrive in later issues.
+The ticket board screen arrives in a later issue.
 
 ## Run
 
