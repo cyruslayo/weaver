@@ -1,0 +1,39 @@
+:root {
+  color: #202124;
+  background: #f4f1eb;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  box-sizing: border-box;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem;
+}
+
+.screen-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.screen-list li {
+  display: grid;
+  gap: 0.25rem;
+  background: #fffdf9;
+  border: 1px solid #ded7ca;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+[data-weaver-mount] {
+  background: #fffdf9;
+  border: 1px solid #ded7ca;
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
