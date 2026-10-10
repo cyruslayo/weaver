@@ -4,7 +4,7 @@ title: Trusted DataTable renderer (accessible, no innerHTML)
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05, WVR-09 groundwork
 priority: P0
-status: ready
+status: in-review
 depends_on: [WVR-051]
 estimate: M
 ---
@@ -27,7 +27,7 @@ estimate: M
       the rows.
 - [ ] Row actions dispatch with the correct context. Buttons from a stale
       render are inert.
-- [ ] A test asserts the source contains no `innerHTML`, `outerHTML`, or
+- [x] A test asserts the source contains no `innerHTML`, `outerHTML`, or
       `insertAdjacentHTML`.
 
 ## Verification
@@ -41,3 +41,38 @@ Merged.
 - `createBasicWebRuntime` keys its Basic renderers to the Basic catalog id. Cookbook surfaces use the cookbook catalog id (WVR-051), so this issue must also register renderers for `Column`, `Text` and `Card` under that id, not only for `DataTable`.
 
 ## Log
+
+- 2026-10-10: Branch `wvr-052-datatable-renderer` from `d977a03`, status
+  `in-review`. PARTIAL: 1 of 3 criteria is ticked. Not pushed, no PR.
+  - New `examples/cookbook/src/custom-catalog/dataTableRenderer.ts`: the
+    `DataTable` renderer. It uses only DOM APIs and `textContent`, with a
+    `<caption>`, `<th scope="col">`, right alignment for numeric columns,
+    a scroll wrapper, and one `<button>` per row that calls
+    `interactions.dispatchAction("rowAction")`.
+  - New `examples/cookbook/src/custom-catalog/renderers.ts`:
+    `cookbookCatalogRendererRegistrations`, the shared registration array.
+    It reuses Basic's Text, Column and Card renderers under the cookbook
+    catalog id, filtered from `createBasicCatalogRendererRegistrations`.
+    WVR-053 adds one line to this array.
+  - New `dataTableRenderer.test.ts`, registered in the cookbook `test` script.
+    It has 10 tests. Cookbook suite: 53 pass (43 before).
+  - `catalog.ts` is unchanged (WVR-051 tests still pass).
+  - Ticked: "no innerHTML, outerHTML or insertAdjacentHTML" (source scan test).
+  - NOT ticked, "renders from bound data and re-renders": the shipped
+    catalog declares `rows` as a bare DataBinding. Core hydrates a binding
+    only when the schema has a literal branch (`oneOf` with the binding
+    and literal alternatives), so the renderer receives the raw
+    `{"path": "/orders"}` object and shows "No rows". The re-render and
+    stale-button tests pass against a test-only catalog that adds a literal
+    array branch to `rows`. The shipped catalog path is not evidenced.
+    Fixing it needs a Core change (hydrate binding-only properties) or a
+    catalog decision. The same applies to BarChart `values` (WVR-053).
+  - NOT ticked, "row actions dispatch with the correct context": the
+    `dispatchAction(actionProperty)` API takes no row identity, and Core
+    resolves the action context at the table's scope. Every row dispatches
+    the same table-level context, which the test checks. Per-row context needs
+    a row-scoped dispatch in the Web interaction API or in Core. Stale-button
+    inertness is tested and passes.
+  - Verification: `pnpm typecheck`, `pnpm build`, `pnpm test` (412 pass, 0
+    fail), `pnpm verify:packages`, `pnpm --filter @weaver/cookbook test` (53
+    pass).
