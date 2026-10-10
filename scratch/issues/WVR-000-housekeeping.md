@@ -4,7 +4,7 @@ title: Fix stale package names and status in docs/PLAN.md; add roadmap pointer
 epic: E0 Housekeeping
 audit_ref: —
 priority: P0
-status: ready
+status: in-review
 depends_on: []
 estimate: S
 ---
@@ -36,9 +36,9 @@ read PLAN.md first, so it has to be accurate before roadmap work starts.
 - Possibly `docs/architecture.md`, `docs/mcp.md`, `docs/web-rendering.md`
 
 ## Acceptance criteria
-- [ ] `grep -rnE "@weaver/(core|web|mcp)" docs README.md` returns nothing.
-- [ ] Task 53 states an accurate status.
-- [ ] The roadmap section exists and links to `scratch/ROADMAP.md`.
+- [x] `grep -rnE "@weaver/(core|web|mcp)" docs README.md` returns nothing.
+- [x] Task 53 states an accurate status.
+- [x] The roadmap section exists and links to `scratch/ROADMAP.md`.
 
 ## Verification
 `grep` as above. Docs-only change, so no CI impact is expected; run
@@ -48,3 +48,9 @@ read PLAN.md first, so it has to be accurate before roadmap work starts.
 Merged to main. BOARD updated.
 
 ## Log
+- 2026-10-10. Branch `wvr-000-housekeeping`, based on `e250867` (`cada149` plus the scratch-tracker import). Status set to `in-review`.
+  - Replaced `@weaver/{core,web,mcp}` with `@cylayo/weaver-{core,web,mcp}` in `docs/PLAN.md`, `docs/weaver-dev-plan.md`, and `docs/prototype-notes.md`. `@weaver/playground` and `@weaver/reference-app` were left as-is. The acceptance grep now returns nothing.
+  - Task 53 now reads "Status unknown — tracked outside this repo (Zynra)", followed by its intended scope. Historical entries were not rewritten.
+  - Added "Roadmap: OpenUI-informed improvements" to `docs/PLAN.md`. It links to `../scratch/ROADMAP.md` and `../scratch/BOARD.md` and has a one-line summary for E1 to E5. It notes that the remaining audit items are gated.
+  - `pnpm install` and `pnpm typecheck` pass. No code changed. `scratch/BOARD.md` was not edited (the orchestrator owns it).
+  - Not run: the full CI gate (`check:generated`, `test`, `build`, conformance). It is docs-only, and the issue's verification calls for typecheck only.
