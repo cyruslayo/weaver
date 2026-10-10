@@ -23,7 +23,7 @@ estimate: M
 - Add no runtime dependency (no TanStack).
 
 ## Acceptance criteria
-- [ ] Renders from bound data, and re-renders when `updateDataModel` changes
+- [x] Renders from bound data, and re-renders when `updateDataModel` changes
       the rows.
 - [ ] Row actions dispatch with the correct context. Buttons from a stale
       render are inert.
@@ -76,3 +76,23 @@ Merged.
   - Verification: `pnpm typecheck`, `pnpm build`, `pnpm test` (412 pass, 0
     fail), `pnpm verify:packages`, `pnpm --filter @weaver/cookbook test` (53
     pass).
+- 2026-10-10 follow-up (coordinator decision). This supersedes the bound-data
+  note above.
+  - `catalog.ts` now declares `rows` (DataTable) and `values` (BarChart) as
+    the Basic bindable pattern. It is `oneOf`: a DataBinding, or a literal
+    array of the same item shape. `rows` items are objects. `values` items are
+    `{label: string, value: number}` with no extra properties. Descriptions say
+    the binding is preferred. The `rowAction` description now says the action is
+    table-level and its context is resolved once, at the table scope.
+  - Criterion 1 is now ticked. The renderer tests run against the shipped
+    `cookbookCatalog` and check binding render, re-render, and empty state.
+    The test-only catalog variant is gone.
+  - `catalog.test.ts` (WVR-051) now asserts that right-shaped literal rows and
+    values are accepted and wrong-shaped ones are rejected. Binding is still
+    accepted. The prompt test checks the "(preferred) or a literal array"
+    wording.
+  - Criterion 2 stays unticked. Per-row context needs a row-scoped dispatch
+    that Web and Core do not have. Follow-up: WVR-056
+    (`scratch/issues/WVR-056-row-scoped-action-dispatch.md`, todo, P1), with a
+    BOARD row. No Web or Core API was changed here.
+  - Cookbook suite: 57 pass.
