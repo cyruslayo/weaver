@@ -4,7 +4,7 @@ title: Basic primary Button meets WCAG AA contrast (4.5:1) for its small text
 epic: F Follow-ups
 audit_ref: follow-up to WVR-024 / WVR-057 (browser review)
 priority: P1
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -124,3 +124,4 @@ Merged to `main`, with every acceptance criterion ticked on evidence and the 0.3
 - 2026-10-10: `docs/web-rendering.md` names no colour, so it was not edited. `docs/PLAN.md` and `scratch/BOARD.md` were not edited, per the orchestrator's instruction. No version bumps.
 - 2026-10-10: **integration (`wvr-integration-6`, merge commit `2a09a2c`).** Merged into the integration branch with `--no-ff` at `a3134ec`, first of the three review branches. No conflict. The four literal colour pins are the only edits to existing tests. I checked this against the merged diff: `git diff a3134ec -- packages/web/src/basic/basic.test.ts` changes the Button assertion (line 364), the CheckBox and Slider assertions (402, 403), and the Radio assertion (465), and nothing else among the existing tests. `BasicWebRuntime.test.ts` has no changed lines. The acceptance criterion about existing tests passing unchanged was therefore reworded to match this, and ticked on that evidence. The criterion as first written was not true, and the reworded one is what the diff shows.
 - 2026-10-10: **integration gate (after the WVR-034 merge, same branch).** Cookbook e2e 40 passed, and playground e2e 24 passed. The counts are higher than the 30 and 18 above, because WVR-034 added tests to both suites. The web test count is 136, unchanged. The colour change needed no change to the e2e suites.
+- 2026-10-10 merged in cyruslayo/weaver#27 (dfb55dd)
