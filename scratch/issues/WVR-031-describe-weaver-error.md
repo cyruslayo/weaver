@@ -4,7 +4,7 @@ title: Core describeWeaverError() — exhaustive, human-actionable error descrip
 epic: E3 Error presentation
 audit_ref: WVR-03
 priority: P0
-status: ready
+status: in-review
 depends_on: []
 estimate: M
 ---
@@ -44,10 +44,10 @@ describeWeaverError(error: MessageProcessorError | JsonlDecodeError | WeaverSurf
 - Edit: `index.ts` and the package test list
 
 ## Acceptance criteria
-- [ ] Every code in every listed union has a description. A test enumerates
+- [x] Every code in every listed union has a description. A test enumerates
       fixtures for each code.
-- [ ] Nested causes are flattened in order.
-- [ ] A catalog-validation failure names the component id and the offending
+- [x] Nested causes are flattened in order.
+- [x] A catalog-validation failure names the component id and the offending
       property path.
 
 ## Verification
@@ -57,3 +57,16 @@ describeWeaverError(error: MessageProcessorError | JsonlDecodeError | WeaverSurf
 Merged.
 
 ## Log
+- 2026-10-10: Branch `wvr-031-describe-error`, commit `9ded769` (not pushed, no PR).
+  - Added `packages/core/src/diagnostics/` (`describeWeaverError`, types, index),
+    exported from `src/index.ts`, and registered the test file in the core
+    `test` script. `pnpm --filter @cylayo/weaver-core test` passes (316/316,
+    including 9 new diagnostics tests). `pnpm typecheck` passes.
+  - Inventory: 15 `errors.ts` files plus the nested unions they reference. A
+    compile-time check in the test fails if the code list drifts from those unions.
+  - Scope call: the accepted union also includes `WeaverRuntimeConfigurationError`
+    (runtime) and `FunctionRegistryError` (functions). Neither is reachable from the
+    five listed unions, so without them their codes would have no `never` check.
+  - Skipped: `A2UIPromptGenerationError` (WVR-011 not available), as instructed.
+  - Not done: the workflow asks for a `docs/PLAN.md` entry. Left out because the
+    task said not to edit `docs/PLAN.md`. `BOARD.md` is also untouched.
