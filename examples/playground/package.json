@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@cylayo/weaver-core": "workspace:*",
-    "@cylayo/weaver-web": "workspace:*"
+    "@cylayo/weaver-web": "workspace:*",
+    "@weaver/shared": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",

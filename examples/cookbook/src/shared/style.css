@@ -64,3 +64,21 @@ main {
 [data-weaver-mount] [data-a2ui-component="Row"] > [data-a2ui-component="Card"] {
   flex-basis: 8rem;
 }
+
+/* Error demo: the surface and the diagnostics panel stack on a phone and sit side by side on a wide screen. */
+.error-demo {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.error-demo > * {
+  min-width: 0;
+}
+
+@media (min-width: 52rem) {
+  .error-demo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}

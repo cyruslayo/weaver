@@ -22,6 +22,12 @@ page makes no network requests. Server events raised by the live surface are lis
 Keyboard: Left and Right step, Home and End jump. Focus in a form field, the slider, or
 the live surface turns these off, so they can be used normally.
 
+A failed entry shows its error in a diagnostics panel. The panel is the shared
+`renderDiagnosticsPanel()` from the private `@weaver/shared` package in `examples/shared`,
+and it is also used by the cookbook. It lists each error under its frame, surface and
+component, with the cause chain and the fix hint. It stays in `examples/`, and the
+promotion rule is in [docs/debugging.md](../../docs/debugging.md#diagnostics-panel).
+
 ### Bundled sample
 
 `samples/reference-request.weaver-trace.json` is recorded by `src/sample-flow.ts`. The
@@ -45,8 +51,9 @@ These are node tests. They run in the required `pnpm test` gate, and they need n
 ## Browser checks (Playwright)
 
 `e2e/inspector.spec.ts` checks the inspector in a real Chromium, at 1280px and 360px:
-no horizontal page overflow, keyboard use, the malformed-frame step, the suppressed log,
-and trace text that never runs as markup.
+no horizontal page overflow, keyboard use, the malformed-frame step, the rejected-message
+step (each shown as one diagnostics entry), keyboard reach of the diagnostics panel, the
+suppressed log, and trace text that never runs as markup.
 
 ```sh
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/playground e2e

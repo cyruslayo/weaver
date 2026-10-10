@@ -36,6 +36,7 @@ harness owns everything else:
 | Dashboard | `dashboard.html` | `src/screens/dashboard.ts` | KPI tiles and a filtered list. Refresh and filter send data-model updates only. |
 | Ticket board | `ticket-board.html` | `src/screens/ticket-board.ts` | Move, assign, and close tickets |
 | Orders report | `orders-report.html` | `src/screens/orders-report.ts` | Read-only table and bar chart on the custom catalog. Refresh sends data-model updates only. |
+| Error demo | `error-demo.html` | `src/screens/error-demo.ts` | Three bad updates (a truncated frame, a component the catalog does not define, a list too long to render). Each is one entry in the diagnostics panel, beside the surface that keeps its last good render. |
 
 ### Positional template identity (ticket board)
 
@@ -98,7 +99,8 @@ Failing checks are real findings and are not skipped. Each failure names the
 screen, the viewport and the control. The 360px layout of the Row containers is
 handled by the scoped rules at the end of `src/shared/style.css`.
 
-The cookbook depends only on `@cylayo/weaver-core`, `@cylayo/weaver-web`, Vite,
+The cookbook depends only on `@cylayo/weaver-core`, `@cylayo/weaver-web`, the private
+`@weaver/shared` example helper (the diagnostics panel, see `examples/shared`), Vite,
 and happy-dom. `@playwright/test` is a devDependency for the browser smoke test only. It has no routing, persistence, accounts, networking, backend,
 custom catalog, or framework.
 

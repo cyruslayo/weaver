@@ -224,29 +224,11 @@ button:hover {
   min-width: 0;
 }
 
-.error-summary {
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-}
-
-.fields {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 0.25rem 0.75rem;
-  margin: 0.5rem 0;
-}
-
-.fields dt {
-  font-weight: 600;
-}
-
-.fields dd {
-  margin: 0;
-}
-
-.causes {
-  padding-left: 1.25rem;
-  margin: 0.25rem 0 0;
+/* The shared diagnostics panel draws its own frame, so the red error frame above is the only border. */
+.error-panel .diagnostics-panel {
+  border: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .code {

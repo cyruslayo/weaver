@@ -15,6 +15,7 @@ export default defineConfig({
         dashboard: page("./dashboard.html"),
         "ticket-board": page("./ticket-board.html"),
         "orders-report": page("./orders-report.html"),
+        "error-demo": page("./error-demo.html"),
       },
     },
   },

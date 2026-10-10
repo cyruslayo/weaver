@@ -5,6 +5,7 @@ import {
   createBasicCatalogFunctionImplementations,
   type A2UIComponent,
   type A2UIServerMessage,
+  type A2UIV091StreamIngestionEvent,
   type BasicRegexMatcher,
   type CatalogRegistration,
   type FunctionRegistration,
@@ -16,6 +17,7 @@ import {
   createBasicWebRuntime,
   type BasicWebRuntime,
   type RendererRegistration,
+  type WebRenderError,
   type WebServerEventHandoff,
   type WebSurfaceMount,
 } from "@cylayo/weaver-web";
@@ -105,6 +107,12 @@ export function encodeA2UIMessage(message: A2UIServerMessage): string {
 /** In-process JSONL stream into one long-lived Core ingestion. Validation stays owned by Core. */
 export interface CookbookStream {
   send(messages: readonly A2UIServerMessage[]): void;
+  /**
+   * Pushes raw JSONL text into the same ingestion as `send`, and returns its events
+   * instead of throwing. A screen uses it to feed bad input on purpose. Frame numbers
+   * continue from the frames `send` already applied.
+   */
+  push(chunk: string): A2UIV091StreamIngestionEvent[];
   finish(): void;
   reset(): void;
 }
@@ -127,6 +135,7 @@ export function createCookbookStream(runtime: WeaverRuntime): CookbookStream {
       for (const message of messages)
         apply(ingestion.push(encodeA2UIMessage(message)));
     },
+    push: (chunk) => ingestion.push(chunk),
     finish: () => apply(ingestion.finish()),
     reset: () => ingestion.reset(),
   };
@@ -206,6 +215,11 @@ export interface CookbookScreen<TState> {
 export interface CookbookMountOptions {
   /** Observes the messages the agent emits in answer to an accepted action. Tests use it to assert on them. */
   readonly onOutbound?: (messages: readonly A2UIServerMessage[]) => void;
+  /**
+   * Observes a render failure that the surface reports after an update. The previous
+   * DOM stays in place when it fires, so the screen can show the error beside it.
+   */
+  readonly onRenderError?: (error: WebRenderError) => void;
 }
 
 /** Wires the full pipeline for one screen and mounts it into `target`. */
@@ -253,7 +267,11 @@ export function mountCookbookScreen<TState>(
   const stream = createCookbookStream(web.runtime);
 
   stream.send(agent.start());
-  const mounted = web.mount({ surfaceId: definition.surfaceId, target });
+  const mounted = web.mount({
+    surfaceId: definition.surfaceId,
+    target,
+    ...(options.onRenderError === undefined ? {} : { onError: options.onRenderError }),
+  });
   if (!mounted.ok)
     throw new Error(`Cookbook mount failed: ${mounted.error.code}`);
 
