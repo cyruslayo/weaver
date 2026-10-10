@@ -4,7 +4,7 @@ title: Document tracing, replay and the inspector (docs/debugging.md)
 epic: E2 Trace and replay
 audit_ref: WVR-02
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-024]
 estimate: S
 ---
@@ -81,3 +81,5 @@ Merged.
     those files.
   - Gates re-run after the correction: check:generated, typecheck, build exit 0. test 669 pass,
     0 fail. verify:packages exit 0, with 10 snippets run.
+
+- 2026-10-10 merged in cyruslayo/weaver#25 (42f338c)

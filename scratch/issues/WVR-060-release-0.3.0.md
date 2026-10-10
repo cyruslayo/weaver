@@ -4,7 +4,7 @@ title: Release prep 0.3.0 — synchronized version bump, README, PLAN.md
 epic: Release
 audit_ref: —
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-016, WVR-025, WVR-033]
 estimate: S
 ---
