@@ -52,6 +52,7 @@ test("the render failure is attributed to the frame that caused it, and names th
   const render = run.descriptions.find((description) => description.code === "SURFACE_RESOLUTION_FAILED");
   assert.ok(render !== undefined);
   assert.equal(render.frame, 6);
+  // The screen no longer adds this id: the value comes from describeWebRenderError() in the library.
   assert.equal(render.surfaceId, ERROR_DEMO_SURFACE_ID);
 });
 
