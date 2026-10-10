@@ -400,6 +400,12 @@ Close buttons act on that ticket
 [positional template identity](../examples/cookbook/README.md#positional-template-identity-ticket-board)
 section of the cookbook README explains what a List template guarantees and what it does not.
 
+**Paths inside a template:** a template child binds its own item's fields without a leading slash,
+such as `{ "path": "name" }`. A leading slash, such as `{ "path": "/name" }`, reads from the DataModel
+root. In a template, that renders empty with no error when the root has no such key. The rule is in
+[the architecture scope rules](architecture.md#derived-data-scopes), and the symptom and fix are in
+[debugging](debugging.md#symptom-template-text-is-empty-with-no-error).
+
 ## When to add a component
 
 Add a component to a catalog only when a shipping app needs it, and only after you have measured

@@ -54,6 +54,21 @@ collection. The scope path is `/board/<status>/<index>`, so:
 - The Basic Modal has no data-driven close. Confirm assigns the ticket and
   keeps the dialog open, and the user dismisses it with Close or Escape.
 
+### Paths inside a template
+
+Inside a List template, a path with a leading slash is read from the DataModel
+root, not from the current item. The item's own field is written without a slash:
+
+- `{ "path": "name" }` reads `name` from the current item.
+- `{ "path": "/name" }` reads `name` from the DataModel root. The root has no
+  `name`, so the text renders empty. The render succeeds and no error is raised.
+
+Use the bare form for item fields and a slash only for root values. The
+[debugging guide](../../docs/debugging.md#symptom-template-text-is-empty-with-no-error)
+has the symptom and fix, and the
+[architecture scope rules](../../docs/architecture.md#derived-data-scopes)
+state the rule. The error demo (`src/screens/error-demo.ts`) uses the bare form.
+
 ## Run
 
 ```sh
