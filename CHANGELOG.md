@@ -32,7 +32,7 @@ snapshot the primary button colour.
   [docs/prompt-generation.md](docs/prompt-generation.md).
 - **Shipped Basic examples.** `A2UI_V091_BASIC_PROMPT_EXAMPLES` exports the canonical Basic
   catalog examples. The generator validates every example, including these, before it
-  appears in a prompt. See [docs/prompt-generation.md](docs/prompt-generation.md#example-validation).
+  appears in a prompt. See [docs/prompt-generation.md](docs/prompt-generation.md#example-validation). The constant is deeply frozen: the examples, their `messages` arrays and each message object are read-only at runtime.
 - **Catalog definition helper.** `defineCatalog()`, with the types `CatalogDefinition` and
   `A2UIV091CatalogSchema`, attaches a catalog id to a schema. It does not validate the
   schema, and registration still validates it. This helper was added after the 0.2.1 tag.
@@ -91,6 +91,8 @@ snapshot the primary button colour.
   the old default accent. The new default accent meets it (see the visual change above).
 - **Focus after rerender.** Keyboard focus on a Basic Button is restored after a data-model
   rerender (see Basic Button focus above).
+- **Core tarball.** `@cylayo/weaver-core` no longer includes an internal test fixture module
+  (`dist/protocol/a2ui/v0_9_1/fixtures.*`). It was never part of the public API.
 
 ### Documented behaviour (no code change)
 
@@ -115,6 +117,16 @@ snapshot the primary button colour.
   diverge. See [docs/debugging.md](docs/debugging.md#guarantees-and-limits).
 - **Positional collections.** Collection replay uses array positions, as the v0.9.1 semantics
   require. See [docs/debugging.md](docs/debugging.md#guarantees-and-limits).
+- **Replay codes are strings.** Replay divergence codes (`recorded.code` and `replayed.code`) are
+  plain strings, not members of a typed union. `WEAVER_TRACE_REPLAY_INVALID_INPUT` has the value
+  `"REPLAY_INVALID_INPUT"`. See [docs/debugging.md](docs/debugging.md#guarantees-and-limits).
+- **Observer events are dropped silently on failure.** An exception thrown while building an
+  observer event drops that event without a signal, as an exception from the observer does. A
+  known limitation: an untyped `dispatchAction()` request with a circular reference is copied
+  without a JSON-safety check, and that copy never finishes, so a process with an observer set
+  runs out of memory. Typed requests are not affected. Until this is fixed, do not pass untyped
+  action requests to a runtime with an observer. See
+  [docs/debugging.md](docs/debugging.md#turn-on-the-observer-and-the-recorder).
 - **Examples are not published.** `@weaver/cookbook`, `@weaver/playground`,
   `@weaver/reference-app` and `@weaver/shared` are private workspace packages. The cookbook
   screens and its custom catalog recipe, including the DataTable and BarChart renderers, live

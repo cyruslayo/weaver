@@ -73,7 +73,12 @@ console.log(web.catalogId);
 What the recorder does:
 
 - The observer gets a defensive copy of each event, so it cannot change a result
-  or the runtime's state. An exception thrown by the observer is ignored.
+  or the runtime's state. An exception thrown by the observer is ignored. So is one
+  thrown while building an event, so that event is dropped without any signal.
+  Typed requests cannot cause that. An untyped `dispatchAction()` request with a
+  circular reference is different: the observer copies it without a JSON-safety
+  check, and that copy never finishes, so the process runs out of memory. Until this
+  is fixed, do not pass untyped action requests to a runtime that has an observer.
 - `createWeaverTraceRecorder({ maxEntries })` keeps at most `maxEntries` entries.
   The default is `5000`. It must be a positive safe integer, or the call throws a
   `RangeError`. When the limit is reached, the oldest entry is dropped and
@@ -290,6 +295,10 @@ snapshot of each surface the replay touched, keyed by `surfaceId`.
 
 ### Guarantees and limits
 
+- **Divergence codes are strings.** `recorded.code` and `replayed.code` are plain
+  strings, not members of a typed union, so compare them as strings. The constant
+  `WEAVER_TRACE_REPLAY_INVALID_INPUT` has the value `"REPLAY_INVALID_INPUT"`. Replay
+  reports that code when an `input` or `action` entry lacks the fields it needs.
 - **Mock effectful functions.** A local function action runs the implementation
   registered on the replay runtime. A function registered with `effect: "action"`,
   such as the Web `openUrl` function, runs for real unless you register a mock with
