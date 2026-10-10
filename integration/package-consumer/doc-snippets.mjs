@@ -1,14 +1,17 @@
-// Extracts the TypeScript examples that the Prompt generation docs show, so the
-// packed-package check compiles and runs the text that readers copy. The docs
-// stay the single source: nothing is copied into this folder by hand.
+// Extracts the TypeScript examples that the Prompt generation and Debugging docs
+// show, so the packed-package check compiles and runs the text that readers copy.
+// The docs stay the single source: nothing is copied into this folder by hand.
 //
 // Sources:
 // - README.md: the ts block in the "### Prompt generation" section, which must
 //   sit before "### Core only (any platform)".
 // - docs/prompt-generation.md: every ts block in the file.
-// If the README section moves or loses its block, or the doc has fewer blocks
+// - docs/debugging.md: every ts block in the file.
+// If the README section moves or loses its block, or a doc has fewer blocks
 // than expected, extraction throws. A changed or broken example then fails
 // `pnpm verify:packages` with the file name and the compiler or runtime output.
+// Snippet names say where they came from: docs-prompt-generation-N.ts and
+// docs-debugging-N.ts are the Nth ts block of that doc, counting from 0.
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,6 +19,7 @@ import path from "node:path";
 const README_SECTION_START = "### Prompt generation";
 const README_SECTION_END = "### Core only (any platform)";
 const DOC_MIN_EXAMPLES = 3;
+const DEBUGGING_MIN_EXAMPLES = 6;
 
 /** The bodies of the fenced ```ts blocks in `text`, in order. */
 function tsBlocks(text) {
@@ -44,8 +48,15 @@ export async function docSnippets(root) {
     throw new Error(`docs/prompt-generation.md must contain at least ${DOC_MIN_EXAMPLES} ts blocks, found ${docBlocks.length}`);
   }
 
+  const debugging = await readFile(path.join(root, "docs", "debugging.md"), "utf8");
+  const debuggingBlocks = tsBlocks(debugging);
+  if (debuggingBlocks.length < DEBUGGING_MIN_EXAMPLES) {
+    throw new Error(`docs/debugging.md must contain at least ${DEBUGGING_MIN_EXAMPLES} ts blocks, found ${debuggingBlocks.length}`);
+  }
+
   return [
     ...readmeBlocks.map((source, index) => ({ name: `readme-prompt-generation-${index}.ts`, source })),
     ...docBlocks.map((source, index) => ({ name: `docs-prompt-generation-${index}.ts`, source })),
+    ...debuggingBlocks.map((source, index) => ({ name: `docs-debugging-${index}.ts`, source })),
   ];
 }

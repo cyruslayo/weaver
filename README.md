@@ -325,6 +325,14 @@ full application-agent -> producer -> JSONL ingestion -> runtime -> Web ->
 trusted action round trip. The loopback browser transport is demonstrated by
 the [HTTP/SSE reference server](examples/http-sse-server/).
 
+### Debugging and replay
+
+An opt-in runtime observer and trace recorder keep what a runtime was given and what it
+returned. `replayWeaverTrace()` re-applies a saved trace to a fresh runtime, and the
+[trace inspector](examples/playground/inspector.html) steps through it. These are development
+tools. A trace holds data-model values and user input, so Weaver never sends or persists one.
+See [debugging, replay and the inspector](docs/debugging.md).
+
 ## A2UI conformance
 
 Weaver targets A2UI **v0.9.1**. Accepted wire versions are `v0.9` and `v0.9.1`;
@@ -406,6 +414,7 @@ docs/                      detailed documentation (below)
 | [docs/architecture.md](docs/architecture.md) | Package rules, runtime pipeline, trust boundaries, derived state, transport sessions, rendering |
 | [docs/packaging.md](docs/packaging.md) | ESM packaging, local tarball workflow, release gate, versioning |
 | [docs/web-rendering.md](docs/web-rendering.md) | Renderer pipeline, Basic Catalog renderers, media/theme/attribution policies, focus |
+| [docs/debugging.md](docs/debugging.md) | Runtime observer, trace recording and replay, the development-only trace inspector, security and privacy of traces |
 | [docs/http-sse-transport.md](docs/http-sse-transport.md) | Browser HTTP/SSE binding, reconnect and resume |
 | [docs/mcp.md](docs/mcp.md) | MCP A2UI bridge and application-capability helpers |
 | [docs/conformance-v0.9.1.md](docs/conformance-v0.9.1.md) | Requirement-by-requirement A2UI v0.9.1 conformance tracker |
