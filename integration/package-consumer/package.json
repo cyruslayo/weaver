@@ -7,9 +7,9 @@
     "smoke": "node smoke.mjs"
   },
   "dependencies": {
-    "@cylayo/weaver-core": "file:../../artifacts/cylayo-weaver-core-0.2.1.tgz",
-    "@cylayo/weaver-web": "file:../../artifacts/cylayo-weaver-web-0.2.1.tgz",
-    "@cylayo/weaver-mcp": "file:../../artifacts/cylayo-weaver-mcp-0.2.1.tgz"
+    "@cylayo/weaver-core": "file:../../artifacts/cylayo-weaver-core-0.3.0.tgz",
+    "@cylayo/weaver-web": "file:../../artifacts/cylayo-weaver-web-0.3.0.tgz",
+    "@cylayo/weaver-mcp": "file:../../artifacts/cylayo-weaver-mcp-0.3.0.tgz"
   },
   "devDependencies": {
     "@types/node": "22.20.1",

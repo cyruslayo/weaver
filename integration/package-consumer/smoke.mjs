@@ -5,7 +5,7 @@ const [{ Window }, core, web, mcp] = await Promise.all([
   import("@cylayo/weaver-mcp"),
 ]);
 
-if (core.WEAVER_CORE_VERSION !== "0.2.1") throw new Error("Unexpected Core version");
+if (core.WEAVER_CORE_VERSION !== "0.3.0") throw new Error("Unexpected Core version");
 if (typeof web.RendererRegistry !== "function") throw new Error("Web root export unavailable");
 if (typeof mcp.createA2UIMcpClientBridge !== "function") throw new Error("MCP root export unavailable");
 

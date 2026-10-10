@@ -58,13 +58,13 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture.
 
 | Package | Version | Runtime | Responsibilities |
 | --- | --- | --- | --- |
-| `@cylayo/weaver-core` | 0.2.1 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
-| `@cylayo/weaver-web` | 0.2.1 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
-| `@cylayo/weaver-mcp` | 0.2.1 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
+| `@cylayo/weaver-core` | 0.3.0 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
+| `@cylayo/weaver-web` | 0.3.0 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
+| `@cylayo/weaver-mcp` | 0.3.0 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
 
 All three packages are ESM-only with a single root export, and they release
 together at one synchronized version. Core is mandatory; Web and MCP declare
-`@cylayo/weaver-core` as a peer dependency (`0.2.x`). MCP is optional and not required
+`@cylayo/weaver-core` as a peer dependency (`0.3.x`). MCP is optional and not required
 by Core or Web. See [docs/packaging.md](docs/packaging.md).
 
 ## Current maturity / support status
@@ -99,9 +99,9 @@ pnpm verify:packages
 This builds the workspace and produces three ignored tarballs in `artifacts/`:
 
 ```text
-artifacts/cylayo-weaver-core-0.2.1.tgz
-artifacts/cylayo-weaver-web-0.2.1.tgz
-artifacts/cylayo-weaver-mcp-0.2.1.tgz
+artifacts/cylayo-weaver-core-0.3.0.tgz
+artifacts/cylayo-weaver-web-0.3.0.tgz
+artifacts/cylayo-weaver-mcp-0.3.0.tgz
 ```
 
 An external application installs them by relative file path (shown with a
@@ -110,8 +110,8 @@ placeholder for the Weaver checkout directory):
 ```json
 {
   "dependencies": {
-    "@cylayo/weaver-core": "file:<path-to-weaver>/artifacts/cylayo-weaver-core-0.2.1.tgz",
-    "@cylayo/weaver-web": "file:<path-to-weaver>/artifacts/cylayo-weaver-web-0.2.1.tgz"
+    "@cylayo/weaver-core": "file:<path-to-weaver>/artifacts/cylayo-weaver-core-0.3.0.tgz",
+    "@cylayo/weaver-web": "file:<path-to-weaver>/artifacts/cylayo-weaver-web-0.3.0.tgz"
   }
 }
 ```
