@@ -5,49 +5,15 @@ import { fileURLToPath } from "node:url";
 import type { A2UIComponent, HydratedComponentInstance, HydratedValue, JsonObject, JsonValue } from "@cylayo/weaver-core";
 import { createBasicWebRuntime, type WebComponentRenderInput } from "@cylayo/weaver-web";
 import { Window } from "happy-dom";
-import { defineCatalog, type A2UIV091CatalogSchema } from "@cylayo/weaver-core";
-import { COOKBOOK_CATALOG_ID, COOKBOOK_MAX_BARS, cookbookCatalogSchema } from "../custom-catalog/catalog.js";
+import { COOKBOOK_CATALOG_ID, COOKBOOK_MAX_BARS, cookbookCatalog } from "./catalog.js";
 import { barChartModel, renderBarChart } from "./barChart.js";
-import { createCookbookRendererRegistrations } from "./registrations.js";
+import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 
 const SURFACE_ID = "cookbook-barchart";
 
 /**
- * Test-only variant of the cookbook catalog. It has the shape WVR-052 gives
- * BarChart `values` on its branch: a oneOf of a DataBinding and a literal array
- * of {label, value}. Core hydrates a binding only when a literal alternative sits
- * beside it, so the shipped bare DataBinding would reach the renderer unresolved.
- * Integration should switch these tests to the shipped catalog, then drop this helper.
- */
-function boundCookbookCatalog() {
-  const schema = structuredClone(cookbookCatalogSchema) as unknown as JsonObjectLike;
-  const components = schema.components as Record<string, JsonObjectLike>;
-  const barChart = structuredClone(components.BarChart!) as JsonObjectLike;
-  const properties = barChart.properties as Record<string, JsonObjectLike>;
-  properties.values = {
-    oneOf: [
-      { $ref: "common_types.json#/$defs/DataBinding" },
-      {
-        type: "array",
-        items: {
-          type: "object",
-          properties: { label: { type: "string" }, value: { type: "number" } },
-          required: ["label", "value"],
-          additionalProperties: false,
-        },
-      },
-    ],
-  };
-  components.BarChart = barChart;
-  return defineCatalog(schema as unknown as A2UIV091CatalogSchema);
-}
-
-type JsonObjectLike = { [key: string]: unknown };
-const boundCatalog = boundCookbookCatalog();
-
-/**
  * Renders the BarChart renderer directly, with hydrated properties supplied by the test.
- * The runtime tests below use the bound catalog variant, so the same values also flow through Core.
+ * The runtime tests below use the shipped cookbook catalog, so the same values also flow through Core.
  * This direct form isolates the renderer's own behaviour.
  */
 function renderDirect(properties: Record<string, HydratedValue>): { window: Window; target: Element } {
@@ -101,7 +67,7 @@ test("the BarChart renders one bar per item and updates when the values change",
 });
 
 test("the BarChart renders bound data through the runtime and updates when the data model changes", () => {
-  const created = createBasicWebRuntime({ additionalCatalogs: [boundCatalog], additionalRenderers: createCookbookRendererRegistrations() });
+  const created = createBasicWebRuntime({ additionalCatalogs: [cookbookCatalog], additionalRenderers: cookbookCatalogRendererRegistrations });
   assert.equal(created.ok, true);
   if (!created.ok) return;
   const web = created.value;
@@ -120,7 +86,7 @@ test("the BarChart renders bound data through the runtime and updates when the d
 });
 
 test("the BarChart also accepts a literal array of {label, value} through the runtime", () => {
-  const created = createBasicWebRuntime({ additionalCatalogs: [boundCatalog], additionalRenderers: createCookbookRendererRegistrations() });
+  const created = createBasicWebRuntime({ additionalCatalogs: [cookbookCatalog], additionalRenderers: cookbookCatalogRendererRegistrations });
   assert.ok(created.ok);
   if (!created.ok) return;
   const web = created.value;
@@ -188,7 +154,7 @@ test("maxBars is capped at the catalog bound by the renderer, and the schema rej
   assert.equal(barChartModel({ title: "Zero", values: items as unknown as HydratedValue, maxBars: 0 }).bars.length, 0);
   assert.equal(barChartModel({ title: "Fraction", values: items as unknown as HydratedValue, maxBars: 2.5 }).bars.length, 0);
 
-  const created = createBasicWebRuntime({ additionalCatalogs: [boundCatalog], additionalRenderers: createCookbookRendererRegistrations() });
+  const created = createBasicWebRuntime({ additionalCatalogs: [cookbookCatalog], additionalRenderers: cookbookCatalogRendererRegistrations });
   assert.ok(created.ok);
   if (!created.ok) return;
   assert.equal(created.value.runtime.process({ version: "v0.9.1", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
@@ -197,7 +163,7 @@ test("maxBars is capped at the catalog bound by the renderer, and the schema rej
 });
 
 test("the Column, Text and Card layout primitives render under the cookbook catalog id", () => {
-  const created = createBasicWebRuntime({ additionalCatalogs: [boundCatalog], additionalRenderers: createCookbookRendererRegistrations() });
+  const created = createBasicWebRuntime({ additionalCatalogs: [cookbookCatalog], additionalRenderers: cookbookCatalogRendererRegistrations });
   assert.ok(created.ok);
   if (!created.ok) return;
   const web = created.value;
@@ -221,7 +187,7 @@ test("the Column, Text and Card layout primitives render under the cookbook cata
 });
 
 test("the renderer uses no dependency, markup strings, or eval", () => {
-  const source = readFileSync(fileURLToPath(new URL("../../src/renderers/barChart.ts", import.meta.url)), "utf8");
+  const source = readFileSync(fileURLToPath(new URL("../../src/custom-catalog/barChart.ts", import.meta.url)), "utf8");
   for (const forbidden of ["innerHTML", "outerHTML", "insertAdjacentHTML", "eval(", "new Function"]) {
     assert.equal(source.includes(forbidden), false, `barChart.ts must not use ${forbidden}`);
   }

@@ -185,6 +185,34 @@ Complete, pending review. The cookbook adds a ticket board with move, assign, an
 
 Complete, pending review. `examples/cookbook/src/custom-catalog/` defines an app-owned catalog with `defineCatalog()`, with DataTable and BarChart entries and their own tests. Core and the Basic catalog are unchanged.
 
+## Task 73 — Golden Basic prompt fixture (WVR-013)
+
+Complete, pending review. Golden Basic-catalog prompt fixtures live in `packages/core/src/prompt/fixtures/`. `scripts/generate-prompt-fixtures.mjs --check` runs inside `pnpm check:generated`, so a prompt change that is not regenerated fails CI.
+
+## Task 74 — Reference-app prompt sample (WVR-015)
+
+Complete, pending review. `examples/reference-app/src/prompt-sample.ts` builds the Basic prompt with `generateA2UIV091Prompt()`. A canned model response is checked as valid A2UI and renders in happy-dom, with no LLM call. The sample and its tests live in the reference app.
+
+## Task 75 — Trace replay with divergence report (WVR-023)
+
+Complete, pending review. `replayWeaverTrace()` replays a `weaver-trace` v1 trace step by step and reports a per-step divergence when a replayed outcome differs from the recorded one. It is exported from `packages/core/src/trace/`, and its tests sit beside it.
+
+## Task 76 — Last-good-state regression tests (WVR-033)
+
+Complete, pending review. Tests only. Malformed input leaves the last good Core state and the last good Web DOM unchanged, and the host receives a described error. The tests are in `A2UIV091StreamIngestion.test.ts` (Core) and `WebSurfaceRenderer.test.ts` (Web).
+
+## Task 77 — Cookbook Playwright smoke (WVR-045)
+
+Complete, pending review. `examples/cookbook/e2e/` adds Playwright checks at 360px and 1280px for no horizontal scroll, keyboard reachability with a visible focus indicator, and keyboard completion of the form and ticket board. `@playwright/test` is a cookbook devDependency. The e2e script is not in the required CI gate. It runs through `pnpm --filter @weaver/cookbook e2e`.
+
+## Task 78 — Trusted DataTable renderer (WVR-052)
+
+Complete, pending review. The cookbook adds a trusted, accessible DataTable renderer built with DOM APIs only, with no `innerHTML`. Its `rows` and the BarChart `values` accept a data binding or a literal array, and Core hydrates both. Per-row action context is deferred to WVR-056. The single registration list is `examples/cookbook/src/custom-catalog/renderers.ts`.
+
+## Task 79 — Trusted SVG BarChart renderer (WVR-053)
+
+Complete, pending review. The cookbook adds a dependency-free SVG BarChart renderer with a visually hidden fallback table, clamped negative values, and `maxBars`. It is registered once, in `examples/cookbook/src/custom-catalog/renderers.ts`, next to DataTable, Column, Text and Card. The shipped catalog binds `values` through Core.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

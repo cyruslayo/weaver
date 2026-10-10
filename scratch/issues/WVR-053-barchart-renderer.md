@@ -22,7 +22,7 @@ estimate: M
 - Before choosing colours and marks, read the `dataviz` skill guidance.
 
 ## Acceptance criteria
-- [ ] Renders and updates from bound data. (Evidenced only against a test-only catalog variant; the shipped catalog still declares a bare DataBinding, so this stays open until the WVR-052 `oneOf` change lands. See Log.)
+- [x] Renders and updates from bound data. (Evidenced through the shipped cookbook catalog, after the WVR-052 `oneOf` change. See the integration Log entry.)
 - [x] The empty state renders.
 - [x] The accessible name and the fallback table are present.
 - [x] No dependency is added, and no `innerHTML` is used.
@@ -65,3 +65,17 @@ Merged.
 **Not done**
 - Criterion 1 on the shipped catalog (see blocker above).
 - No README edit. The issue does not require one.
+
+### 2026-10-10 (integration branch `wvr-integration-3`)
+
+**Criterion 1 ticked: renders and updates from bound data**
+- The runtime tests now use the shipped `cookbookCatalog`. The test-only `boundCookbookCatalog()` variant is deleted. WVR-052 gave the shipped `BarChart.values` a `oneOf [DataBinding, literal array]`, so Core hydrates `{"path": "/stats/byStatus"}` before the renderer runs.
+- The test "the BarChart renders bound data through the runtime and updates when the data model changes" mounts a bound chart, then changes the data model and checks the bars update.
+
+**Layout after integration**
+- The renderer moved next to DataTable: `examples/cookbook/src/custom-catalog/barChart.ts` and `barChart.test.ts`.
+- `renderers/layout.ts` and `renderers/registrations.ts` are removed. Column, Text and Card are registered once, in `examples/cookbook/src/custom-catalog/renderers.ts`, which is the single registration array (`cookbookCatalogRendererRegistrations`). BarChart is added there as one entry. The duplicate Column/Text/Card registration that would have thrown is gone.
+- The new `custom-catalog/renderers.test.ts` checks that all five components appear exactly once under the cookbook id, that `RendererRegistry` builds from the list, and that `createBasicWebRuntime({ additionalRenderers })` with the list renders all five.
+
+**Verification (on `wvr-integration-3`)**
+- `pnpm --filter @weaver/cookbook test` passes, 71 of 71. The gate and the e2e run are in the integration report.

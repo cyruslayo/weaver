@@ -1,6 +1,6 @@
 import type { RendererRegistration, WebComponentRenderInput } from "@cylayo/weaver-web";
 import type { HydratedValue } from "@cylayo/weaver-core";
-import { COOKBOOK_CATALOG_ID, COOKBOOK_MAX_BARS } from "../custom-catalog/catalog.js";
+import { COOKBOOK_CATALOG_ID, COOKBOOK_MAX_BARS } from "./catalog.js";
 
 /**
  * A trusted, dependency-free SVG bar chart for the cookbook catalog.
