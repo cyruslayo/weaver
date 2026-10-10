@@ -38,6 +38,9 @@ jobs:
       - name: Check generated Basic Catalog and prompt fixtures
         run: pnpm check:generated
 
+      - name: Check documentation links
+        run: pnpm check:docs
+
       - name: Typecheck
         run: pnpm typecheck
 
