@@ -11,7 +11,10 @@ export interface A2UIPromptAction {
   context?: JsonObject;
 }
 
-/** An example conversation rendered as a JSONL block. Validated by WVR-012. */
+/**
+ * An example conversation rendered as a JSONL block. Each example must pass
+ * the strict pipeline in a fresh runtime, or generation returns EXAMPLE_INVALID.
+ */
 export interface A2UIPromptExample {
   title: string;
   messages: readonly unknown[];

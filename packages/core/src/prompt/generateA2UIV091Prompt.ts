@@ -5,10 +5,21 @@ import {
   type CatalogSnapshot,
   type DynamicPropertyKind,
 } from "../catalog/index.js";
+import { describeWeaverError, type DescribableWeaverError } from "../diagnostics/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { FunctionRegistration } from "../functions/index.js";
+import type { MessageProcessorError } from "../message-processor/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
-import type { A2UIPromptGenerationError } from "./errors.js";
+import {
+  createWeaverRuntime,
+  type WeaverResolvedSurface,
+  type WeaverRuntimeConfigurationError,
+  type WeaverSurfaceResolutionError,
+} from "../runtime/index.js";
+import type {
+  A2UIPromptGenerationError,
+  A2UIPromptSurfaceNotReadyCause,
+} from "./errors.js";
 import type {
   A2UIPromptAction,
   A2UIPromptExample,
@@ -63,6 +74,9 @@ export function generateA2UIV091Prompt(
   const functions = functionsSection(registry, snapshots, config.functions ?? []);
   if (!functions.ok) return { ok: false, error: functions.error };
 
+  const examples = validateExamples(config);
+  if (!examples.ok) return { ok: false, error: examples.error };
+
   const built: Partial<Record<A2UIPromptSectionId, string>> = {
     envelope: envelopeSection(snapshots),
     components: components.value,
@@ -110,6 +124,128 @@ const SECTION_TITLES: Readonly<Record<A2UIPromptSectionId, string>> = {
   edit: "Edit mode",
   examples: "Examples",
 };
+
+/**
+ * Runs every example through its own scratch runtime, built from the same
+ * catalogs and functions. An example is valid when all its messages are
+ * accepted and every surface it leaves behind resolves to a complete tree.
+ * Each scratch runtime is discarded afterwards, so nothing carries over
+ * between examples and nothing reaches the prompt or the caller's config.
+ */
+function validateExamples(config: A2UIV091PromptConfig): Outcome<void> {
+  for (const [exampleIndex, example] of (config.examples ?? []).entries()) {
+    const checked = validateExample(config, exampleIndex, example);
+    if (!checked.ok) return checked;
+  }
+  return { ok: true, value: undefined };
+}
+
+function validateExample(
+  config: A2UIV091PromptConfig,
+  exampleIndex: number,
+  example: A2UIPromptExample,
+): Outcome<void> {
+  const reject = (
+    detail: string,
+    fields: ExampleStageFields,
+  ): Outcome<void> =>
+    fail({
+      code: "EXAMPLE_INVALID",
+      message: `Example ${exampleIndex} ("${example.title}") ${detail}`,
+      exampleIndex,
+      exampleTitle: example.title,
+      ...fields,
+    });
+
+  const created = createWeaverRuntime({
+    catalogs: config.catalogs,
+    functions: config.functions ?? [],
+  });
+  if (!created.ok) {
+    return reject(
+      `cannot be checked because the scratch runtime was not created (${created.error.code}).`,
+      { stage: "runtime", cause: created.error },
+    );
+  }
+  const runtime = created.value;
+
+  const results = runtime.processMany(example.messages);
+  for (const [messageIndex, result] of results.entries()) {
+    if (!result.ok) {
+      return reject(
+        `message ${messageIndex} is rejected: ${summaryOf(result.error)}`,
+        { stage: "process", messageIndex, cause: result.error },
+      );
+    }
+  }
+
+  for (const surfaceId of surfaceIdsLeftBy(example.messages)) {
+    const resolved = runtime.resolveSurface(surfaceId);
+    if (!resolved.ok) {
+      return reject(
+        `surface "${surfaceId}" does not resolve: ${summaryOf(resolved.error)}`,
+        { stage: "resolve", surfaceId, cause: resolved.error },
+      );
+    }
+    const notReady = surfaceNotReady(surfaceId, resolved.value);
+    if (notReady !== undefined) {
+      return reject(
+        `surface "${surfaceId}" is not complete: tree ready ${notReady.treeReady}, checks ready ${notReady.checksReady}, ${issueCount(notReady.issues)} issue(s).`,
+        { stage: "resolve", surfaceId, cause: notReady },
+      );
+    }
+  }
+  return { ok: true, value: undefined };
+}
+
+type ExampleStageFields =
+  | { stage: "runtime"; cause: WeaverRuntimeConfigurationError }
+  | { stage: "process"; messageIndex: number; cause: MessageProcessorError }
+  | {
+      stage: "resolve";
+      surfaceId: string;
+      cause: WeaverSurfaceResolutionError | A2UIPromptSurfaceNotReadyCause;
+    };
+
+/** The surfaces that exist after the messages run, in creation order. */
+function surfaceIdsLeftBy(messages: readonly unknown[]): string[] {
+  const live = new Set<string>();
+  for (const message of messages) {
+    if (!isJsonObject(message)) continue;
+    const created = message.createSurface;
+    const deleted = message.deleteSurface;
+    if (isJsonObject(created) && typeof created.surfaceId === "string") {
+      live.add(created.surfaceId);
+    } else if (isJsonObject(deleted) && typeof deleted.surfaceId === "string") {
+      live.delete(deleted.surfaceId);
+    }
+  }
+  return [...live];
+}
+
+function surfaceNotReady(
+  surfaceId: string,
+  surface: WeaverResolvedSurface,
+): A2UIPromptSurfaceNotReadyCause | undefined {
+  const { tree, checks, issues } = surface;
+  if (tree.ready && checks.ready && issueCount(issues) === 0) return undefined;
+  return {
+    code: "SURFACE_NOT_READY",
+    surfaceId,
+    treeReady: tree.ready,
+    checksReady: checks.ready,
+    issues,
+  };
+}
+
+function issueCount(issues: WeaverResolvedSurface["issues"]): number {
+  return issues.tree.length + issues.instances.length + issues.properties.length;
+}
+
+/** A one-sentence reason from the shared describer, without its final period. */
+function summaryOf(error: DescribableWeaverError): string {
+  return describeWeaverError(error).summary.replace(/\.$/, "");
+}
 
 function registerCatalogs(
   registrations: readonly CatalogRegistration[],
