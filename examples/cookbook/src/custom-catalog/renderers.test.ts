@@ -53,8 +53,8 @@ test("the list passed as additionalRenderers creates the cookbook web runtime wi
   const target = window.document.createElement("main") as unknown as Element;
   assert.equal(web.mount({ surfaceId: SURFACE_ID, target }).ok, true);
   for (const component of ["Column", "Text", "Card", "BarChart"]) {
-    assert.notEqual(target.querySelector(`[data-a2ui-component=${component}]`), null, `${component} must render`);
+    assert.ok(target.querySelector(`[data-a2ui-component=${component}]`) !== null, `${component} must render`);
   }
-  assert.notEqual(target.querySelector("table"), null, "DataTable must render as a table");
+  assert.ok(target.querySelector("table") !== null, "DataTable must render as a table");
   assert.equal(target.querySelectorAll("button").length, 0, "the read-only DataTable renders no button");
 });

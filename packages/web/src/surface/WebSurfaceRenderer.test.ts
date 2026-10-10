@@ -109,7 +109,7 @@ test("surface theme translation is opt-in, catalog-isolated, allowlisted, and mo
   const absent = mount(themed); assert.ok(absent.result.ok);
   const absentContainer = absent.target.firstElementChild as HTMLElement;
   assert.equal(absentContainer.style.getPropertyValue("--a2ui-color-primary"), "");
-  assert.equal(absent.target.querySelector("img"), null); assert.equal(absent.target.textContent, "safe");
+  assert.equal(absent.target.querySelector("img") === null, true, "no img"); assert.equal(absent.target.textContent, "safe");
 
   const { target } = dom();
   const web = new WebSurfaceRenderer({ runtime: themed, renderers: new RendererRegistry(registrations()), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) });
@@ -130,8 +130,8 @@ test("raw attribution claims are inert without a trusted provider", () => {
   rt.process(create("test", { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/icon.png" }));
   rt.process(components([{ id: "root", component: "Text", text: "content" }]));
   const { target, result } = mount(rt); assert.ok(result.ok);
-  assert.equal(target.querySelector("[data-weaver-surface-attribution]"), null);
-  assert.equal(target.querySelector("img"), null);
+  assert.equal(target.querySelector("[data-weaver-surface-attribution]") === null, true, "no attribution element");
+  assert.equal(target.querySelector("img") === null, true, "no img");
   assert.equal(target.textContent, "content");
 });
 
@@ -153,14 +153,14 @@ test("trusted attribution overrides raw claims and uses safe accessible chrome",
   assert.ok(mounted.ok);
   const container = target.firstElementChild!;
   const chrome = container.querySelector<HTMLElement>("[data-weaver-surface-attribution]")!;
-  assert.equal(container.firstElementChild, chrome);
+  assert.ok(container.firstElementChild === chrome, "chrome is the first child");
   assert.equal(chrome.textContent, "<img src=x onerror=attack>");
   assert.equal(chrome.querySelectorAll("img").length, 1);
   assert.equal(chrome.querySelector("img")?.getAttribute("src"), "https://trusted.example/verified.png");
   assert.equal(chrome.querySelector("img")?.alt, "");
   assert.equal(chrome.querySelector("img")?.width, 24); assert.equal(chrome.querySelector("img")?.height, 24);
   assert.equal(chrome.querySelector("img")?.style.objectFit, "contain");
-  assert.equal(chrome.querySelector("button,a,[tabindex]"), null);
+  assert.equal(chrome.querySelector("button,a,[tabindex]") === null, true, "chrome has no controls");
   assert.equal(chrome.attributes.length, 2, "only the static hook and style are serialized");
   assert.equal(target.textContent, "<img src=x onerror=attack>tree");
   assert.deepEqual(rt.getSurface("s")?.theme, { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/a.png" });
@@ -180,12 +180,12 @@ test("attribution supports name-only, undefined, independent mounts, updates, an
   const one = web.mount({ surfaceId: "s", target: oneTarget }); const two = web.mount({ surfaceId: "s", target: twoTarget });
   assert.ok(one.ok && two.ok); assert.equal(calls, 2);
   assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]")?.textContent, "Registry One:s:test");
-  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution] img"), null);
+  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution] img") === null, true, "no attribution image");
   verified = "Registry Two"; rt.process(data({ changed: true }));
   assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]")?.textContent, "Registry Two:s:test");
   assert.equal(twoTarget.querySelector("[data-weaver-surface-attribution]")?.textContent, "Registry Two:s:test");
   verified = undefined; rt.process(components([{ id: "root", component: "Text", text: "two" }]));
-  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]"), null);
+  assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]") === null, true, "no attribution element");
   one.value.unmount(); assert.equal(oneTarget.childNodes.length, 0); assert.equal(twoTarget.textContent, "two");
 
   rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
@@ -213,11 +213,11 @@ test("invalid or throwing attribution providers preserve the prior chrome, tree,
   const oldChildren = [...container.childNodes];
   mode = "empty"; rt.process(components([{ id: "root", component: "Text", text: "new" }]));
   let failure = mounted.value.getLastResult(); assert.deepEqual(failure, { ok: false, error: { code: "INVALID_VERIFIED_ATTRIBUTION" } });
-  assert.deepEqual([...container.childNodes], oldChildren); assert.equal(container.textContent, "Verifiedold");
+  assert.equal(container.childNodes.length === oldChildren.length && oldChildren.every((node, i) => container.childNodes[i] === node), true, "child nodes unchanged"); assert.equal(container.textContent, "Verifiedold");
   assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
   mode = "throw"; mounted.value.refresh(); failure = mounted.value.getLastResult();
   assert.deepEqual(failure, { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } });
-  assert.equal(JSON.stringify(failure).includes("secret"), false); assert.deepEqual([...container.childNodes], oldChildren);
+  assert.equal(JSON.stringify(failure).includes("secret"), false); assert.equal(container.childNodes.length === oldChildren.length && oldChildren.every((node, i) => container.childNodes[i] === node), true, "child nodes unchanged");
 });
 
 test("theme adapter and attribution provider receive independent defensive theme copies", () => {
@@ -259,7 +259,7 @@ test("theme adapter failures and invalid property names preserve previous DOM an
   assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement; const oldNode = container.firstChild;
   fail = true; rt.process(components([{ id: "root", component: "Text", text: "new" }]));
   const failed = mounted.value.getLastResult(); assert.equal(!failed.ok && failed.error.code, "THEME_ADAPTER_FAILED");
-  assert.equal(container.firstChild, oldNode); assert.equal(container.textContent, "old"); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#ff0000");
+  assert.ok(container.firstChild === oldNode, "old node kept after failed theme"); assert.equal(container.textContent, "old"); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#ff0000");
 
   const badTarget = dom().target;
   const bad = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: () => ({ customProperties: { color: "red" } }) }).mount({ surfaceId: "s", target: badTarget });
@@ -328,7 +328,12 @@ test("progressively missing relationships omit child metadata safely and preserv
   const rt = runtime(); rt.process(create());
   rt.process(components([{ id: "root", component: "TabsLike", tabs: [{ title: "Later", child: "missing" }] }]));
   const parent: RendererRegistration = { catalogId: "test", component: "TabsLike", render: ({ document, relationships }) => {
-    assert.deepEqual(relationships, [{ kind: "single", property: "child", location: [{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }] }]);
+    // Plain-data checks only: a failing deepEqual here would receive the DOM-typed `child` field.
+    const [relationship] = relationships;
+    assert.equal(relationships.length, 1, "one relationship");
+    assert.equal(relationship?.kind === "single" && relationship.property === "child", true, "single child relationship");
+    assert.equal(Object.keys(relationship ?? {}).sort().join(), "kind,location,property", "no child metadata");
+    assert.equal(JSON.stringify(relationship?.location), JSON.stringify([{ kind: "property", name: "tabs" }, { kind: "arrayIndex", index: 0 }, { kind: "property", name: "child" }]), "location preserved");
     return document.createElement("div");
   } };
   assert.ok(mount(rt, [...registrations(), parent]).result.ok);
@@ -369,7 +374,7 @@ test("progressive root stays mounted, reacts, refreshes, and unmount removes onl
   assert.equal(target.textContent, "later");
   assert.equal(mounted.value.refresh().ok, true);
   mounted.value.unmount();
-  assert.equal(target.firstChild, host);
+  assert.ok(target.firstChild === host, "host is the first child");
 });
 
 test("subscriptions rebuild properties, component definitions, and dynamic templates", () => {
@@ -389,7 +394,7 @@ test("renderer identity is catalog plus component with no cross-catalog fallback
     { catalogId: "catalog-a", component: "Text", render: ({ document }) => document.createElement("i") },
     { catalogId: "catalog-b", component: "Text", render: ({ document, properties }) => { const n = document.createElement("b"); n.textContent = String(properties.text); return n; } },
   ];
-  const { target, result } = mount(rt, regs); assert.ok(result.ok); assert.equal(target.querySelector("b")?.textContent, "B"); assert.equal(target.querySelector("i"), null);
+  const { target, result } = mount(rt, regs); assert.ok(result.ok); assert.equal(target.querySelector("b")?.textContent, "B"); assert.equal(target.querySelector("i") === null, true, "no i element");
 });
 
 test("missing, throwing, and invalid renderers fail safely without exposing exceptions", () => {
@@ -411,9 +416,9 @@ test("rerender failure is atomic, reports errors, and later valid state recovers
   const mounted = web.mount({ surfaceId: "s", target, onError: (error) => errors.push(error.code) }); assert.ok(mounted.ok);
   const oldNode = target.querySelector("span");
   rt.process(components([{ id: "root", component: "Missing" }]));
-  assert.equal(target.textContent, "old"); assert.equal(target.querySelector("span"), oldNode); assert.deepEqual(errors, ["RENDERER_NOT_FOUND"]);
+  assert.equal(target.textContent, "old"); assert.ok(target.querySelector("span") === oldNode, "old node stays in the DOM"); assert.deepEqual(errors, ["RENDERER_NOT_FOUND"]);
   rt.process(components([{ id: "root", component: "Text", text: "recovered" }]));
-  assert.equal(target.textContent, "recovered"); assert.notEqual(target.querySelector("span"), oldNode);
+  assert.equal(target.textContent, "recovered"); assert.ok(target.querySelector("span") !== oldNode, "a new node appears after recovery");
   void document;
 });
 
@@ -452,7 +457,7 @@ test("Basic media policy receives bound hydrated URLs and policy exceptions pres
   rt.process(data({ url: "/throw" }));
   assert.equal(result.value.getLastResult().ok, false);
   const failed = result.value.getLastResult(); assert.equal(!failed.ok && failed.error.code, "RENDERER_EXECUTION_FAILED");
-  assert.equal(target.querySelector("img"), previous); assert.equal(target.querySelector("img")?.getAttribute("src"), "/approved/one.png");
+  assert.ok(target.querySelector("img") === previous, "previous image kept"); assert.equal(target.querySelector("img")?.getAttribute("src"), "/approved/one.png");
 });
 
 test("Basic media policy receives trusted function-backed URL results", () => {
@@ -540,7 +545,7 @@ test("Basic Tabs selects by structural location, persists locally, restores keyb
   const oldFirst = tabs(one.target)[0]!; oldFirst.focus();
   oldFirst.dispatchEvent(new oldFirst.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
   assert.equal(one.target.querySelector('[role="tabpanel"]')?.textContent, "Details");
-  assert.equal(one.target.ownerDocument.activeElement, tabs(one.target)[1]);
+  assert.ok(one.target.ownerDocument.activeElement === tabs(one.target)[1], "second tab focused");
   assert.equal(tabs(two.target)[0]?.getAttribute("aria-selected"), "true");
   rt.process(data({ titles: ["Overview", "Account updated"], content: "Changed", unrelated: 1 }));
   assert.equal(tabs(one.target)[1]?.textContent, "Account updated"); assert.equal(tabs(one.target)[1]?.getAttribute("aria-selected"), "true");
@@ -616,7 +621,7 @@ test("closed Modal and inactive Tabs descendants are safely constructed detached
   assert.deepEqual(approved, ["/approved.png", "/approved.mp4", "/approved.mp3"]);
   assert.deepEqual(assigned, ["Image:/approved.png", "Video:/approved.mp4", "AudioPlayer:/approved.mp3"]);
   assert.equal(target.textContent, "OpenAlphaBetaGamma");
-  assert.equal(target.querySelector("img,video,audio"), null, "approved media was assigned only in the discarded detached branch");
+  assert.equal(target.querySelector("img,video,audio") === null, true, "approved media was assigned only in the discarded detached branch");
   assert.deepEqual(rt.getSurface("s")?.dataModel, {});
 });
 
@@ -691,7 +696,7 @@ test("nested Basic Modals keep the closest dialog open, focused, and keyboard-co
   assert.equal(target.querySelectorAll('[role="dialog"]').length, 1); assert.equal(target.ownerDocument.activeElement?.textContent, "Open inner");
   const outerDialog = target.querySelector<HTMLElement>('[role="dialog"]')!;
   outerDialog.dispatchEvent(new outerDialog.ownerDocument.defaultView!.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  assert.equal(target.querySelector('[role="dialog"]'), null); assert.equal(target.ownerDocument.activeElement?.textContent, "Open outer");
+  assert.equal(target.querySelector('[role="dialog"]') === null, true, "dialog closed"); assert.equal(target.ownerDocument.activeElement?.textContent, "Open outer");
 });
 
 test("Basic Modal intercepts a real Button trigger, persists open state, restores focus, and keeps content actions normal", () => {
@@ -706,14 +711,14 @@ test("Basic Modal intercepts a real Button trigger, persists open state, restore
   const { target } = dom(); target.ownerDocument.body.append(target); const handoffs: unknown[] = [];
   const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId: "test" })), onServerEvent: (event) => handoffs.push(event) }).mount({ surfaceId: "s", target });
   assert.ok(mounted.ok); const oldTrigger = target.querySelector<HTMLButtonElement>("button")!; oldTrigger.focus(); oldTrigger.click();
-  assert.equal(handoffs.length, 0); assert.ok(target.querySelector('[role="dialog"]')); assert.equal(target.ownerDocument.activeElement?.getAttribute("aria-label"), "Close");
+  assert.equal(handoffs.length, 0); assert.ok(target.querySelector('[role="dialog"]') !== null, "dialog open"); assert.equal(target.ownerDocument.activeElement?.getAttribute("aria-label"), "Close");
   const contentButton = [...target.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Run")!; contentButton.click();
-  assert.equal(handoffs.length, 1); assert.ok(target.querySelector('[role="dialog"]'));
-  rt.process(data({ unrelated: true })); assert.ok(target.querySelector('[role="dialog"]'));
+  assert.equal(handoffs.length, 1); assert.ok(target.querySelector('[role="dialog"]') !== null, "dialog stays open");
+  rt.process(data({ unrelated: true })); assert.ok(target.querySelector('[role="dialog"]') !== null, "dialog stays open after unrelated data");
   const oldClose = target.querySelector<HTMLButtonElement>('button[aria-label="Close"]')!; oldClose.click();
-  assert.equal(target.querySelector('[role="dialog"]'), null); assert.equal(target.ownerDocument.activeElement?.textContent, "Open");
-  oldClose.click(); assert.equal(target.querySelector('[role="dialog"]'), null);
-  oldTrigger.click(); assert.equal(target.querySelector('[role="dialog"]'), null, "old trigger is stale");
+  assert.equal(target.querySelector('[role="dialog"]') === null, true, "dialog closed"); assert.equal(target.ownerDocument.activeElement?.textContent, "Open");
+  oldClose.click(); assert.equal(target.querySelector('[role="dialog"]') === null, true, "dialog closed");
+  oldTrigger.click(); assert.equal(target.querySelector('[role="dialog"]') === null, true, "old trigger is stale");
 });
 
 function interactionCatalog(): JsonObject {

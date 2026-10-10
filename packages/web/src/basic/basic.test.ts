@@ -50,7 +50,7 @@ test("Icon renders explicit paths with inert native SVG DOM and fixed geometry",
   assert.equal(path.getAttribute("d"), hostile); assert.equal(path.getAttribute("fill"), "currentColor");
   assert.equal(svg.getAttribute("viewBox"), "0 0 24 24"); assert.equal(svg.getAttribute("width"), "24"); assert.equal(svg.getAttribute("height"), "24");
   assert.equal(svg.getAttribute("aria-hidden"), "true"); assert.equal(svg.getAttribute("focusable"), "false");
-  assert.equal(svg.querySelector("script"), null); assert.equal(path.hasAttribute("onclick"), false);
+  assert.equal(svg.querySelector("script") === null, true, "no script in svg"); assert.equal(path.hasAttribute("onclick"), false);
 });
 
 test("Icon resolves names through its local host resolver and fails soft", () => {
@@ -61,7 +61,7 @@ test("Icon resolves names through its local host resolver and fails soft", () =>
   const direct = setup("Icon", { properties: { name: { svgPath: "M3 3" } } }, undefined, resolver).node;
   assert.equal(direct.querySelector("path")?.getAttribute("d"), "M3 3"); assert.equal(requests.length, 1);
   for (const unresolved of [setup("Icon", { properties: { name: "home" } }).node, setup("Icon", { properties: { name: "unknown" } }, undefined, resolver).node, setup("Icon", { properties: { name: undefined } }).node]) {
-    assert.equal(unresolved.getAttribute("data-a2ui-icon-state"), "unresolved"); assert.equal(unresolved.querySelector("path"), null);
+    assert.equal(unresolved.getAttribute("data-a2ui-icon-state"), "unresolved"); assert.equal(unresolved.querySelector("path") === null, true, "no path");
   }
 });
 
@@ -95,7 +95,7 @@ test("Image maps native accessibility, fit, and variant behavior", () => {
   const fits = { contain: "contain", cover: "cover", fill: "fill", none: "none", scaleDown: "scale-down" };
   for (const [fit, css] of Object.entries(fits)) assert.equal(setup("Image", { properties: { fit } }).node.style.objectFit, css);
   const unsafe = setup("Image", { properties: { description: "<script>x</script>", fit: "bad", variant: "avatar" } }).node as HTMLImageElement;
-  assert.equal(unsafe.tagName, "IMG"); assert.equal(unsafe.alt, "<script>x</script>"); assert.equal(unsafe.querySelector("script"), null);
+  assert.equal(unsafe.tagName, "IMG"); assert.equal(unsafe.alt, "<script>x</script>"); assert.equal(unsafe.querySelector("script") === null, true, "no script");
   assert.equal(unsafe.style.objectFit, "fill"); assert.equal(unsafe.getAttribute("data-a2ui-variant"), "avatar"); assert.equal(unsafe.style.borderRadius, "50%");
   assert.equal((setup("Image").node as HTMLImageElement).alt, "");
   for (const variant of ["icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header"]) assert.equal(setup("Image", { properties: { variant } }).node.getAttribute("data-a2ui-variant"), variant);
@@ -120,8 +120,8 @@ test("Video and AudioPlayer use native controls without autoplay and safe captio
   assert.equal(video.tagName, "VIDEO"); assert.equal(video.controls, true); assert.equal(video.autoplay, false);
   const figure = setup("AudioPlayer", { properties: { description: "<script>alert(1)</script>" } }).node;
   const audio = figure.querySelector("audio")!;
-  assert.equal(audio.controls, true); assert.equal(audio.autoplay, false); assert.equal(figure.querySelector("figcaption")?.textContent, "<script>alert(1)</script>"); assert.equal(figure.querySelector("script"), null);
-  assert.equal(setup("AudioPlayer").node.querySelector("figcaption"), null);
+  assert.equal(audio.controls, true); assert.equal(audio.autoplay, false); assert.equal(figure.querySelector("figcaption")?.textContent, "<script>alert(1)</script>"); assert.equal(figure.querySelector("script") === null, true, "no script in figure");
+  assert.equal(setup("AudioPlayer").node.querySelector("figcaption") === null, true, "no figcaption");
 });
 
 test("Text selects native semantic elements and defaults to body", () => {
@@ -152,7 +152,7 @@ test("Text Markdown treats HTML, links, images, code contents, and headings as i
   const source = "# Heading <b>bold?</b> <script>alert(1)</script> [click](javascript:alert(1)) ![x](https://example.com/x.png) `<script>x</script>`";
   const node = setup("Text", { properties: { text: source } }).node;
   assert.equal(node.textContent, source.replaceAll("`", ""));
-  for (const selector of ["b", "script", "a", "img"]) assert.equal(node.querySelector(selector), null);
+  for (const selector of ["b", "script", "a", "img"]) assert.equal(node.querySelector(selector) === null, true, `no ${selector}`);
   assert.equal(node.querySelector("code")?.textContent, "<script>x</script>");
 });
 
@@ -221,7 +221,7 @@ test("Row weights a direct Card but not nested children, while non-layout parent
     kind: "list", property: "children", location: [{ kind: "property", name: "children" }], children: [card],
     childComponents: ["Card"], childProperties: [{ weight: 5 }],
   }] }).node;
-  assert.equal(card.style.flexGrow, "5"); assert.equal(nestedText.style.flexGrow, ""); assert.equal(row.firstChild, card);
+  assert.equal(card.style.flexGrow, "5"); assert.equal(nestedText.style.flexGrow, ""); assert.ok(row.firstChild === card, "card is the first child");
 
   const listChild = child(base.document, "list");
   const list = setup("List", { relationships: [{

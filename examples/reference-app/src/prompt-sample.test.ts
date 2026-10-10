@@ -67,7 +67,7 @@ test("the canned model response is valid A2UI and renders in happy-dom", () => {
   assert.equal(resolved.ok && resolved.value.tree.ready, true);
   assert.match(dom.textContent ?? "", /Model Draft Request/);
   assert.match(dom.textContent ?? "", /Create request/);
-  assert.ok(dom.querySelector("button"));
+  assert.ok(dom.querySelector("button") !== null, "a button renders");
 });
 
 test("a broken model response is rejected and the prior surface stays", () => {

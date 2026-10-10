@@ -64,7 +64,7 @@ test("proves the reference application producer, JSONL, ingestion, Web, and acti
     target.querySelector("input[type=text]")?.getAttribute("type"),
     "text",
   );
-  assert.ok(target.querySelector("button"));
+  assert.ok(target.querySelector("button") !== null, "a button renders");
   assert.equal(
     target.querySelector("[data-weaver-surface-attribution]")?.textContent,
     "Reference Agent",

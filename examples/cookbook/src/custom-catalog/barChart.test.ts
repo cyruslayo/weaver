@@ -42,7 +42,7 @@ function renderDirect(properties: Record<string, HydratedValue>): { window: Wind
 
 function chart(target: Element): Element {
   const element = target.querySelector("[data-a2ui-component=BarChart]");
-  assert.ok(element, "the BarChart must render");
+  assert.ok(element !== null, "the BarChart must render");
   return element;
 }
 
@@ -102,8 +102,8 @@ test("the empty state renders with no SVG and no table", () => {
   const { target } = renderDirect({ title: "By status", values: [], maxBars: 10 });
   const element = chart(target);
   assert.equal(element.getAttribute("data-weaver-chart-state"), "empty");
-  assert.equal(element.querySelector("svg"), null);
-  assert.equal(element.querySelector("table"), null);
+  assert.equal(element.querySelector("svg") === null, true, "no svg");
+  assert.equal(element.querySelector("table") === null, true, "no table");
   assert.equal(element.querySelector("[data-weaver-chart-empty]")?.textContent, "No data to chart.");
   assert.equal(element.querySelector("[data-weaver-chart-title]")?.textContent, "By status");
   assert.equal(element.getAttribute("aria-label"), "By status");
@@ -112,7 +112,7 @@ test("the empty state renders with no SVG and no table", () => {
 test("the accessible name and the fallback table are present", () => {
   const { target } = renderDirect({ title: "By status", values: [{ label: "Open", value: 3 }, { label: "Closed", value: 5 }], maxBars: 10 });
   const svg = target.querySelector("svg");
-  assert.ok(svg);
+  assert.ok(svg !== null, "the svg must render");
   assert.equal(svg.getAttribute("role"), "img");
   const labelledBy = svg.getAttribute("aria-labelledby");
   assert.ok(labelledBy);
@@ -120,7 +120,7 @@ test("the accessible name and the fallback table are present", () => {
   assert.equal(svg.querySelector(":scope > title")?.textContent, "By status");
 
   const table = target.querySelector("table[data-weaver-chart-table]") as HTMLTableElement | null;
-  assert.ok(table, "the fallback table must render");
+  assert.ok(table !== null, "the fallback table must render");
   assert.equal(table.querySelector("caption")?.textContent, "By status");
   assert.deepEqual([...table.querySelectorAll("thead th")].map((cell) => cell.textContent), ["Label", "Value"]);
   assert.deepEqual([...table.querySelectorAll("tbody tr")].map((row) => [...row.children].map((cell) => cell.textContent)), [["Open", "3"], ["Closed", "5"]]);
@@ -134,8 +134,8 @@ test("negative and non-numeric values are clamped to zero and draw no bar", () =
 
   const { target } = renderDirect({ title: "T", values: values as unknown as HydratedValue, maxBars: 10 });
   assert.deepEqual(bars(target).map((bar) => bar.getAttribute("data-chart-value")), ["0", "2", "0"]);
-  assert.equal(bars(target)[0]?.querySelector("path"), null, "a clamped bar draws no path");
-  assert.notEqual(bars(target)[1]?.querySelector("path"), null);
+  assert.equal(bars(target)[0]?.querySelector("path") == null, true, "a clamped bar draws no path");
+  assert.equal(bars(target)[1]?.querySelector("path") == null, false, "bar 2 draws a path");
 });
 
 test("maxBars limits the drawn bars and the note says how many were left out", () => {
@@ -181,9 +181,9 @@ test("the Column, Text and Card layout primitives render under the cookbook cata
   const target = window.document.createElement("main") as unknown as Element;
   assert.equal(web.mount({ surfaceId: SURFACE_ID, target }).ok, true);
   assert.equal(target.querySelectorAll("[data-a2ui-component=Column]").length, 2);
-  assert.notEqual(target.querySelector("[data-a2ui-component=Card]"), null);
+  assert.ok(target.querySelector("[data-a2ui-component=Card]") !== null, "Card must render");
   assert.equal(target.querySelector("[data-a2ui-component=Text]")?.textContent, "Orders");
-  assert.notEqual(target.querySelector("[data-a2ui-component=BarChart]"), null);
+  assert.ok(target.querySelector("[data-a2ui-component=BarChart]") !== null, "BarChart must render");
 });
 
 test("the renderer uses no dependency, markup strings, or eval", () => {
@@ -193,7 +193,7 @@ test("the renderer uses no dependency, markup strings, or eval", () => {
   }
   // Labels that look like markup are text, never parsed as elements.
   const { target } = renderDirect({ title: "<i>t</i>", values: [{ label: "<b>x</b>", value: 1 }], maxBars: 3 });
-  assert.equal(target.querySelector("b"), null);
-  assert.equal(target.querySelector("i"), null);
+  assert.equal(target.querySelector("b") === null, true, "no b element");
+  assert.equal(target.querySelector("i") === null, true, "no i element");
   assert.equal(bars(target)[0]?.getAttribute("data-chart-label"), "<b>x</b>");
 });
