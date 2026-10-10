@@ -4,7 +4,7 @@ title: Playground inspector page (load trace, step, snapshots, suppressed outbou
 epic: E2 Trace and replay
 audit_ref: WVR-02, §4.D (OpenUI Inspect/Debug equivalent)
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-023]
 estimate: L
 ---
@@ -72,3 +72,5 @@ Merged. A screenshot is attached to the PR.
   - E2E: `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/playground e2e` gives 18 passed (9 tests at each width, 1280 and 360), exit 0, with the preinstalled Chromium. No `playwright install` was run.
   - Mutation checks: a 1000px `min-width` on the stage made the 360px overflow check fail (`scrollWidth 1033px exceeds viewport 360px`) and the 1280px check still pass. The stylesheet was then restored. A mutation that made the entry JSON use `innerHTML` was not run, because the auto-mode permission denied the run. The mutation was reverted at once, and the source is back to textContent. The "never runs as markup" test has passed on the real code, but it has not been shown to fail on a mutation.
   - Unmet or not done: the Definition of done (merge, and a screenshot on the PR) waits for the PR. The screenshots were taken only for my own review, at 360px (no horizontal overflow) and 1280px. No person has checked the page by hand. The docs (WVR-025) and the PLAN.md entry were left out, per the instructions.
+
+- 2026-10-10 merged in cyruslayo/weaver#25 (42f338c)

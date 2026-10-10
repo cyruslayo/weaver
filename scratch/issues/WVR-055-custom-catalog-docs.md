@@ -4,7 +4,7 @@ title: Document the custom catalog recipe (docs/custom-catalogs.md)
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-054, WVR-016, WVR-057]
 estimate: S
 ---

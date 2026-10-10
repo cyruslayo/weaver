@@ -4,7 +4,7 @@ title: Diagnostics panel in the inspector and a cookbook "error demo"
 epic: E3 Error presentation
 audit_ref: WVR-03 ("typed error panel grouped by frame, component, path, cause")
 priority: P0
-status: todo
+status: ready
 depends_on: [WVR-032, WVR-024, WVR-041]
 estimate: M
 ---

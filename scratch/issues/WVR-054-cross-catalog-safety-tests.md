@@ -4,7 +4,7 @@ title: Cross-catalog safety tests — unknown components fail safely, no fallbac
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05 (acceptance)
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-052, WVR-053, WVR-057]
 estimate: S
 ---
@@ -53,3 +53,5 @@ Merged.
 - Added WVR-057 to `depends_on`.
 - E2E: `pnpm --filter @weaver/cookbook e2e` 30/30 pass (Chromium at both widths). The orders-report spec is 5 of those per width. The cookbook `test` script reports 87/87.
 - Status stays `in-review` until the branch is reviewed and merged to `main`.
+
+- 2026-10-10 merged in cyruslayo/weaver#25 (42f338c)

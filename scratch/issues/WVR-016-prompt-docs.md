@@ -4,7 +4,7 @@ title: Document prompt generation (docs/prompt-generation.md + README section)
 epic: E1 Prompt generation
 audit_ref: WVR-01
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-013, WVR-015]
 estimate: S
 ---
@@ -44,3 +44,5 @@ Merged.
   - `examples/cookbook/README.md` (docs only): `DataTable.rows` and `BarChart.values` now read as a data binding (preferred) or a literal array. The "renderers arrive in WVR-052 and WVR-053" line now names `dataTableRenderer.ts`, `barChart.ts` and `renderers.ts`. The read-only `DataTable` note still points to the `List` template on the ticket board.
   - Gate, run locally: `pnpm install`, `pnpm build`, `pnpm typecheck`, `pnpm check:generated`, `pnpm test` (core 427, mcp 10, web 133, cookbook 73, reference-app 8; 0 failed), `pnpm verify:packages` (exit 0, includes the snippet check), `pnpm conformance:v0.9.1` (core 427 and web 133 pass). Not run: `pnpm verify:worker-core`.
   - Not touched, per the session instruction: `scratch/BOARD.md` and `docs/PLAN.md`.
+
+- 2026-10-10 merged in cyruslayo/weaver#25 (42f338c)

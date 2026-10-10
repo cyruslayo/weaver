@@ -4,7 +4,7 @@ title: Cookbook orders-report screen that mounts the custom catalog
 epic: E5 Custom catalog recipe
 audit_ref: WVR-05 (acceptance), WVR-054 case (d)
 priority: P1
-status: in-review
+status: done
 depends_on: [WVR-052, WVR-053]
 estimate: S
 ---
@@ -130,3 +130,5 @@ Merged, with every acceptance criterion ticked on evidence.
 - `pnpm test`: 427, 10, 133, 87, 15, 8 tests. All pass, 0 fail.
 - `pnpm check:generated`, `pnpm verify:packages`, `pnpm verify:worker-core`: exit 0.
 - `pnpm --filter @weaver/cookbook e2e`: 30 of 30 pass. Existing specs are unchanged: dashboard 3 per width, form 4 per width, ticket board 3 per width. New `orders-report.spec.ts`, per width: no horizontal overflow; table scrolls within its wrapper, and the chart fits the viewport; the chart is `role="img"` with an accessible name, and has a fallback table; Tab reaches Refresh and the named table region, with a visible focus indicator; the keyboard activates Refresh, and the table and chart both change.
+
+- 2026-10-10 merged in cyruslayo/weaver#25 (42f338c)
