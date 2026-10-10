@@ -4,7 +4,7 @@ title: replayWeaverTrace() with per-step divergence report
 epic: E2 Trace and replay
 audit_ref: WVR-02 (acceptance: same final surface, no extra side effects)
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-022]
 estimate: M
 ---
@@ -72,3 +72,5 @@ Merged.
   - Review follow-up: added a two-surface round-trip test, which checks every
     surface deep-equals the original, and a mid-trace frame-error test. Tests
     total 9 in `replayWeaverTrace.test.ts`. Core suite is now 421/421.
+
+- 2026-10-10 merged in cyruslayo/weaver#23 (6094797)
