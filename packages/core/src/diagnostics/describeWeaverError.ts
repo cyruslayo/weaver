@@ -19,7 +19,11 @@ import type {
   WeaverRuntimeInteractionError,
   WeaverSurfaceResolutionError,
 } from "../runtime/index.js";
-import type { A2UIPromptGenerationError } from "../prompt/errors.js";
+import type {
+  A2UIPromptExampleInvalidError,
+  A2UIPromptGenerationError,
+  A2UIPromptSurfaceNotReadyCause,
+} from "../prompt/errors.js";
 import type { SurfaceStoreError } from "../surfaces/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
 import type {
@@ -900,17 +904,64 @@ function promptGenerationError(error: A2UIPromptGenerationError): ErrorNode {
           hint: "Reduce the number of components, functions, or examples in the catalog so the prompt fits the limit.",
         },
       );
-    case "EXAMPLE_INVALID": {
-      const where =
-        error.exampleTitle !== undefined
-          ? `example "${error.exampleTitle}"`
-          : error.exampleIndex !== undefined
-            ? `example ${error.exampleIndex}`
-            : "an example";
-      return node("EXAMPLE_INVALID", `Prompt generation stopped because ${where} is invalid: ${trimPeriod(error.message)}.`, {
-        hint: "Correct the example so it is valid A2UI v0.9.1 for this catalog, then generate the prompt again.",
-      });
-    }
+    case "EXAMPLE_INVALID":
+      return exampleInvalidError(error);
+    default:
+      return unknownError(error);
+  }
+}
+
+function surfaceNotReady(error: A2UIPromptSurfaceNotReadyCause): ErrorNode {
+  const issueCount = error.issues.tree.length + error.issues.instances.length + error.issues.properties.length;
+  const gaps: string[] = [];
+  if (!error.treeReady) gaps.push("the component tree is incomplete");
+  if (!error.checksReady) gaps.push("the checks are not ready");
+  if (issueCount > 0) gaps.push(`${issueCount} surface ${issueCount === 1 ? "issue remains" : "issues remain"}`);
+  return node(
+    "SURFACE_NOT_READY",
+    `Surface "${error.surfaceId}" is not ready for a prompt: ${gaps.join(", ") || "it has unresolved state"}.`,
+    {
+      surfaceId: error.surfaceId,
+      hint: "Give the example's surface a root, resolve every reference, and remove its issues.",
+    },
+  );
+}
+
+/*
+ * The example's typed cause is attached as a child node, so `causes` carries
+ * the whole chain below it. `stage` decides which Core union that cause is.
+ */
+function exampleInvalidError(error: A2UIPromptExampleInvalidError): ErrorNode {
+  const example = `example ${error.exampleIndex} ("${error.exampleTitle}")`;
+  const hint = "Correct the example so it is valid A2UI v0.9.1 for this catalog, then generate the prompt again.";
+  const message = trimPeriod(error.message);
+  switch (error.stage) {
+    case "runtime":
+      return node(
+        "EXAMPLE_INVALID",
+        `Prompt generation stopped because ${example} is invalid at stage "runtime": ${message}.`,
+        { children: [runtimeConfigurationError(error.cause)], hint },
+      );
+    case "process":
+      return node(
+        "EXAMPLE_INVALID",
+        `Prompt generation stopped because ${example} is invalid at stage "process", message ${error.messageIndex}: ${message}.`,
+        { children: [messageProcessorError(error.cause)], hint },
+      );
+    case "resolve":
+      return node(
+        "EXAMPLE_INVALID",
+        `Prompt generation stopped because ${example} is invalid at stage "resolve", surface "${error.surfaceId}": ${message}.`,
+        {
+          surfaceId: error.surfaceId,
+          children: [
+            error.cause.code === "SURFACE_NOT_READY"
+              ? surfaceNotReady(error.cause)
+              : surfaceResolutionError(error.cause),
+          ],
+          hint,
+        },
+      );
     default:
       return unknownError(error);
   }
