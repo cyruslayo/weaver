@@ -1,4 +1,6 @@
 import "./inspector.css";
+import "@weaver/shared/diagnostics-panel.css";
+import { renderDiagnosticsPanel } from "@weaver/shared";
 import {
   describeWeaverError,
   WEAVER_TRACE_FORMAT,
@@ -90,55 +92,6 @@ function describeRecordedError(error: unknown): WeaverErrorDescription {
   }
 }
 
-/** Builds the readable form of a described error. All text is set with textContent. */
-function buildDescription(description: WeaverErrorDescription): HTMLElement {
-  const wrapper = document.createElement("div");
-  wrapper.className = "described-error";
-
-  const summary = document.createElement("p");
-  summary.className = "error-summary";
-  summary.textContent = `${description.code} (${description.severity}): ${description.summary}`;
-  wrapper.append(summary);
-
-  const fields = document.createElement("dl");
-  fields.className = "fields";
-  const addField = (label: string, value: string | number | undefined): void => {
-    if (value === undefined) return;
-    const term = document.createElement("dt");
-    term.textContent = label;
-    const detail = document.createElement("dd");
-    detail.textContent = String(value);
-    fields.append(term, detail);
-  };
-  addField("Surface", description.surfaceId);
-  addField("Component", description.componentId);
-  addField("Scope", description.scopePath);
-  addField("Data path", description.dataPath);
-  addField("Frame", description.frame);
-  if (fields.childElementCount > 0) wrapper.append(fields);
-
-  if (description.hint !== undefined) {
-    const hint = document.createElement("p");
-    hint.className = "hint";
-    hint.textContent = `Fix: ${description.hint}`;
-    wrapper.append(hint);
-  }
-
-  if (description.causes.length > 0) {
-    const label = document.createElement("p");
-    label.textContent = "Causes, in order:";
-    const causes = document.createElement("ol");
-    causes.className = "causes";
-    for (const cause of description.causes) {
-      const item = document.createElement("li");
-      item.textContent = `${cause.code}: ${cause.summary}`;
-      causes.append(item);
-    }
-    wrapper.append(label, causes);
-  }
-  return wrapper;
-}
-
 function outcomeText(outcome: WeaverTraceReplayOutcome | null): string {
   if (outcome === null) return "not re-applied (frame-error entries are reported, never applied)";
   return outcome.ok ? "ok" : `error ${outcome.code ?? "(no code)"}`;
@@ -208,13 +161,7 @@ function renderEntry(entry: WeaverTraceEntry): void {
     return;
   }
   ui.errorPanel.hidden = false;
-  ui.errorPanel.replaceChildren(heading3("Error"), buildDescription(describeRecordedError(entry.outcome.error)));
-}
-
-function heading3(text: string): HTMLHeadingElement {
-  const heading = document.createElement("h3");
-  heading.textContent = text;
-  return heading;
+  renderDiagnosticsPanel(ui.errorPanel, [describeRecordedError(entry.outcome.error)], { title: "Error", headingLevel: 3 });
 }
 
 function renderStage(web: BasicWebRuntime, surfaceId: string | undefined): void {
@@ -231,7 +178,10 @@ function renderStage(web: BasicWebRuntime, surfaceId: string | undefined): void 
   }
   const failure = document.createElement("div");
   failure.className = "error-panel";
-  failure.append(heading3("The surface could not be rendered"), buildDescription(describeWebRenderError(mounted.error)));
+  renderDiagnosticsPanel(failure, [describeWebRenderError(mounted.error)], {
+    title: "The surface could not be rendered",
+    headingLevel: 3,
+  });
   ui.stage.append(failure);
 }
 

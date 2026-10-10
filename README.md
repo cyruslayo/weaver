@@ -130,7 +130,8 @@ Weaver's trust model is explicit: the host registers every trusted A2UI catalog
 and renderer during initialization. `@cylayo/weaver-core` bundles the canonical A2UI
 v0.9.1 Basic Catalog registration helper (`createBasicCatalogV091Registration`)
 for hosts that want the canonical catalog without hand-copying its schema;
-custom catalogs are registered the same low-level way.
+custom catalogs are registered the same low-level way. The step-by-step recipe, with a
+trusted renderer and its failure tests, is in [custom catalogs](docs/custom-catalogs.md).
 
 ### Producing A2UI messages
 
@@ -415,6 +416,7 @@ docs/                      detailed documentation (below)
 | [docs/packaging.md](docs/packaging.md) | ESM packaging, local tarball workflow, release gate, versioning |
 | [docs/web-rendering.md](docs/web-rendering.md) | Renderer pipeline, Basic Catalog renderers, media/theme/attribution policies, focus |
 | [docs/debugging.md](docs/debugging.md) | Runtime observer, trace recording and replay, the development-only trace inspector, security and privacy of traces |
+| [docs/custom-catalogs.md](docs/custom-catalogs.md) | Recipe for an app-owned catalog with trusted renderers: schema, one catalog per surface, the security checklist, registration, the prompt generator, and failure tests |
 | [docs/http-sse-transport.md](docs/http-sse-transport.md) | Browser HTTP/SSE binding, reconnect and resume |
 | [docs/mcp.md](docs/mcp.md) | MCP A2UI bridge and application-capability helpers |
 | [docs/conformance-v0.9.1.md](docs/conformance-v0.9.1.md) | Requirement-by-requirement A2UI v0.9.1 conformance tracker |

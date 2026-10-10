@@ -17,6 +17,7 @@ never sends or persists what they record.
 | Replay | `replayWeaverTrace()` | Re-applies a trace to a fresh runtime and reports where it diverges |
 | Error descriptions | `describeWeaverError()` and `describeWebRenderError()` | Turn an error value into a readable description |
 | Inspector | `examples/playground/inspector.html` | A development-only page that loads a trace file and steps through it |
+| Diagnostics panel | `examples/shared` (`@weaver/shared`) | Shows error descriptions grouped by frame, surface and component. It is an example, not a package API. See [Diagnostics panel](#diagnostics-panel) |
 
 ## Turn on the observer and the recorder
 
@@ -400,10 +401,29 @@ console.log(description.code, description.componentId, description.hint);
 - **Parsing.** `parseWeaverTrace()` validates a trace file before anything uses it.
   Do this for every file you did not record in the same process.
 
+## Diagnostics panel
+
+`describeWeaverError()` and `describeWebRenderError()` return descriptions that a host
+can show. The diagnostics panel is one way to show them. It takes a list of
+descriptions and groups them by frame, then by surface, then by component. Each entry
+shows its code, summary, scope and data path, fix hint, and flattened cause chain. All
+text is set with `textContent`, so a description that contains markup is shown as text.
+
+The panel lives in `examples/shared`, as the private `@weaver/shared` package. It is
+not part of `@cylayo/weaver-web`. The playground inspector uses it for the error on each
+entry. The cookbook **Error demo** (`examples/cookbook/error-demo.html`) uses it for three
+bad updates: a truncated frame, a component the catalog does not define, and a list too
+long to render. Each bad update is one entry, and the surface beside the panel keeps its
+last good render.
+
+**Promotion rule:** move the panel into `@cylayo/weaver-web` only when an adopting host
+asks for it. Until then it stays in examples, so the published API does not grow to suit
+a demo. A host that needs it earlier can copy the module, which is small.
+
 ## Related documents
 
 - [Architecture](architecture.md): the runtime pipeline, including the `WeaverRuntime` facade.
 - [Validated A2UI stream ingestion](a2ui-stream-ingestion.md): the frame and chunk path that `recordIngestion()` follows.
 - [Prompt generation](prompt-generation.md): compiling the trusted catalog into model instructions.
 - [Web rendering](web-rendering.md): the renderer pipeline behind `describeWebRenderError()`.
-- A dedicated custom-catalog guide, `docs/custom-catalogs.md`, is planned under WVR-055. It does not exist yet.
+- [Custom catalogs](custom-catalogs.md): the recipe for a trusted renderer whose errors this page describes.

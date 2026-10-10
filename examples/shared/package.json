@@ -1,0 +1,26 @@
+{
+  "name": "@weaver/shared",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Framework-free example helpers shared by the playground and the cookbook. Not published.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/diagnostics-panel.d.ts",
+      "default": "./dist/diagnostics-panel.js"
+    },
+    "./diagnostics-panel.css": "./src/diagnostics-panel.css"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.json && node --test dist/diagnostics-panel.test.js",
+    "clean": "node -e \"import('node:fs').then(({rmSync}) => rmSync('dist', { recursive: true, force: true }))\""
+  },
+  "dependencies": {
+    "@cylayo/weaver-core": "workspace:*"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.11.2"
+  }
+}

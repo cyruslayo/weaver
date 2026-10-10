@@ -26,6 +26,9 @@ importers:
       '@cylayo/weaver-web':
         specifier: workspace:*
         version: link:../../packages/web
+      '@weaver/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@playwright/test':
         specifier: 1.56.1
@@ -45,6 +48,9 @@ importers:
       '@cylayo/weaver-web':
         specifier: workspace:*
         version: link:../../packages/web
+      '@weaver/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@playwright/test':
         specifier: 1.56.1
@@ -68,6 +74,16 @@ importers:
       vite:
         specifier: ^8.2.0
         version: 8.2.1(@types/node@22.20.1)(esbuild@0.28.2)
+
+  examples/shared:
+    dependencies:
+      '@cylayo/weaver-core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      happy-dom:
+        specifier: ^20.11.2
+        version: 20.11.2
 
   packages/core:
     dependencies:

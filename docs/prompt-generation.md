@@ -269,8 +269,8 @@ points in the generated prompt:
 - `DataTable` is read-only. It has no row actions and rejects `rowAction` at
   message validation. For per-row actions, use a `List` template of `Card`s.
 
-A dedicated custom-catalog guide, `docs/custom-catalogs.md`, is planned under
-WVR-055. It does not exist yet.
+The step-by-step recipe for a custom catalog, from `defineCatalog()` to the failure
+tests, is in [custom catalogs](custom-catalogs.md). Its step 5 covers this generator.
 
 ## Where the generator is used
 

@@ -156,14 +156,16 @@ test("invalid trusted context is rejected before any state or rendering changes"
   assert.match(target.textContent ?? "", /Saved: Docs/);
 });
 
-test("the package depends only on Core, Web, Vite, happy-dom, and the e2e test runner", () => {
+test("the package depends only on Core, Web, the example-only shared panel, Vite, happy-dom, and the e2e test runner", () => {
   const manifest = JSON.parse(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   ) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
 
+  // @weaver/shared is the private examples/shared package (WVR-034). It holds the diagnostics panel that the playground also uses.
   assert.deepEqual(Object.keys(manifest.dependencies ?? {}).sort(), [
     "@cylayo/weaver-core",
     "@cylayo/weaver-web",
+    "@weaver/shared",
   ]);
   // @playwright/test is the e2e runner only (WVR-045). It is not used by the node:test suite.
   assert.deepEqual(Object.keys(manifest.devDependencies ?? {}).sort(), [

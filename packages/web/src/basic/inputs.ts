@@ -1,7 +1,7 @@
 import type { BasicRegexMatcher, ComponentCheckSnapshot, HydratedValue } from "@cylayo/weaver-core";
 import type { WebComponentRenderInput, WebComponentRenderer } from "../renderers/index.js";
 import { applyBasicHook } from "./layout.js";
-import { appendBasicStyle, applyBasicMargin, basicControl, basicOutline, basicRadius, basicSpace } from "./styles.js";
+import { appendBasicStyle, applyBasicMargin, basicControl, basicOutline, basicPrimaryFallback, basicRadius, basicSpace } from "./styles.js";
 
 type NativeControl = HTMLInputElement | HTMLTextAreaElement;
 type Option = { label?: unknown; value: string };
@@ -141,7 +141,7 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher, date
       if (displayStyle === "chips") {
         row.style.display = "inline-flex";
         row.style.alignItems = "center";
-        appendBasicStyle(row, `border: 1px solid ${control.checked ? "var(--a2ui-color-primary, #17e)" : basicOutline}; border-radius: 999px; padding: calc(${basicSpace} / 2) ${basicSpace}; background: ${control.checked ? "var(--a2ui-color-control, rgba(127, 127, 127, 0.16))" : basicControl}`);
+        appendBasicStyle(row, `border: 1px solid ${control.checked ? `var(--a2ui-color-primary, ${basicPrimaryFallback})` : basicOutline}; border-radius: 999px; padding: calc(${basicSpace} / 2) ${basicSpace}; background: ${control.checked ? "var(--a2ui-color-control, rgba(127, 127, 127, 0.16))" : basicControl}`);
       } else {
         row.style.display = "block";
         appendBasicStyle(row, `padding: calc(${basicSpace} / 2)`);
@@ -219,7 +219,7 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher, date
 }
 
 function applyPrimaryAccent(control: HTMLInputElement): void {
-  control.style.accentColor = "var(--a2ui-color-primary, #17e)";
+  control.style.accentColor = `var(--a2ui-color-primary, ${basicPrimaryFallback})`;
 }
 
 function componentWrapper(document: Document, component: string, variant?: HydratedValue): HTMLDivElement {
