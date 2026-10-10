@@ -4,7 +4,7 @@ title: Regression tests — malformed input leaves last good state and DOM; host
 epic: E3 Error presentation
 audit_ref: WVR-03 (acceptance), §5 fail-safe behaviour
 priority: P0
-status: ready
+status: in-review
 depends_on: [WVR-032]
 estimate: S
 ---
@@ -29,8 +29,8 @@ describers produce actionable output for the failures.
   the missing ones and the describer assertions.
 
 ## Acceptance criteria
-- [ ] The tests above pass.
-- [ ] No production behaviour changes. The PR touches only tests, unless a
+- [x] The tests above pass.
+- [x] No production behaviour changes. The PR touches only tests, unless a
       test exposes a real bug; in that case, file a separate issue.
 
 ## Verification
@@ -40,3 +40,22 @@ describers produce actionable output for the failures.
 Merged.
 
 ## Log
+- 2026-10-10: Branch `wvr-033-last-good-state` (reset to base `d977a03`, not
+  pushed, no PR). Test-only change in two files.
+  - `packages/core/src/stream-ingestion/A2UIV091StreamIngestion.test.ts`: new
+    case. A valid surface is created, then a malformed JSON frame (frame 4) and
+    a catalog-invalid frame (frame 5, component `bad`) each leave the surface
+    snapshot unchanged. `describeWeaverError` names frame 4 in its summary and
+    frame field, and names `bad` as `componentId` for frame 5. A later valid
+    frame (frame 6) still applies. The existing tests did not cover this
+    sequence with prior state, or any describer assertion.
+  - `packages/web/src/surface/WebSurfaceRenderer.test.ts`: new case. A later
+    update to an unregistered renderer keeps the previous DOM, calls `onError`
+    once, and `describeWebRenderError` names catalog `test`, component
+    `Missing`, and componentId `root`. The existing rerender test covered the
+    DOM and `onError` but not the describer.
+  - No new test files, so no `test` script changes were needed.
+  - No product bug found. No production code changed.
+  - Gate: `pnpm install`, `pnpm typecheck`, `pnpm build`, `pnpm test` (exit 0;
+    core 413/413, web 133/133, mcp 10/10, cookbook 43/43, reference-app 3/3),
+    `pnpm verify:packages` and `pnpm verify:worker-core` all exit 0.
