@@ -32,44 +32,42 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-055](issues/WVR-055-custom-catalog-docs.md) | Document the custom catalog recipe (docs/custom-catalogs.md) | E5 Custom catalog recipe | P0 | `todo` | WVR-054, WVR-016, WVR-057 | S |
 | [WVR-056](issues/WVR-056-row-scoped-action-dispatch.md) | Row-scoped action dispatch for DataTable rows | E5 Custom catalog recipe | P1 | `gated` | WVR-052 | M |
 | [WVR-057](issues/WVR-057-cookbook-orders-report-screen.md) | Cookbook orders-report screen that mounts the custom catalog | E5 Custom catalog recipe | P1 | `in-review` | WVR-052, WVR-053 | S |
+| [WVR-058](issues/WVR-058-basic-button-contrast.md) | Basic primary Button meets WCAG AA contrast (4.5:1) for its small text | F Follow-ups | P1 | `ready` | — | S |
+| [WVR-059](issues/WVR-059-datatable-scroll-cue.md) | DataTable shows a cue when columns are hidden off-screen at narrow widths | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `todo` | WVR-016, WVR-025, WVR-033 | S |
+| [WVR-061](issues/WVR-061-barchart-sizing.md) | BarChart keeps its label text readable at 360px and stays within a height cap at 1280px | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-062](issues/WVR-062-hanging-assertion.md) | No assert.* receives DOM nodes, so a failing Web test reports instead of hanging | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-063](issues/WVR-063-playground-row-css-e2e.md) | Exercise the playground inspector's Row layout rules with a trace that contains a Row | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `gated` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 20, ready: 0, in-review: 5, todo: 3, gated: 4 (32 issues)
+**Totals:** done: 20, ready: 5, in-review: 5, todo: 3, gated: 4 (37 issues)
 
-## Start here (0 ready; 5 in-review; 20 done)
+## Start here (5 ready; 5 in-review; 20 done)
 
-As of 2026-10-10, 20 issues are `done`. WVR-000, 011, 021, 031 and 041 were done
-earlier. WVR-012, 014, 022, 032, 042, 043, 044 and 051 merged to `main` in
-cyruslayo/weaver#21 (`c2fc058`). WVR-013, 015, 023, 033, 045, 052 and 053 merged to
-`main` in cyruslayo/weaver#23 (`6094797`).
+As of 2026-10-10, five follow-up issues from the WVR-024/057 browser review are `ready`.
+Their dependencies are empty. They are a new epic, `F Follow-ups`. Each follows up work on the
+local integration branch, which is not yet on `main`. Pick the lowest ID inside the
+highest priority: WVR-058 first (P1), then WVR-059, 061, 062 and 063 (P2).
 
-Nothing is `ready`. Five issues are `in-review` on the local integration branch
-`wvr-integration-5` (built from `f909d50`, not pushed, no PR yet). Each is waiting on
-review and merge to `main`.
+- **WVR-058**, P1. Lane: F Follow-ups. Touches `packages/web/src/basic/renderers.ts` (the
+  primary Button fallback colour, which is 4.29:1 today), the Basic theme tests and, if the
+  fallback is named there, `docs/web-rendering.md`. Changes the default visual output of
+  `@cylayo/weaver-web` (note it for 0.3.0).
+- **WVR-059**, P2. Lane: F Follow-ups. Touches `examples/cookbook/src/custom-catalog/dataTableRenderer.ts`
+  (a scroll cue on the table wrapper at narrow widths) and `examples/cookbook/e2e/orders-report.spec.ts`.
+- **WVR-061**, P2. Lane: F Follow-ups. Touches `examples/cookbook/src/custom-catalog/barChart.ts`
+  (label text at 360px is about 8 to 9px, and the chart at 1280px has no height cap) and its spec.
+- **WVR-062**, P2. Lane: F Follow-ups. Touches 43 `assert.*` call sites in six test files that
+  pass DOM nodes to `assert` (the atomic-rerender test in `WebSurfaceRenderer.test.ts` is one of them;
+  a failing one hangs the Web test file).
+- **WVR-063**, P2. Lane: F Follow-ups. Touches `examples/playground/samples` (a new Row trace),
+  `examples/playground/e2e/inspector.spec.ts` and `inspector.css`, so the Row rules are exercised.
 
-- **WVR-016**, document prompt generation (`docs/prompt-generation.md`, README section,
-  packed-package doc snippet check).
-- **WVR-024**, playground inspector page (`examples/playground`). Its Playwright e2e
-  is not in required CI.
-- **WVR-025**, debugging docs (`docs/debugging.md`). Its snippets run in
-  `verify:packages`. Its front matter was already `in-review`; the board row is now too.
-- **WVR-054**, cross-catalog safety tests (`examples/cookbook`). Case (d), the standalone
-  custom-catalog browser check, is now covered by WVR-057's Playwright spec, so its
-  criterion is ticked. It stays `in-review` until merged.
-- **WVR-057**, cookbook orders-report screen on the custom catalog. It supplies the
-  runnable case (d) and the Playwright spec for WVR-054.
-
-Still `todo`, each waiting on a dependency that is not `done` yet:
-
-- WVR-034 waits on WVR-024 (in-review).
-- WVR-055 waits on WVR-054, WVR-016 and WVR-057 (all in-review).
-- WVR-060 waits on WVR-016 and WVR-025 (both in-review).
-
-Gated, do not start: WVR-056 (row-scoped action dispatch, parked by owner decision on
-2026-10-10; row actions use a List template instead), WVR-080, WVR-081 and WVR-090.
+Still `in-review` on the integration branch `wvr-integration-5`, not yet merged: WVR-016,
+WVR-024, WVR-025, WVR-054 and WVR-057. Still `todo`: WVR-034, WVR-055 and WVR-060, each
+waiting on a dependency in review. Gated, do not start: WVR-056, WVR-080, WVR-081 and WVR-090.
 
 Notes:
 
@@ -90,6 +88,7 @@ E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
 Release: {016, 025, 033} → 060 → 081 (gated)
 Bench:   {013, 044} → 080 (gated)
+F:       058, 059, 061, 062, 063 (no dependencies; follow-ups from the WVR-024/057 browser review)
 ```
 
 ## Milestones
