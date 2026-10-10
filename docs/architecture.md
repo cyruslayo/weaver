@@ -1184,6 +1184,15 @@ Core owns exact A2UI outbound JSON objects. Concrete transports own delivery,
 metadata placement, and retries. Builders perform no sending and `process()`
 retains its ordinary processing result and side-effect behavior.
 
+### Observer, trace and replay
+
+`WeaverRuntimeConfig.observer` is opt-in. When it is set, the runtime delivers a
+copy of each `process()`, `writeInput()` and `dispatchAction()` result, in order. An
+observer exception is ignored, so the observer cannot change a result or state.
+`createWeaverTraceRecorder()` builds an observer that keeps a bounded in-memory
+trace, and `replayWeaverTrace()` re-applies one to a fresh runtime. Both are
+development tools. See [debugging, replay and the inspector](debugging.md).
+
 ## Transport session ownership and routing
 
 ```text

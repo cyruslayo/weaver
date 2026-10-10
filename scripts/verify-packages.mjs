@@ -137,9 +137,17 @@ const snippetDir = path.join(consumer, "doc-snippets");
 await mkdir(snippetDir);
 const snippets = await docSnippets(root);
 for (const snippet of snippets) await writeFile(path.join(snippetDir, snippet.name), snippet.source);
-run("pnpm", ["exec", "tsc", "-p", "tsconfig.doc-snippets.json"], { cwd: consumer, stdio: "pipe" });
+try {
+  run("pnpm", ["exec", "tsc", "-p", "tsconfig.doc-snippets.json"], { cwd: consumer, stdio: "pipe" });
+} catch (error) {
+  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, and docs-debugging-N.ts is block N of docs/debugging.md.\n${error.message}`);
+}
 for (const snippet of snippets) {
-  run(process.execPath, ["--experimental-strip-types", "--no-warnings", path.join("doc-snippets", snippet.name)], { cwd: consumer, stdio: "pipe" });
+  try {
+    run(process.execPath, ["--experimental-strip-types", "--no-warnings", path.join("doc-snippets", snippet.name)], { cwd: consumer, stdio: "pipe" });
+  } catch (error) {
+    fail(`Documentation snippet ${snippet.name} failed to run.\n${error.message}`);
+  }
 }
 console.log(`Ran ${snippets.length} documentation snippets against the packed packages`);
 const corePackagePathParts = expectedNames.core.split("/");
