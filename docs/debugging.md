@@ -73,12 +73,16 @@ console.log(web.catalogId);
 What the recorder does:
 
 - The observer gets a defensive copy of each event, so it cannot change a result
-  or the runtime's state. An exception thrown by the observer is ignored. So is one
-  thrown while building an event, so that event is dropped without any signal.
-  Typed requests cannot cause that. An untyped `dispatchAction()` request with a
-  circular reference is different: the observer copies it without a JSON-safety
-  check, and that copy never finishes, so the process runs out of memory. Until this
-  is fixed, do not pass untyped action requests to a runtime that has an observer.
+  or the runtime's state. An exception thrown by the observer is ignored. Every
+  caller-supplied value is checked for JSON-safety before it is copied, whether or
+  not the runtime accepted it. A value that is not JSON-safe (a cycle, for example)
+  reaches the observer as `{ unserializable: true }`, and the observer never walks
+  it. An untyped `dispatchAction()` request that is not JSON-safe reaches the
+  observer reduced to its four typed fields. A typed field that is not a JSON-safe
+  string is delivered as `""`. A JSON-safe request is delivered whole.
+- Core builds each result, and Core results are JSON-safe, so no event is dropped
+  in practice. If building an event throws for some other reason, that event is
+  dropped without any signal, as an observer exception is.
 - `createWeaverTraceRecorder({ maxEntries })` keeps at most `maxEntries` entries.
   The default is `5000`. It must be a positive safe integer, or the call throws a
   `RangeError`. When the limit is reached, the oldest entry is dropped and
@@ -313,8 +317,8 @@ snapshot of each surface the replay touched, keyed by `surfaceId`.
   cannot rebuild the state those dropped entries created, so the first steps may
   diverge. The `seq` gaps show where entries were dropped.
 - **Values that were not JSON-safe.** The observer stores `{ unserializable: true }`
-  in place of a rejected value that is not JSON-safe. Replay sends that marker, so
-  a step can diverge.
+  in place of a value that is not JSON-safe, whether the runtime accepted it or not.
+  Replay sends that marker, so a step can diverge.
 - **The clock.** Replay ignores `at`. A runtime that depends on its `now` needs the
   same `now` as the recording for the results to match. The sample flow fixes its
   clock for this reason.

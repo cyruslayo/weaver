@@ -93,6 +93,9 @@ snapshot the primary button colour.
   rerender (see Basic Button focus above).
 - **Core tarball.** `@cylayo/weaver-core` no longer includes an internal test fixture module
   (`dist/protocol/a2ui/v0_9_1/fixtures.*`). It was never part of the public API.
+- **Observer hang.** An untyped `dispatchAction()` request with a circular field no longer makes
+  a runtime with an observer run out of memory. Such a runtime returns what it returns without an
+  observer. Payloads that are not JSON-safe reach the observer as described under Notes.
 
 ### Documented behaviour (no code change)
 
@@ -113,19 +116,19 @@ snapshot the primary button colour.
   additive: the optional `observer` on `WeaverRuntimeConfig` and the optional `surfaceId` on
   the `SURFACE_RESOLUTION_FAILED` variant.
 - **Trace limits.** Replay does not rebuild state from dropped entries, and it sends the
-  `{ unserializable: true }` marker in place of a non-JSON-safe rejected value, so a step can
+  `{ unserializable: true }` marker in place of a value that is not JSON-safe, so a step can
   diverge. See [docs/debugging.md](docs/debugging.md#guarantees-and-limits).
 - **Positional collections.** Collection replay uses array positions, as the v0.9.1 semantics
   require. See [docs/debugging.md](docs/debugging.md#guarantees-and-limits).
 - **Replay codes are strings.** Replay divergence codes (`recorded.code` and `replayed.code`) are
   plain strings, not members of a typed union. `WEAVER_TRACE_REPLAY_INVALID_INPUT` has the value
   `"REPLAY_INVALID_INPUT"`. See [docs/debugging.md](docs/debugging.md#guarantees-and-limits).
-- **Observer events are dropped silently on failure.** An exception thrown while building an
-  observer event drops that event without a signal, as an exception from the observer does. A
-  known limitation: an untyped `dispatchAction()` request with a circular reference is copied
-  without a JSON-safety check, and that copy never finishes, so a process with an observer set
-  runs out of memory. Typed requests are not affected. Until this is fixed, do not pass untyped
-  action requests to a runtime with an observer. See
+- **Observer payloads.** Every caller-supplied value is checked for JSON-safety before the
+  observer copies it. A value that is not JSON-safe reaches the observer as
+  `{ unserializable: true }`, and an untyped `dispatchAction()` request that is not JSON-safe
+  reaches it reduced to its four typed fields. Core results are JSON-safe, so no event is dropped
+  in practice. If building an event throws for another reason, that event is dropped without a
+  signal, as an observer exception is. See
   [docs/debugging.md](docs/debugging.md#turn-on-the-observer-and-the-recorder).
 - **Examples are not published.** `@weaver/cookbook`, `@weaver/playground`,
   `@weaver/reference-app` and `@weaver/shared` are private workspace packages. The cookbook
