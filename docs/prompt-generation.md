@@ -107,12 +107,15 @@ not truncated.
 Measured sizes of the committed Basic fixtures (see
 [Regenerating the fixtures](#regenerating-the-fixtures)):
 
-| Fixture | Characters in `text` | Headroom to 24,000 |
-|---|---|---|
-| `basic-catalog.create.prompt.txt` | 22,165 | 1,835 |
-| `basic-catalog.edit.prompt.txt` | 22,350 | 1,650 |
+| Fixture | `text.length` (the budget's measure) | `wc -m` on the file | Headroom to 24,000 |
+|---|---|---|---|
+| `basic-catalog.create.prompt.txt` | 22,165 | 22,166 | 1,835 |
+| `basic-catalog.edit.prompt.txt` | 22,350 | 22,351 | 1,650 |
 
-The file on disk is one byte longer than `text` because it ends with a newline.
+`text.length` is the generator's output length. The file on disk adds one
+trailing newline, so `wc -m` is one higher. The text is ASCII, so characters and
+bytes match. These figures were checked against the committed fixtures by
+`wc -m` and by reading `text.length` from the generator's output.
 
 The Basic catalog fits the default budget with little room. A larger catalog,
 more examples or more actions can exceed it. Raise `maxCharacters`, or drop

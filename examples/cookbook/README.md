@@ -115,18 +115,21 @@ has its own `catalogId` and is registered next to Basic with
 rejected at message validation.
 
 - `DataTable`: `caption`, `columns` (1 to 12 `{ key, header, align? }`), and `rows`
-  (a data binding to an array of objects). It is **read-only**: it renders no
+  (a data binding such as `{"path": "/orders"}`, preferred, or a literal array of
+  row objects). It is **read-only**: it renders no
   row actions, and a `rowAction` property is rejected at message validation.
   For per-row actions, use a `List` template of `Card`s instead. The ticket
   board screen (`src/screens/ticket-board.ts`) shows this pattern, where each
   row is a real template instance with its own scope. Per-row dispatch from a
   table is deferred (WVR-056).
-- `BarChart`: `title`, `values` (a data binding to `{ label, value }` items), and
-  `maxBars` (an integer from 1 to 50).
+- `BarChart`: `title`, `values` (a data binding such as `{"path": "/stats/byStatus"}`,
+  preferred, or a literal array of `{ label, value }` items), and `maxBars` (an
+  integer from 1 to 50).
 
 The catalog schema is compiled by Core. Its descriptions feed the prompt
 generator. `src/custom-catalog/catalog.test.ts` proves registration, message
-validation, and the generated prompt. This issue adds no renderers. The Basic
-Web renderers are keyed to the Basic `catalogId`, so drawing a surface under this
-catalog also needs renderers for its components. The `DataTable` and `BarChart`
-renderers arrive in WVR-052 and WVR-053.
+validation, and the generated prompt. The Basic Web renderers are keyed to the
+Basic `catalogId`, so this catalog's components need their own renderers.
+`src/custom-catalog/dataTableRenderer.ts` renders `DataTable` and
+`src/custom-catalog/barChart.ts` renders `BarChart`. `src/custom-catalog/renderers.ts`
+registers both, and reuses the Basic renderers for `Column`, `Text` and `Card`.
