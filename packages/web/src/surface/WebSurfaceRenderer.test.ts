@@ -423,9 +423,14 @@ test("unregistered renderer on a later update keeps the last DOM, calls onError,
   const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()) });
   const mounted = web.mount({ surfaceId: "s", target, onError: (error) => errors.push(error) }); assert.ok(mounted.ok);
   const previous = target.querySelector("span");
+  const markupBefore = target.innerHTML;
   rt.process(components([{ id: "root", component: "Missing" }]));
-  assert.equal(target.textContent, "old"); assert.equal(target.querySelector("span"), previous);
-  assert.equal(errors.length, 1); assert.equal(errors[0]?.code, "RENDERER_NOT_FOUND");
+  assert.equal(target.innerHTML, markupBefore, "previous DOM markup is unchanged, with no added or removed nodes");
+  assert.equal(target.textContent, "old", "previous text is preserved");
+  assert.ok(previous !== null && target.contains(previous), "previous DOM node is still inside the mount target");
+  assert.ok(previous !== null && target.querySelector("span") === previous, "previous DOM node is preserved by identity");
+  assert.equal(errors.length, 1, "onError is called exactly once");
+  assert.equal(errors[0]?.code, "RENDERER_NOT_FOUND");
   const description = describeWebRenderError(errors[0]!);
   assert.equal(description.code, "RENDERER_NOT_FOUND");
   assert.equal(description.componentId, "root");

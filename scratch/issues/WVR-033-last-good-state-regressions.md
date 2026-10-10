@@ -65,3 +65,8 @@ Merged.
     `onError` fails the new Web case at `errors.length` (0 vs 1). Mutating the
     Web DOM on a failed rerender kills the whole Web test file (SIGKILL), which
     is a failure but not an assertion-level one.
+  - Follow-up: the new Web case now compares DOM markup as strings and checks
+    node identity as booleans, and it fails cleanly under the clear and
+    append mutations. The file-level SIGKILL comes from the existing
+    `rerender failure is atomic` test, which passes DOM nodes to `assert.equal`
+    and hangs when it fails; it is not fixed here.
