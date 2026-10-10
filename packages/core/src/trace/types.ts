@@ -52,8 +52,13 @@ export interface WeaverTraceRecorder {
   observer: WeaverRuntimeObserver;
   /**
    * Records JSONL decode failures only. Runtime failures are already recorded
-   * by the observer, so they are skipped here to avoid duplicates. Call it
-   * after each push() or finish() so entries stay in order.
+   * by the observer, so they are skipped here to avoid duplicates.
+   *
+   * Ordering: frame-error entries are appended when this method is called, and
+   * the ingestion events for a chunk are only returned after that chunk has been
+   * processed. So within one chunk, frame-error entries come after that chunk's
+   * message entries. Order is exact chunk by chunk, so call this after each
+   * push() or finish().
    */
   recordIngestion(
     events: readonly A2UIV091StreamIngestionEvent[],

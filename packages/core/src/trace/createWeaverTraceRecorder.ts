@@ -116,6 +116,12 @@ export function createWeaverTraceRecorder(
   return {
     observer: observe,
 
+    /**
+     * Ordering: entries are appended when this is called, after the chunk's
+     * messages were already recorded. Within one chunk, frame-error entries
+     * therefore follow that chunk's message entries. Order is exact chunk by
+     * chunk, so call this after each push() or finish().
+     */
     recordIngestion(events, chunk) {
       for (const event of events) {
         if (event.ok || !FRAME_ERROR_CODES.has(event.error.code)) continue;

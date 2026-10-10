@@ -71,6 +71,7 @@ Merged.
   - `recordIngestion` records JSONL decode failures only. Runtime failures
     already arrive through the observer, so they are skipped to avoid
     duplicate entries. Call it after each `push()` so entries stay in order.
+    Within one chunk, frame-error entries follow that chunk's message entries.
   - A frame-error entry stores the pushed chunk as `input`. The outcome holds
     the decode error and its frame number.
   - `parseWeaverTrace` returns an ok/error union, like the rest of Core, not a
