@@ -43,10 +43,11 @@ function cloneRuntimeJson<T>(value: T): T {
 
 /**
  * Returns true when the value is JSON-safe: finite numbers, strings, booleans,
- * null, arrays, and plain objects, with no cycles and no undefined members.
- * Iterative, so deep or cyclic host input cannot exhaust the stack or hang.
+ * null, arrays, and plain objects, with no cycles. An undefined member is
+ * rejected unless `allowUndefined` is set. Iterative, so deep or cyclic host
+ * input cannot exhaust the stack or hang.
  */
-function isJsonValue(root: unknown): boolean {
+function isJsonValue(root: unknown, allowUndefined = false): boolean {
   const stack: { value: unknown; leave: boolean }[] = [
     { value: root, leave: false },
   ];
@@ -58,6 +59,7 @@ function isJsonValue(root: unknown): boolean {
       continue;
     }
     const value = frame.value;
+    if (value === undefined && allowUndefined) continue;
     if (value === null || typeof value === "string" || typeof value === "boolean")
       continue;
     if (typeof value === "number") {
@@ -80,12 +82,64 @@ function isJsonValue(root: unknown): boolean {
 }
 
 /**
- * Copies a value for an observer. A value the validator rejected that is not
- * JSON-safe is replaced with a marker, so the copy never walks hostile data.
+ * Copies a caller-supplied value for an observer. The check runs before any copy,
+ * whether or not the runtime accepted the value. A value that is not JSON-safe
+ * is replaced with the marker, so the copy never walks cyclic or hostile data.
  */
-function observedValue(value: unknown, accepted: boolean): JsonValue {
-  if (!accepted && !isJsonValue(value)) return { unserializable: true };
+function observedValue(value: unknown): JsonValue {
+  if (!isJsonValue(value)) return { unserializable: true };
   return cloneRuntimeJson(value as JsonValue);
+}
+
+/**
+ * Copies a result that Core built. Core results hold caller data only in the
+ * value slots that observedValue handles, so this check is a guard. If it
+ * fails, nothing is copied and the build throws, and #observe drops the event.
+ */
+function observedResult<T>(result: T): T {
+  if (!isJsonValue(result, true))
+    throw new TypeError("Core result is not JSON-safe");
+  return cloneRuntimeJson(result);
+}
+
+/** A typed string field of an observed request. A value that is not JSON-safe is delivered as "". */
+function observedField(value: string): string {
+  return isJsonValue(value) ? value : "";
+}
+
+/**
+ * The action request copy. A JSON-safe request is copied whole, as before. For
+ * any other request only the four typed fields are delivered, each through
+ * observedField, so extra fields are never walked.
+ */
+function observedActionRequest(request: WeaverActionRequest): WeaverActionRequest {
+  if (isJsonValue(request)) return cloneRuntimeJson(request);
+  return {
+    surfaceId: observedField(request.surfaceId),
+    sourceComponentId: observedField(request.sourceComponentId),
+    scopePath: observedField(request.scopePath),
+    actionProperty: observedField(request.actionProperty),
+  };
+}
+
+/** The input result with its written value replaced by observedValue. */
+function observedInputResult(result: WeaverInputResult): WeaverInputResult {
+  return result.ok
+    ? { ok: true, value: { ...result.value, value: observedValue(result.value.value) } }
+    : result;
+}
+
+/** The action result with a host local-function value replaced by observedValue. */
+function observedActionResult(result: WeaverActionResult): WeaverActionResult {
+  if (!result.ok || result.value.kind !== "localFunction") return result;
+  const value = result.value.value;
+  return {
+    ok: true,
+    value: {
+      kind: "localFunction",
+      value: value === undefined ? undefined : observedValue(value),
+    },
+  };
 }
 
 interface RuntimeServices {
@@ -129,8 +183,8 @@ export class WeaverRuntime {
     const result = this.#services.processor.process(input);
     this.#observe(() => ({
       kind: "message",
-      input: observedValue(input, result.ok),
-      result: cloneRuntimeJson(result),
+      input: observedValue(input),
+      result: observedResult(result),
     }));
     return result;
   }
@@ -214,13 +268,13 @@ export class WeaverRuntime {
     this.#observe(() => ({
       kind: "input",
       request: {
-        surfaceId: request.surfaceId,
-        sourceComponentId: request.sourceComponentId,
-        scopePath: request.scopePath,
-        property: request.property,
-        value: observedValue(request.value, result.ok),
+        surfaceId: observedField(request.surfaceId),
+        sourceComponentId: observedField(request.sourceComponentId),
+        scopePath: observedField(request.scopePath),
+        property: observedField(request.property),
+        value: observedValue(request.value),
       },
-      result: cloneRuntimeJson(result),
+      result: observedResult(observedInputResult(result)),
     }));
     return result;
   }
@@ -229,8 +283,8 @@ export class WeaverRuntime {
     const result = this.#dispatchAction(request);
     this.#observe(() => ({
       kind: "action",
-      request: cloneRuntimeJson(request),
-      result: cloneRuntimeJson(result),
+      request: observedActionRequest(request),
+      result: observedResult(observedActionResult(result)),
     }));
     return result;
   }

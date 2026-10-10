@@ -17,14 +17,14 @@ import {
   type WeaverSurfaceResolutionError,
 } from "../runtime/index.js";
 import type {
-  A2UIPromptGenerationError,
-  A2UIPromptSurfaceNotReadyCause,
+  A2UIV091PromptGenerationError,
+  A2UIV091PromptSurfaceNotReadyCause,
 } from "./errors.js";
 import type {
-  A2UIPromptAction,
-  A2UIPromptExample,
-  A2UIPromptSection,
-  A2UIPromptSectionId,
+  A2UIV091PromptAction,
+  A2UIV091PromptExample,
+  A2UIV091PromptSection,
+  A2UIV091PromptSectionId,
   A2UIV091PromptConfig,
   A2UIV091PromptResult,
 } from "./types.js";
@@ -43,7 +43,7 @@ const DYNAMIC_TYPE_LABEL: Readonly<Record<DynamicPropertyKind, string>> = {
 
 type Outcome<T> =
   | { ok: true; value: T }
-  | { ok: false; error: A2UIPromptGenerationError };
+  | { ok: false; error: A2UIV091PromptGenerationError };
 
 interface RegisteredCatalogs {
   registry: CatalogRegistry;
@@ -77,7 +77,7 @@ export function generateA2UIV091Prompt(
   const examples = validateExamples(config);
   if (!examples.ok) return { ok: false, error: examples.error };
 
-  const built: Partial<Record<A2UIPromptSectionId, string>> = {
+  const built: Partial<Record<A2UIV091PromptSectionId, string>> = {
     envelope: envelopeSection(snapshots),
     components: components.value,
     functions: functions.value,
@@ -86,7 +86,7 @@ export function generateA2UIV091Prompt(
     examples: examplesSection(config.examples ?? []),
   };
 
-  const sections: A2UIPromptSection[] = [];
+  const sections: A2UIV091PromptSection[] = [];
   for (const id of SECTION_ORDER) {
     const text = built[id];
     if (text !== undefined) sections.push({ id, title: SECTION_TITLES[id], text });
@@ -107,7 +107,7 @@ export function generateA2UIV091Prompt(
   return { ok: true, value: { text, sections } };
 }
 
-const SECTION_ORDER: readonly A2UIPromptSectionId[] = [
+const SECTION_ORDER: readonly A2UIV091PromptSectionId[] = [
   "envelope",
   "components",
   "functions",
@@ -116,7 +116,7 @@ const SECTION_ORDER: readonly A2UIPromptSectionId[] = [
   "examples",
 ];
 
-const SECTION_TITLES: Readonly<Record<A2UIPromptSectionId, string>> = {
+const SECTION_TITLES: Readonly<Record<A2UIV091PromptSectionId, string>> = {
   envelope: "Envelope rules",
   components: "Components",
   functions: "Functions",
@@ -143,7 +143,7 @@ function validateExamples(config: A2UIV091PromptConfig): Outcome<void> {
 function validateExample(
   config: A2UIV091PromptConfig,
   exampleIndex: number,
-  example: A2UIPromptExample,
+  example: A2UIV091PromptExample,
 ): Outcome<void> {
   const reject = (
     detail: string,
@@ -204,7 +204,7 @@ type ExampleStageFields =
   | {
       stage: "resolve";
       surfaceId: string;
-      cause: WeaverSurfaceResolutionError | A2UIPromptSurfaceNotReadyCause;
+      cause: WeaverSurfaceResolutionError | A2UIV091PromptSurfaceNotReadyCause;
     };
 
 /** The surfaces that exist after the messages run, in creation order. */
@@ -226,7 +226,7 @@ function surfaceIdsLeftBy(messages: readonly unknown[]): string[] {
 function surfaceNotReady(
   surfaceId: string,
   surface: WeaverResolvedSurface,
-): A2UIPromptSurfaceNotReadyCause | undefined {
+): A2UIV091PromptSurfaceNotReadyCause | undefined {
   const { tree, checks, issues } = surface;
   if (tree.ready && checks.ready && issueCount(issues) === 0) return undefined;
   return {
@@ -433,7 +433,7 @@ function functionSchemaOf(snapshot: CatalogSnapshot, name: string): JsonObject {
   return isJsonObject(schema) ? schema : {};
 }
 
-function actionsSection(actions: readonly A2UIPromptAction[]): Outcome<string> {
+function actionsSection(actions: readonly A2UIV091PromptAction[]): Outcome<string> {
   const seen = new Set<string>();
   for (const action of actions) {
     if (typeof action.name !== "string" || action.name.trim() === "") {
@@ -482,7 +482,7 @@ function editSection(): string {
   ].join("\n");
 }
 
-function examplesSection(examples: readonly A2UIPromptExample[]): string {
+function examplesSection(examples: readonly A2UIV091PromptExample[]): string {
   const lines = [`## ${SECTION_TITLES.examples}`];
   for (const example of examples) {
     lines.push(
@@ -544,14 +544,14 @@ function isJsonObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function fail<T>(error: A2UIPromptGenerationError): Outcome<T> {
+function fail<T>(error: A2UIV091PromptGenerationError): Outcome<T> {
   return { ok: false, error };
 }
 
 function catalogFailure(
   catalogId: string,
   cause: CatalogRegistryError,
-): A2UIPromptGenerationError {
+): A2UIV091PromptGenerationError {
   return {
     code: "CATALOG_INVALID",
     message: `Catalog ${catalogId} is invalid: ${cause.message}`,

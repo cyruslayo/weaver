@@ -8,7 +8,7 @@ import type { FunctionRegistration } from "../functions/index.js";
 import type { JsonObject } from "../protocol/index.js";
 import {
   generateA2UIV091Prompt,
-  type A2UIPromptSectionId,
+  type A2UIV091PromptSectionId,
   type A2UIV091PromptConfig,
 } from "./index.js";
 
@@ -149,7 +149,7 @@ function textOf(config: A2UIV091PromptConfig): string {
   return result.value.text;
 }
 
-function sectionIds(config: A2UIV091PromptConfig): A2UIPromptSectionId[] {
+function sectionIds(config: A2UIV091PromptConfig): A2UIV091PromptSectionId[] {
   const result = generateA2UIV091Prompt(config);
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");

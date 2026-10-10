@@ -19,7 +19,7 @@ All intended APIs are reachable from each package's root export. Internal direct
 @cylayo/weaver-web  -X-> mcp
 ```
 
-Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.2.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
+Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.3.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
 
 A frontend application normally installs:
 

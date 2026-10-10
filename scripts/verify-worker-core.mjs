@@ -20,9 +20,9 @@ if (coreManifest.name !== "@cylayo/weaver-core")
   throw new Error(
     `Expected Core package @cylayo/weaver-core, found ${coreManifest.name}`,
   );
-if (coreManifest.version !== "0.2.1")
+if (coreManifest.version !== "0.3.0")
   throw new Error(
-    `Expected Core release version 0.2.1, found ${coreManifest.version}`,
+    `Expected Core release version 0.3.0, found ${coreManifest.version}`,
   );
 const tarballFileName = (name, packageVersion) => {
   const stem = name.startsWith("@") ? name.slice(1).replaceAll("/", "-") : name;
@@ -42,7 +42,7 @@ const run = (command, args, options = {}) => {
 };
 
 const localCoreLockEntry =
-  /(^ {2}'@cylayo\/weaver-core@file:cylayo-weaver-core-0\.2\.1\.tgz':\r?\n {4}resolution: \{integrity: )([^,]+)(, tarball: file:cylayo-weaver-core-0\.2\.1\.tgz\}\r?\n {4}version: 0\.2\.1\r?\n)/gm;
+  /(^ {2}'@cylayo\/weaver-core@file:cylayo-weaver-core-0\.3\.0\.tgz':\r?\n {4}resolution: \{integrity: )([^,]+)(, tarball: file:cylayo-weaver-core-0\.3\.0\.tgz\}\r?\n {4}version: 0\.3\.0\r?\n)/gm;
 const syncLocalCoreIntegrity = (lockfile, artifactBytes) => {
   const integrity = `sha512-${createHash("sha512").update(artifactBytes).digest("base64")}`;
   const matches = [...lockfile.matchAll(localCoreLockEntry)];

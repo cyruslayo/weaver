@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cylayo/weaver-core':
-        specifier: file:./cylayo-weaver-core-0.2.1.tgz
-        version: file:cylayo-weaver-core-0.2.1.tgz
+        specifier: file:./cylayo-weaver-core-0.3.0.tgz
+        version: file:cylayo-weaver-core-0.3.0.tgz
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 0.8.71
@@ -39,6 +39,7 @@ packages:
 
   '@cloudflare/vitest-pool-workers@0.8.71':
     resolution: {integrity: sha512-keu2HCLQfRNwbmLBCDXJgCFpANTaYnQpE01fBOo4CNwiWHUT7SZGN7w64RKiSWRHyYppStXBuE5Ng7F42+flpg==}
+    deprecated: '@cloudflare/vitest-pool-workers has been renamed to @cloudflare/vitest-plugin. This package will not receive future updates.'
     peerDependencies:
       '@vitest/runner': 2.0.x - 3.2.x
       '@vitest/snapshot': 2.0.x - 3.2.x
@@ -77,6 +78,10 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
+
+  '@cylayo/weaver-core@file:cylayo-weaver-core-0.3.0.tgz':
+    resolution: {integrity: sha512-rbUQB1cR7aEb3w6y8lqtxipRZWskMmDlp79kctu5SRtPG1nF03RIjW8onHIfF3IxGQBrq80NSxdK5fKMtvN1Dw==, tarball: file:cylayo-weaver-core-0.3.0.tgz}
+    version: 0.3.0
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -687,10 +692,6 @@ packages:
   '@vitest/utils@3.2.7':
     resolution: {integrity: sha512-x6BDOd7dyo3PFLY3I9/HJ25X/6OurhGXk2/B9gOZNPF7XDVjeBK4k01lQE5uvDpbuheErh91qYuE1E2OEjK3Rw==}
 
-  '@cylayo/weaver-core@file:cylayo-weaver-core-0.2.1.tgz':
-    resolution: {integrity: sha512-EpRGerDrflX2akUVZ+8R2SrTsMfXWrVL2JjZ3kMbN3CEQTQTNfuIuiG22d1ruYS99XM7i4IqYa6gNc/yP4Vztw==, tarball: file:cylayo-weaver-core-0.2.1.tgz}
-    version: 0.2.1
-
   acorn-walk@8.3.2:
     resolution: {integrity: sha512-cjkyv4OtNCIeqhHrfS81QWXoCBPExR/J62oyEqepVw8WaQeSqpW2uhuLPh1m9eWhDuOo/jUXVTlifvesOWp/4A==}
     engines: {node: '>=0.4.0'}
@@ -1114,6 +1115,10 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
+  '@cylayo/weaver-core@file:cylayo-weaver-core-0.3.0.tgz':
+    dependencies:
+      '@cfworker/json-schema': 4.1.1
+
   '@emnapi/runtime@1.11.3':
     dependencies:
       tslib: 2.8.1
@@ -1500,10 +1505,6 @@ snapshots:
       '@vitest/pretty-format': 3.2.7
       loupe: 3.2.1
       tinyrainbow: 2.0.0
-
-  '@cylayo/weaver-core@file:cylayo-weaver-core-0.2.1.tgz':
-    dependencies:
-      '@cfworker/json-schema': 4.1.1
 
   acorn-walk@8.3.2: {}
 

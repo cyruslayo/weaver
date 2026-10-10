@@ -10,8 +10,8 @@ import { createWeaverRuntime } from "../runtime/index.js";
 import {
   A2UI_V091_BASIC_PROMPT_EXAMPLES,
   generateA2UIV091Prompt,
-  type A2UIPromptExample,
-  type A2UIPromptExampleInvalidError,
+  type A2UIV091PromptExample,
+  type A2UIV091PromptExampleInvalidError,
   type A2UIV091PromptConfig,
   type A2UIV091PromptResult,
 } from "./index.js";
@@ -31,7 +31,7 @@ function components(surfaceId: string, list: JsonObject[]): JsonObject {
 }
 
 /** A small valid example: one Text component at the root. */
-function validExample(title = "Valid"): A2UIPromptExample {
+function validExample(title = "Valid"): A2UIV091PromptExample {
   return {
     title,
     messages: [
@@ -46,7 +46,7 @@ function generate(config: A2UIV091PromptConfig): A2UIV091PromptResult {
 }
 
 /** Asserts the result is an EXAMPLE_INVALID error and returns it. */
-function invalid(result: A2UIV091PromptResult): A2UIPromptExampleInvalidError {
+function invalid(result: A2UIV091PromptResult): A2UIV091PromptExampleInvalidError {
   assert.equal(result.ok, false, "expected the example to be rejected");
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.error.code, "EXAMPLE_INVALID");
@@ -325,7 +325,7 @@ test("each shipped Basic example passes in a runtime of its own", () => {
 test("a failing example returns no prompt text and leaves the caller's input unchanged", () => {
   const catalog = basicCatalog();
   const catalogBefore = cloneJson(catalog.schema);
-  const examples: A2UIPromptExample[] = [
+  const examples: A2UIV091PromptExample[] = [
     {
       title: "Bad",
       messages: [create("main"), components("main", [{ id: "root", component: "Gizmo" }])],
@@ -362,7 +362,7 @@ test("a surface created by one example is not visible to a later example", () =>
 
 test("validation keeps no state between generations", () => {
   const catalogs = [basicCatalog()];
-  const relies: A2UIPromptExample = {
+  const relies: A2UIV091PromptExample = {
     title: "Relies on main",
     messages: [components("main", [{ id: "root", component: "Text", text: "a" }])],
   };
@@ -382,4 +382,45 @@ test("generating with the shipped examples twice gives identical output", () => 
     examples: A2UI_V091_BASIC_PROMPT_EXAMPLES,
   };
   assert.deepEqual(generate(config), generate(config));
+});
+
+test("shipped Basic examples are frozen at every depth", () => {
+  const unfrozen: string[] = [];
+  let visited = 0;
+  const visit = (value: unknown, path: string): void => {
+    if (value === null || typeof value !== "object") return;
+    visited += 1;
+    if (!Object.isFrozen(value)) unfrozen.push(path);
+    for (const [key, child] of Object.entries(value)) visit(child, `${path}/${key}`);
+  };
+  visit(A2UI_V091_BASIC_PROMPT_EXAMPLES, "");
+  assert.deepEqual(unfrozen, []);
+  assert.ok(visited > 3 * 10, `expected the examples and their messages, visited ${visited} objects`);
+});
+
+test("shipped Basic examples reject mutation and stay unchanged", () => {
+  const example = A2UI_V091_BASIC_PROMPT_EXAMPLES[0]!;
+  const before = JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES);
+  assert.throws(() => {
+    (example as { title: string }).title = "changed";
+  }, TypeError);
+  assert.throws(() => {
+    (example.messages as unknown[]).push({});
+  }, TypeError);
+  assert.throws(() => {
+    (example.messages[0] as Record<string, unknown>).version = "v0.0";
+  }, TypeError);
+  assert.equal(JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES), before);
+});
+
+test("the shipped Basic examples generate a prompt without changing their input", () => {
+  const before = JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES);
+  const result = generateA2UIV091Prompt({
+    catalogs: [basicCatalog()],
+    examples: A2UI_V091_BASIC_PROMPT_EXAMPLES,
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.value.sections.some((section) => section.id === "examples"));
+  assert.equal(JSON.stringify(A2UI_V091_BASIC_PROMPT_EXAMPLES), before);
 });

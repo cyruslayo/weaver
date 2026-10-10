@@ -3,7 +3,7 @@ import type { MessageProcessorError } from "../message-processor/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
 import type { WeaverRuntimeConfigurationError, WeaverRuntimeInteractionError, WeaverSurfaceResolutionError } from "../runtime/index.js";
 import type { FunctionRegistryError } from "../functions/index.js";
-import type { A2UIPromptGenerationError } from "../prompt/errors.js";
+import type { A2UIV091PromptGenerationError } from "../prompt/errors.js";
 
 export type WeaverErrorSeverity = "error" | "warning";
 
@@ -49,4 +49,4 @@ export type DescribableWeaverError =
   | A2UIV091StreamIngestionError
   | WeaverRuntimeConfigurationError
   | FunctionRegistryError
-  | A2UIPromptGenerationError;
+  | A2UIV091PromptGenerationError;

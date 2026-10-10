@@ -21,7 +21,7 @@ const packageManifests = Object.fromEntries(await Promise.all(packageDirs.map(as
   parseJson(await readFile(path.join(root, "packages", dir, "package.json"), "utf8"), `${dir}/package.json`),
 ])));
 const version = packageManifests.core.version;
-if (version !== "0.2.1") fail(`Expected Core release version 0.2.1, found ${version}`);
+if (version !== "0.3.0") fail(`Expected Core release version 0.3.0, found ${version}`);
 for (const dir of packageDirs) {
   if (packageManifests[dir].name !== expectedNames[dir]) fail(`${dir} package identity is incorrect`);
   if (packageManifests[dir].version !== version) fail(`${dir} package version is not synchronized at ${version}`);
@@ -72,7 +72,7 @@ for (const spec of specs) {
   if (!files.includes("package/package.json") || !files.includes("package/dist/index.js") || !files.includes("package/dist/index.d.ts")) fail(`${spec.file}: required publication files missing`);
   if (!files.includes("package/LICENSE")) fail(`${spec.file}: project LICENSE file missing`);
   if (spec.dir === "core" && !files.includes("package/THIRD_PARTY_LICENSES.txt")) fail(`${spec.file}: required A2UI third-party license file missing`);
-  const forbiddenFile = files.find((file) => /(^|\/)(src|tests?|fixtures|coverage|node_modules|docs\/references|playground)(\/|$)|\.test(?:-helper)?\.|pnpm-lock\.yaml|tsconfig\.json$/i.test(file));
+  const forbiddenFile = files.find((file) => /(^|\/)(src|tests?|fixtures|coverage|node_modules|docs\/references|playground)(\/|$)|\.test(?:-helper)?\.|(^|\/)fixtures\.[^/]+$|pnpm-lock\.yaml|tsconfig\.json$/i.test(file));
   if (forbiddenFile) fail(`${spec.file}: unexpected file ${forbiddenFile}`);
 
   const extractDir = path.join(extractedRoot, spec.dir);
@@ -91,7 +91,7 @@ for (const spec of specs) {
     const thirdParty = await readFile(path.join(packageDir, "THIRD_PARTY_LICENSES.txt"), "utf8");
     if (thirdParty === rootLicense.toString("utf8") || !thirdParty.includes("A2UI v0.9.1 Basic Catalog")) fail(`${spec.file}: third-party provenance material is missing or conflated`);
   }
-  if (spec.dir !== "core" && manifest.peerDependencies?.["@cylayo/weaver-core"] !== "0.2.x") fail(`${spec.file}: Core peer range is not 0.2.x`);
+  if (spec.dir !== "core" && manifest.peerDependencies?.["@cylayo/weaver-core"] !== "0.3.x") fail(`${spec.file}: Core peer range is not 0.3.x`);
   for (const value of dependencyValues(manifest)) {
     if (typeof value === "string" && /^(workspace:|link:|file:)|(^|[\\/])\.\.([\\/]|$)|^[A-Za-z]:[\\/]|^\//.test(value)) fail(`${spec.file}: local dependency leaked: ${value}`);
   }

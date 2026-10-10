@@ -50,9 +50,23 @@ export interface WeaverRuntimeConfig {
 }
 
 /**
- * Event delivered to a WeaverRuntime observer. Payloads are defensive copies.
- * An input that is not JSON-safe and was rejected by validation is delivered
- * as `{ unserializable: true }` in place of the original value.
+ * Event delivered to a WeaverRuntime observer. Payloads are defensive copies,
+ * and observing never changes a result or the runtime's state.
+ *
+ * Caller-supplied values are checked before they are copied, whether or not the
+ * runtime accepted them. A value that is not JSON-safe (a cycle, a non-plain
+ * object, a non-finite number, or an undefined member) is delivered as
+ * `{ unserializable: true }` in place of the value. This applies to the
+ * `message` input, the `input` request value, and a host local-function value
+ * in an `action` result.
+ *
+ * An `action` request that is not JSON-safe is delivered reduced to its four
+ * typed fields (`surfaceId`, `sourceComponentId`, `scopePath`, `actionProperty`).
+ * Any of those fields that is not a JSON-safe string is delivered as `""`. Extra
+ * fields are not delivered. A JSON-safe request is delivered whole.
+ *
+ * Core result objects are JSON-safe by construction. If one were not, the event
+ * would not be delivered, as when an observer throws.
  */
 export type WeaverRuntimeEvent =
   | { kind: "message"; input: unknown; result: MessageProcessorResult }

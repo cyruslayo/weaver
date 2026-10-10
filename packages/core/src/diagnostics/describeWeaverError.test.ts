@@ -25,7 +25,7 @@ import type {
 import { SurfaceStore } from "../surfaces/index.js";
 import type { SurfaceStoreError } from "../surfaces/errors.js";
 import type { JsonlDecodeError } from "../transport/jsonl/errors.js";
-import type { A2UIPromptGenerationError } from "../prompt/errors.js";
+import type { A2UIV091PromptGenerationError } from "../prompt/errors.js";
 import { describeWeaverError } from "./describeWeaverError.js";
 import type { DescribableWeaverError, DescribeWeaverErrorContext, WeaverErrorDescription } from "./types.js";
 
@@ -52,7 +52,7 @@ const ALL_CODES = [
   "INVALID_CATALOG_SCHEMA", "CATALOG_ALREADY_REGISTERED", "CATALOG_NOT_FOUND", "THEME_SCHEMA_NOT_FOUND",
   "THEME_VALIDATION_FAILED", "COMPONENT_NOT_ALLOWED", "COMPONENT_STRUCTURE_NOT_FOUND",
   "COMPONENT_VALIDATION_FAILED", "FUNCTION_NOT_ALLOWED", "FUNCTION_VALIDATION_FAILED",
-  // A2UIPromptGenerationError
+  // A2UIV091PromptGenerationError
   "CATALOG_INVALID", "ACTION_NAME_INVALID", "PROMPT_TOO_LARGE", "EXAMPLE_INVALID",
   // FunctionRegistryError
   "FUNCTION_IMPLEMENTATION_ALREADY_REGISTERED", "FUNCTION_IMPLEMENTATION_NOT_FOUND",
@@ -107,7 +107,7 @@ type UnionCodes =
   | DataModelError["code"]
   | SurfaceStoreError["code"]
   | InputBindingWriteError["code"]
-  | A2UIPromptGenerationError["code"];
+  | A2UIV091PromptGenerationError["code"];
 
 // Compile-time: these fail the typecheck if a code is missing from ALL_CODES
 // or if ALL_CODES names something no errors.ts union defines.
@@ -364,7 +364,7 @@ fixtures.push(
   { code: "SURFACE_NOT_FOUND", error: { code: "SURFACE_STORE_ERROR", storeError: { code: "SURFACE_NOT_FOUND", surfaceId: "main" } } },
 );
 
-// A2UIPromptGenerationError: one fixture per code. CATALOG_INVALID also
+// A2UIV091PromptGenerationError: one fixture per code. CATALOG_INVALID also
 // carries its CatalogRegistryError cause so the chain is exercised.
 fixtures.push(
   {
@@ -374,7 +374,7 @@ fixtures.push(
       message: "Catalog failed registry validation",
       catalogId: "basic",
       cause: catalogCodes[2]!,
-    } satisfies A2UIPromptGenerationError,
+    } satisfies A2UIV091PromptGenerationError,
   },
   {
     code: "ACTION_NAME_INVALID",
@@ -548,7 +548,7 @@ test("a process-stage EXAMPLE_INVALID names the example, stage, and message inde
       code: "PROTOCOL_VALIDATION_FAILED",
       issues: [{ code: "VALIDATION_FAILED", path: "/root", message: "missing root" }],
     },
-  } satisfies A2UIPromptGenerationError);
+  } satisfies A2UIV091PromptGenerationError);
   assert.match(description.summary, /example 2 \("Ticket"\)/);
   assert.match(description.summary, /stage "process", message 4/);
   assert.match(description.summary, /Example message was rejected/);
@@ -575,7 +575,7 @@ test("a resolve-stage EXAMPLE_INVALID carries its surface and the not-ready caus
       checksReady: false,
       issues: { tree: [], instances: [], properties: [] },
     },
-  } satisfies A2UIPromptGenerationError);
+  } satisfies A2UIV091PromptGenerationError);
   assert.equal(description.surfaceId, "main");
   assert.match(description.summary, /example 0 \("Login"\)/);
   assert.match(description.summary, /stage "resolve", surface "main"/);
@@ -594,7 +594,7 @@ test("a runtime-stage EXAMPLE_INVALID flattens the configuration cause chain", (
     exampleTitle: "Empty",
     stage: "runtime",
     cause: { code: "CATALOG_CONFIGURATION_FAILED", catalogError: catalogCodes[2]! },
-  } satisfies A2UIPromptGenerationError);
+  } satisfies A2UIV091PromptGenerationError);
   assert.match(description.summary, /stage "runtime"/);
   assert.ok(treeCodes(description).includes("CATALOG_CONFIGURATION_FAILED"));
   assert.ok(treeCodes(description).includes("CATALOG_NOT_FOUND"));

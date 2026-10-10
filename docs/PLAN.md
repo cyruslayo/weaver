@@ -257,6 +257,10 @@ Complete, pending review. Documented and pinned: after a failed render the store
 
 Complete, pending review. Documented and pinned: absolute path inside a template resolves from the DataModel root; no behaviour change.
 
+## Task 91 — Release prep 0.3.0 (WVR-060)
+
+Complete, pending maintainer tag and publish. Core, Web, and MCP are bumped to `0.3.0` together. Web and MCP peer on `@cylayo/weaver-core` `0.3.x`, and `WEAVER_CORE_VERSION` is `"0.3.0"`. `CHANGELOG.md` holds the 0.3.0 notes, and the README links to it. The API review against the pre-work baseline `cada149` found 40 added exports, no removed exports, and two additive type changes (`WeaverRuntimeConfig.observer`, the `WebRenderError` `surfaceId`). The consumer smoke typechecks and runs the new exports from the packed tarballs. Before the release PR, the nine prompt types were renamed to `A2UIV091Prompt*`, the protocol test fixture was removed from the core tarball, and the shipped Basic prompt examples are deeply frozen. Replay codes are documented as plain strings. The observer checks every caller payload for JSON-safety before copying it, so an untyped `dispatchAction()` request with a circular reference no longer exhausts memory; a regression test runs that case in a child process with a small heap. No tag is created and nothing is published.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement
