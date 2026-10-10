@@ -1,0 +1,95 @@
+/*
+ * Styles for renderDiagnosticsPanel(). The panel is one focusable region. It
+ * wraps long codes, paths and hints, so it fits a 360px viewport with no page
+ * scroll. Host pages set their own colors around it.
+ */
+
+.diagnostics-panel {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid #b3261e;
+  border-radius: 0.75rem;
+  background: #fffdf9;
+  color: #202124;
+  padding: 0.9rem 1rem;
+  font: 0.95rem/1.5 system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.diagnostics-panel:focus-visible {
+  outline: 3px solid #0b57d0;
+  outline-offset: 2px;
+}
+
+.diagnostics-panel h2,
+.diagnostics-panel h3,
+.diagnostics-panel h4,
+.diagnostics-panel h5,
+.diagnostics-panel h6 {
+  line-height: 1.25;
+  margin: 0.9rem 0 0.35rem;
+}
+
+.diagnostics-panel .diagnostics-title {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.diagnostics-panel .diagnostics-frame-title {
+  font-size: 1rem;
+}
+
+.diagnostics-panel .diagnostics-surface-title,
+.diagnostics-panel .diagnostics-component-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #49454f;
+}
+
+.diagnostics-panel p {
+  margin: 0.35rem 0;
+}
+
+.diagnostics-panel .diagnostics-count,
+.diagnostics-panel .diagnostics-empty {
+  color: #49454f;
+}
+
+.diagnostics-panel .diagnostics-entries,
+.diagnostics-panel .diagnostics-causes {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.diagnostics-panel .diagnostics-entry {
+  margin: 0 0 0.75rem;
+  min-width: 0;
+}
+
+.diagnostics-panel .diagnostics-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.diagnostics-panel .diagnostics-fields {
+  margin: 0.25rem 0;
+}
+
+.diagnostics-panel .diagnostics-fields dt {
+  font-weight: 600;
+}
+
+.diagnostics-panel .diagnostics-fields dd {
+  margin: 0 0 0.25rem;
+}
+
+.diagnostics-panel .diagnostics-hint {
+  color: #49454f;
+}
+
+.diagnostics-panel .diagnostics-causes-label {
+  font-weight: 600;
+}

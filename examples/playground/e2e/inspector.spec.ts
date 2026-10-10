@@ -41,6 +41,27 @@ async function tabTo(page: Page, id: string, maxPresses = 60): Promise<void> {
   throw new Error(`Tab did not reach #${id} within ${maxPresses} presses`);
 }
 
+/**
+ * Presses Tab until the focused element matches `selector`, then checks its focus outline.
+ * It is the selector form of tabTo, for elements that have no id.
+ */
+async function tabToSelector(page: Page, selector: string, maxPresses = 80): Promise<void> {
+  for (let press = 0; press < maxPresses; press += 1) {
+    await page.keyboard.press("Tab");
+    const hit = await page.evaluate((sel) => document.activeElement?.matches(sel) ?? false, selector);
+    if (hit) {
+      const outline = await page.locator(selector).first().evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { style: cs.outlineStyle, width: parseFloat(cs.outlineWidth) };
+      });
+      expect(outline.style, `focus indicator on ${selector}`).not.toBe("none");
+      expect(outline.width, `focus indicator width on ${selector}`).toBeGreaterThan(0);
+      return;
+    }
+  }
+  throw new Error(`Tab did not reach ${selector} within ${maxPresses} presses`);
+}
+
 test.describe("trace inspector", () => {
   test("has no horizontal page overflow on load and at every step", async ({ page }) => {
     await openInspector(page);
@@ -97,6 +118,36 @@ test.describe("trace inspector", () => {
     await expect(page.locator("#error-panel")).toContainText("INVALID_JSON");
     await expect(page.locator("#stage h1")).toHaveText("Model Draft Request");
     await expectNoHorizontalOverflow(page, "malformed frame step");
+  });
+
+  test("the malformed frame is one diagnostics entry, grouped under its frame", async ({ page }) => {
+    await openInspector(page);
+    await page.locator("#timeline").getByRole("button", { name: /^4\. frame-error/ }).click();
+    const panel = page.locator("#error-panel .diagnostics-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel.locator(".diagnostics-entry")).toHaveCount(1);
+    expect(await panel.locator(".diagnostics-entry").getAttribute("data-code")).toBe("INVALID_JSON");
+    const frames = await panel.locator(".diagnostics-frame-title").allTextContents();
+    expect(frames).toEqual(["Frame 4"]);
+  });
+
+  test("a rejected message is one diagnostics entry, and the last good surface stays rendered", async ({ page }) => {
+    await openInspector(page);
+    await page.locator("#timeline").getByRole("button", { name: /^5\. message \(error\)/ }).click();
+    await expect(page.locator("#step-summary")).toContainText("Step 5 of 10:");
+    await expect(page.locator("#validity")).toHaveText("Rejected");
+    const panel = page.locator("#error-panel .diagnostics-panel");
+    await expect(panel.locator(".diagnostics-entry")).toHaveCount(1);
+    expect(await panel.locator(".diagnostics-entry").getAttribute("data-code")).toBe("CATALOG_REGISTRY_ERROR");
+    await expect(page.locator("#stage h1")).toHaveText("Model Draft Request");
+    await expectNoHorizontalOverflow(page, "rejected message step");
+  });
+
+  test("Tab reaches the diagnostics panel by keyboard, with a visible focus indicator", async ({ page }) => {
+    await openInspector(page);
+    await page.locator("#timeline").getByRole("button", { name: /^4\. frame-error/ }).click();
+    await expect(page.locator("#error-panel .diagnostics-panel")).toBeVisible();
+    await tabToSelector(page, "#error-panel .diagnostics-panel");
   });
 
   test("Button clicks in the live surface only fill the suppressed log, and nothing is sent", async ({ page }) => {
