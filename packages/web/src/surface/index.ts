@@ -14,3 +14,5 @@ export type {
   WebSurfaceThemeResult,
   WebVerifiedSurfaceAttribution,
 } from "./types.js";
+export { describeWebRenderError } from "./describeWebRenderError.js";
+export type { DescribableWebError } from "./describeWebRenderError.js";
