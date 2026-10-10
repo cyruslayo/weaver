@@ -375,6 +375,32 @@ const description = describeWebRenderError(failure);
 console.log(description.code, description.componentId, description.hint);
 ```
 
+## Symptoms and fixes
+
+### Symptom: template text is empty with no error
+
+A List template renders its items, but a Text inside each item is blank. The
+render reports no error, `resolveSurface` is ok, and `describeWeaverError` has
+nothing to describe.
+
+**Cause.** The Text binds an absolute path, such as `{ "path": "/name" }`. Inside
+a template, a leading slash means the DataModel root, not the current item. The
+root has no `name`, so the value is absent. The render treats that as valid data,
+so no error is raised.
+
+**Fix.** Write the item's own field without a slash:
+
+```json
+{ "id": "ticketName", "component": "Text", "text": { "path": "name" } }
+```
+
+Use a leading slash only for a value that really lives at the DataModel root. See
+[the scope rules in the architecture doc](architecture.md#derived-data-scopes) and
+[the cookbook's paths-inside-a-template note](../examples/cookbook/README.md#paths-inside-a-template).
+
+Weaver does not add a diagnostic for this case, because an absolute path can
+legitimately point at missing data, and Weaver does not guess author intent.
+
 ## Security and privacy
 
 - **What a trace contains.** Every `message` value, every `input` value (text a

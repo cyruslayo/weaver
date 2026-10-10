@@ -4,7 +4,7 @@ title: An absolute path inside a List template renders empty with no diagnostic
 epic: F Follow-ups
 audit_ref: follow-up to WVR-034 (cookbook error demo, found while building it)
 priority: P2
-status: ready
+status: in-review
 depends_on: []
 estimate: S
 ---
@@ -75,14 +75,14 @@ in the Log before any code change.
 - `scratch/issues/WVR-066-absolute-path-in-list-template.md`, `scratch/BOARD.md`
 
 ## Acceptance criteria
-- [ ] The Log records the option chosen (1, 2 or 3) and the reason, before any code change.
-- [ ] A regression test pins the chosen behaviour: for option 1, an absolute path inside a collection
+- [x] The Log records the option chosen (1, 2 or 3) and the reason, before any code change.
+- [x] A regression test pins the chosen behaviour: for option 1, an absolute path inside a collection
       item resolves from the root (empty text for a missing root key), and the relative path resolves
       below the item. For option 2, the absolute path inside a template raises the chosen diagnostic.
-- [ ] The rule is stated in `docs/architecture.md` where the scope rules are described, and the new
+- [x] The rule is stated in `docs/architecture.md` where the scope rules are described, and the new
       text is linked from the List or template section that authors read.
-- [ ] `pnpm check:docs` passes, since the docs changed.
-- [ ] `pnpm --filter @cylayo/weaver-core test` and `pnpm typecheck` pass, with no test removed.
+- [x] `pnpm check:docs` passes, since the docs changed.
+- [x] `pnpm --filter @cylayo/weaver-core test` and `pnpm typecheck` pass, with no test removed.
 
 ## Verification
 - `pnpm --filter @cylayo/weaver-core test`, `pnpm typecheck`, `pnpm check:docs`.
@@ -98,3 +98,43 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   `describeWeaverError.ts:208-214`, and the probe above (relative item text `ProbeNamesAlphaBeta`;
   absolute `ProbeNames`; no render errors in either case; the data is intact).
   No approach is chosen yet. The recommendation is option 1.
+- 2026-10-10 decision: **option 1 chosen** (owner approved). Document the rule prominently and pin the
+  current behaviour with a Core regression test. No diagnostic is added, and the meaning of an absolute
+  path inside a template does not change.
+  - Rationale: `docs/architecture.md` says Weaver "does not guess sender intent". An absolute path can
+    legitimately point at data that is missing, so a diagnostic would fire on valid documents (false
+    positives). Option 3 would change the documented meaning of absolute paths for every existing caller.
+  - Considered and deferred: **option 2** (diagnose an absolute path that resolves to `undefined` inside a
+    template). It stays a possible follow-up if authors keep hitting the trap after the docs ship. **Option
+    3** (change the absolute-path meaning inside a template) is considered and not planned.
+  - Branch `wvr-066-absolute-path-rule`, base `dfb55dd`.
+- 2026-10-10 implementation (option 1, in-review):
+  - Reproduction, run against the built packages through the compiled cookbook `mountCookbookScreen` harness
+    (a List of two items, Text child bound to `name` or `/name`):
+    `{"path":"name","resolveSurfaceOk":true,"renderResult":true,"renderErrors":0,"itemTextNodes":["Alpha","Beta"],"mainText":"ProbeAlphaBeta"}`
+    `{"path":"/name","resolveSurfaceOk":true,"renderResult":true,"renderErrors":0,"itemTextNodes":["",""],"mainText":"Probe"}`
+    The stored data is intact (`stateItems` Alpha, Beta).
+  - Cited lines checked: `path.ts:10-22` and `24-40`, `DataContext.ts:44-49`, `describeWeaverError.ts:208-214`,
+    `error-demo.ts:62-63`, and `architecture.md:668-676` (the rule's lines are 673-675, inside the cited range).
+    All matched. No citation was off.
+  - Docs: the rule is stated after the scope diagram in `docs/architecture.md` (in prose, with links to the other
+    three pages). It is linked from a new "Paths inside a template" section in `examples/cookbook/README.md` and
+    from the List paragraph in `docs/custom-catalogs.md`. `docs/debugging.md` has a new "Symptoms and fixes" section
+    with "Symptom: template text is empty with no error". All new code blocks use `json` or `text` fences.
+  - Regression test: `packages/core/src/data-context/DataContext.test.ts`, the test
+    "inside a collection item, a leading slash reads the root and a bare path reads the item" (Core `node --test`
+    list already includes this file, so `package.json` is unchanged). It uses string and undefined comparisons only.
+    No Web test was added. The Core test covers the rule at the DataContext layer, and the issue allows "and/or".
+  - Mutation: `path.ts` absolute branch changed to prepend the item scope. The new test failed cleanly
+    (`not ok 124`, `+ 'Beta'` vs `- undefined`, no hang). Thirteen Core tests failed in total because the
+    mutation changes absolute-path semantics everywhere. `path.ts` was reverted with `git checkout`, and
+    `git status` showed no change to it. No mutation was committed.
+  - The `error-demo.ts` change is comment-only: a pointer to the debugging entry.
+  - Gate (final tree, after revert): `pnpm build` exit 0. `pnpm typecheck` exit 0, no errors. `pnpm test` exit 0:
+    Core 428/428 and the other package suites all pass with 0 failures. `pnpm check:generated` exit 0.
+    `pnpm check:docs` exit 0: 130/130 relative links in 63 files. `pnpm conformance:v0.9.1` exit 0: Core 428/428,
+    Web 136/136. `pnpm verify:packages` exit 0: 3 tarballs, 11 doc snippets run against the packed packages.
+    `pnpm verify:worker-core` exit 0: 2/2.
+  - Not done: a Web-level List test. `scratch/BOARD.md` and `docs/PLAN.md` were not edited, per the owner's
+    instruction. `BOARD.md` still lists this issue as `ready` and needs the `in-review` change made by the owner.
+  - Options 2 and 3 remain considered and deferred, as recorded above.

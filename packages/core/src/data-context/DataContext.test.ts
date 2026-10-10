@@ -59,6 +59,20 @@ test("collection contexts isolate relative scopes while retaining absolute acces
   assert.equal(ok(ada.get("address/city")), undefined);
 });
 
+// WVR-066. This pins the author-facing rule in docs/architecture.md ("Collection-item scope"),
+// docs/custom-catalogs.md and docs/debugging.md ("template text is empty with no error"): inside a
+// List template, a leading slash means the DataModel root, and the item's own field has no slash.
+// An absolute path whose root key is missing renders empty with no error, by design. Do not change
+// this to make absolute paths item-relative without updating those docs first.
+test("inside a collection item, a leading slash reads the root and a bare path reads the item", () => {
+  const root = DataContext.root({ items: [{ name: "Alpha" }, { name: "Beta" }] });
+  const item = ok(root.createCollectionItemContext("/items", 1));
+  assert.equal(ok(item.get("name")), "Beta");
+  assert.equal(ok(item.resolvePath("name")), "/items/1/name");
+  assert.equal(ok(item.get("/name")), undefined);
+  assert.equal(ok(item.resolvePath("/name")), "/name");
+});
+
 test("nested relative collections compose exact scope paths", () => {
   const group = ok(DataContext.root(snapshot).createCollectionItemContext("/groups", 0));
   const member = ok(group.createCollectionItemContext("members", 0));
