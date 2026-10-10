@@ -29,7 +29,7 @@ happy-dom cannot check layout. Chromium is pre-installed in cloud sessions
   with no flakes, open a follow-up issue to add it to CI.
 
 ## Acceptance criteria
-- [ ] The e2e run passes locally for all screens at both widths.
+- [x] The e2e run passes locally for all screens at both widths. Evidence: `pnpm --filter @weaver/cookbook e2e` gave `20 passed (17.6s)`, exit 0, after the cookbook-only layout fix below.
 - [x] The README documents how to run it. (`examples/cookbook/README.md`, "Browser smoke test (Playwright)")
 
 ## Verification
@@ -95,3 +95,26 @@ Merged.
     `pnpm verify:packages` were not run, because no Core or Web source changed.
   - CI is unchanged. The root `package.json` and `.github/workflows/ci.yml` are
     untouched, so the golden-prompt `--check` work is not affected.
+- 2026-10-10: The two 360px overflows are fixed in the cookbook only.
+  - Cause, from the rendered DOM: the Basic `Row` renders `data-a2ui-component="Row"`
+    as a non-wrapping flex line with no child `min-width: 0`. The KPI tiles and
+    ticket columns therefore keep their content width.
+  - Fix, `examples/cookbook/src/shared/style.css`, scoped to `[data-weaver-mount]`:
+    Rows wrap, and their children get `min-width: 0` and `max-width: 100%`. Ticket
+    columns get `flex: 1 1 12rem`, and KPI cards get `flex-basis: 8rem`. The tile
+    weight stays inline, so there is no `!important`. A first version without the
+    basis made the ticket columns wrap at 1280px too (Done dropped to a second line),
+    and that was corrected. Measured: at 1280px the three ticket columns share one
+    line (221px each). At 360px they stack at full width, and the document is 360px wide.
+  - Unchanged: `packages/web` and `packages/core`, and no check was weakened.
+    Desktop columns are narrower than before (221px each, instead of content width).
+  - Results: `pnpm --filter @weaver/cookbook e2e` 20 passed, 0 failed (exit 0).
+    `pnpm --filter @weaver/cookbook test` 43/43. Cookbook and root typecheck,
+    `pnpm build`, and `pnpm check:generated` pass. Root `pnpm test` is exit 0 (core 412,
+    mcp 10, web 132, cookbook 43, reference-app 3).
+  - Dependency allowlist: `examples/cookbook/package.json` adds only
+    `@playwright/test` 1.56.1 as a devDependency, plus the `e2e` script. The runtime
+    dependencies are unchanged. The allowlist test in `src/cookbook.test.ts` had to
+    include `@playwright/test`, because the new devDependency is the reason it failed.
+  - No happy-dom or e2e coverage was added beyond the existing checks. The
+    overflow checks in the e2e specs are the coverage for this fix.
