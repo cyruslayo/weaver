@@ -13,6 +13,7 @@ export default defineConfig({
         placeholder: page("./placeholder.html"),
         form: page("./form.html"),
         dashboard: page("./dashboard.html"),
+        "ticket-board": page("./ticket-board.html"),
       },
     },
   },

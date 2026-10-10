@@ -8,6 +8,7 @@ import {
   type BasicRegexMatcher,
   type FunctionRegistration,
   type JsonObject,
+  type JsonValue,
   type WeaverRuntime,
 } from "@cylayo/weaver-core";
 import {
@@ -33,6 +34,15 @@ export interface CookbookAction<TState> {
     state: TState,
     context: JsonObject,
   ) => TState | undefined;
+  /**
+   * Optional. The exact data-model paths this action emits as `updateDataModel`.
+   * When omitted, the whole state is sent at `/`.
+   */
+  readonly dataUpdates?: (
+    previous: TState,
+    next: TState,
+    context: JsonObject,
+  ) => ReadonlyArray<{ path: string; value: JsonValue }>;
 }
 
 /** Everything a screen declares. The harness supplies the pipeline around it. */
@@ -146,8 +156,23 @@ export function createCookbookAgent<TState>(
       );
       if (next === undefined)
         return { accepted: false, reason: "INVALID_EVENT_CONTEXT" };
+      const action = definition.actions[name]!;
+      const previous = state;
       state = next;
-      return { accepted: true, messages: [dataModel()] };
+      const updates = action.dataUpdates?.(
+        structuredClone(previous),
+        structuredClone(next),
+        context,
+      );
+      return {
+        accepted: true,
+        messages:
+          updates === undefined
+            ? [dataModel()]
+            : updates.map(({ path, value }) =>
+                producer.updateDataModel({ surfaceId, path, value }),
+              ),
+      };
     },
   };
 }
