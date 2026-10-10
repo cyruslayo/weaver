@@ -36,7 +36,7 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-059](issues/WVR-059-datatable-scroll-cue.md) | DataTable shows a cue when columns are hidden off-screen at narrow widths | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `ready` | WVR-016, WVR-025, WVR-033 | S |
 | [WVR-061](issues/WVR-061-barchart-sizing.md) | BarChart keeps its label text readable at 360px and stays within a height cap at 1280px | F Follow-ups | P2 | `ready` | — | S |
-| [WVR-062](issues/WVR-062-hanging-assertion.md) | No assert.* receives DOM nodes, so a failing Web test reports instead of hanging | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-062](issues/WVR-062-hanging-assertion.md) | No assert.* receives DOM nodes, so a failing Web test reports instead of hanging | F Follow-ups | P2 | `done` | — | S |
 | [WVR-063](issues/WVR-063-playground-row-css-e2e.md) | Exercise the playground inspector's Row layout rules with a trace that contains a Row | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-064](issues/WVR-064-render-budget-error-surface-id.md) | Render-budget failures carry the surface id in describeWebRenderError | F Follow-ups | P2 | `done` | — | S |
 | [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `done` | — | M |
@@ -45,9 +45,12 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `gated` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 31, ready: 5, gated: 4 (40 issues)
+**Totals:** done: 32, ready: 4, gated: 4 (40 issues)
 
-## Start here (5 ready; 31 done)
+## Start here (4 ready; 32 done)
+
+As of 2026-10-10, WVR-062 is merged to `main` in cyruslayo/weaver#31 (merge commit
+`6a94d52`) and is `done`. Its Log records the evidence.
 
 As of 2026-10-10, WVR-034, WVR-055 and WVR-058 are merged to `main` in
 cyruslayo/weaver#27 (merge commit `dfb55dd`) and are `done`.
@@ -66,18 +69,20 @@ Roadmap lane:
   Basic primary colour (`#1177ee` to `#0969da`), a patch-level visual change for the
   0.3.0 release notes (see its Log).
 
-F Follow-ups lane (no dependencies; all P2). These four are optional before the 0.3.0
+F Follow-ups lane (no dependencies; all P2). These three are optional before the 0.3.0
 release. None of them blocks WVR-060, so take them only if you want them in 0.3.0:
 
 - **WVR-059**, S. A scroll cue on the cookbook orders-report DataTable when columns are hidden
   off-screen at narrow widths. Touches `examples/cookbook/src/custom-catalog/dataTableRenderer.ts`
-  and the orders-report e2e spec.
-- **WVR-061**, S. BarChart label readability at 360px and a height cap at 1280px. Touches
-  `examples/cookbook/src/custom-catalog/barChart.ts` and its e2e spec.
-- **WVR-062**, S. No `assert.*` receives DOM nodes, so a failing Web test reports instead of
-  hanging. Touches Web test files in `packages/web` and the cookbook tests.
+  (wrapper, lines 89-101), `dataTableRenderer.test.ts` if needed, and
+  `examples/cookbook/e2e/orders-report.spec.ts`.
+- **WVR-061**, S. BarChart label text readable at 360px and a height cap at 1280px. Touches
+  `examples/cookbook/src/custom-catalog/barChart.ts` (constants, SVG attributes, label font sizes),
+  `barChart.test.ts` if its expectations change, and `examples/cookbook/e2e/orders-report.spec.ts`.
 - **WVR-063**, S. Exercise the playground inspector's Row layout rules with a trace that contains
-  a Row. Touches `examples/playground/samples/`, `examples/playground/e2e/inspector.spec.ts`.
+  a Row. Touches a new sample `examples/playground/samples/row-layout.weaver-trace.json`,
+  `examples/playground/e2e/inspector.spec.ts`, and `examples/playground/src/inspector.css` only if
+  the mutation check shows a rule does not apply.
 
 Gated, do not start: WVR-056, WVR-080, WVR-081 and WVR-090. WVR-080 has all its dependencies
 `done`, but it is gated and is not promoted until its evidence gate is met.
@@ -103,7 +108,7 @@ E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
 Release: {016, 025, 033} → 060 → 081 (gated)
 Bench:   {013, 044} → 080 (gated)
-F:       058, 064, 065, 066 (done); 059, 061, 062, 063 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
+F:       058, 062, 064, 065, 066 (done); 059, 061, 063 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```
 
 ## Milestones
