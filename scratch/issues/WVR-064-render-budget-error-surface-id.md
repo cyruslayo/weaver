@@ -4,7 +4,7 @@ title: Render-budget failures carry the surface id in describeWebRenderError
 epic: F Follow-ups
 audit_ref: follow-up to WVR-032 / WVR-034 (error presentation)
 priority: P2
-status: in-progress
+status: in-review
 depends_on: []
 estimate: S
 ---
@@ -75,15 +75,15 @@ id arrives from the library, and the cookbook test then checks the library's val
 - `scratch/issues/WVR-064-render-budget-error-surface-id.md`, `scratch/BOARD.md`
 
 ## Acceptance criteria
-- [ ] A test in `describeWebRenderError.test.ts` builds a render-budget failure through the real
+- [x] A test in `describeWebRenderError.test.ts` builds a render-budget failure through the real
       `WebSurfaceRenderer` (or from its error shape, with the id), and asserts that
       `describeWebRenderError(error).surfaceId` equals the mounted surface id.
-- [ ] The same test asserts the id for the `COMPONENT_INSTANCE_RESOLUTION_FAILED` ->
+- [x] The same test asserts the id for the `COMPONENT_INSTANCE_RESOLUTION_FAILED` ->
       `RESOLUTION_BUDGET_EXCEEDED` chain, not only for the `SURFACE_NOT_FOUND` chain already covered.
-- [ ] The cookbook fill-in at `error-demo.ts:135-139` is removed, and `error-demo.test.ts` still passes
+- [x] The cookbook fill-in at `error-demo.ts:135-139` is removed, and `error-demo.test.ts` still passes
       with the id coming from the library.
-- [ ] The Log records the approach chosen (option 1, 2 or 3) and why, before the code change.
-- [ ] `pnpm --filter @cylayo/weaver-web test`, `pnpm --filter @weaver/cookbook test` and
+- [x] The Log records the approach chosen (option 1, 2 or 3) and why, before the code change.
+- [x] `pnpm --filter @cylayo/weaver-web test`, `pnpm --filter @weaver/cookbook test` and
       `pnpm typecheck` pass, with no test removed.
 
 ## Verification
@@ -108,3 +108,34 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   Core's id. No Core change. Reason: the Web layer already holds the id, and the change stays inside
   `@cylayo/weaver-web`. Option 2 touches Core's public error shapes for the same result. Option 3 is
   the status quo the issue rejects.
+- 2026-10-10: implemented on branch `wvr-064-surface-id` (base `dfb55dd`). Commits: `f5f33e6` (approach
+  recorded above, before any code), `5a9fe7c` (code, tests and cookbook), and the commit that carries this
+  entry.
+  - Deviation from the sketch: `surfaceId` is OPTIONAL (`surfaceId?: string`), not required. A required
+    field breaks every hand-built `SURFACE_RESOLUTION_FAILED` value, including the four fixtures in
+    `describeWebRenderError.test.ts` that must not change. `WebSurfaceRenderer` always sets it, so errors
+    from the renderer carry it.
+  - Core is unchanged. `describeWebRenderError` prefers the Web id and falls back to Core's id.
+  - The budget test mounts a templated child list over four data items with `maxResolvedInstances: 2`. It
+    reaches `SURFACE_RESOLUTION_FAILED` -> `COMPONENT_INSTANCE_RESOLUTION_FAILED` -> `RESOLUTION_BUDGET_EXCEEDED`
+    through the real `WebSurfaceRenderer`. No DOM node is compared.
+  - Cited lines, checked against the code: `errors.ts:4`, `WebSurfaceRenderer.ts:70/130/144`,
+    `describeWebRenderError.ts:51-68/77-82/56`, `safety.ts:144-152`, `describeWeaverError.ts:165-175`, and the
+    cookbook fill-in `error-demo.ts:135-139` and the test assertion at `error-demo.test.ts:55` all match.
+    One is off by a line. The instances budget object in `safety.ts` starts at `:163`, not `:162`, and ends at `:171`.
+  - Consumer grep for the variant across packages, examples, docs, integration and scripts: it is
+    constructed only in `WebSurfaceRenderer.ts:144` and in the four fixtures in `describeWebRenderError.test.ts`.
+    It is read in `WebSurfaceRenderer.test.ts:482-483`, the cookbook, the playground inspector and their e2e
+    specs. `examples/shared` builds a Core-shaped description, not this union. `docs/debugging.md` shows
+    `RENDERER_NOT_FOUND` only. There are no MCP consumers. The optional field keeps every one of them
+    type-checking.
+  - `docs/debugging.md` gets one prose sentence about `surfaceId` on this error. No docs TypeScript block changed.
+  - Mutation: with `surfaceId` removed from `WebSurfaceRenderer.ts:144`, the two new tests failed with
+    `Expected values to be strictly equal`, `undefined` against `"budget-surface"`. The run did not hang, and
+    137 of 139 passed. It was reverted with `git checkout`, and the tree was clean. No mutation was committed.
+  - Gate, all exit 0: `pnpm build`, `check:generated`, `typecheck`, `test` (7 suites, 427 tests, 0 failing;
+    web 139, cookbook 95), `check:docs` (122 links OK), `conformance:v0.9.1` (web 139 pass),
+    `verify:packages` (3 tarballs, 11 doc snippets), `verify:worker-core`, `@weaver/cookbook e2e` (40 passed),
+    and `@weaver/playground e2e` (24 passed).
+  - Not run: the scratch probe in the Verification list. The new tests cover the same path.
+  - No version bump or release note. WVR-060 owns the release.

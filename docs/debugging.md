@@ -375,6 +375,8 @@ const description = describeWebRenderError(failure);
 console.log(description.code, description.componentId, description.hint);
 ```
 
+A `SURFACE_RESOLUTION_FAILED` error carries `surfaceId`, the id of the surface that failed to render, and its description has the same `surfaceId`. That includes a render-budget failure, where the surface has more components than the budget allows. The host does not need to add the id itself.
+
 ## Security and privacy
 
 - **What a trace contains.** Every `message` value, every `input` value (text a
