@@ -4,7 +4,7 @@ title: createWeaverTraceRecorder + weaver-trace v1 format + ingestion frame-erro
 epic: E2 Trace and replay
 audit_ref: WVR-02
 priority: P0
-status: ready
+status: in-review
 depends_on: [WVR-021]
 estimate: M
 ---
@@ -49,14 +49,14 @@ The `WeaverTrace` v1 format is a JSON-safe document:
   test list
 
 ## Acceptance criteria
-- [ ] A mixed session is recorded in order, with correct kinds. The session
+- [x] A mixed session is recorded in order, with correct kinds. The session
       has valid frames, one malformed JSONL frame, one catalog-invalid
       message, one input and one action.
-- [ ] `JSON.parse(JSON.stringify(getTrace()))` round-trips, and
+- [x] `JSON.parse(JSON.stringify(getTrace()))` round-trips, and
       `parseWeaverTrace` accepts the result.
-- [ ] `parseWeaverTrace` rejects a wrong `format` or `version` and malformed
+- [x] `parseWeaverTrace` rejects a wrong `format` or `version` and malformed
       entries.
-- [ ] The bound and truncation behaviour is tested.
+- [x] The bound and truncation behaviour is tested.
 
 ## Verification
 `pnpm --filter @cylayo/weaver-core test`
@@ -65,3 +65,21 @@ The `WeaverTrace` v1 format is a JSON-safe document:
 Merged.
 
 ## Log
+- 2026-10-10: Implemented on branch `wvr-022-trace-recorder` (base `fa731b4`).
+  - New `packages/core/src/trace/`: `createWeaverTraceRecorder`,
+    `parseWeaverTrace`, and the `WeaverTrace` types. Exported from Core's index.
+  - `recordIngestion` records JSONL decode failures only. Runtime failures
+    already arrive through the observer, so they are skipped to avoid
+    duplicate entries. Call it after each `push()` so entries stay in order.
+  - A frame-error entry stores the pushed chunk as `input`. The outcome holds
+    the decode error and its frame number.
+  - `parseWeaverTrace` returns an ok/error union, like the rest of Core, not a
+    bare type guard. Its error carries the failing path.
+  - `clear()` restarts `seq` at 1 and clears `truncated`.
+  - Tests: 40 new (`createWeaverTraceRecorder.test.ts`, `parseWeaverTrace.test.ts`),
+    registered in the Core test script. Core suite 391/391 pass.
+  - Gates: `pnpm install`, `pnpm typecheck`, `pnpm build`, `pnpm test`
+    (391 + 10 + 121 + 4 + 3 pass), `pnpm check:generated`,
+    `pnpm verify:packages`, and `pnpm verify:worker-core` all pass.
+  - Not done here: no PR and no push. `scratch/BOARD.md` and `docs/PLAN.md`
+    were left alone, as the session asked.
