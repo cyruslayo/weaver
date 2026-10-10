@@ -170,6 +170,29 @@ ingestion.finish();
 
 The application/provider owns the model stream and text extraction. Weaver owns strict JSONL framing and canonical runtime processing; it does not repair JSON, strip Markdown, retry output, call a model, or authorize actions. See [validated A2UI stream ingestion](docs/a2ui-stream-ingestion.md).
 
+### Prompt generation
+
+`generateA2UIV091Prompt()` compiles a trusted catalog into model instructions, so the
+prompt lists only components the catalog declares and functions that are both declared and
+registered. It is deterministic and calls no model; your code sends the text to your own provider.
+
+```ts
+import { createBasicCatalogV091Registration, generateA2UIV091Prompt } from "@cylayo/weaver-core";
+
+const result = generateA2UIV091Prompt({
+  catalogs: [createBasicCatalogV091Registration()],
+  actions: [
+    { name: "submit_signup", description: "Submit the sign-up form.", context: { name: { path: "/form/name" } } },
+  ],
+});
+if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`);
+
+// Pass this text to your own model call as the system prompt.
+const systemPrompt = result.value.text;
+```
+
+See [prompt generation](docs/prompt-generation.md) for modes, examples, the size budget and errors.
+
 ### Core only (any platform)
 
 ```ts
