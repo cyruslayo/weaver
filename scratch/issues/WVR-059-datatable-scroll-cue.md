@@ -4,7 +4,7 @@ title: DataTable shows a cue when columns are hidden off-screen at narrow widths
 epic: F Follow-ups
 audit_ref: follow-up to WVR-057 (browser review)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -126,3 +126,7 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   - Not run: `pnpm conformance:v0.9.1` (the README step 6 includes it, but the task gate did not).
   - Note for the next author: a `background-attachment: local` cover, which the option 1 text suggests,
     would leave a non-`none` background-image at 1280px. That is why the listener is used.
+- 2026-10-11: integrated on branch `wvr-board-059-061-063`. Status `done`. Merged in the same PR as WVR-059,
+  WVR-061 and WVR-063, and ready to merge in one PR together with the other two. The cookbook e2e count of
+  46 above was measured before WVR-061 was integrated. With both, the combined cookbook e2e count is 50
+  (40 baseline, plus 6 from this issue and 4 from WVR-061). The full gate is to be re-run before merge.

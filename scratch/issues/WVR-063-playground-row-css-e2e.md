@@ -4,7 +4,7 @@ title: Exercise the playground inspector's Row layout rules with a trace that co
 epic: F Follow-ups
 audit_ref: follow-up to WVR-024 / WVR-025 (browser review)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -79,3 +79,4 @@ Merged to `main`, with every acceptance criterion ticked on evidence, and the e2
 - 2026-10-11: mutation proof. The Row rules (`inspector.css`, the block from `[data-weaver-mount] [data-a2ui-component="Row"]` to the Card rule) were wrapped in `/* */`, and the build ran. Command: `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/playground e2e --project=width-360 -g WVR-063`. Result, **exit 1**: `flex-wrap` test FAILED with `Expected "wrap", Received "nowrap"`. The load and overflow test PASSED. So, with the rules off, the `flex-wrap` assertion catches the regression but the overflow assertion does not. The overflow check passes without the rules because `overflow-wrap: anywhere` on `.stage` and the Text lets the content wrap and shrink. Per the issue, the trace does exercise the rules, so it was not widened. Revert: `git checkout -- examples/playground/src/inspector.css` (the file is clean again). Re-run with the rules: same command, **exit 0, 2 passed**.
 - 2026-10-11: `examples/playground/README.md` gets a short "Row layout trace" section that lists the new sample and says it has no regenerator script. `pnpm check:docs` exit 0. Commit `5798e78`.
 - 2026-10-11: final verification, all exit 0. `pnpm check:generated` 0. `pnpm check:docs` 0. `pnpm typecheck` 0. `pnpm test` 0 (root node tests: 442 pass, 0 fail). `pnpm build` 0. `pnpm verify:packages` 0. `pnpm verify:worker-core` 0. Playground e2e: 24 before, **28 after**, exit 0. Playground unit tests: 15 before, **15 after**, exit 0. `git diff --stat a314299..HEAD` covers the 3 files of this issue (`README.md`, `inspector.spec.ts`, `row-layout.weaver-trace.json`). No file under `packages/` changed, and no lockfile or version changed.
+- 2026-10-11 integrated on branch `wvr-board-059-061-063`. Status `done`. Merged in the same PR as WVR-059, WVR-061 and WVR-063, and ready to merge in one PR together with the other two. Playground e2e is 28 (baseline 24, plus 4 from this issue). Note for the next author: the overflow assertion alone does not fail without the Row rules, because long strings wrap anyway. The `flex-wrap` assertion is the real guard.

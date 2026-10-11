@@ -4,7 +4,7 @@ title: BarChart keeps its label text readable at 360px and stays within a height
 epic: F Follow-ups
 audit_ref: follow-up to WVR-053 / WVR-057 (browser review)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -116,3 +116,6 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   - Incident, disclosed: during the first after-run, Playwright's `reuseExistingServer` attached to a `vite preview` on port 4173 that belongs to another session (worktree `agent-a6a58f61131e26bc7`), so two WVR-061 tests failed on its old build. I did not kill that server. I ran the same suite on my own preview on 4199 (scratch config outside the repo). It passed 44/44. Once 4173 was free, the official command also passed 44/44. The 40-test baseline ran before that server existed (its log predates 11:00), so it used my own build.
   - `pnpm check:generated` exit 0. `pnpm check:docs` exit 0. `pnpm typecheck` exit 0. `pnpm test` exit 0. `pnpm build` exit 0. `pnpm verify:packages` exit 0. `pnpm verify:worker-core` exit 0.
 - 2026-10-11, status `in-review`. Nothing pushed, tagged, or published. `scratch/BOARD.md` not touched. No change under `packages/`, no lockfile change, no version change.
+- 2026-10-11 integrated on branch `wvr-board-059-061-063`. Status `done`. Merged in the same PR as WVR-059, WVR-061 and WVR-063, and ready to merge in one PR together with the other two.
+  - Residual risk, still open (not fixed here): with about 5 or more bars, the 11u category labels start to touch at 360px. The plot is 204 units wide, so the slot per bar is 204 / 5 = 40.8 units at 5 bars, and "Refunded" at 11u is about 40 units. `DIRECT_LABEL_LIMIT` stays 12, so a 12-bar chart at 360px would overlap. The orders report has 4 bars, so it is not affected today. Filed as WVR-072.
+  - Cost recorded: the chart is about 67px taller at 360px (214.5px against the old 147.5px).
