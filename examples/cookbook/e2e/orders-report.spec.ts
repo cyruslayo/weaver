@@ -133,5 +133,44 @@ test.describe("WVR-059 DataTable scroll cue", () => {
 
     await page.mouse.wheel(-600, 0);
     await expect.poll(async () => (await cueState(page)).cue, "the cue returns away from the end").toContain("linear-gradient");
+
+test.describe("WVR-061 BarChart sizing", () => {
+  /**
+   * The chart's rendered height, and the rendered px size of each text label. The drawing
+   * scale is the smaller of the width and height ratios, so it is right both when the width
+   * sets the scale (360px) and when the height cap does (1280px).
+   */
+  async function chartSizing(page: Page): Promise<{ height: number; labels: { text: string; renderedPx: number }[] }> {
+    return page.evaluate(() => {
+      const svg = document.querySelector<SVGSVGElement>('svg[role="img"]');
+      if (svg === null) throw new Error("the chart must render");
+      const box = svg.getBoundingClientRect();
+      const view = svg.viewBox.baseVal;
+      const scale = Math.min(box.width / view.width, box.height / view.height);
+      const labels = Array.from(svg.querySelectorAll("text")).map((text) => ({
+        text: text.textContent ?? "",
+        renderedPx: parseFloat(getComputedStyle(text).fontSize) * scale,
+      }));
+      return { height: box.height, labels };
+    });
+  }
+
+  test("every BarChart label renders at 11px or more, which at 360px means the narrow layout is readable", async ({ page }) => {
+    await openScreen(page, PATH, HEADING);
+    const width = page.viewportSize()?.width;
+    const { labels } = await chartSizing(page);
+    // Four bars, each with a value label and a category label.
+    expect(labels.length, `value and category labels at ${width}px`).toBe(8);
+    for (const label of labels) {
+      expect(label.renderedPx, `"${label.text}" at ${width}px`).toBeGreaterThanOrEqual(11);
+    }
+  });
+
+  test("the BarChart stays within its 320px height cap, so the wide layout does not grow past it", async ({ page }) => {
+    await openScreen(page, PATH, HEADING);
+    const width = page.viewportSize()?.width;
+    const { height } = await chartSizing(page);
+    expect(height, `chart height at ${width}px`).toBeGreaterThan(0);
+    expect(height, `chart height at ${width}px`).toBeLessThanOrEqual(320);
   });
 });
