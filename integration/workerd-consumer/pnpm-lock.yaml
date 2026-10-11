@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@cylayo/weaver-core':
-        specifier: file:./cylayo-weaver-core-0.3.0.tgz
-        version: file:cylayo-weaver-core-0.3.0.tgz
+        specifier: file:./cylayo-weaver-core-0.3.1.tgz
+        version: file:cylayo-weaver-core-0.3.1.tgz
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 0.8.71
@@ -79,9 +79,9 @@ packages:
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
 
-  '@cylayo/weaver-core@file:cylayo-weaver-core-0.3.0.tgz':
-    resolution: {integrity: sha512-rbUQB1cR7aEb3w6y8lqtxipRZWskMmDlp79kctu5SRtPG1nF03RIjW8onHIfF3IxGQBrq80NSxdK5fKMtvN1Dw==, tarball: file:cylayo-weaver-core-0.3.0.tgz}
-    version: 0.3.0
+  '@cylayo/weaver-core@file:cylayo-weaver-core-0.3.1.tgz':
+    resolution: {integrity: sha512-Ima2rccK8TIIHi/gYhkt67doSLYQXoieApPs68GeWm2srD5DZZkILkH7XjcoJZxR4m98bDC3t7tTWH1GORZsPA==, tarball: file:cylayo-weaver-core-0.3.1.tgz}
+    version: 0.3.1
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -1115,7 +1115,7 @@ snapshots:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
 
-  '@cylayo/weaver-core@file:cylayo-weaver-core-0.3.0.tgz':
+  '@cylayo/weaver-core@file:cylayo-weaver-core-0.3.1.tgz':
     dependencies:
       '@cfworker/json-schema': 4.1.1
 

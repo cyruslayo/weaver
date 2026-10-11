@@ -58,9 +58,9 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture.
 
 | Package | Version | Runtime | Responsibilities |
 | --- | --- | --- | --- |
-| `@cylayo/weaver-core` | 0.3.0 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
-| `@cylayo/weaver-web` | 0.3.0 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
-| `@cylayo/weaver-mcp` | 0.3.0 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
+| `@cylayo/weaver-core` | 0.3.1 | browser, Node, Workers | A2UI v0.9.1 protocol validation and JSONL framing; trusted catalog registration; surface and data-model state; derived component trees, instances, properties, and checks; input binding; transport-neutral action dispatch; transport-session routing; opt-in trusted Basic Catalog functions |
+| `@cylayo/weaver-web` | 0.3.1 | browser | Trusted DOM renderer allowlist and Basic Catalog renderers; full-mount reactive rendering; browser HTTP/SSE transport adapter; theme and attribution boundaries |
+| `@cylayo/weaver-mcp` | 0.3.1 | backend runtimes | Optional MCP 2026-07-28 A2UI bridge; application-capability registration helpers |
 
 All three packages are ESM-only with a single root export, and they release
 together at one synchronized version. Core is mandatory; Web and MCP declare
@@ -78,7 +78,7 @@ Weaver is pre-1.0. The public API is evolving and should not be assumed stable.
 - **Web** owns browser behavior: DOM rendering, interaction, and the browser
   HTTP/SSE transport, all covered by browser tests.
 - **MCP** is optional, separate, and only where the official MCP SDK runs.
-- **Distribution.** The three packages are published to npm at 0.3.0. Install them
+- **Distribution.** The three packages are published to npm. Install them
   with the [Quick Start](#quick-start); the packed tarballs remain the pre-release check.
 - **Transports** are concrete only where implemented: the browser HTTP/SSE
   adapter and the MCP bridge. The included reference server

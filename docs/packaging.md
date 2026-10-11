@@ -113,7 +113,7 @@ pnpm verify:worker-core
 After a release is on the npm registry, run the registry check by hand:
 
 ```sh
-pnpm verify:registry 0.3.0
+pnpm verify:registry 0.3.1
 ```
 
 `pnpm verify:packages` also checks each package README (`packages/*/README.md`): it compiles and runs the README example, and it requires absolute links that point to files in the repository.
