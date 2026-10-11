@@ -4,7 +4,7 @@ title: BarChart keeps its label text readable at 360px and stays within a height
 epic: F Follow-ups
 audit_ref: follow-up to WVR-053 / WVR-057 (browser review)
 priority: P2
-status: in-progress
+status: in-review
 depends_on: []
 estimate: S
 ---
@@ -68,13 +68,13 @@ not scaled with the drawing. Options:
 - `scratch/issues/WVR-061-barchart-sizing.md`, `scratch/BOARD.md`
 
 ## Acceptance criteria
-- [ ] At 360px, every BarChart text label (value and category) renders at 11px or more, measured in the real browser as the computed `font-size` multiplied by the SVG's rendered scale (`getBoundingClientRect().width / viewBox width`). The Playwright test asserts this.
-- [ ] At 1280px, the chart's rendered height does not exceed the stated cap, which the Log sets (for example 320px). The Playwright test asserts `getBoundingClientRect().height <= cap`.
-- [ ] The chart still has `role="img"` and the accessible name "Order value by status (USD)". The fallback table is still present with 4 body rows (existing spec lines 50-59 still pass).
-- [ ] No horizontal page overflow at 360px or 1280px (`expectNoHorizontalOverflow` still passes).
-- [ ] The `barChart.test.ts` unit tests pass. Any constant that changes is recorded with its old and new value in the Log.
-- [ ] No new dependency is added, and no `innerHTML` is introduced.
-- [ ] The Log records the measured label sizes and chart heights before and after the change.
+- [x] At 360px, every BarChart text label (value and category) renders at 11px or more, measured in the real browser as the computed `font-size` multiplied by the SVG's rendered scale (`getBoundingClientRect().width / viewBox width`). The Playwright test asserts this.
+- [x] At 1280px, the chart's rendered height does not exceed the stated cap, which the Log sets (for example 320px). The Playwright test asserts `getBoundingClientRect().height <= cap`.
+- [x] The chart still has `role="img"` and the accessible name "Order value by status (USD)". The fallback table is still present with 4 body rows (existing spec lines 50-59 still pass).
+- [x] No horizontal page overflow at 360px or 1280px (`expectNoHorizontalOverflow` still passes).
+- [x] The `barChart.test.ts` unit tests pass. Any constant that changes is recorded with its old and new value in the Log.
+- [x] No new dependency is added, and no `innerHTML` is introduced.
+- [x] The Log records the measured label sizes and chart heights before and after the change.
 
 ## Verification
 - `pnpm --filter @weaver/cookbook test`
@@ -101,3 +101,18 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   - New or changed constants (old -> new): `VIEW_WIDTH` 320 -> 220. `PLOT_RIGHT` is derived (`VIEW_WIDTH - 8`), so 312 -> 212. New `CHART_MAX_HEIGHT_PX` = 320 (no cap before). `VIEW_HEIGHT` 200 unchanged. `PLOT_LEFT`, `PLOT_TOP`, `PLOT_BOTTOM`, `BAR_GAP`, `BAR_MAX_WIDTH` (48), and the label font sizes (11 and 12) are unchanged.
   - Bar slot width: plot width 204 / 4 bars = 51 user units per slot. Bars keep `BAR_MAX_WIDTH` 48. Risk to check after the change: "Refunded" at 11u must fit in the 51-unit slot.
   - Known density limit (not changed): the plot is 204 units wide, so with about 5 or more bars, per-bar labels at 11u (about 40 units for "Refunded") start to touch their neighbours. The old 304-unit plot had the same problem at a higher count. `DIRECT_LABEL_LIMIT` stays 12, so the 12-bar case is a known overlap risk at 360px and is not fixed here.
+- 2026-10-11, change (commits `1bded9c` source plus unit test, `9123913` e2e block): `VIEW_WIDTH` 320 -> 220, `PLOT_RIGHT` 312 -> 212 (derived), new `CHART_MAX_HEIGHT_PX` = 320, SVG style gains `max-height: 320px`. `barChart.test.ts` gets one new test that pins `viewBox="0 0 220 200"` and the 320px cap. `orders-report.spec.ts` gets a `WVR-061 BarChart sizing` block at the end with two tests, which run at both widths. A helper computes the effective scale, the smaller of width and height ratios.
+- 2026-10-11, AFTER measurement (same script, same build method, Chromium, scratch copy of the built cookbook):
+  - 360px: SVG 236 x 214.53 px, viewBox 220 x 200, effective scale 1.0727 (width and height ratios agree). Category labels 11.8px, value labels 12.87px. Minimum label 11.8px, against the target of 11px. All text inside the SVG box. Label gaps between category labels are positive (min 4.82px, the last pair). Document scrollWidth 360 = innerWidth.
+  - 1280px: SVG 612 x 320 px, viewBox 220 x 200. Width ratio 2.7818, height ratio 1.6, effective scale 1.6 (the cap binds). Category labels 17.6px, value labels 19.2px. Baseline line rendered width confirms the effective scale: 1.6.
+  - Note: the width-only scale at 1280px would be 2.78 and misleads. The 1280 tests therefore use the effective scale.
+- 2026-10-11, MUTATION CHECK (run with `--grep "WVR-061"`, only the new block):
+  - Mutation A, old behaviour restored (`VIEW_WIDTH` 320, no `max-height`): 2 failed, 2 passed. 1280px cap fails: `Expected <= 320, Received 382.5`. 360px label fails: `"278" at 360px Expected >= 11, Received 8.850000000000001`. The 1280px label test and the 360px cap test pass, as expected at those widths.
+  - Mutation B, new viewBox but no cap: 1 failed, 3 passed. 1280px cap fails: `Expected <= 320, Received 556.359375`.
+  - Restored: `git checkout -- barChart.ts`, rebuilt, `git status` clean. Passing run: 4 WVR-061 tests pass, all 44 e2e tests pass.
+- 2026-10-11, verification (exit codes and counts):
+  - Unit tests, `pnpm --filter @weaver/cookbook test`: before 99 pass, 0 fail. After 100 pass, 0 fail, exit 0 (one new test).
+  - e2e, `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/cookbook e2e`: before 40 passed (exit 0). After 44 passed (exit 0). The 4 new tests are the WVR-061 ones (2 tests x 2 widths). The existing 40 are unchanged and pass.
+  - Incident, disclosed: during the first after-run, Playwright's `reuseExistingServer` attached to a `vite preview` on port 4173 that belongs to another session (worktree `agent-a6a58f61131e26bc7`), so two WVR-061 tests failed on its old build. I did not kill that server. I ran the same suite on my own preview on 4199 (scratch config outside the repo). It passed 44/44. Once 4173 was free, the official command also passed 44/44. The 40-test baseline ran before that server existed (its log predates 11:00), so it used my own build.
+  - `pnpm check:generated` exit 0. `pnpm check:docs` exit 0. `pnpm typecheck` exit 0. `pnpm test` exit 0. `pnpm build` exit 0. `pnpm verify:packages` exit 0. `pnpm verify:worker-core` exit 0.
+- 2026-10-11, status `in-review`. Nothing pushed, tagged, or published. `scratch/BOARD.md` not touched. No change under `packages/`, no lockfile change, no version change.
