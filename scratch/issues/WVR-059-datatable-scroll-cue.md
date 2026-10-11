@@ -4,7 +4,7 @@ title: DataTable shows a cue when columns are hidden off-screen at narrow widths
 epic: F Follow-ups
 audit_ref: follow-up to WVR-057 (browser review)
 priority: P2
-status: in-progress
+status: in-review
 depends_on: []
 estimate: S
 ---
@@ -59,13 +59,13 @@ Option 1 is preferred if it passes the acceptance criteria. Record the choice in
 - `scratch/issues/WVR-059-datatable-scroll-cue.md`, `scratch/BOARD.md`
 
 ## Acceptance criteria
-- [ ] At 360px, with the four-column orders report, the cue is present at the wrapper's right edge while `scrollWidth > clientWidth`. The Playwright test asserts the cue's computed style (for example a `background-image`, `mask-image`, or visible hint element) is not `none` or absent.
-- [ ] At 1280px, where `scrollWidth == clientWidth`, the cue is absent. The same test asserts this.
-- [ ] Once the wrapper is scrolled to its end, the edge cue is removed or the hint is hidden. Options 2 and 3 require this. Option 1 satisfies it through `background-attachment`. The test scrolls the wrapper and asserts it.
-- [ ] The wrapper keeps `role="region"`, `tabindex="0"` and its accessible name "Orders". The existing spec tests at lines 61-70 still pass.
-- [ ] No horizontal page overflow at 360px (`expectNoHorizontalOverflow` in the orders-report spec still passes).
-- [ ] No `innerHTML` is introduced (the existing source-scan test in `dataTableRenderer.test.ts` passes), and no new dependency is added.
-- [ ] The real-browser test runs at both widths in `orders-report.spec.ts`, and its result is recorded in the Log.
+- [x] At 360px, with the four-column orders report, the cue is present at the wrapper's right edge while `scrollWidth > clientWidth`. The Playwright test asserts the cue's computed style (for example a `background-image`, `mask-image`, or visible hint element) is not `none` or absent. Evidence: after-change measurement at 360px, `scrollWidth` 455 > `clientWidth` 236, computed `background-image` is the gradient. The e2e test "at 360px the cue shows while columns are hidden past the right edge" passes at both projects.
+- [x] At 1280px, where `scrollWidth == clientWidth`, the cue is absent. The same test asserts this. Evidence: after-change measurement at 1280px, `clientWidth` = `scrollWidth` = 612, `background-image` `none`. The e2e test "at 1280px nothing overflows, so the cue is absent" passes at both projects.
+- [x] Once the wrapper is scrolled to its end, the edge cue is removed or the hint is hidden. Options 2 and 3 require this. Option 1 satisfies it through `background-attachment`. The test scrolls the wrapper and asserts it. Note: `background-attachment` alone does not do this (see the approach entry above). The listener does it. Evidence: after-change measurement, at `scrollLeft` 219 (the end) the computed `background-image` is `none`. The e2e test "...removed once the table is scrolled to its end, and returns at the start" passes, and it scrolls with a horizontal mouse wheel.
+- [x] The wrapper keeps `role="region"`, `tabindex="0"` and its accessible name "Orders". The existing spec tests at lines 61-70 still pass. Evidence: after-change measurement reports `region`, `0`, `Orders` at both widths. The Tab-order e2e test passes.
+- [x] No horizontal page overflow at 360px (`expectNoHorizontalOverflow` in the orders-report spec still passes). Evidence: after-change `pageOverflow` 0 at 360px. The e2e test "the orders report has no horizontal page scroll" passes.
+- [x] No `innerHTML` is introduced (the existing source-scan test in `dataTableRenderer.test.ts` passes), and no new dependency is added. Evidence: the cookbook unit run is 99 pass, 0 fail, and the change has no `innerHTML` or `package.json` edit.
+- [x] The real-browser test runs at both widths in `orders-report.spec.ts`, and its result is recorded in the Log. Evidence: the e2e run is 46 passed, which is 40 baseline plus 6 new (3 tests at 2 widths).
 
 ## Verification
 - `pnpm --filter @weaver/cookbook test`
@@ -95,3 +95,34 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
     - Role `region`, tabindex `0`, name `Orders` at both widths.
   - Baseline before change: `pnpm --filter @weaver/cookbook test` exit 0, 99 tests pass, 0 fail.
     `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/cookbook e2e` exit 0, 40 passed.
+  - Implementation: `dataTableRenderer.ts` adds `attachScrollCue(wrapper, table)`, called after the table
+    is appended. The cue is `background: linear-gradient(...) right center / 16px 100% no-repeat scroll`
+    as an inline style, and `none` otherwise. The first attempt set `style.backgroundImage` with the
+    `/ 16px 100%` size, and the browser dropped it silently. The cue never showed, so the shorthand is
+    needed. A keyboard `End` press on the focused region scrolled the page vertically, not the wrapper,
+    so the e2e test scrolls with a horizontal mouse wheel instead.
+  - After-change measurement (same script, same server, after the rebuild). The script's "before" key
+    holds the page's state on load, and "atEnd" holds the state after `scrollLeft = scrollWidth`:
+    - 360px: `clientWidth` 236, `scrollWidth` 455, load `backgroundImage` = the gradient. At the end
+      (`scrollLeft` 219), `backgroundImage` `none`. Page overflow 0. Role `region`, tabindex `0`, name `Orders`.
+    - 1280px: `clientWidth` 612, `scrollWidth` 612, `backgroundImage` `none` on load and at the end.
+    - Output file: `wvr059-measure-after.json` in the session scratchpad.
+  - Mutation check. The `attachScrollCue(wrapper, table);` call was commented out in the renderer, and
+    `pnpm --filter @weaver/cookbook e2e` was run. Exit 1, `42 passed`, `4 failed`: the 360px cue test and
+    the end-of-scroll test at both projects. The failure is `the cue is drawn on the wrapper`, with
+    `Received string: "none"`, and the end test times out waiting for the gradient. The call was then
+    restored, and e2e was rerun: exit 0, `46 passed`.
+  - Commits: `5a59066` (approach and before measurement), `c2b8fe2` (renderer cue), `05b5f1b` (e2e tests).
+  - Gate and verification (all run from the worktree after the commits):
+    - `pnpm --filter @weaver/cookbook test`: exit 0. Unit counts: before 99 pass, after 99 pass, 0 fail.
+      No unit test was added, because the DOM structure did not change.
+    - `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/cookbook e2e`: exit 0. Before 40
+      passed, after 46 passed.
+    - `pnpm typecheck`: exit 0.
+    - `pnpm check:generated`: exit 0. `pnpm check:docs`: exit 0 (this issue Markdown changed).
+    - `pnpm test`: exit 0 (root unit suites, including the 8 and 3 test blocks printed by the runner). A
+      root baseline count was not taken before the change.
+    - `pnpm build`: exit 0. `pnpm verify:packages`: exit 0. `pnpm verify:worker-core`: exit 0.
+  - Not run: `pnpm conformance:v0.9.1` (the README step 6 includes it, but the task gate did not).
+  - Note for the next author: a `background-attachment: local` cover, which the option 1 text suggests,
+    would leave a non-`none` background-image at 1280px. That is why the listener is used.
