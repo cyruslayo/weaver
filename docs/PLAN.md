@@ -271,7 +271,7 @@ Complete, pending review. Each package has a `README.md`, which npm shows on its
 
 ## Task 94 — Release prep 0.3.1 (WVR-071)
 
-Complete, pending maintainer tag and publish. 0.3.1 is a documentation and package metadata patch. It carries the WVR-070 READMEs and keywords to npm. `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` are bumped to `0.3.1` together. Web and MCP keep the `0.3.x` peer range on Core, and `WEAVER_CORE_VERSION` is `"0.3.1"`. The API did not change: the root exports match the published 0.3.0 packages, and the shipped `dist` is identical except for the version string. `CHANGELOG.md` holds the 0.3.1 notes. The maintainer tags `v0.3.1` and publishes it, and then runs `pnpm verify:registry 0.3.1`.
+Complete. Tagged `v0.3.1` and published to npm on 2026-10-11. 0.3.1 is a documentation and package metadata patch. It carries the WVR-070 READMEs and keywords to npm. `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` are bumped to `0.3.1` together. Web and MCP keep the `0.3.x` peer range on Core, and `WEAVER_CORE_VERSION` is `"0.3.1"`. The API did not change: the root exports match the published 0.3.0 packages, and the shipped `dist` is identical except for the version string. `CHANGELOG.md` holds the 0.3.1 notes. The maintainer tagged `v0.3.1` on the merge commit of PR #40 and published it, and `pnpm verify:registry 0.3.1` passed from a clean clone of the tag.
 
 ## Deferred work
 
