@@ -44,13 +44,19 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-067](issues/WVR-067-crlf-doc-snippet-checkout.md) | Doc-snippet checker and checkouts tolerate CRLF (Windows) | F Follow-ups | P2 | `done` | — | S |
 | [WVR-068](issues/WVR-068-action-dispatcher-cyclic-local-result.md) | ActionDispatcher: guard host localFunction results against cyclic values | F Follow-ups | P2 | `done` | — | S |
 | [WVR-069](issues/WVR-069-shared-reference-json-and-throwing-getter.md) | Reject shared-reference JSON values and typed errors for throwing getters | F Follow-ups | P2 | `ready` | — | M |
+| [WVR-070](issues/WVR-070-package-readmes.md) | Package READMEs and npm keywords so the npm pages are not empty | F Follow-ups | P2 | `done` | — | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `done` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 36, ready: 4, gated: 3 (43 issues)
+**Totals:** done: 37, ready: 4, gated: 3 (44 issues)
 
-## Start here (4 ready; 36 done)
+## Start here (4 ready; 37 done)
+
+As of 2026-10-11, WVR-070 adds a README.md to each published package and a `keywords` array to
+each `package.json`, so the npm pages are no longer empty. `verify:packages` compiles and runs
+the README examples and checks the links. The branch `wvr-070-package-readmes` is not pushed yet.
+The READMEs reach npm only with the next published version, not 0.3.0. Its Log records the evidence.
 
 As of 2026-10-11, WVR-068 was closed as already guarded. The reproduction test
 (`packages/core/src/actions/ActionDispatcher.cyclicLocalResult.test.ts`) is merged as a regression
@@ -122,7 +128,7 @@ E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
 Release: {016, 025, 033} → 060 (done) → 081 (done)
 Bench:   {013, 044} → 080 (gated)
-F:       058, 062, 064, 065, 066, 067, 068 (done); 059, 061, 063, 069 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
+F:       058, 062, 064, 065, 066, 067, 068, 070 (done); 059, 061, 063, 069 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```
 
 ## Milestones

@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { docSnippets, quickstartSnippets } from "../integration/package-consumer/doc-snippets.mjs";
+import { docSnippets, packageReadmeSnippets, quickstartSnippets } from "../integration/package-consumer/doc-snippets.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fail = (message) => { throw new Error(message); };
@@ -59,6 +59,20 @@ const dependencyValues = (manifest) => Object.values({
 });
 const stalePublicPackageReference = new RegExp(String.raw`@weaver/(?:core|web|mcp)\b`);
 
+// Package READMEs are shown on npmjs.com, where relative links break. Every link must have a scheme, and a
+// repository blob link must name a file in this checkout (a #anchor is stripped first).
+const readmeBlobPrefix = "https://github.com/cyruslayo/weaver/blob/main/";
+for (const dir of packageDirs) {
+  const readme = (await readFile(path.join(root, "packages", dir, "README.md"), "utf8")).replace(/\r\n/g, "\n");
+  for (const [, target] of readme.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) {
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(target)) fail(`packages/${dir}/README.md: relative link ${target}`);
+    if (target.startsWith(readmeBlobPrefix)) {
+      const repoPath = decodeURI(target.slice(readmeBlobPrefix.length).split("#")[0]);
+      await stat(path.join(root, repoPath)).catch(() => fail(`packages/${dir}/README.md: link to missing file ${target}`));
+    }
+  }
+}
+
 const temp = await mkdtemp(path.join(os.tmpdir(), "weaver-package-verification-"));
 const extractedRoot = path.join(temp, "extracted");
 const secondPackRoot = path.join(temp, "second-pack");
@@ -87,6 +101,9 @@ for (const spec of specs) {
   if (manifest.license !== "Apache-2.0") fail(`${spec.file}: incorrect license metadata`);
   const packageLicense = await readFile(path.join(packageDir, "LICENSE"));
   if (!packageLicense.equals(rootLicense)) fail(`${spec.file}: package/LICENSE differs from root LICENSE`);
+  // npm packs README.md from the package folder even when `files` omits it. The packed copy must match the source.
+  if (!files.includes("package/README.md")) fail(`${spec.file}: package/README.md missing`);
+  if (!(await readFile(path.join(packageDir, "README.md"))).equals(await readFile(path.join(root, "packages", spec.dir, "README.md")))) fail(`${spec.file}: package/README.md differs from packages/${spec.dir}/README.md`);
   if (spec.dir === "core") {
     const thirdParty = await readFile(path.join(packageDir, "THIRD_PARTY_LICENSES.txt"), "utf8");
     if (thirdParty === rootLicense.toString("utf8") || !thirdParty.includes("A2UI v0.9.1 Basic Catalog")) fail(`${spec.file}: third-party provenance material is missing or conflated`);
@@ -129,7 +146,7 @@ if (JSON.stringify(artifactFiles) !== JSON.stringify(specs.map((spec) => spec.fi
 
 const consumer = path.join(temp, "consumer");
 await mkdir(consumer);
-for (const file of ["consumer.ts", "smoke.mjs", "quickstart-check.mjs", "tsconfig.json", "tsconfig.doc-snippets.json"]) await cp(path.join(root, "integration", "package-consumer", file), path.join(consumer, file));
+for (const file of ["consumer.ts", "smoke.mjs", "quickstart-check.mjs", "package-readme-check.mjs", "tsconfig.json", "tsconfig.doc-snippets.json"]) await cp(path.join(root, "integration", "package-consumer", file), path.join(consumer, file));
 for (const spec of specs) await cp(path.join(root, "artifacts", spec.file), path.join(consumer, spec.file));
 const fixtureManifest = parseJson(await readFile(path.join(root, "integration", "package-consumer", "package.json"), "utf8"), "package consumer fixture package.json");
 for (const spec of specs) fixtureManifest.dependencies[spec.name] = `file:./${spec.file}`;
@@ -143,11 +160,12 @@ const snippetDir = path.join(consumer, "doc-snippets");
 await mkdir(snippetDir);
 const snippets = await docSnippets(root);
 const quickstart = await quickstartSnippets(root);
-for (const snippet of [...snippets, ...quickstart]) await writeFile(path.join(snippetDir, snippet.name), snippet.source);
+const packageReadme = await packageReadmeSnippets(root);
+for (const snippet of [...snippets, ...quickstart, ...packageReadme]) await writeFile(path.join(snippetDir, snippet.name), snippet.source);
 try {
   run("pnpm", ["exec", "tsc", "-p", "tsconfig.doc-snippets.json"], { cwd: consumer, stdio: "pipe" });
 } catch (error) {
-  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, docs-debugging-N.ts is block N of docs/debugging.md, and docs-custom-catalogs-N.ts is runnable block N of docs/custom-catalogs.md (blocks marked "<!-- from: path -->" are excluded). quickstart-browser.ts, quickstart-worker.ts and quickstart-deterministic.ts are the README "## Quick Start" ts blocks, in order.\n${error.message}`);
+  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, docs-debugging-N.ts is block N of docs/debugging.md, and docs-custom-catalogs-N.ts is runnable block N of docs/custom-catalogs.md (blocks marked "<!-- from: path -->" are excluded). quickstart-browser.ts, quickstart-worker.ts and quickstart-deterministic.ts are the README "## Quick Start" ts blocks, in order. pkg-core-readme-0.ts, pkg-web-readme-0.ts and pkg-mcp-readme-0.ts are the package README ts blocks.\n${error.message}`);
 }
 for (const snippet of snippets) {
   try {
@@ -160,6 +178,11 @@ try {
   console.log(run(process.execPath, ["--experimental-strip-types", "--no-warnings", "quickstart-check.mjs", "doc-snippets"], { cwd: consumer, stdio: "pipe" }).trimEnd());
 } catch (error) {
   fail(`README Quick Start examples failed against the packed packages.\n${error.message}`);
+}
+try {
+  console.log(run(process.execPath, ["--experimental-strip-types", "--no-warnings", "package-readme-check.mjs", "doc-snippets"], { cwd: consumer, stdio: "pipe" }).trimEnd());
+} catch (error) {
+  fail(`Package README examples failed against the packed packages.\n${error.message}`);
 }
 console.log(`Ran ${snippets.length} documentation snippets against the packed packages`);
 const corePackagePathParts = expectedNames.core.split("/");

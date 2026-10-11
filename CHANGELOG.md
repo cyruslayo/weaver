@@ -11,6 +11,16 @@ public API may still change between minor versions.
 Earlier history is in [docs/PLAN.md](docs/PLAN.md). The git tags `v0.2.0` and `v0.2.1`
 mark those releases. This file does not rewrite them.
 
+## [Unreleased]
+
+### Changed
+
+- **Package READMEs and keywords for the npm pages.** Each package now ships a `README.md`
+  with a description, an install line, one example, a package chooser and links to the
+  documentation. Each `package.json` has a `keywords` array. `pnpm verify:packages` checks the
+  README examples and links. No code, version or dependency changed. The READMEs appear on npm
+  with the next published version, not with 0.3.0.
+
 ## [0.3.0] - 2026-10-10
 
 **Upgrade:** install `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp`

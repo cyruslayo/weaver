@@ -104,3 +104,24 @@ export async function quickstartSnippets(root) {
   }
   return blocks.map((source, index) => ({ name: QUICKSTART_BLOCK_NAMES[index], source }));
 }
+
+/**
+ * The ts blocks of each package README, named pkg-<package>-readme-N.ts. Each README has exactly
+ * one example: core (Worker), web (browser) and mcp (compile-checked only). A count that differs
+ * throws, so a README that loses or gains an example fails `pnpm verify:packages`.
+ * @param {string} root repository root
+ * @returns {Promise<{ name: string, source: string }[]>}
+ */
+export async function packageReadmeSnippets(root) {
+  const expected = { core: 1, web: 1, mcp: 1 };
+  const snippets = [];
+  for (const [dir, count] of Object.entries(expected)) {
+    const readme = await readText(path.join(root, "packages", dir, "README.md"));
+    const blocks = tsBlocks(readme);
+    if (blocks.length !== count) {
+      throw new Error(`packages/${dir}/README.md must contain exactly ${count} ts block, found ${blocks.length}`);
+    }
+    blocks.forEach((source, index) => snippets.push({ name: `pkg-${dir}-readme-${index}.ts`, source }));
+  }
+  return snippets;
+}

@@ -6,6 +6,14 @@
     "access": "public"
   },
   "description": "Weaver MCP A2UI bridge plus application capability helpers",
+  "keywords": [
+    "a2ui",
+    "agent-ui",
+    "generative-ui",
+    "ui-runtime",
+    "mcp",
+    "model-context-protocol"
+  ],
   "type": "module",
   "repository": {
     "type": "git",
