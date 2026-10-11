@@ -107,6 +107,12 @@ for (const spec of specs) {
     if (/(?:NPM_TOKEN|BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY|password\s*[:=]\s*["'][^"']+)/i.test(text)) fail(`${spec.file}: credential-like material found in ${file}`);
   }
 
+  // A CRLF working tree (core.autocrlf=true) would ship CR bytes, because pack reads the working tree. Packed text must be LF.
+  const packedText = /\.(?:js|d\.ts|map|json|md|txt)$|(^|\/)LICENSE$/;
+  for (const file of files.filter((file) => packedText.test(file))) {
+    if ((await readFile(path.join(extractDir, file))).includes("\r")) fail(`${spec.file}: carriage return in packed text file ${file}`);
+  }
+
   run("pnpm", ["pack", "--pack-destination", secondPackRoot], { cwd: path.join(root, "packages", spec.dir) });
   const secondArchive = path.join(secondPackRoot, spec.file);
   const secondFiles = tarList(secondArchive);
