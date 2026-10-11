@@ -4,7 +4,7 @@ title: Publish @cylayo/weaver-* to npm (stable preview)
 epic: Gated
 audit_ref: WVR-06, Slice 5
 priority: P1
-status: in-review
+status: done
 depends_on: [WVR-060]
 estimate: M
 ---
@@ -81,3 +81,7 @@ decides otherwise.
     - `pnpm build`: exit 0. `pnpm verify:packages`: exit 0, 11 doc snippets plus the 3 Quick Start examples against the packed tarballs. `pnpm verify:worker-core`: exit 0, 2 tests. `pnpm conformance:v0.9.1`: exit 0 (437 and 139, all passing).
   - **Typechecked and executed.** Typechecked with the consumer's strict NodeNext settings and DOM lib: all three Quick Start examples, in both the tarball and registry consumers. Executed: the browser example under happy-dom (text confirmed in `#app`), the Worker example through `fetch` in Node and in workerd (registry Core), the deterministic example in Node. The browser example was not run in a real browser.
   - **Caveats, not blocking.** (a) `verify:registry` resolves the Worker's transitive dependencies fresh with npm, so it does not reuse the pnpm lock in `integration/workerd-consumer`. The two Worker devDependencies are pinned exact as there. (b) The snippets come from this checkout's `README.md` and `docs/`, so the registry check covers the published Core, not the published README. (c) `consumer.ts`, `smoke.mjs` and `WEAVER_CORE_VERSION` checks hard-code 0.3.0, as `verify:packages` does. A later release needs those updated. (d) Commit B's trailer names Claude Haiku 5.5, not the Sonnet 5.5 line in the brief, because the session's attribution rule names Haiku.
+- 2026-10-11: **done.** Merged to `main` in cyruslayo/weaver#36 (merge commit `69ac7e9`). CI `Verify` is green. Both acceptance boxes stay ticked, on the evidence above.
+  - **Independent verification.** The orchestrator re-ran the full gate on a clean clone. That included `pnpm verify:registry` against the real npm `0.3.0` packages (pass) and `pnpm verify:registry 0.0.1` (fails as intended).
+  - **Review finding, fixed before merge.** `quickstartSnippets()` used a plain `readFile`. After WVR-067, a CRLF checkout would have failed the Quick Start extraction. The fix is in commit `69e8c2f`: it reads through `readText`, and a new test case fails with the plain `readFile`.
+  - **Caveats carried forward.** (1) The browser Quick Start example is typechecked and run in happy-dom only. It has not been run in a real browser. (2) `consumer.ts`, `smoke.mjs` and the `WEAVER_CORE_VERSION` checks hard-code 0.3.0, so the next release must update them. (3) `verify:registry` is manual and is not in CI.
