@@ -269,6 +269,10 @@ Complete, pending review. The three packages are installed from npm at 0.3.0 by 
 
 Complete, pending review. Each package has a `README.md`, which npm shows on its package page, and each `package.json` has a `keywords` array. `pnpm verify:packages` compiles and runs the one example in each README, and it checks that the READMEs have no relative links and that each repository link names an existing file. The packed tarballs include the README. No package source, version or lockfile changed. The READMEs reach npm with the next published version, not 0.3.0.
 
+## Task 94 — Release prep 0.3.1 (WVR-071)
+
+Complete, pending maintainer tag and publish. 0.3.1 is a documentation and package metadata patch. It carries the WVR-070 READMEs and keywords to npm. `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` are bumped to `0.3.1` together. Web and MCP keep the `0.3.x` peer range on Core, and `WEAVER_CORE_VERSION` is `"0.3.1"`. The API did not change: the root exports match the published 0.3.0 packages, and the shipped `dist` is identical except for the version string. `CHANGELOG.md` holds the 0.3.1 notes. The maintainer tags `v0.3.1` and publishes it, and then runs `pnpm verify:registry 0.3.1`.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

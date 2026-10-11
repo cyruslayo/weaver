@@ -45,13 +45,19 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-068](issues/WVR-068-action-dispatcher-cyclic-local-result.md) | ActionDispatcher: guard host localFunction results against cyclic values | F Follow-ups | P2 | `done` | — | S |
 | [WVR-069](issues/WVR-069-shared-reference-json-and-throwing-getter.md) | Reject shared-reference JSON values and typed errors for throwing getters | F Follow-ups | P2 | `ready` | — | M |
 | [WVR-070](issues/WVR-070-package-readmes.md) | Package READMEs and npm keywords so the npm pages are not empty | F Follow-ups | P2 | `done` | — | S |
+| [WVR-071](issues/WVR-071-release-0.3.1.md) | Release prep 0.3.1 — docs and metadata patch: version bump, changelog, API proof | Release | P1 | `in-review` | WVR-070 | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `done` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 37, ready: 4, gated: 3 (44 issues)
+**Totals:** done: 37, ready: 4, in-review: 1, gated: 3 (45 issues)
 
-## Start here (4 ready; 37 done)
+## Start here (4 ready; 37 done; 1 in-review)
+
+As of 2026-10-11, WVR-071 prepares the 0.3.1 patch release on branch `wvr-071-release-0.3.1`.
+It is documentation and package metadata only: the package READMEs and keywords reach npm, and
+there is no API or behaviour change. It is `in-review`. The maintainer tags `v0.3.1` and
+publishes to npm. WVR-071 becomes `done` only after that. Its Log records the evidence.
 
 As of 2026-10-11, WVR-070 adds a README.md to each published package and a `keywords` array to
 each `package.json`, so the npm pages are no longer empty. `verify:packages` compiles and runs
@@ -86,7 +92,7 @@ and `docs/PLAN.md` tasks 88 to 90 record its change.
 
 Ready, in lane order (pick the lowest ID inside the highest priority):
 
-F Follow-ups lane (no dependencies; all P2). These are candidates for a 0.3.1 patch release:
+F Follow-ups lane (no dependencies; all P2). These are candidates for a later patch release (0.3.1 is docs only):
 
 - **WVR-069**, M. Reject shared-reference JSON values (a DAG takes 2^N time and can exhaust the heap)
   and return typed errors for throwing getters, which currently escape `dispatchAction()`.
@@ -126,7 +132,7 @@ E3: 031 → 032 → 033
               └→ 034 (also needs 024, 041)
 E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
-Release: {016, 025, 033} → 060 (done) → 081 (done)
+Release: {016, 025, 033} → 060 (done) → 081 (done); 070 → 071 (in-review)
 Bench:   {013, 044} → 080 (gated)
 F:       058, 062, 064, 065, 066, 067, 068, 070 (done); 059, 061, 063, 069 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```

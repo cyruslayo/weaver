@@ -5,21 +5,35 @@ are recorded here. The format follows [Keep a Changelog](https://keepachangelog.
 The three packages release together at one synchronized version. Weaver is pre-1.0, so the
 public API may still change between minor versions.
 
-> The 0.3.0 tag and npm publish are done by the maintainer. The date in the 0.3.0 heading
-> is the release-prep date.
+> The 0.3.0 and 0.3.1 tags and npm publishes are done by the maintainer. The date in each
+> release heading is the release-prep date.
 
 Earlier history is in [docs/PLAN.md](docs/PLAN.md). The git tags `v0.2.0` and `v0.2.1`
 mark those releases. This file does not rewrite them.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-11
+
+**Upgrade:** none. This release is documentation and package metadata only. Install
+`@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` at 0.3.1 together, as before.
+
 ### Changed
 
-- **Package READMEs and keywords for the npm pages.** Each package now ships a `README.md`
-  with a description, an install line, one example, a package chooser and links to the
-  documentation. Each `package.json` has a `keywords` array. `pnpm verify:packages` checks the
-  README examples and links. No code, version or dependency changed. The READMEs appear on npm
-  with the next published version, not with 0.3.0.
+- **Package READMEs and keywords on the npm pages.** Each package ships a `README.md` with a
+  description, an install line, one example, a package chooser and links to the documentation.
+  Each `package.json` has a `keywords` array. The READMEs and keywords now appear on the npm
+  pages of `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp`.
+  `pnpm verify:packages` checks the README examples and links.
+- **Version metadata.** The three packages are `0.3.1`. Web and MCP still peer on
+  `@cylayo/weaver-core` `0.3.x`. `WEAVER_CORE_VERSION` is `"0.3.1"`.
+
+### Notes
+
+- **No API or behaviour change.** The exports of all three packages are the same as in 0.3.0.
+  No function, type, error code or default changed.
+- **The 0.3.0 npm pages stay as they are.** npm cannot change a published version, so the
+  0.3.0 pages do not show the READMEs or keywords. Install 0.3.1 to see them.
 
 ## [0.3.0] - 2026-10-10
 

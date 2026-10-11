@@ -19,5 +19,5 @@ export * from "./stream-ingestion/index.js";
 export * from "./trace/index.js";
 export * from "./transport/index.js";
 
-export const WEAVER_CORE_VERSION = "0.3.0";
+export const WEAVER_CORE_VERSION = "0.3.1";
 export * from "./diagnostics/index.js";

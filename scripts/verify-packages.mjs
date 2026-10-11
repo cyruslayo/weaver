@@ -21,7 +21,7 @@ const packageManifests = Object.fromEntries(await Promise.all(packageDirs.map(as
   parseJson(await readFile(path.join(root, "packages", dir, "package.json"), "utf8"), `${dir}/package.json`),
 ])));
 const version = packageManifests.core.version;
-if (version !== "0.3.0") fail(`Expected Core release version 0.3.0, found ${version}`);
+if (version !== "0.3.1") fail(`Expected Core release version 0.3.1, found ${version}`);
 for (const dir of packageDirs) {
   if (packageManifests[dir].name !== expectedNames[dir]) fail(`${dir} package identity is incorrect`);
   if (packageManifests[dir].version !== version) fail(`${dir} package version is not synchronized at ${version}`);
