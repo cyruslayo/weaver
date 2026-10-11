@@ -78,6 +78,8 @@ Weaver is pre-1.0. The public API is evolving and should not be assumed stable.
 - **Web** owns browser behavior: DOM rendering, interaction, and the browser
   HTTP/SSE transport, all covered by browser tests.
 - **MCP** is optional, separate, and only where the official MCP SDK runs.
+- **Distribution.** The three packages are published to npm at 0.3.0. Install them
+  with the [Quick Start](#quick-start); the packed tarballs remain the pre-release check.
 - **Transports** are concrete only where implemented: the browser HTTP/SSE
   adapter and the MCP bridge. The included reference server
   (`examples/http-sse-server/`) is a single-peer loopback test peer, not a
@@ -87,43 +89,141 @@ Runtime support declarations are package-specific: `@cylayo/weaver-mcp` requires
 Node >=20 (its pinned MCP runtime dependencies do), while `@cylayo/weaver-core` and
 `@cylayo/weaver-web` currently make no Node-version support declaration.
 
-## Current consumption / install workflow
+## Quick Start
 
-Weaver is not currently published to a package registry. Today's verified
-workflow is local packed tarballs:
+Install the packages from npm. `@cylayo/weaver-core` is required. Add
+`@cylayo/weaver-web` for a browser, or `@cylayo/weaver-mcp` for a backend (it
+requires Node.js 20 or later):
 
 ```sh
-pnpm install
-pnpm verify:packages
+npm install @cylayo/weaver-core @cylayo/weaver-web
 ```
 
-This builds the workspace and produces three ignored tarballs in `artifacts/`:
+The three packages are ESM-only and release together at one synchronized version.
+Each example below is a complete program. `pnpm verify:packages` and
+`pnpm verify:registry` compile and run them against the packed and the published
+packages, and the browser example also runs in happy-dom.
 
-```text
-artifacts/cylayo-weaver-core-0.3.0.tgz
-artifacts/cylayo-weaver-web-0.3.0.tgz
-artifacts/cylayo-weaver-mcp-0.3.0.tgz
+### Browser: render a surface with Web
+
+```ts
+import { createBasicWebRuntime } from "@cylayo/weaver-web";
+
+const created = createBasicWebRuntime();
+if (!created.ok) throw new Error("Web runtime configuration failed");
+
+const web = created.value;
+web.runtime.process({
+  version: "v0.9.1",
+  createSurface: { surfaceId: "main", catalogId: web.catalogId },
+});
+web.runtime.process({
+  version: "v0.9.1",
+  updateComponents: {
+    surfaceId: "main",
+    components: [{ id: "root", component: "Text", text: "Hello from Weaver" }],
+  },
+});
+
+const mounted = web.mount({
+  surfaceId: "main",
+  target: document.querySelector("#app")!,
+});
+if (!mounted.ok) throw new Error(`mount failed: ${mounted.error.code}`);
 ```
 
-An external application installs them by relative file path (shown with a
-placeholder for the Weaver checkout directory):
+Mount into an element with `id="app"`. Weaver renders the surface as DOM that it
+owns. The [Web rendering](#web-rendering-browser) section covers the trusted media,
+icon and attribution policies that a real application configures.
 
-```json
-{
-  "dependencies": {
-    "@cylayo/weaver-core": "file:<path-to-weaver>/artifacts/cylayo-weaver-core-0.3.0.tgz",
-    "@cylayo/weaver-web": "file:<path-to-weaver>/artifacts/cylayo-weaver-web-0.3.0.tgz"
-  }
+### Worker: Core only, no DOM
+
+```ts
+import {
+  A2UI_V091_BASIC_CATALOG_ID,
+  createBasicCatalogV091Registration,
+  createWeaverRuntime,
+} from "@cylayo/weaver-core";
+
+// Core only: no DOM and no Node APIs, so this module runs in a Cloudflare Worker.
+export default {
+  fetch(request: Request): Response {
+    const name = new URL(request.url).searchParams.get("name") ?? "Weaver";
+    const made = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+    if (!made.ok) return Response.json({ error: "runtime configuration failed" }, { status: 500 });
+
+    const runtime = made.value;
+    runtime.process({
+      version: "v0.9.1",
+      createSurface: { surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID },
+    });
+    const updated = runtime.process({
+      version: "v0.9.1",
+      updateComponents: {
+        surfaceId: "main",
+        components: [{ id: "root", component: "Text", text: `Hello, ${name}` }],
+      },
+    });
+    if (!updated.ok) return Response.json({ error: updated.error }, { status: 400 });
+
+    const resolved = runtime.resolveSurface("main");
+    if (!resolved.ok) return Response.json({ error: resolved.error }, { status: 500 });
+    return Response.json(resolved.value.tree);
+  },
+};
+```
+
+Each request builds a runtime, applies the messages and returns the resolved
+surface as JSON. The [Core only](#core-only-any-platform) section shows a custom
+catalog, and the [Minimal working example](#minimal-working-example) explains
+the trust model.
+
+### Deterministic: a canned response, no model
+
+```ts
+import {
+  A2UI_V091_BASIC_CATALOG_ID,
+  createA2UIV091StreamIngestion,
+  createBasicCatalogV091Registration,
+  createWeaverRuntime,
+} from "@cylayo/weaver-core";
+
+// A canned agent response: A2UI v0.9.1 JSONL. A model would produce this text; here it is fixed.
+const cannedResponse = [
+  { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID } },
+  {
+    version: "v0.9.1",
+    updateComponents: {
+      surfaceId: "main",
+      components: [{ id: "root", component: "Text", text: "Hello from a canned response" }],
+    },
+  },
+].map((message) => `${JSON.stringify(message)}\n`).join("");
+
+const created = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+if (!created.ok) throw new Error("runtime configuration failed");
+const runtime = created.value;
+
+// The stream ingestion validates each frame and applies it to the runtime. No model is called.
+const ingestion = createA2UIV091StreamIngestion({ runtime });
+const events = ingestion.push(cannedResponse);
+ingestion.finish();
+if (events.length !== 2 || !events.every((event) => event.ok)) throw new Error("canned response was not applied");
+
+const resolved = runtime.resolveSurface("main");
+if (!resolved.ok) throw new Error(`surface not resolved: ${resolved.error.code}`);
+if (!JSON.stringify(resolved.value.tree).includes("Hello from a canned response")) {
+  throw new Error("canned text was not rendered");
 }
+console.log(JSON.stringify(resolved.value.tree));
 ```
 
-`verify:packages` also installs the tarballs into an isolated consumer outside
-the workspace and runs strict declaration and runtime-import checks against
-them, so a passing run demonstrates the artifacts are consumable. `pnpm
-verify:worker-core` runs the same packaged Core inside `workerd`.
+The response is fixed text, so this runs with no model and no network. A model's
+output takes the same path. Weaver validates each frame and never repairs one.
+See [validated A2UI stream ingestion](docs/a2ui-stream-ingestion.md).
 
-See [docs/packaging.md](docs/packaging.md) for the complete local artifact
-workflow and release gate.
+To build from a checkout or test an unreleased build, `pnpm verify:packages`
+creates local tarballs. See the [local artifact workflow](docs/packaging.md#local-artifact-workflow).
 
 ## Minimal working example
 

@@ -14,6 +14,7 @@
     "pack:packages": "node scripts/pack-packages.mjs",
     "verify:packages": "pnpm build && pnpm pack:packages && node scripts/verify-packages.mjs",
     "verify:worker-core": "node scripts/verify-worker-core.mjs",
+    "verify:registry": "node scripts/verify-registry.mjs",
     "clean": "pnpm -r --if-present run clean"
   },
   "devDependencies": {

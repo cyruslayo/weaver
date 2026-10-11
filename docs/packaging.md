@@ -89,6 +89,16 @@ pnpm verify:worker-core
 
 Core, Web, and MCP release together at one synchronized version. During `0.x`, version bumps remain deliberate manual updates across all three manifests; `WEAVER_CORE_VERSION` in `packages/core/src/index.ts` must be updated with each release version.
 
+Semver policy while Weaver is `0.x`:
+
+- A MINOR bump (`0.3.0` to `0.4.0`) may contain breaking changes. Each one is called out in `CHANGELOG.md` with an upgrade note.
+- A PATCH bump (`0.3.0` to `0.3.1`) is for bug fixes.
+- The three packages always share one version. Web and MCP peer on Core with the range `0.N.x`, where `0.N` is the current minor, so a MINOR release also moves both peer ranges.
+- `WEAVER_CORE_VERSION` is updated in every release.
+- A deprecation is noted in the `CHANGELOG.md` entry of the release that introduces it, with its replacement when one exists.
+
+This policy covers the `0.x` line only. It makes no promise about a future 1.0.
+
 The release gates above remain the readiness checks for any release:
 
 ```sh
@@ -99,6 +109,14 @@ pnpm conformance:v0.9.1
 pnpm verify:packages
 pnpm verify:worker-core
 ```
+
+After a release is on the npm registry, run the registry check by hand:
+
+```sh
+pnpm verify:registry 0.3.0
+```
+
+It installs `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` at that exact version into a temporary consumer outside the workspace. It then runs the TypeScript and ESM consumer checks, the documentation and Quick Start snippets, and the Worker smoke against the registry Core. The check only reads the registry. It is not a release gate and is not run by CI. Without a version it checks the one in `packages/core/package.json`.
 
 No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced. The existing Ubuntu CI Verify job runs every release gate, including `verify:worker-core`.
 
