@@ -4,7 +4,7 @@ title: Release prep 0.3.0 — synchronized version bump, README, PLAN.md
 epic: Release
 audit_ref: —
 priority: P0
-status: in-review
+status: done
 depends_on: [WVR-016, WVR-025, WVR-033]
 estimate: S
 ---
@@ -140,3 +140,4 @@ Merged and tagged by the maintainer.
 - 2026-10-10: **tarball contents.** The listings are unchanged from the post-F1 state: core 439 entries, web 126, mcp 10. The F1 change is still the only listing change from the earlier 443.
 - 2026-10-10: **API diff, cada149 baseline.** Core 244 exports, web 57, mcp 14. **Removed: 0.** Added: 40, unchanged from the previous round (core 38, web 2). Changed: 3, the same as before. The fix changed no exported type.
 - 2026-10-10: **fresh export, CI order, at `987d73d`.** Via `git archive`. Frozen install: exit 0. `check:generated`: exit 0. `check:docs` with the explicit file list: 159 OK. `typecheck`: exit 0. `test`: 719 pass. `build`: exit 0. `verify:packages`: exit 0, 3 tarballs. `verify:worker-core`: exit 0. The final HEAD after this entry is exported and run the same way; the result is in the report.
+- 2026-10-11: **merged and tagged; done.** PR cyruslayo/weaver#33 (branch `claude/busy-allen-uf99ec`) merged to `main` as merge commit `062df5a`. CI run 54 on that commit: success. The maintainer created the annotated tag `v0.3.0` on `062df5a` (unsigned), pushed 2026-10-10 23:44 UTC. Definition of done ("Merged and tagged by the maintainer") is met. The maintainer then published `@cylayo/weaver-core@0.3.0`, `@cylayo/weaver-web@0.3.0` and `@cylayo/weaver-mcp@0.3.0` to npm on 2026-10-11 (UTC), in that order, with `pnpm --filter <pkg> publish --access public --no-git-checks` from a checkout of `v0.3.0`. The follow-up work is recorded in WVR-081 and in the two new follow-ups WVR-067 and WVR-068.
