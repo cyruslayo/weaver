@@ -265,6 +265,10 @@ Complete. Tagged `v0.3.0` on 2026-10-10 and published to npm on 2026-10-11 (see 
 
 Complete, pending review. The three packages are installed from npm at 0.3.0 by `pnpm verify:registry [version]`, which runs the consumer, snippet, Quick Start and Worker checks against the registry installs. It is manual and not part of `verify:packages` or CI. `docs/packaging.md` states the 0.x semver policy. The README Quick Start has one browser, one Worker and one deterministic example, and `verify:packages` and `verify:registry` compile and run them. No package source, version or lockfile changed.
 
+## Task 93 — Package READMEs and npm keywords (WVR-070)
+
+Complete, pending review. Each package has a `README.md`, which npm shows on its package page, and each `package.json` has a `keywords` array. `pnpm verify:packages` compiles and runs the one example in each README, and it checks that the READMEs have no relative links and that each repository link names an existing file. The packed tarballs include the README. No package source, version or lockfile changed. The READMEs reach npm with the next published version, not 0.3.0.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

@@ -116,6 +116,8 @@ After a release is on the npm registry, run the registry check by hand:
 pnpm verify:registry 0.3.0
 ```
 
+`pnpm verify:packages` also checks each package README (`packages/*/README.md`): it compiles and runs the README example, and it requires absolute links that point to files in the repository.
+
 It installs `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` at that exact version into a temporary consumer outside the workspace. It then runs the TypeScript and ESM consumer checks, the documentation and Quick Start snippets, and the Worker smoke against the registry Core. The check only reads the registry. It is not a release gate and is not run by CI. Without a version it checks the one in `packages/core/package.json`.
 
 No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced. The existing Ubuntu CI Verify job runs every release gate, including `verify:worker-core`.
