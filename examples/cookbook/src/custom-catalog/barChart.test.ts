@@ -127,6 +127,14 @@ test("the accessible name and the fallback table are present", () => {
   assert.match(table.getAttribute("style") ?? "", /clip: rect\(0 0 0 0\)/, "the table is visually hidden, not removed");
 });
 
+test("the SVG keeps the narrow viewBox and the 320px height cap that the real-browser sizing check depends on", () => {
+  const { target } = renderDirect({ title: "T", values: [{ label: "Open", value: 2 }], maxBars: 3 });
+  const svg = target.querySelector("svg");
+  assert.ok(svg !== null, "the svg must render");
+  assert.equal(svg.getAttribute("viewBox"), "0 0 220 200");
+  assert.match(svg.getAttribute("style") ?? "", /max-height: 320px/, "the svg has a height cap");
+});
+
 test("negative and non-numeric values are clamped to zero and draw no bar", () => {
   const values = [{ label: "Refunds", value: -4 }, { label: "Open", value: 2 }, { label: "Broken", value: "many" }, "skipped"];
   const model = barChartModel({ title: "T", values: values as unknown as HydratedValue, maxBars: 10 });
