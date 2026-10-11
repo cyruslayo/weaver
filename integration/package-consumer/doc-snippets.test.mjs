@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { docSnippets } from "./doc-snippets.mjs";
+import { docSnippets, quickstartSnippets } from "./doc-snippets.mjs";
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const SOURCES = ["README.md", "docs/prompt-generation.md", "docs/debugging.md", "docs/custom-catalogs.md"];
@@ -60,4 +60,15 @@ test("a CRLF custom-catalogs doc drops the from-marked block and keeps the runna
 
   const customCatalogs = (await docSnippets(root)).filter((snippet) => snippet.name.startsWith("docs-custom-catalogs-"));
   assert.deepEqual(customCatalogs, [{ name: "docs-custom-catalogs-0.ts", source: "const runnable = 2;\n" }]);
+});
+
+test("CRLF README yields the same Quick Start blocks as LF README", async (t) => {
+  const lfRoot = await fixtureRoot(await realTexts((text) => text));
+  const crlfRoot = await fixtureRoot(await realTexts(toCrlf));
+  t.after(() => Promise.all([rm(lfRoot, { recursive: true, force: true }), rm(crlfRoot, { recursive: true, force: true })]));
+
+  const lf = await quickstartSnippets(lfRoot);
+  const crlf = await quickstartSnippets(crlfRoot);
+  assert.equal(lf.length, 3, "the LF fixture must yield the three Quick Start blocks");
+  assert.deepEqual(crlf, lf);
 });

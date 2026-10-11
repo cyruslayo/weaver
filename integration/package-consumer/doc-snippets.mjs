@@ -92,7 +92,7 @@ const QUICKSTART_BLOCK_NAMES = ["quickstart-browser.ts", "quickstart-worker.ts",
  * @returns {Promise<{ name: string, source: string }[]>}
  */
 export async function quickstartSnippets(root) {
-  const readme = await readFile(path.join(root, "README.md"), "utf8");
+  const readme = await readText(path.join(root, "README.md"));
   const heading = QUICKSTART_HEADING.exec(readme);
   if (!heading) throw new Error(`README.md must contain a "## Quick Start" heading`);
   const afterHeading = readme.slice(heading.index + heading[0].length);
