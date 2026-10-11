@@ -217,3 +217,38 @@ test.describe("trace inspector", () => {
     await expect(page.locator("#step-summary")).toContainText(`Step 1 of ${STEP_COUNT}:`);
   });
 });
+
+test.describe("WVR-063 Row layout", () => {
+  // A second trace with a Row whose children are wide: a Card and a TextField, both holding a long unbroken value.
+  const ROW_TRACE_PATH = fileURLToPath(new URL("../samples/row-layout.weaver-trace.json", import.meta.url));
+  const ROW_STEP_COUNT = 4;
+
+  async function loadRowTrace(page: Page): Promise<void> {
+    await openInspector(page);
+    await page.locator("#trace-file").setInputFiles(ROW_TRACE_PATH);
+    await expect(page.locator("#source-status")).toContainText('Loaded file "row-layout.weaver-trace.json"');
+    await expect(page.locator("#load-error")).toBeHidden();
+    await expect(page.locator("#step-summary")).toContainText(`Step 1 of ${ROW_STEP_COUNT}:`);
+  }
+
+  test("the Row trace loads with no load error, and has no horizontal overflow on load and at each step", async ({ page }) => {
+    await loadRowTrace(page);
+    await expectNoHorizontalOverflow(page, "Row trace load");
+    for (let step = 2; step <= ROW_STEP_COUNT; step += 1) {
+      await page.locator("#next").click();
+      await expect(page.locator("#step-summary")).toContainText(`Step ${step} of ${ROW_STEP_COUNT}:`);
+      await expectNoHorizontalOverflow(page, `Row trace step ${step}`);
+    }
+  });
+
+  test("the rendered Row has computed flex-wrap: wrap", async ({ page }) => {
+    await loadRowTrace(page);
+    await page.locator("#timeline").getByRole("button", { name: /^3\. message/ }).click();
+    await expect(page.locator("#step-summary")).toContainText(`Step 3 of ${ROW_STEP_COUNT}:`);
+    const row = page.locator('#stage [data-a2ui-component="Row"]');
+    await expect(row).toHaveCount(1);
+    const flexWrap = await row.evaluate((el) => getComputedStyle(el).flexWrap);
+    expect(flexWrap, "the Row must wrap (inspector.css Row rule)").toBe("wrap");
+    await expectNoHorizontalOverflow(page, "Row trace with the Row rendered");
+  });
+});
