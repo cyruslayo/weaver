@@ -89,6 +89,16 @@ pnpm verify:worker-core
 
 Core, Web, and MCP release together at one synchronized version. During `0.x`, version bumps remain deliberate manual updates across all three manifests; `WEAVER_CORE_VERSION` in `packages/core/src/index.ts` must be updated with each release version.
 
+Semver policy while Weaver is `0.x`:
+
+- A MINOR bump (`0.3.0` to `0.4.0`) may contain breaking changes. Each one is called out in `CHANGELOG.md` with an upgrade note.
+- A PATCH bump (`0.3.0` to `0.3.1`) is for bug fixes.
+- The three packages always share one version. Web and MCP peer on Core with the range `0.N.x`, where `0.N` is the current minor, so a MINOR release also moves both peer ranges.
+- `WEAVER_CORE_VERSION` is updated in every release.
+- A deprecation is noted in the `CHANGELOG.md` entry of the release that introduces it, with its replacement when one exists.
+
+This policy covers the `0.x` line only. It makes no promise about a future 1.0.
+
 The release gates above remain the readiness checks for any release:
 
 ```sh
