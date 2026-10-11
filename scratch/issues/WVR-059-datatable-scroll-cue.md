@@ -4,7 +4,7 @@ title: DataTable shows a cue when columns are hidden off-screen at narrow widths
 epic: F Follow-ups
 audit_ref: follow-up to WVR-057 (browser review)
 priority: P2
-status: ready
+status: in-progress
 depends_on: []
 estimate: S
 ---
@@ -77,3 +77,21 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
 
 ## Log
 - 2026-10-10: created from the WVR-024/057 browser review. Status `ready`, no dependencies. Measured at 360px: wrapper `clientWidth` 236, `scrollWidth` 455. Order fully visible, Customer 133 of 143px visible, Status and Total 0px visible. At 1280px `clientWidth` and `scrollWidth` are both 612.
+- 2026-10-11: started on branch `wvr-059-scroll-cue` from `a314299` (Merge PR #41). Status `in-progress`.
+  - **Approach chosen: option 1, a CSS scroll shadow, with a small listener.** Pure CSS cannot meet
+    "removed once scrolled to the end" on its own. A `background-attachment: scroll` shadow stays at
+    the visible right edge at every scroll position, and a `local` cover would leave a non-`none`
+    background-image at 1280px, so the cue could not be "absent" there. The renderer therefore sets
+    the gradient as an inline `background-image` only while `scrollWidth > clientWidth` and the wrapper
+    is not at its end. It re-checks on `scroll`, and on `ResizeObserver` for the wrapper and the table
+    (which covers resize and Refresh). The issue's option 1 text allows this ("a scroll-end state may
+    need a small listener"). No DOM structure changes, no focusable element is added, and no new
+    dependency.
+  - Before-change browser measurement (`examples/cookbook`, built, `vite preview` on 4173, Chromium via
+    `node` and the cookbook's `@playwright/test`; script in the session scratchpad, output
+    `wvr059-measure-before.json`):
+    - 360px (viewport 360x780): `clientWidth` 236, `scrollWidth` 455, `scrollLeft` 0, `backgroundImage` `none`, `maskImage` `none`. After `scrollLeft = scrollWidth`: `scrollLeft` 219, `backgroundImage` `none`. Page `scrollWidth - innerWidth` 0.
+    - 1280px (viewport 1280x900): `clientWidth` 612, `scrollWidth` 612, `backgroundImage` `none`. Page overflow 0.
+    - Role `region`, tabindex `0`, name `Orders` at both widths.
+  - Baseline before change: `pnpm --filter @weaver/cookbook test` exit 0, 99 tests pass, 0 fail.
+    `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/cookbook e2e` exit 0, 40 passed.
