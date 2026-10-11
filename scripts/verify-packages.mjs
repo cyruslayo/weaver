@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { docSnippets } from "../integration/package-consumer/doc-snippets.mjs";
+import { docSnippets, quickstartSnippets } from "../integration/package-consumer/doc-snippets.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const fail = (message) => { throw new Error(message); };
@@ -129,7 +129,7 @@ if (JSON.stringify(artifactFiles) !== JSON.stringify(specs.map((spec) => spec.fi
 
 const consumer = path.join(temp, "consumer");
 await mkdir(consumer);
-for (const file of ["consumer.ts", "smoke.mjs", "tsconfig.json", "tsconfig.doc-snippets.json"]) await cp(path.join(root, "integration", "package-consumer", file), path.join(consumer, file));
+for (const file of ["consumer.ts", "smoke.mjs", "quickstart-check.mjs", "tsconfig.json", "tsconfig.doc-snippets.json"]) await cp(path.join(root, "integration", "package-consumer", file), path.join(consumer, file));
 for (const spec of specs) await cp(path.join(root, "artifacts", spec.file), path.join(consumer, spec.file));
 const fixtureManifest = parseJson(await readFile(path.join(root, "integration", "package-consumer", "package.json"), "utf8"), "package consumer fixture package.json");
 for (const spec of specs) fixtureManifest.dependencies[spec.name] = `file:./${spec.file}`;
@@ -142,11 +142,12 @@ run("pnpm", ["run", "smoke"], { cwd: consumer, stdio: "pipe" });
 const snippetDir = path.join(consumer, "doc-snippets");
 await mkdir(snippetDir);
 const snippets = await docSnippets(root);
-for (const snippet of snippets) await writeFile(path.join(snippetDir, snippet.name), snippet.source);
+const quickstart = await quickstartSnippets(root);
+for (const snippet of [...snippets, ...quickstart]) await writeFile(path.join(snippetDir, snippet.name), snippet.source);
 try {
   run("pnpm", ["exec", "tsc", "-p", "tsconfig.doc-snippets.json"], { cwd: consumer, stdio: "pipe" });
 } catch (error) {
-  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, docs-debugging-N.ts is block N of docs/debugging.md, and docs-custom-catalogs-N.ts is runnable block N of docs/custom-catalogs.md (blocks marked "<!-- from: path -->" are excluded).\n${error.message}`);
+  fail(`Documentation snippets failed to compile. docs-prompt-generation-N.ts is block N of docs/prompt-generation.md, docs-debugging-N.ts is block N of docs/debugging.md, and docs-custom-catalogs-N.ts is runnable block N of docs/custom-catalogs.md (blocks marked "<!-- from: path -->" are excluded). quickstart-browser.ts, quickstart-worker.ts and quickstart-deterministic.ts are the README "## Quick Start" ts blocks, in order.\n${error.message}`);
 }
 for (const snippet of snippets) {
   try {
@@ -154,6 +155,11 @@ for (const snippet of snippets) {
   } catch (error) {
     fail(`Documentation snippet ${snippet.name} failed to run.\n${error.message}`);
   }
+}
+try {
+  console.log(run(process.execPath, ["--experimental-strip-types", "--no-warnings", "quickstart-check.mjs", "doc-snippets"], { cwd: consumer, stdio: "pipe" }).trimEnd());
+} catch (error) {
+  fail(`README Quick Start examples failed against the packed packages.\n${error.message}`);
 }
 console.log(`Ran ${snippets.length} documentation snippets against the packed packages`);
 const corePackagePathParts = expectedNames.core.split("/");

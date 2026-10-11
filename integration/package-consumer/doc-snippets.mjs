@@ -79,3 +79,28 @@ export async function docSnippets(root) {
     ...customCatalogsBlocks.map((source, index) => ({ name: `docs-custom-catalogs-${index}.ts`, source })),
   ];
 }
+
+const QUICKSTART_HEADING = /^## Quick Start[ \t]*$/m;
+const QUICKSTART_NEXT_HEADING = /^## /m;
+const QUICKSTART_BLOCK_NAMES = ["quickstart-browser.ts", "quickstart-worker.ts", "quickstart-deterministic.ts"];
+
+/**
+ * The Quick Start ts blocks in README.md, in document order: browser, Worker, deterministic.
+ * They are the ts blocks between "## Quick Start" and the next "## " heading. Throws unless there
+ * are exactly three. The verifiers typecheck them, and run them with quickstart-check.mjs.
+ * @param {string} root repository root
+ * @returns {Promise<{ name: string, source: string }[]>}
+ */
+export async function quickstartSnippets(root) {
+  const readme = await readFile(path.join(root, "README.md"), "utf8");
+  const heading = QUICKSTART_HEADING.exec(readme);
+  if (!heading) throw new Error(`README.md must contain a "## Quick Start" heading`);
+  const afterHeading = readme.slice(heading.index + heading[0].length);
+  const next = afterHeading.search(QUICKSTART_NEXT_HEADING);
+  const section = next < 0 ? afterHeading : afterHeading.slice(0, next);
+  const blocks = tsBlocks(section);
+  if (blocks.length !== QUICKSTART_BLOCK_NAMES.length) {
+    throw new Error(`README.md "## Quick Start" must contain exactly ${QUICKSTART_BLOCK_NAMES.length} ts blocks (browser, Worker, deterministic), found ${blocks.length}`);
+  }
+  return blocks.map((source, index) => ({ name: QUICKSTART_BLOCK_NAMES[index], source }));
+}
