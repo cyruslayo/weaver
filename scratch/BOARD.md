@@ -41,15 +41,19 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-064](issues/WVR-064-render-budget-error-surface-id.md) | Render-budget failures carry the surface id in describeWebRenderError | F Follow-ups | P2 | `done` | — | S |
 | [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `done` | — | M |
 | [WVR-066](issues/WVR-066-absolute-path-in-list-template.md) | An absolute path inside a List template renders empty with no diagnostic | F Follow-ups | P2 | `done` | — | S |
-| [WVR-067](issues/WVR-067-crlf-doc-snippet-checkout.md) | Doc-snippet checker and checkouts tolerate CRLF (Windows) | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-067](issues/WVR-067-crlf-doc-snippet-checkout.md) | Doc-snippet checker and checkouts tolerate CRLF (Windows) | F Follow-ups | P2 | `done` | — | S |
 | [WVR-068](issues/WVR-068-action-dispatcher-cyclic-local-result.md) | ActionDispatcher: guard host localFunction results against cyclic values | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
-| [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `ready` | WVR-060 | M |
+| [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `done` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
 **Totals:** done: 33, ready: 6, gated: 3 (42 issues)
 
-## Start here (6 ready; 33 done)
+## Start here (4 ready; 35 done)
+
+As of 2026-10-11, WVR-067 (cyruslayo/weaver#35, merge commit `4c84f84`) and WVR-081
+(cyruslayo/weaver#36, merge commit `69ac7e9`) are merged to `main` and are `done`. Their
+Logs record the evidence.
 
 As of 2026-10-11, WVR-060 is merged to `main` in cyruslayo/weaver#33 (merge commit
 `062df5a`), tagged `v0.3.0`, and `done`. The three packages are published to npm:
@@ -68,19 +72,8 @@ and `docs/PLAN.md` tasks 88 to 90 record its change.
 
 Ready, in lane order (pick the lowest ID inside the highest priority):
 
-Release lane:
-
-- **WVR-081**, P1, Gated lane, M. Publish `@cylayo/weaver-*` to npm (0.3.0 is published). Its
-  Gate is met and it is `ready`. Remaining: a semver policy note in `docs/packaging.md`, a
-  registry-specifier run of `integration/package-consumer` (TypeScript, ESM) with the Worker
-  smoke, and the README install section as a verified Quick Start. The acceptance boxes stay
-  unticked until those are done (see its Log).
-
 F Follow-ups lane (no dependencies; all P2). These are candidates for a 0.3.1 patch release:
 
-- **WVR-067**, S. Doc-snippet checker and checkouts tolerate CRLF. Adds `.gitattributes`
-  (`* text=auto eol=lf`), makes `integration/package-consumer/doc-snippets.mjs` tolerate CRLF,
-  and documents the Windows setup in `docs/packaging.md`.
 - **WVR-068**, S. `ActionDispatcher` guards host `localFunction` results against cyclic values.
   Write a failing reproduction first, then return a typed error. Not reproduced yet; predates 0.3.0.
   Touches `packages/core/src/actions/ActionDispatcher.ts` (around line 198).
@@ -118,9 +111,9 @@ E3: 031 → 032 → 033
               └→ 034 (also needs 024, 041)
 E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
-Release: {016, 025, 033} → 060 (done) → 081 (ready)
+Release: {016, 025, 033} → 060 (done) → 081 (done)
 Bench:   {013, 044} → 080 (gated)
-F:       058, 062, 064, 065, 066 (done); 059, 061, 063, 067, 068 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
+F:       058, 062, 064, 065, 066, 067 (done); 059, 061, 063, 068 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```
 
 ## Milestones
@@ -130,5 +123,5 @@ F:       058, 062, 064, 065, 066 (done); 059, 061, 063, 067, 068 (ready); no dep
 - **M2, "See it"**: E2 done. Trace, replay, and the inspector.
 - **M3, "Show it"**: E4 and E5 done. A realistic cookbook and a custom
   component recipe.
-- **M4, "Ship it"**: WVR-060 done (0.3.0), and the packages are on npm. Then WVR-081
-  (npm follow-up, now `ready`) and the gated decision WVR-080 (benchmark).
+- **M4, "Ship it"**: WVR-060 and WVR-081 are done (0.3.0 is released, and the packages are on
+  npm). The gated decision remaining is WVR-080 (benchmark).

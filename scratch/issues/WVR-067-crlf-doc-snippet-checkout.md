@@ -4,7 +4,7 @@ title: Doc-snippet checker and checkouts tolerate CRLF (Windows)
 epic: F Follow-ups
 audit_ref: follow-up to WVR-060 (0.3.0 release, Windows verification)
 priority: P2
-status: in-review
+status: done
 depends_on: []
 estimate: S
 ---
@@ -102,3 +102,5 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
 - 2026-10-11: not covered: `examples/cookbook/src/custom-catalog/customCatalogDoc.test.ts` has its own `\n`-only regex
   over `docs/custom-catalogs.md`. On a checkout that still has CRLF (for example one made before `.gitattributes`), that
   cookbook test would still fail under `pnpm test`. Out of scope here, so it is left for a follow-up.
+- 2026-10-11: **done.** Merged to `main` in cyruslayo/weaver#35 (merge commit `4c84f84`). CI `Verify` is green. All four acceptance boxes are ticked, on the evidence above.
+  - Known gap, recorded as a note and not a new issue: `examples/cookbook/src/custom-catalog/customCatalogDoc.test.ts` has its own `\n`-only regex over `docs/custom-catalogs.md`. It only matters for an old CRLF checkout made before `.gitattributes`, which `docs/packaging.md` tells people to reset. This issue does not change it.
