@@ -4,27 +4,38 @@ title: ActionDispatcher: guard host localFunction results against cyclic values
 epic: F Follow-ups
 audit_ref: follow-up to WVR-060 (observer audit, 0.3.0); predates 0.3.0
 priority: P2
-status: in-progress
+status: done
 depends_on: []
 estimate: S
 ---
 
 ## Context
-`packages/core/src/actions/ActionDispatcher.ts` returns a host `localFunction` result with
-`cloneJson(evaluated.value)` (around line 198). `cloneJson` is in `packages/core/src/data-model/clone.ts`.
-It is iterative and has no cycle check, so a host function that returns a cyclic value, or a
-non-JSON value that `cloneJson` cannot copy, can hang or exhaust the heap. The host contract says
-the result is `JsonValue`, but nothing checks it at this call site.
+**Verdict: already guarded. No code fix is needed.** A host `localFunction` result that contains a
+cycle is rejected before the dispatcher copies it, and the reproduction test pins that behaviour.
 
-This is expected to hang `dispatchAction` even without an observer. It was found by reading the
-code during the WVR-060 observer audit (see WVR-060's Log, 2026-10-10 "audit" entry). It has
-**not been reproduced yet**, and it predates 0.3.0.
+The guard, traced from the action entry point:
 
-The observer-side hang was fixed in WVR-060. The observer now checks every caller-supplied payload
-with the cycle-aware `isJsonValue` before any clone (`packages/core/src/runtime/WeaverRuntime.ts`).
-This issue covers the dispatcher's own copy, which the observer fix does not touch.
+- `packages/core/src/functions/FunctionEvaluator.ts:316` calls `validReturnValue(result, definition.returnType)`.
+  `validReturnValue` (`:109-114`) calls `isJsonSafe` (`:36-76`), which is cycle-aware: its `active` set
+  detects a value that contains itself.
+- A rejected value returns `FUNCTION_RETURN_TYPE_MISMATCH` (`:316-329`). The dispatcher reports it as
+  `ACTION_DISPATCH_FAILED > LOCAL_FUNCTION_FAILED > FUNCTION_RETURN_TYPE_MISMATCH`.
+- Only a JSON-safe value reaches the evaluator's clone (`FunctionEvaluator.ts:332`) and the dispatcher's
+  `cloneJson` (`packages/core/src/actions/ActionDispatcher.ts:198`). `cloneJson`
+  (`packages/core/src/data-model/clone.ts`) still has no cycle check, but on this path it never receives a cycle.
+- The published `@cylayo/weaver-core@0.3.0` behaves the same way: a cyclic result returns the typed error in 2 ms.
+
+**Original suspicion (disproved).** The issue said a host `localFunction` result with a cycle would hang
+`dispatchAction`, because `cloneJson` at `ActionDispatcher.ts:198` has no cycle check and the dispatcher
+does not validate the result. Both halves are true of the code, but the value is rejected at
+`FunctionEvaluator.ts:316` before it reaches that line, so the hang does not happen.
+
+Other problems found while verifying this (a throwing getter that escapes `dispatchAction`, and a shared-reference
+value that blows up the walk) are not cycles and are not covered here. They are filed as WVR-069.
 
 ## Scope
+Closed without a code change. The Scope items below were written before the guard was found, and none of them
+is needed. The reproduction test is the only deliverable.
 - Write a failing reproduction first: a host `localFunction` that returns a cyclic object, run
   through `dispatchAction` with no observer.
 - Make the dispatcher return a typed error for a result that is not JSON-safe, instead of cloning
@@ -47,21 +58,29 @@ This issue covers the dispatcher's own copy, which the observer fix does not tou
 - `scratch/issues/WVR-068-action-dispatcher-cyclic-local-result.md`, `scratch/BOARD.md`
 
 ## Acceptance criteria
-- [ ] A failing reproduction is written first. It runs in a child process with `--max-old-space-size`
-      and a timeout, as in `packages/core/src/runtime/observerCyclicPayloads.test.ts`, so a hang
-      fails the suite and does not block it. The Log records that it failed before the fix.
-- [ ] The dispatcher returns a typed error for a host `localFunction` result that is not JSON-safe.
-      The error is described by `describeWeaverError`.
-- [ ] No behaviour change for valid results: existing dispatcher and runtime tests pass without edits.
-- [ ] `pnpm conformance:v0.9.1` passes, since Core behaviour changed on an error path.
+- [x] A child-process reproduction exists and passes. It is `packages/core/src/actions/ActionDispatcher.cyclicLocalResult.test.ts`,
+      run with `--max-old-space-size=128` and a 10 s timeout, and registered in `packages/core/package.json`.
+- [x] It covers cyclic object, cyclic array, cyclic `void`, BigInt, function, `Map`, `NaN`/`Infinity`, and an
+      `undefined` member. Each returns the typed error `FUNCTION_RETURN_TYPE_MISMATCH`.
+- [x] Observer and no-observer results are identical for every host result.
+- [x] Valid results are unchanged: a plain object is copied, and a 100 000-deep acyclic chain is still returned.
+      Existing tests pass without edits (437 before the new file).
+- [x] The mutation check shows the test fails when the guard is removed (see Log).
+- [ ] not applicable: already guarded. "A failing reproduction is written first ... fails before the fix." The
+      reproduction passes at `574f4c8`, because the guard already exists at `FunctionEvaluator.ts:316`. It is a
+      passing pin, and the mutation check is the evidence that it bites.
+- [ ] not applicable: already guarded. "The dispatcher returns a typed error for a non-JSON-safe result." The typed
+      error already comes from `FunctionEvaluator.ts:316`. The dispatcher was not changed, and no new error code was added.
+- [x] `pnpm conformance:v0.9.1` passes (Core 442/442, Web 139/139).
 
 ## Verification
-- The reproduction test, failing before the fix and passing after it. Record both runs in the Log.
-- `pnpm --filter @cylayo/weaver-core test`, `pnpm typecheck`, `pnpm conformance:v0.9.1`.
-- `pnpm check:docs` if any Markdown changed.
+- `pnpm --filter @cylayo/weaver-core test`: 442 pass, 0 fail.
+- Mutation check: compiled `dist/functions/FunctionEvaluator.js:253` changed to `if (false)` in a scratch copy. The child
+  dies with SIGABRT and 5 of 5 tests fail.
+- `pnpm typecheck`: exit 0. `pnpm check:docs`: 166/166 links OK. `pnpm conformance:v0.9.1`: exit 0.
 
 ## Definition of done
-Merged to `main`, with every acceptance criterion ticked on evidence.
+Closed: no code fix needed; regression test merged.
 
 ## Log
 - 2026-10-11: created from the WVR-060 observer audit. Status `ready`, no dependencies. Not reproduced
@@ -166,3 +185,21 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
   Pinning them would lock in behaviour that the owner has not decided.
 
   Acceptance boxes were not ticked. `scratch/BOARD.md` was not touched.
+- 2026-10-11 phase 2 (reproduction and mutation check, branch `wvr-068-close`, base `574f4c8`):
+  - Cherry-picked `ba19c37` (the test and its `package.json` entry) as `ce5b943`, and `0f78b48` (the verdict log)
+    as `732f03a`. Both applied without conflict.
+  - `pnpm --filter @cylayo/weaver-core test` → `# tests 442 / # pass 442 / # fail 0` (437 + 5).
+  - Mutation check. A scratch copy of the built `packages/core/dist` (outside the repo) had the return-value check at
+    compiled `dist/functions/FunctionEvaluator.js:253` changed from `if (!validReturnValue(...))` to `if (false)`.
+    The new test, run against that copy, failed 5 of 5. Each child died with `signal SIGABRT` after about 0.9 s, with
+    the heap exhausted in `cloneJson`. Source was not edited.
+- 2026-10-11 closure: **already guarded. Status `done`.**
+  - The premise is false. A cyclic host `localFunction` result is rejected at `FunctionEvaluator.ts:316`
+    (`validReturnValue` → cycle-aware `isJsonSafe`, `:36-76`) with `FUNCTION_RETURN_TYPE_MISMATCH`, before
+    `FunctionEvaluator.ts:332` or `ActionDispatcher.ts:198` clones it. The missing cycle check in `cloneJson` is never reached.
+  - Confirmed against the published `@cylayo/weaver-core@0.3.0`: a cyclic result returns the typed error in 2 ms.
+  - The test is kept as a regression pin. The acceptance items that assumed a failing reproduction and a dispatcher
+    change are marked not applicable, with the reason in the list.
+  - Two other defects found while verifying are not cycles. They are filed as **WVR-069**: a shared-reference DAG
+    that blows up `isJsonSafe` and `cloneJson` (and the observer's `isJsonValue`), and a throwing getter that escapes
+    `dispatchAction` as a raw `Error`.
