@@ -22,6 +22,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+/** Reads a UTF-8 text file with LF line endings. A CRLF checkout (core.autocrlf=true) must extract the same blocks. */
+const readText = async (file) => (await readFile(file, "utf8")).replace(/\r\n/g, "\n");
+
 const README_SECTION_START = "### Prompt generation";
 const README_SECTION_END = "### Core only (any platform)";
 const DOC_MIN_EXAMPLES = 3;
@@ -40,7 +43,7 @@ function tsBlocks(text) {
  * @returns {Promise<{ name: string, source: string }[]>}
  */
 export async function docSnippets(root) {
-  const readme = await readFile(path.join(root, "README.md"), "utf8");
+  const readme = await readText(path.join(root, "README.md"));
   const start = readme.indexOf(README_SECTION_START);
   const end = readme.indexOf(README_SECTION_END);
   if (start < 0 || end < start) {
@@ -51,19 +54,19 @@ export async function docSnippets(root) {
     throw new Error(`README.md "${README_SECTION_START}" must contain exactly one ts block, found ${readmeBlocks.length}`);
   }
 
-  const doc = await readFile(path.join(root, "docs", "prompt-generation.md"), "utf8");
+  const doc = await readText(path.join(root, "docs", "prompt-generation.md"));
   const docBlocks = tsBlocks(doc);
   if (docBlocks.length < DOC_MIN_EXAMPLES) {
     throw new Error(`docs/prompt-generation.md must contain at least ${DOC_MIN_EXAMPLES} ts blocks, found ${docBlocks.length}`);
   }
 
-  const debugging = await readFile(path.join(root, "docs", "debugging.md"), "utf8");
+  const debugging = await readText(path.join(root, "docs", "debugging.md"));
   const debuggingBlocks = tsBlocks(debugging);
   if (debuggingBlocks.length < DEBUGGING_MIN_EXAMPLES) {
     throw new Error(`docs/debugging.md must contain at least ${DEBUGGING_MIN_EXAMPLES} ts blocks, found ${debuggingBlocks.length}`);
   }
 
-  const customCatalogs = await readFile(path.join(root, "docs", "custom-catalogs.md"), "utf8");
+  const customCatalogs = await readText(path.join(root, "docs", "custom-catalogs.md"));
   const customCatalogsBlocks = tsBlocks(customCatalogs.replace(FROM_MARKED_BLOCK, ""));
   if (customCatalogsBlocks.length < CUSTOM_CATALOGS_MIN_EXAMPLES) {
     throw new Error(`docs/custom-catalogs.md must contain at least ${CUSTOM_CATALOGS_MIN_EXAMPLES} runnable ts block, found ${customCatalogsBlocks.length}`);

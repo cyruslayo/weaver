@@ -59,6 +59,19 @@ It packs Core, installs the tarball in an isolated non-workspace consumer, and e
 
 An external repository can then install the generated `.tgz` files by relative path. It must not copy Weaver source or use workspace/link dependencies.
 
+### Windows
+
+The repository's `.gitattributes` sets `* text=auto eol=lf`, so a clone has LF files even when `core.autocrlf` is `true`. You can also run `git config core.autocrlf false` before cloning. Packed files are LF either way, and `pnpm verify:packages` is expected to pass on a Windows checkout.
+
+If you cloned before `.gitattributes` existed, your working tree may hold CRLF files. Save any work you need first, then reset the checkout to the committed LF files:
+
+```sh
+git rm -r --cached .
+git reset --hard
+```
+
+`git reset --hard` discards uncommitted changes to tracked files. Untracked files, such as `artifacts/` and `node_modules/`, are kept.
+
 ## Release candidate gate
 
 Run these visible checks:
