@@ -42,14 +42,22 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `done` | — | M |
 | [WVR-066](issues/WVR-066-absolute-path-in-list-template.md) | An absolute path inside a List template renders empty with no diagnostic | F Follow-ups | P2 | `done` | — | S |
 | [WVR-067](issues/WVR-067-crlf-doc-snippet-checkout.md) | Doc-snippet checker and checkouts tolerate CRLF (Windows) | F Follow-ups | P2 | `done` | — | S |
-| [WVR-068](issues/WVR-068-action-dispatcher-cyclic-local-result.md) | ActionDispatcher: guard host localFunction results against cyclic values | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-068](issues/WVR-068-action-dispatcher-cyclic-local-result.md) | ActionDispatcher: guard host localFunction results against cyclic values | F Follow-ups | P2 | `done` | — | S |
+| [WVR-069](issues/WVR-069-shared-reference-json-and-throwing-getter.md) | Reject shared-reference JSON values and typed errors for throwing getters | F Follow-ups | P2 | `ready` | — | M |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `done` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 33, ready: 6, gated: 3 (42 issues)
+**Totals:** done: 36, ready: 4, gated: 3 (43 issues)
 
-## Start here (4 ready; 35 done)
+## Start here (4 ready; 36 done)
+
+As of 2026-10-11, WVR-068 was closed as already guarded. The reproduction test
+(`packages/core/src/actions/ActionDispatcher.cyclicLocalResult.test.ts`) is merged as a regression
+pin, and no code fix was needed. The guard is at
+`packages/core/src/functions/FunctionEvaluator.ts:316`. WVR-069 was filed for two related
+problems found while verifying it: shared-reference values and throwing getters. Its Log
+records the evidence.
 
 As of 2026-10-11, WVR-067 (cyruslayo/weaver#35, merge commit `4c84f84`) and WVR-081
 (cyruslayo/weaver#36, merge commit `69ac7e9`) are merged to `main` and are `done`. Their
@@ -74,9 +82,10 @@ Ready, in lane order (pick the lowest ID inside the highest priority):
 
 F Follow-ups lane (no dependencies; all P2). These are candidates for a 0.3.1 patch release:
 
-- **WVR-068**, S. `ActionDispatcher` guards host `localFunction` results against cyclic values.
-  Write a failing reproduction first, then return a typed error. Not reproduced yet; predates 0.3.0.
-  Touches `packages/core/src/actions/ActionDispatcher.ts` (around line 198).
+- **WVR-069**, M. Reject shared-reference JSON values (a DAG takes 2^N time and can exhaust the heap)
+  and return typed errors for throwing getters, which currently escape `dispatchAction()`.
+  Touches `packages/core/src/functions/FunctionEvaluator.ts`, `packages/core/src/runtime/WeaverRuntime.ts`,
+  and an audit of two other `isJsonValue` copies.
 - **WVR-059**, S. A scroll cue on the cookbook orders-report DataTable when columns are hidden
   off-screen at narrow widths. Touches `examples/cookbook/src/custom-catalog/dataTableRenderer.ts`
   (wrapper, lines 89-101), `dataTableRenderer.test.ts` if needed, and
@@ -113,7 +122,7 @@ E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
 Release: {016, 025, 033} → 060 (done) → 081 (done)
 Bench:   {013, 044} → 080 (gated)
-F:       058, 062, 064, 065, 066, 067 (done); 059, 061, 063, 068 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
+F:       058, 062, 064, 065, 066, 067, 068 (done); 059, 061, 063, 069 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```
 
 ## Milestones
