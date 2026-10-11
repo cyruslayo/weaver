@@ -84,3 +84,95 @@ test("the keyboard activates Refresh, which updates both the table and the chart
   await expect(page.locator('[data-cookbook-component="DataTable"] tbody tr')).toHaveCount(8);
   await expect(page.locator("[data-chart-bar]")).toHaveCount(4);
 });
+
+test.describe("WVR-059 DataTable scroll cue", () => {
+  const WRAPPER = '[data-cookbook-component="DataTable"]';
+
+  /** The table wrapper's overflow, scroll position and computed cue background. */
+  async function cueState(page: Page): Promise<{ clientWidth: number; scrollWidth: number; scrollLeft: number; cue: string }> {
+    return page.evaluate((selector) => {
+      const wrapper = document.querySelector<HTMLElement>(selector);
+      if (wrapper === null) throw new Error("No DataTable wrapper");
+      return {
+        clientWidth: wrapper.clientWidth,
+        scrollWidth: wrapper.scrollWidth,
+        scrollLeft: wrapper.scrollLeft,
+        cue: getComputedStyle(wrapper).backgroundImage,
+      };
+    }, WRAPPER);
+  }
+
+  test("at 360px the cue shows while columns are hidden past the right edge", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await openScreen(page, PATH, HEADING);
+    const state = await cueState(page);
+    expect(state.scrollWidth, "columns overflow the wrapper").toBeGreaterThan(state.clientWidth);
+    expect(state.cue, "the cue is drawn on the wrapper").toContain("linear-gradient");
+  });
+
+  test("at 1280px nothing overflows, so the cue is absent", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openScreen(page, PATH, HEADING);
+    const state = await cueState(page);
+    expect(state.scrollWidth, "no columns are hidden").toBe(state.clientWidth);
+    expect(state.cue, "no cue is drawn").toBe("none");
+  });
+
+  test("at 360px the cue is removed once the table is scrolled to its end, and returns at the start", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await openScreen(page, PATH, HEADING);
+    await expect.poll(async () => (await cueState(page)).cue).toContain("linear-gradient");
+
+    // A horizontal wheel scroll over the region, as a trackpad user would do it, moves the wrapper sideways.
+    const region = page.getByRole("region", { name: "Orders" });
+    await region.hover();
+    await page.mouse.wheel(600, 0);
+    await expect.poll(async () => (await cueState(page)).cue, "the cue is removed at the end").toBe("none");
+    const end = await cueState(page);
+    expect(end.scrollLeft + end.clientWidth, "the wrapper is at its end").toBeGreaterThanOrEqual(end.scrollWidth - 1);
+
+    await page.mouse.wheel(-600, 0);
+    await expect.poll(async () => (await cueState(page)).cue, "the cue returns away from the end").toContain("linear-gradient");
+  });
+});
+
+test.describe("WVR-061 BarChart sizing", () => {
+  /**
+   * The chart's rendered height, and the rendered px size of each text label. The drawing
+   * scale is the smaller of the width and height ratios, so it is right both when the width
+   * sets the scale (360px) and when the height cap does (1280px).
+   */
+  async function chartSizing(page: Page): Promise<{ height: number; labels: { text: string; renderedPx: number }[] }> {
+    return page.evaluate(() => {
+      const svg = document.querySelector<SVGSVGElement>('svg[role="img"]');
+      if (svg === null) throw new Error("the chart must render");
+      const box = svg.getBoundingClientRect();
+      const view = svg.viewBox.baseVal;
+      const scale = Math.min(box.width / view.width, box.height / view.height);
+      const labels = Array.from(svg.querySelectorAll("text")).map((text) => ({
+        text: text.textContent ?? "",
+        renderedPx: parseFloat(getComputedStyle(text).fontSize) * scale,
+      }));
+      return { height: box.height, labels };
+    });
+  }
+
+  test("every BarChart label renders at 11px or more, which at 360px means the narrow layout is readable", async ({ page }) => {
+    await openScreen(page, PATH, HEADING);
+    const width = page.viewportSize()?.width;
+    const { labels } = await chartSizing(page);
+    // Four bars, each with a value label and a category label.
+    expect(labels.length, `value and category labels at ${width}px`).toBe(8);
+    for (const label of labels) {
+      expect(label.renderedPx, `"${label.text}" at ${width}px`).toBeGreaterThanOrEqual(11);
+    }
+  });
+
+  test("the BarChart stays within its 320px height cap, so the wide layout does not grow past it", async ({ page }) => {
+    await openScreen(page, PATH, HEADING);
+    const width = page.viewportSize()?.width;
+    const { height } = await chartSizing(page);
+    expect(height, `chart height at ${width}px`).toBeGreaterThan(0);
+    expect(height, `chart height at ${width}px`).toBeLessThanOrEqual(320);
+  });
+});

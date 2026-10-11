@@ -78,6 +78,41 @@ function alignmentOf(column: DataTableColumn, numeric: boolean): ColumnAlign {
 }
 
 /**
+ * The cue drawn on the wrapper's right edge while columns are hidden past it. A gradient, so no image.
+ * It is a full `background` shorthand, because the size part is not valid on `background-image` alone.
+ */
+const SCROLL_CUE_BACKGROUND =
+  "linear-gradient(to left, rgba(127, 127, 127, 0.4), rgba(127, 127, 127, 0)) right center / 16px 100% no-repeat scroll";
+
+/**
+ * Shows the cue only while the wrapper overflows and is not scrolled to its end. It re-checks on
+ * scroll, and when the wrapper or the table changes size, which covers resize and a new data set.
+ * The 1px tolerance absorbs subpixel layout.
+ */
+function attachScrollCue(wrapper: HTMLElement, table: HTMLElement): void {
+  const update = (): void => {
+    const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+    const hiddenColumns = maxScroll > 1;
+    const atEnd = maxScroll - wrapper.scrollLeft <= 1;
+    wrapper.style.background = hiddenColumns && !atEnd ? SCROLL_CUE_BACKGROUND : "none";
+  };
+  wrapper.addEventListener("scroll", update, { passive: true });
+  if (typeof ResizeObserver === "function") {
+    const observer = new ResizeObserver(() => {
+      // Stop watching once the wrapper has left the page, so the observer does not keep it alive.
+      if (!wrapper.isConnected) {
+        observer.disconnect();
+        return;
+      }
+      update();
+    });
+    observer.observe(wrapper);
+    observer.observe(table);
+  }
+  update();
+}
+
+/**
  * Read-only: the table renders no controls. Row-level actions use a List template of Cards,
  * where each row is a real template instance with its own scope.
  */
@@ -156,6 +191,7 @@ export const renderDataTable: WebComponentRenderer = ({ document, properties }) 
   table.append(body);
 
   wrapper.append(table);
+  attachScrollCue(wrapper, table);
   return wrapper;
 };
 

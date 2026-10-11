@@ -33,11 +33,11 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-056](issues/WVR-056-row-scoped-action-dispatch.md) | Row-scoped action dispatch for DataTable rows | E5 Custom catalog recipe | P1 | `gated` | WVR-052 | M |
 | [WVR-057](issues/WVR-057-cookbook-orders-report-screen.md) | Cookbook orders-report screen that mounts the custom catalog | E5 Custom catalog recipe | P1 | `done` | WVR-052, WVR-053 | S |
 | [WVR-058](issues/WVR-058-basic-button-contrast.md) | Basic primary Button meets WCAG AA contrast (4.5:1) for its small text | F Follow-ups | P1 | `done` | — | S |
-| [WVR-059](issues/WVR-059-datatable-scroll-cue.md) | DataTable shows a cue when columns are hidden off-screen at narrow widths | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-059](issues/WVR-059-datatable-scroll-cue.md) | DataTable shows a cue when columns are hidden off-screen at narrow widths | F Follow-ups | P2 | `done` | — | S |
 | [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `done` | WVR-016, WVR-025, WVR-033 | S |
-| [WVR-061](issues/WVR-061-barchart-sizing.md) | BarChart keeps its label text readable at 360px and stays within a height cap at 1280px | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-061](issues/WVR-061-barchart-sizing.md) | BarChart keeps its label text readable at 360px and stays within a height cap at 1280px | F Follow-ups | P2 | `done` | — | S |
 | [WVR-062](issues/WVR-062-hanging-assertion.md) | No assert.* receives DOM nodes, so a failing Web test reports instead of hanging | F Follow-ups | P2 | `done` | — | S |
-| [WVR-063](issues/WVR-063-playground-row-css-e2e.md) | Exercise the playground inspector's Row layout rules with a trace that contains a Row | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-063](issues/WVR-063-playground-row-css-e2e.md) | Exercise the playground inspector's Row layout rules with a trace that contains a Row | F Follow-ups | P2 | `done` | — | S |
 | [WVR-064](issues/WVR-064-render-budget-error-surface-id.md) | Render-budget failures carry the surface id in describeWebRenderError | F Follow-ups | P2 | `done` | — | S |
 | [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `done` | — | M |
 | [WVR-066](issues/WVR-066-absolute-path-in-list-template.md) | An absolute path inside a List template renders empty with no diagnostic | F Follow-ups | P2 | `done` | — | S |
@@ -46,13 +46,23 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-069](issues/WVR-069-shared-reference-json-and-throwing-getter.md) | Reject shared-reference JSON values and typed errors for throwing getters | F Follow-ups | P2 | `ready` | — | M |
 | [WVR-070](issues/WVR-070-package-readmes.md) | Package READMEs and npm keywords so the npm pages are not empty | F Follow-ups | P2 | `done` | — | S |
 | [WVR-071](issues/WVR-071-release-0.3.1.md) | Release prep 0.3.1 — docs and metadata patch: version bump, changelog, API proof | Release | P1 | `done` | WVR-070 | S |
+| [WVR-072](issues/WVR-072-barchart-label-density-360.md) | BarChart category labels can touch at 360px with 5 or more bars | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
 | [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `done` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 38, ready: 4, gated: 3 (45 issues)
+**Totals:** done: 41, ready: 2, gated: 3 (46 issues)
 
-## Start here (4 ready; 38 done)
+## Start here (2 ready; 41 done)
+
+As of 2026-10-11, WVR-059, WVR-061 and WVR-063 are integrated on one branch (`wvr-board-059-061-063`),
+merged in one PR, and are `done`. WVR-059 adds a scroll cue to the cookbook orders-report DataTable when
+columns are hidden (a small listener, because pure CSS cannot remove it at the end of the scroll). WVR-061
+narrows the BarChart viewBox and caps its height at 1280px, so its labels stay at 11px or more at 360px.
+WVR-063 adds a second playground trace with a wide Row, and e2e tests for its Row layout rules. The
+change is example apps and tests only: no package source, no version change, and no release needed. Each
+issue's Log records its evidence. WVR-061's Log also records a residual risk, filed as WVR-072: with about
+5 or more bars, the BarChart category labels can touch at 360px.
 
 As of 2026-10-11, WVR-071 is done. `v0.3.1` is tagged on `e46cc93` (the merge of
 cyruslayo/weaver#40). The three packages are published to npm at 0.3.1: `@cylayo/weaver-core`,
@@ -92,23 +102,16 @@ and `docs/PLAN.md` tasks 88 to 90 record its change.
 
 Ready, in lane order (pick the lowest ID inside the highest priority):
 
-F Follow-ups lane (no dependencies; all P2). These are candidates for a later patch release (0.3.1 is docs only):
+F Follow-ups lane (no dependencies). WVR-069 (P2) is the only candidate for a later patch release (0.3.1
+is docs only). WVR-072 (P2) is a cookbook follow-up and is not a release candidate:
 
-- **WVR-069**, M. Reject shared-reference JSON values (a DAG takes 2^N time and can exhaust the heap)
+- **WVR-069**, M, P2. Reject shared-reference JSON values (a DAG takes 2^N time and can exhaust the heap)
   and return typed errors for throwing getters, which currently escape `dispatchAction()`.
   Touches `packages/core/src/functions/FunctionEvaluator.ts`, `packages/core/src/runtime/WeaverRuntime.ts`,
   and an audit of two other `isJsonValue` copies.
-- **WVR-059**, S. A scroll cue on the cookbook orders-report DataTable when columns are hidden
-  off-screen at narrow widths. Touches `examples/cookbook/src/custom-catalog/dataTableRenderer.ts`
-  (wrapper, lines 89-101), `dataTableRenderer.test.ts` if needed, and
-  `examples/cookbook/e2e/orders-report.spec.ts`.
-- **WVR-061**, S. BarChart label text readable at 360px and a height cap at 1280px. Touches
-  `examples/cookbook/src/custom-catalog/barChart.ts` (constants, SVG attributes, label font sizes),
-  `barChart.test.ts` if its expectations change, and `examples/cookbook/e2e/orders-report.spec.ts`.
-- **WVR-063**, S. Exercise the playground inspector's Row layout rules with a trace that contains
-  a Row. Touches a new sample `examples/playground/samples/row-layout.weaver-trace.json`,
-  `examples/playground/e2e/inspector.spec.ts`, and `examples/playground/src/inspector.css` only if
-  the mutation check shows a rule does not apply.
+- **WVR-072**, S, P2. BarChart category labels can touch at 360px with 5 or more bars (the cookbook
+  example only; the orders report has 4 bars). Touches `examples/cookbook/src/custom-catalog/barChart.ts`
+  and a new real-browser test with 8 bars at 360px.
 
 Gated, do not start: WVR-056, WVR-080 and WVR-090. WVR-080 has all its dependencies
 `done`, but it is gated and is not promoted until its evidence gate is met.
@@ -134,7 +137,7 @@ E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
 Release: {016, 025, 033} → 060 (done) → 081 (done); 070 → 071 (done)
 Bench:   {013, 044} → 080 (gated)
-F:       058, 062, 064, 065, 066, 067, 068, 070 (done); 059, 061, 063, 069 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
+F:       058, 059, 061, 062, 063, 064, 065, 066, 067, 068, 070 (done); 069, 072 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration, 072 from the WVR-061 Log
 ```
 
 ## Milestones

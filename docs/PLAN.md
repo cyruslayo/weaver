@@ -273,6 +273,10 @@ Complete, pending review. Each package has a `README.md`, which npm shows on its
 
 Complete. Tagged `v0.3.1` and published to npm on 2026-10-11. 0.3.1 is a documentation and package metadata patch. It carries the WVR-070 READMEs and keywords to npm. `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` are bumped to `0.3.1` together. Web and MCP keep the `0.3.x` peer range on Core, and `WEAVER_CORE_VERSION` is `"0.3.1"`. The API did not change: the root exports match the published 0.3.0 packages, and the shipped `dist` is identical except for the version string. `CHANGELOG.md` holds the 0.3.1 notes. The maintainer tagged `v0.3.1` on the merge commit of PR #40 and published it, and `pnpm verify:registry 0.3.1` passed from a clean clone of the tag.
 
+## Task 95 — Follow-ups WVR-059, WVR-061 and WVR-063
+
+Complete, pending review. Example apps and tests only, integrated in one PR. WVR-059 adds a scroll cue to the cookbook orders-report DataTable while columns are hidden. WVR-061 keeps the cookbook BarChart labels at 11px or more at 360px and caps its height at 1280px. WVR-063 adds a playground trace with a wide Row and e2e tests for the Row layout rules. No package source, version or lockfile changed, and no release is needed. WVR-061 leaves a residual risk for 5 or more bars at 360px, filed as WVR-072.
+
 ## Deferred work
 
 - additional network bindings, including A2A placement

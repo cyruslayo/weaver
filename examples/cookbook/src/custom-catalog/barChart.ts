@@ -29,9 +29,15 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const BAR_FILL = "var(--a2ui-color-primary, #2a78d6)";
 const INK = "currentColor";
 
-/** Viewbox geometry. The SVG scales with its container through width:100%. */
-const VIEW_WIDTH = 320;
+/**
+ * Viewbox geometry. The SVG scales with its container through width:100%.
+ * VIEW_WIDTH is close to the 236px container at a 360px viewport, so user units are
+ * about px there and the 11u category labels stay at 11px or more (11 x 236/220 = 11.8px).
+ * CHART_MAX_HEIGHT_PX bounds the wide layout, where the width-driven height would be about 556px at 1280px.
+ */
+const VIEW_WIDTH = 220;
 const VIEW_HEIGHT = 200;
+const CHART_MAX_HEIGHT_PX = 320;
 const PLOT_LEFT = 8;
 const PLOT_RIGHT = VIEW_WIDTH - 8;
 const PLOT_TOP = 28;
@@ -119,7 +125,7 @@ function renderSvg(document: Document, title: string, titleId: string, bars: rea
   svg.setAttribute("viewBox", `0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`);
   svg.setAttribute("role", "img");
   svg.setAttribute("aria-labelledby", titleId);
-  svg.setAttribute("style", "display: block; width: 100%; height: auto; overflow: visible;");
+  svg.setAttribute("style", `display: block; width: 100%; height: auto; max-height: ${CHART_MAX_HEIGHT_PX}px; overflow: visible;`);
 
   const accessibleTitle = svgElement(document, "title");
   accessibleTitle.setAttribute("id", titleId);
