@@ -4,7 +4,7 @@ title: BarChart keeps its label text readable at 360px and stays within a height
 epic: F Follow-ups
 audit_ref: follow-up to WVR-053 / WVR-057 (browser review)
 priority: P2
-status: ready
+status: in-progress
 depends_on: []
 estimate: S
 ---
@@ -86,3 +86,18 @@ Merged to `main`, with every acceptance criterion ticked on evidence.
 
 ## Log
 - 2026-10-10: created from the WVR-024/057 browser review. Status `ready`, no dependencies. Measured: at 360px the SVG is 236px wide (scale 0.7375) and labels are 8.11px and 8.85px. At 1280px the SVG is 612x382.5px (scale 1.9125) and labels are 21.0px and 23.0px. No `max-height` or `max-width` in `barChart.ts`.
+- 2026-10-11: started on branch `wvr-061-barchart-sizing` from `a314299` (Merge PR #41). `pnpm install --frozen-lockfile` ran clean. Baseline: `pnpm --filter @weaver/cookbook test` exit 0, 99 tests pass, 0 fail. Baseline `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers pnpm --filter @weaver/cookbook e2e` exit 0, 40 passed (width-1280 and width-360, 20 tests each).
+- 2026-10-11, BEFORE measurement (Chromium via `@playwright/test` 1.56.1, `vite preview` of the built cookbook, `orders-report.html`, script kept in the session scratchpad, not the repo). Scale is rendered SVG width / viewBox width. Label sizes are the computed font-size in user units times that scale.
+  - 360px viewport: SVG 236 x 147.5 px, viewBox 320 x 200, scale 0.7375. Category labels (font-size 11) render at 8.11px. Value labels (font-size 12) render at 8.85px. Document scrollWidth 360 = innerWidth.
+  - 1280px viewport: SVG 612 x 382.5 px, viewBox 320 x 200, scale 1.9125. Category labels render at 21.04px. Value labels render at 22.95px.
+  - Labels are the 4 statuses (`ORDER_STATUSES` in `screens/orders-report.ts`: Pending, Paid, Shipped, Refunded), so 8 text elements.
+- 2026-10-11, APPROACH (decided before any source change): option 1 (narrow viewBox) plus option 2 (height cap), with the text kept in user units.
+  - Why not option 2 alone: the cap does nothing for width. At 236px the scale stays 236/320 = 0.7375, so 11u labels render at 8.11px. That fails the 11px target.
+  - Why not option 3 or 4: they add a DOM layout script or HTML labels. The viewBox and a CSS cap meet the target with a smaller change.
+  - Arithmetic for the narrow viewBox. Rendered label px = font-size(user units) x (container px / viewBox width). The container is 236px at 360px. For the 11u category label to reach 11px, the viewBox width must be at most 236 x 11 / 11 = 236. Option "about 240" from the issue fails: 11 x 236/240 = 10.82px. I chose a viewBox width of 220, which keeps about 7% headroom. At 236px the scale is 236/220 = 1.0727, so category labels render at 11 x 1.0727 = 11.80px, and value labels at 12 x 1.0727 = 12.87px. The 11px target is met as long as the container is at least 220px wide (11 x 220 / 11 = 220).
+  - Height at 360px: 236 x 200/220 = 214.5px. The SVG gets taller than before (147.5px), which is the cost of holding the text size.
+  - Height cap at 1280px: the width-driven SVG would be 612 x 556 px (scale 612/220 = 2.78). A `max-height: 320px` cap gives a rendered height of 320px. With `preserveAspectRatio` at its default (meet), the drawing scales by min(612/220, 320/200) = 1.6 and is centred horizontally. Category labels then render at 17.6px and value labels at 19.2px.
+  - Test metric: the effective drawing scale is min(rendered width / viewBox width, rendered height / viewBox height). It equals the width-based scale at 360px and is the only correct one once the cap binds at 1280px.
+  - New or changed constants (old -> new): `VIEW_WIDTH` 320 -> 220. `PLOT_RIGHT` is derived (`VIEW_WIDTH - 8`), so 312 -> 212. New `CHART_MAX_HEIGHT_PX` = 320 (no cap before). `VIEW_HEIGHT` 200 unchanged. `PLOT_LEFT`, `PLOT_TOP`, `PLOT_BOTTOM`, `BAR_GAP`, `BAR_MAX_WIDTH` (48), and the label font sizes (11 and 12) are unchanged.
+  - Bar slot width: plot width 204 / 4 bars = 51 user units per slot. Bars keep `BAR_MAX_WIDTH` 48. Risk to check after the change: "Refunded" at 11u must fit in the 51-unit slot.
+  - Known density limit (not changed): the plot is 204 units wide, so with about 5 or more bars, per-bar labels at 11u (about 40 units for "Refunded") start to touch their neighbours. The old 304-unit plot had the same problem at a higher count. `DIRECT_LABEL_LIMIT` stays 12, so the 12-bar case is a known overlap risk at 360px and is not fixed here.
