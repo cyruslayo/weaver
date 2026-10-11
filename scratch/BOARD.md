@@ -34,20 +34,27 @@ The single source of truth for status. Keep it in sync with each issue's front m
 | [WVR-057](issues/WVR-057-cookbook-orders-report-screen.md) | Cookbook orders-report screen that mounts the custom catalog | E5 Custom catalog recipe | P1 | `done` | WVR-052, WVR-053 | S |
 | [WVR-058](issues/WVR-058-basic-button-contrast.md) | Basic primary Button meets WCAG AA contrast (4.5:1) for its small text | F Follow-ups | P1 | `done` | — | S |
 | [WVR-059](issues/WVR-059-datatable-scroll-cue.md) | DataTable shows a cue when columns are hidden off-screen at narrow widths | F Follow-ups | P2 | `ready` | — | S |
-| [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `ready` | WVR-016, WVR-025, WVR-033 | S |
+| [WVR-060](issues/WVR-060-release-0.3.0.md) | Release prep 0.3.0 — synchronized version bump, README, PLAN.md | Release | P0 | `done` | WVR-016, WVR-025, WVR-033 | S |
 | [WVR-061](issues/WVR-061-barchart-sizing.md) | BarChart keeps its label text readable at 360px and stays within a height cap at 1280px | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-062](issues/WVR-062-hanging-assertion.md) | No assert.* receives DOM nodes, so a failing Web test reports instead of hanging | F Follow-ups | P2 | `done` | — | S |
 | [WVR-063](issues/WVR-063-playground-row-css-e2e.md) | Exercise the playground inspector's Row layout rules with a trace that contains a Row | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-064](issues/WVR-064-render-budget-error-surface-id.md) | Render-budget failures carry the surface id in describeWebRenderError | F Follow-ups | P2 | `done` | — | S |
 | [WVR-065](issues/WVR-065-render-budget-store-divergence.md) | Decide what the store keeps after a render-budget failure, and make it visible | F Follow-ups | P2 | `done` | — | M |
 | [WVR-066](issues/WVR-066-absolute-path-in-list-template.md) | An absolute path inside a List template renders empty with no diagnostic | F Follow-ups | P2 | `done` | — | S |
+| [WVR-067](issues/WVR-067-crlf-doc-snippet-checkout.md) | Doc-snippet checker and checkouts tolerate CRLF (Windows) | F Follow-ups | P2 | `ready` | — | S |
+| [WVR-068](issues/WVR-068-action-dispatcher-cyclic-local-result.md) | ActionDispatcher: guard host localFunction results against cyclic values | F Follow-ups | P2 | `ready` | — | S |
 | [WVR-080](issues/WVR-080-generation-benchmark.md) | Generation benchmark — Weaver A2UI vs OpenUI Lang on identical tasks | Gated | P1 | `gated` | WVR-013, WVR-044 | L |
-| [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `gated` | WVR-060 | M |
+| [WVR-081](issues/WVR-081-npm-publish.md) | Publish @cylayo/weaver-* to npm (stable preview) | Gated | P1 | `ready` | WVR-060 | M |
 | [WVR-090](issues/WVR-090-gated-backlog.md) | Gated backlog — remaining audit items with their evidence gates | Gated | P1/P2 | `gated` | — | — |
 
-**Totals:** done: 32, ready: 4, gated: 4 (40 issues)
+**Totals:** done: 33, ready: 6, gated: 3 (42 issues)
 
-## Start here (4 ready; 32 done)
+## Start here (6 ready; 33 done)
+
+As of 2026-10-11, WVR-060 is merged to `main` in cyruslayo/weaver#33 (merge commit
+`062df5a`), tagged `v0.3.0`, and `done`. The three packages are published to npm:
+`@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` at 0.3.0. WVR-081
+moved to `ready`. Its remaining scope is in its Log.
 
 As of 2026-10-10, WVR-062 is merged to `main` in cyruslayo/weaver#31 (merge commit
 `6a94d52`) and is `done`. Its Log records the evidence.
@@ -61,17 +68,22 @@ and `docs/PLAN.md` tasks 88 to 90 record its change.
 
 Ready, in lane order (pick the lowest ID inside the highest priority):
 
-Roadmap lane:
+Release lane:
 
-- **WVR-060**, P0, Release. Release prep 0.3.0: synchronized version bump, README and
-  `docs/PLAN.md`. Its dependencies (WVR-016, 025, 033) are all `done`, so it stays `ready`.
-  Nothing blocks it now: WVR-064, 065 and 066 are `done`. WVR-058 changes the default
-  Basic primary colour (`#1177ee` to `#0969da`), a patch-level visual change for the
-  0.3.0 release notes (see its Log).
+- **WVR-081**, P1, Gated lane, M. Publish `@cylayo/weaver-*` to npm (0.3.0 is published). Its
+  Gate is met and it is `ready`. Remaining: a semver policy note in `docs/packaging.md`, a
+  registry-specifier run of `integration/package-consumer` (TypeScript, ESM) with the Worker
+  smoke, and the README install section as a verified Quick Start. The acceptance boxes stay
+  unticked until those are done (see its Log).
 
-F Follow-ups lane (no dependencies; all P2). These three are optional before the 0.3.0
-release. None of them blocks WVR-060, so take them only if you want them in 0.3.0:
+F Follow-ups lane (no dependencies; all P2). These are candidates for a 0.3.1 patch release:
 
+- **WVR-067**, S. Doc-snippet checker and checkouts tolerate CRLF. Adds `.gitattributes`
+  (`* text=auto eol=lf`), makes `integration/package-consumer/doc-snippets.mjs` tolerate CRLF,
+  and documents the Windows setup in `docs/packaging.md`.
+- **WVR-068**, S. `ActionDispatcher` guards host `localFunction` results against cyclic values.
+  Write a failing reproduction first, then return a typed error. Not reproduced yet; predates 0.3.0.
+  Touches `packages/core/src/actions/ActionDispatcher.ts` (around line 198).
 - **WVR-059**, S. A scroll cue on the cookbook orders-report DataTable when columns are hidden
   off-screen at narrow widths. Touches `examples/cookbook/src/custom-catalog/dataTableRenderer.ts`
   (wrapper, lines 89-101), `dataTableRenderer.test.ts` if needed, and
@@ -84,7 +96,7 @@ release. None of them blocks WVR-060, so take them only if you want them in 0.3.
   `examples/playground/e2e/inspector.spec.ts`, and `examples/playground/src/inspector.css` only if
   the mutation check shows a rule does not apply.
 
-Gated, do not start: WVR-056, WVR-080, WVR-081 and WVR-090. WVR-080 has all its dependencies
+Gated, do not start: WVR-056, WVR-080 and WVR-090. WVR-080 has all its dependencies
 `done`, but it is gated and is not promoted until its evidence gate is met.
 
 Notes:
@@ -106,9 +118,9 @@ E3: 031 → 032 → 033
               └→ 034 (also needs 024, 041)
 E4: 041 → {042, 043, 044} → 045
 E5: 041 → 051 → {052, 053} → 057 → 054 → 055 (also needs 016)
-Release: {016, 025, 033} → 060 → 081 (gated)
+Release: {016, 025, 033} → 060 (done) → 081 (ready)
 Bench:   {013, 044} → 080 (gated)
-F:       058, 062, 064, 065, 066 (done); 059, 061, 063 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
+F:       058, 062, 064, 065, 066 (done); 059, 061, 063, 067, 068 (ready); no dependencies. 059-063 are follow-ups from the WVR-024/057 browser review, 064-066 from the WVR-034 integration
 ```
 
 ## Milestones
@@ -118,5 +130,5 @@ F:       058, 062, 064, 065, 066 (done); 059, 061, 063 (ready); no dependencies.
 - **M2, "See it"**: E2 done. Trace, replay, and the inspector.
 - **M3, "Show it"**: E4 and E5 done. A realistic cookbook and a custom
   component recipe.
-- **M4, "Ship it"**: WVR-060 done (0.3.0). Then the gated decisions:
-  WVR-080 (benchmark) and WVR-081 (npm).
+- **M4, "Ship it"**: WVR-060 done (0.3.0), and the packages are on npm. Then WVR-081
+  (npm follow-up, now `ready`) and the gated decision WVR-080 (benchmark).
