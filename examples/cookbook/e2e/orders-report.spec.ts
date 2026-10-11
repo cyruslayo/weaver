@@ -133,6 +133,8 @@ test.describe("WVR-059 DataTable scroll cue", () => {
 
     await page.mouse.wheel(-600, 0);
     await expect.poll(async () => (await cueState(page)).cue, "the cue returns away from the end").toContain("linear-gradient");
+  });
+});
 
 test.describe("WVR-061 BarChart sizing", () => {
   /**
