@@ -40,6 +40,14 @@ flow is deterministic, with a fixed clock. `src/sample.test.ts` checks that:
 If the trace format or the runtime changes, the test fails. To regenerate the sample,
 run `pnpm --filter @weaver/playground sample:write` and review the diff.
 
+### Row layout trace
+
+`samples/row-layout.weaver-trace.json` is a second, small trace with a Row whose children
+are wide: a Card and a TextField, each with a long unbroken value. It exercises the Row
+rules in `src/inspector.css`, and only the "WVR-063 Row layout" e2e block loads it. The
+bundled sample has no Row. This file has no regenerator script in the repo, so review
+changes to it as a fixture.
+
 ## Tests
 
 ```sh
