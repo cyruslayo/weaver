@@ -110,6 +110,14 @@ pnpm verify:packages
 pnpm verify:worker-core
 ```
 
+After a release is on the npm registry, run the registry check by hand:
+
+```sh
+pnpm verify:registry 0.3.0
+```
+
+It installs `@cylayo/weaver-core`, `@cylayo/weaver-web` and `@cylayo/weaver-mcp` at that exact version into a temporary consumer outside the workspace. It then runs the TypeScript and ESM consumer checks, the documentation and Quick Start snippets, and the Worker smoke against the registry Core. The check only reads the registry. It is not a release gate and is not run by CI. Without a version it checks the one in `packages/core/package.json`.
+
 No automatic publishing exists. Weaver manages no registry credentials. Changesets, semantic-release, and release-please are not being introduced. The existing Ubuntu CI Verify job runs every release gate, including `verify:worker-core`.
 
 `@cylayo/weaver-mcp` declares `engines.node >= 20` because its pinned MCP runtime dependencies (`@modelcontextprotocol/client`, `@modelcontextprotocol/server`) require it. Core and Web make no Node-version support declaration yet.
