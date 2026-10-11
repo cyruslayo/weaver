@@ -92,7 +92,7 @@ Core, Web, and MCP release together at one synchronized version. During `0.x`, v
 Semver policy while Weaver is `0.x`:
 
 - A MINOR bump (`0.3.0` to `0.4.0`) may contain breaking changes. Each one is called out in `CHANGELOG.md` with an upgrade note.
-- A PATCH bump (`0.3.0` to `0.3.1`) is for bug fixes.
+- A PATCH bump (`0.3.0` to `0.3.1`) is for bug fixes. It is also used for documentation or package-metadata changes that need a new published version, such as a package README that the npm page shows. A patch release makes no API or behaviour change.
 - The three packages always share one version. Web and MCP peer on Core with the range `0.N.x`, where `0.N` is the current minor, so a MINOR release also moves both peer ranges.
 - `WEAVER_CORE_VERSION` is updated in every release.
 - A deprecation is noted in the `CHANGELOG.md` entry of the release that introduces it, with its replacement when one exists.
