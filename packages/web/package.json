@@ -6,6 +6,16 @@
     "access": "public"
   },
   "description": "Weaver browser renderer plus browser transport and policies",
+  "keywords": [
+    "a2ui",
+    "agent-ui",
+    "generative-ui",
+    "ui-runtime",
+    "renderer",
+    "browser",
+    "dom",
+    "sse"
+  ],
   "type": "module",
   "repository": {
     "type": "git",

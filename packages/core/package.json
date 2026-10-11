@@ -6,6 +6,15 @@
     "access": "public"
   },
   "description": "Weaver protocol, runtime, catalog, state, and action foundation",
+  "keywords": [
+    "a2ui",
+    "agent-ui",
+    "generative-ui",
+    "ui-runtime",
+    "catalog",
+    "schema",
+    "cloudflare-workers"
+  ],
   "type": "module",
   "repository": {
     "type": "git",
