@@ -4,7 +4,7 @@ title: Release prep 0.3.1 — docs and metadata patch: version bump, changelog, 
 epic: Release
 audit_ref: —
 priority: P1
-status: in-review
+status: done
 depends_on: [WVR-070]
 estimate: S
 ---
@@ -40,7 +40,7 @@ here. The maintainer tags `v0.3.1` and publishes it.
       and every manifest difference is listed in the Log.
 - [x] The CI gate passes on HEAD, and on a fresh `git archive` export of HEAD.
 - [x] The tarballs are named `...-0.3.1.tgz`, and each contains `package/README.md`.
-- [ ] Merged and tagged by the maintainer (not done by this issue).
+- [x] Merged and tagged by the maintainer (not done by this issue).
 
 ## Verification
 - The full gate in CI order (see `scratch/README.md`, step 6, plus `check:docs`) on HEAD
@@ -48,7 +48,7 @@ here. The maintainer tags `v0.3.1` and publishes it.
 - The API comparison and the manifest comparison (see the Log).
 
 ## Definition of done
-Merged and tagged by the maintainer; published to npm by the maintainer.
+- [x] Merged and tagged by the maintainer; published to npm by the maintainer.
 
 ## Log
 - 2026-10-11: **base.** `git fetch origin main && git checkout -B wvr-071-release-0.3.1 8acc34b5f7a9a22174f5eea94309328d022d3911`. Output: `Switched to a new branch 'wvr-071-release-0.3.1'`. `git log --oneline -1`: `8acc34b Merge pull request #39 from cyruslayo/claude/busy-allen-uf99ec`. `pnpm install --frozen-lockfile`: exit 0. The root `pnpm-lock.yaml` was not changed by the install. WVR-070 is `done`.
@@ -104,3 +104,7 @@ Merged and tagged by the maintainer; published to npm by the maintainer.
   2. The brief said to stop on any other manifest difference. The packed and published manifests differ in `scripts.test` (core, the WVR-068 test file) and `devDependencies` (web and mcp, the Core pin that follows the bump). The shipped JavaScript and declarations are identical, except the version string. I continued, and this is a judgement call, recorded above.
   3. The attribution rule in this session names `Claude Haiku 5.5` as the co-author. The brief named `Sonnet 5.5`. The commits carry the Haiku trailer, which is the model that ran this work.
   4. Acceptance: merge `wvr-071-release-0.3.1` only after review. This session did not push, open a PR, tag, or publish.
+- 2026-10-11: **release, by the maintainer.** `v0.3.1` is an annotated tag on `e46cc9337ea5b6e4ad9b7ba4b1d3cc4020cf5599`, the merge commit of cyruslayo/weaver#40. CI run 68 on that commit: success. `@cylayo/weaver-core@0.3.1`, `@cylayo/weaver-web@0.3.1` and `@cylayo/weaver-mcp@0.3.1` were published to npm, core first, then web, then mcp. The registry shows `latest` = 0.3.1 for all three. Versions 0.2.1, 0.3.0 and 0.3.1 exist.
+- 2026-10-11: **registry state.** The 0.3.1 packages have their README (the npm page text starts with the package README) and their keywords (core 7, web 8, mcp 6). The 0.3.0 pages still have no README, as expected: npm cannot change a published version.
+- 2026-10-11: **`pnpm verify:registry 0.3.1`**, run by the orchestrator from a clean clone of the tag `v0.3.1`: exit 0. It installed the three packages at 0.3.1 from the registry and ran the consumer typecheck, the ESM smoke, 11 documentation snippets, the 3 README Quick Start examples, and the Worker smoke in workerd (3 tests). Nothing else changed: no API or behaviour change in 0.3.1.
+- 2026-10-11: **done.** The Definition of done is ticked, and the tag and publish are the maintainer's, as the brief says. Status set to `done`.
