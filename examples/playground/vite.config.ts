@@ -5,7 +5,7 @@ const page = (name: string): string => fileURLToPath(new URL(name, import.meta.u
 
 // index.html is the hosted Playground. components.html is the Basic component bench.
 // inspector.html is the development-only trace inspector. PLAYGROUND_BASE sets the
-// public path, for example /weaver/ for GitHub Pages; it defaults to the dev root.
+// public path, for example /weaver/playground/ for GitHub Pages; it defaults to the dev root.
 export default defineConfig({
   base: process.env.PLAYGROUND_BASE ?? "/",
   build: {

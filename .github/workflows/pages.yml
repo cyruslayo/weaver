@@ -44,18 +44,29 @@ jobs:
       - name: Build workspace dependencies of the playground
         run: pnpm --filter "@weaver/playground^..." run --if-present build
 
-      - name: Build the playground for /weaver/
+      - name: Build the playground for /weaver/playground/
         env:
-          PLAYGROUND_BASE: /weaver/
+          PLAYGROUND_BASE: /weaver/playground/
         run: pnpm --filter @weaver/playground build
+
+      - name: Assemble the Pages site
+        # The root is reserved for the landing page. Until it exists, the root
+        # page only redirects visitors to the Playground.
+        run: |
+          rm -rf _site
+          mkdir -p _site
+          cp .github/pages/index.html _site/index.html
+          cp -r examples/playground/dist _site/playground
+          test -f _site/index.html
+          test -f _site/playground/index.html
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
-      - name: Upload the playground artifact
+      - name: Upload the Pages site
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
-          path: examples/playground/dist
+          path: _site
 
   deploy:
     name: Deploy to GitHub Pages
