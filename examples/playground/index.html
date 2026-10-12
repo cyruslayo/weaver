@@ -3,10 +3,203 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Edit A2UI v0.9.1 JSONL and watch Weaver validate and render it in the browser." />
     <title>Weaver Playground</title>
   </head>
   <body>
-    <main id="app"></main>
-    <script type="module" src="/src/main.ts"></script>
+    <a class="skip-link" href="#frame">Skip to the editor</a>
+
+    <header class="site-nav">
+      <nav class="wrap nav" aria-label="Primary">
+        <a class="brand" href="index.html">
+          Weaver
+          <span id="version-badge" class="pg-badge pg-badge-outline">v0.3.1</span>
+        </a>
+        <ul class="nav-links">
+          <li><a href="index.html" aria-current="page">Playground</a></li>
+          <li><a href="components.html">Components</a></li>
+          <li><a href="inspector.html">Trace inspector</a></li>
+          <li><a href="https://github.com/cyruslayo/weaver/tree/main/docs">Docs</a></li>
+        </ul>
+        <div class="nav-end">
+          <a class="pill pill-light gh-pill" href="https://github.com/cyruslayo/weaver" aria-label="Weaver on GitHub">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.4 6.4-1.5 6.4-7a5.4 5.4 0 0 0-1.5-3.8 5 5 0 0 0-.1-3.8s-1.2-.4-3.9 1.5a13.4 13.4 0 0 0-7 0C6.3 1.5 5.1 1.9 5.1 1.9a5 5 0 0 0-.1 3.8A5.4 5.4 0 0 0 3.5 9.5c0 5.4 3.3 6.6 6.4 7a3.4 3.4 0 0 0-.9 2.6V23"></path></svg>
+            <span class="gh-label">GitHub</span>
+          </a>
+          <button type="button" id="menu-toggle" class="menu-btn" aria-expanded="false" aria-controls="menu-sheet" aria-label="Open menu">
+            <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path id="menu-icon" d="M4 8h16M4 16h16"></path></svg>
+          </button>
+        </div>
+      </nav>
+      <nav id="menu-sheet" class="wrap menu-sheet" aria-label="Menu" hidden>
+        <ul>
+          <li><a href="index.html" aria-current="page">Playground</a></li>
+          <li><a href="components.html">Components</a></li>
+          <li><a href="inspector.html">Trace inspector</a></li>
+          <li><a href="https://github.com/cyruslayo/weaver/tree/main/docs">Docs</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <section class="wrap page-head" aria-labelledby="page-title">
+      <div>
+        <h1 id="page-title" class="page-title">Playground</h1>
+        <p class="page-lead">Edit A2UI, watch Weaver render it, and break it on purpose.</p>
+      </div>
+      <div class="head-ctas">
+        <a class="pill pill-light pill-cta" href="https://a2ui.org">
+          Read the A2UI guide
+          <span class="orb" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+        </a>
+        <a class="pill pill-dark pill-cta" href="https://www.npmjs.com/package/@cylayo/weaver-core">
+          Install Weaver
+          <span class="orb" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+        </a>
+      </div>
+    </section>
+
+    <section class="wrap frame-section">
+      <div id="frame" class="frame">
+        <div class="frame-body">
+          <nav class="pg-side" aria-label="Examples">
+            <p class="side-title">Examples</p>
+            <ul id="example-list" class="example-list"></ul>
+          </nav>
+
+          <div class="frame-tool">
+            <span class="file-tab">messages.jsonl</span>
+            <button type="button" id="stream-button" class="pill pill-dark">Stream it</button>
+            <div class="seg" role="group" aria-label="Playback speed">
+              <button type="button" class="seg-btn" data-speed="0.5" aria-pressed="false">0.5×</button>
+              <button type="button" class="seg-btn" data-speed="1" aria-pressed="true">1×</button>
+              <button type="button" class="seg-btn" data-speed="2" aria-pressed="false">2×</button>
+            </div>
+            <button type="button" id="reset-button" class="pill pill-ghost">Reset</button>
+            <div class="tool-icons">
+              <button type="button" id="copy-button" class="icon-btn" aria-label="Copy as code">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V6a2 2 0 0 1 2-2h9"></path></svg>
+              </button>
+              <button type="button" id="share-button" class="icon-btn" aria-label="Share link">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"></path></svg>
+              </button>
+              <span id="transient-note" class="note" aria-hidden="true" hidden></span>
+            </div>
+          </div>
+
+          <div class="code">
+            <div id="backdrop" class="code-layer backdrop" aria-hidden="true"></div>
+            <textarea
+              id="source"
+              class="code-layer source"
+              aria-label="A2UI JSONL, one message per line"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              wrap="soft"
+            ></textarea>
+            <div class="code-foot">
+              <p id="stream-status" class="status" role="status" aria-live="polite"></p>
+              <span id="reject-chip" class="pg-badge pg-badge-reject" hidden></span>
+            </div>
+          </div>
+
+          <aside class="frame-preview" aria-label="Preview">
+            <div class="prev-head">
+              <h2 id="preview-heading" class="prev-label">Preview</h2>
+              <span class="pg-badge pg-badge-muted">rendered by Weaver</span>
+              <span class="prev-caption">Sample data</span>
+            </div>
+            <div class="surface" data-theme="light">
+              <p id="preview-empty" class="surface-empty" hidden></p>
+              <div id="preview" role="region" aria-labelledby="preview-heading"></div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="inspector" aria-labelledby="inspector-heading">
+          <h2 id="inspector-heading" class="sr-only">Inspector</h2>
+          <div class="tabs" role="tablist" aria-label="Inspector views">
+            <button type="button" role="tab" id="tab-events" class="tab" aria-controls="panel-events" aria-selected="true" tabindex="0">Events</button>
+            <button type="button" role="tab" id="tab-data" class="tab" aria-controls="panel-data" aria-selected="false" tabindex="-1">Data model</button>
+            <button type="button" role="tab" id="tab-prompt" class="tab" aria-controls="panel-prompt" aria-selected="false" tabindex="-1">Prompt</button>
+            <button type="button" role="tab" id="tab-errors" class="tab" aria-controls="panel-errors" aria-selected="false" tabindex="-1">
+              Errors <span id="error-count" class="pg-badge pg-badge-reject" aria-label="0 errors">0</span>
+            </button>
+          </div>
+
+          <div class="insp-body">
+            <div id="panel-events" class="tab-panel" role="tabpanel" aria-labelledby="tab-events" tabindex="0">
+              <p id="event-empty" class="muted">Use the preview. Every input and action shows up here.</p>
+              <ol id="event-list" class="event-list" aria-label="Events, newest first"></ol>
+            </div>
+
+            <div id="panel-data" class="tab-panel" role="tabpanel" aria-labelledby="tab-data" tabindex="0" hidden>
+              <p class="muted">The current surface's data model. It is rebuilt from the text, and it changes when you use the preview.</p>
+              <pre id="data-model" class="code-block" aria-label="Data model JSON"></pre>
+            </div>
+
+            <div id="panel-prompt" class="tab-panel" role="tabpanel" aria-labelledby="tab-prompt" tabindex="0" hidden>
+              <div class="copy-row">
+                <p class="muted">The prompt for the Basic Catalog, in create mode.</p>
+                <button type="button" id="copy-prompt" class="pill pill-light">Copy prompt</button>
+              </div>
+              <pre id="prompt-text" class="code-block" aria-label="Generated prompt"></pre>
+            </div>
+
+            <div id="panel-errors" class="tab-panel" role="tabpanel" aria-labelledby="tab-errors" tabindex="0" hidden>
+              <div id="error-panel"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notices">
+        <p id="copy-status" class="sr-only" role="status" aria-live="polite"></p>
+        <p id="share-notice" class="share-notice" role="alert" hidden></p>
+        <div id="confirm-bar" class="confirm-bar" role="region" aria-label="Confirm replacing the text" hidden>
+          <p id="confirm-text"></p>
+          <div class="confirm-actions">
+            <button type="button" id="confirm-replace" class="pill pill-dark">Replace</button>
+            <button type="button" id="confirm-keep" class="pill pill-ghost">Keep my text</button>
+          </div>
+        </div>
+        <div id="fallback" class="fallback" hidden>
+          <label for="fallback-text">Copying was blocked. Select this text and copy it.</label>
+          <textarea id="fallback-text" class="fallback-text" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap tips" aria-labelledby="tips-heading">
+      <h2 id="tips-heading" class="tips-title">What you can try</h2>
+      <div class="tip-grid">
+        <article class="tip">
+          <h3 class="tip-title">Stream it</h3>
+          <p class="tip-text">Watch the interface build line by line. Lines that have not arrived yet stay dimmed, and the preview grows with them.</p>
+        </article>
+        <article class="tip">
+          <h3 class="tip-title">Break a line</h3>
+          <p class="tip-text">Cut a line short, as a model might. Weaver skips it, shows a typed error and explains why nothing on screen changed.</p>
+        </article>
+        <article class="tip">
+          <h3 class="tip-title">Use the preview</h3>
+          <p class="tip-text">Click, type and step through the example. Every input and action lands in Events, newest first.</p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <strong>Weaver</strong>
+        <span>Pre-1.0 · Open source under Apache-2.0</span>
+        <span class="grow"></span>
+        <a href="https://github.com/cyruslayo/weaver/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://www.npmjs.com/package/@cylayo/weaver-core">npm</a>
+        <a href="https://a2ui.org">A2UI</a>
+        <a href="https://github.com/cyruslayo/weaver">GitHub</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/editor/app.ts"></script>
   </body>
 </html>

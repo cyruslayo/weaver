@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test dist-test/inspector-model.test.js dist-test/sample.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/inspector-model.test.js dist-test/sample.test.js dist-test/editor/examples.test.js dist-test/editor/share.test.js dist-test/editor/code-snippet.test.js dist-test/editor/media-policy.test.js",
     "sample:write": "tsc -p tsconfig.test.json && node scripts/write-sample.mjs",
     "e2e": "pnpm run build && tsc -p tsconfig.e2e.json && playwright test",
     "clean": "node -e \"import('node:fs').then(({rmSync}) => { for (const dir of ['dist', 'dist-test']) rmSync(dir, { recursive: true, force: true }); })\""
