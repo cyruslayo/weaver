@@ -1,0 +1,93 @@
+/*
+ * Weaver design tokens for the landing site. Values are copied from
+ * examples/playground/src/editor/weaver-tokens.css (generated from the Weaver design system).
+ * The font stacks name local fonts only, so the site makes no font requests.
+ * Keep these values in sync with the Playground copy when the system changes.
+ */
+
+:root,
+[data-theme="dark"] {
+  --surface: #000000;
+  --surface-1: #0a0a0a;
+  --surface-2: rgba(255, 255, 255, 0.04);
+  --surface-3: rgba(255, 255, 255, 0.07);
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --ink: #fafafa;
+  --ink-muted: rgba(250, 250, 250, 0.5);
+  --on-ink: #0a0a0a;
+  --pill-dark: #0a0a0a;
+  --pill-dark-ink: #fafafa;
+  --pill-dark-line: rgba(255, 255, 255, 0.1);
+  --pill-light: #f7f7f8;
+  --pill-light-ink: #0a0a0a;
+  --pill-light-line: rgba(0, 0, 0, 0.08);
+  --accept: #339af0;
+  --accept-soft: rgba(51, 154, 240, 0.12);
+  --reject: #ff7000;
+  --reject-soft: rgba(255, 112, 0, 0.12);
+  --focus: var(--ink);
+  --shadow-pill-dark: inset 0 7px 12px -6px rgba(255, 255, 255, 0.1), inset 0 -5px 8px -2px rgba(0, 0, 0, 0.6);
+  --shadow-pill-dark-hover: inset 0 7px 12px -6px rgba(255, 255, 255, 0.16), inset 0 -5px 8px -2px rgba(0, 0, 0, 0.6);
+  --shadow-pill-light: inset 0 2px 1px -0.5px #ffffff, inset 0 -3px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 1px 2px 0 rgba(10, 10, 10, 0.04), 0 2px 8px 0 rgba(10, 10, 10, 0.04);
+  --shadow-float: 0 8px 48px -12px rgba(0, 0, 0, 0.12), 0 4px 12px -6px rgba(0, 0, 0, 0.06);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --surface: #ffffff;
+  --surface-1: #f7f7f8;
+  --surface-2: rgba(10, 10, 10, 0.03);
+  --surface-3: rgba(10, 10, 10, 0.06);
+  --line: rgba(10, 10, 10, 0.08);
+  --line-strong: rgba(10, 10, 10, 0.2);
+  --ink: #0a0a0a;
+  --ink-muted: rgba(10, 10, 10, 0.6);
+  --on-ink: #fafafa;
+  --pill-dark: #0a0a0a;
+  --pill-dark-ink: #fafafa;
+  --pill-dark-line: rgba(255, 255, 255, 0.1);
+  --pill-light: #f7f7f8;
+  --pill-light-ink: #0a0a0a;
+  --pill-light-line: rgba(0, 0, 0, 0.08);
+  --accept: #1864ab;
+  --accept-soft: #e7f1fb;
+  --reject: #b84a00;
+  --reject-soft: #fff1e6;
+  --focus: var(--ink);
+  --shadow-pill-dark: inset 0 7px 12px -6px rgba(255, 255, 255, 0.1), inset 0 -5px 8px -2px rgba(0, 0, 0, 0.6);
+  --shadow-pill-dark-hover: inset 0 7px 12px -6px rgba(255, 255, 255, 0.16), inset 0 -5px 8px -2px rgba(0, 0, 0, 0.6);
+  --shadow-pill-light: inset 0 2px 1px -0.5px #ffffff, inset 0 -3px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 1px 2px 0 rgba(10, 10, 10, 0.04), 0 2px 8px 0 rgba(10, 10, 10, 0.04);
+  --shadow-float: 0 8px 48px -12px rgba(0, 0, 0, 0.12), 0 4px 12px -6px rgba(0, 0, 0, 0.06);
+  color-scheme: light;
+}
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-22: 88px;
+  --space-30: 120px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-pill: 9999px;
+  --container: 1200px;
+  --content: 736px;
+  --narrow: 512px;
+  --font-display: Inter, "Segoe UI", system-ui, sans-serif;
+  --font-sans: Inter, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}

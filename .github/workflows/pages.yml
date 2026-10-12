@@ -1,4 +1,4 @@
-name: Playground Pages
+name: Pages
 
 on:
   push:
@@ -49,13 +49,17 @@ jobs:
           PLAYGROUND_BASE: /weaver/playground/
         run: pnpm --filter @weaver/playground build
 
+      - name: Build the landing page for /weaver/
+        env:
+          SITE_BASE: /weaver/
+        run: pnpm --filter @weaver/site build
+
       - name: Assemble the Pages site
-        # The root is reserved for the landing page. Until it exists, the root
-        # page only redirects visitors to the Playground.
+        # The landing page is the site root. The Playground stays under /playground/.
         run: |
           rm -rf _site
           mkdir -p _site
-          cp .github/pages/index.html _site/index.html
+          cp -r site/dist/. _site/
           cp -r examples/playground/dist _site/playground
           test -f _site/index.html
           test -f _site/playground/index.html

@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Weaver is an independent runtime for agent-driven UI. It checks A2UI v0.9.1 output against your catalog, renders it with your components and sends user actions back to your code." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Weaver — the runtime for agent-driven UI" />
+    <meta property="og:description" content="Weaver checks every A2UI message against your catalog, renders it with your components and sends user actions back to your code. Agent output is data, never code." />
+    <title>Weaver — the runtime for agent-driven UI</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%230a0a0a'/%3E%3Cpath d='M5 9l7-4 7 4-7 4z M5 15l7 4 7-4' fill='none' stroke='%23fafafa' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <nav class="wrap nav" aria-label="Primary">
+        <a class="brand" href="#top">Weaver <span class="wv-badge wv-badge-outline">v0.3.1</span></a>
+        <ul class="nav-links">
+          <li><a href="#demo">Demo</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#packages">Packages</a></li>
+          <li><a href="https://github.com/cyruslayo/weaver/tree/main/docs">Docs</a></li>
+          <li><a href="./playground/">Playground</a></li>
+          <li><a href="#new">What’s new <span class="wv-badge wv-badge-inverse">0.3</span></a></li>
+        </ul>
+        <div class="nav-end">
+          <a class="gh-pill" href="https://github.com/cyruslayo/weaver" aria-label="Weaver on GitHub">
+            <svg class="icon" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.9a3.4 3.4 0 0 0-.9-2.6c3.1-.4 6.4-1.5 6.4-7a5.4 5.4 0 0 0-1.5-3.8 5 5 0 0 0-.1-3.8s-1.2-.4-3.9 1.5a13.4 13.4 0 0 0-7 0C6.3 1.5 5.1 1.9 5.1 1.9a5 5 0 0 0-.1 3.8A5.4 5.4 0 0 0 3.5 9.5c0 5.4 3.3 6.6 6.4 7a3.4 3.4 0 0 0-.9 2.6V23"></path></svg>
+            <span class="gh-label">GitHub</span>
+          </a>
+          <button type="button" class="menu-btn" id="menu-toggle" aria-expanded="false" aria-controls="main-menu" aria-label="Open menu">
+            <svg class="icon icon-open" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8h16M4 16h16"></path></svg>
+            <svg class="icon icon-close" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </div>
+      </nav>
+      <nav id="main-menu" class="menu-sheet wrap" aria-label="Menu" hidden>
+        <ul>
+          <li><a href="#demo">Demo</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#packages">Packages</a></li>
+          <li><a href="https://github.com/cyruslayo/weaver/tree/main/docs">Docs</a></li>
+          <li><a href="./playground/">Playground</a></li>
+          <li><a href="#new">What’s new</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main">
+      <!-- HERO -->
+      <section id="top" class="wrap hero" aria-labelledby="hero-title">
+        <a class="announce" href="https://github.com/cyruslayo/weaver/blob/main/docs/debugging.md#replay">
+          <span class="announce-text"><b>New in 0.3: </b>Replay any agent session</span>
+          <span class="announce-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span>
+        </a>
+        <h1 id="hero-title" class="wv-heading hero-title">Weaver<span class="wv-heading-sub">The runtime for agent-driven UI</span></h1>
+        <div class="hero-body">
+          <p class="hero-copy">Let any model answer with a real interface. Weaver checks every A2UI message against your catalog, renders it with your components and sends user actions back to your code. Agent output is data, never code.</p>
+          <div class="hero-ctas">
+            <a class="wv-btn wv-btn-dark wv-btn-has-orb" href="https://github.com/cyruslayo/weaver/blob/main/README.md#quick-start"><span>Read the quick start</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+            <a class="wv-btn wv-btn-light wv-btn-has-orb" href="https://github.com/cyruslayo/weaver/tree/main/examples/reference-app"><span>View the example app</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+          </div>
+        </div>
+      </section>
+
+      <!-- AGENT APP DEMO -->
+      <section id="demo" class="wrap demo-section" aria-labelledby="demo-title">
+        <h2 id="demo-title" class="sr-only">Agent app demo</h2>
+        <div id="demo-root" class="demo-root">
+          <noscript><p class="muted">The interactive demo needs JavaScript.</p></noscript>
+        </div>
+      </section>
+
+      <!-- FEATURES -->
+      <section id="features" class="wrap section-block" aria-labelledby="features-title">
+        <div class="features-head">
+          <div class="features-intro">
+            <span class="wv-product">Weaver<span class="wv-badge wv-badge-outline">Core</span></span>
+            <h2 id="features-title" class="wv-heading wv-heading-lg">Everything between the model and the screen</h2>
+            <div class="btn-row">
+              <a class="wv-btn wv-btn-dark wv-btn-has-orb" href="https://github.com/cyruslayo/weaver/blob/main/docs/architecture.md"><span>Read how it works</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+            </div>
+          </div>
+          <p class="features-copy">Weaver checks what the agent sends, keeps track of the interface’s state, draws it with your components and passes clicks and typing back to your code. Your app keeps the model and the business logic.</p>
+        </div>
+        <div class="wv-features">
+          <div class="wv-feature">
+            <span class="wv-feature-icon"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10v10H7z"></path><path d="M10 2v3"></path><path d="M14 2v3"></path><path d="M10 19v3"></path><path d="M14 19v3"></path><path d="M2 10h3"></path><path d="M2 14h3"></path><path d="M19 10h3"></path><path d="M19 14h3"></path></svg></span>
+            <h3>Works with any model</h3>
+            <p>Weaver never picks or calls a model. Any model or agent that can produce A2UI works.</p>
+          </div>
+          <div class="wv-feature">
+            <span class="wv-feature-icon"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+            <h3>No agent code runs</h3>
+            <p>Agents describe the interface as data. Weaver never runs the HTML, CSS or JavaScript they send.</p>
+          </div>
+          <div class="wv-feature">
+            <span class="wv-feature-icon"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg></span>
+            <h3>Only components you approve</h3>
+            <p>You register the components and functions an agent may use. Messages can’t add new ones.</p>
+          </div>
+          <div class="wv-feature">
+            <span class="wv-feature-icon"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16"></path><path d="M4 12h11"></path><path d="M4 18h6"></path></svg></span>
+            <h3>Safe streaming</h3>
+            <p>The interface builds as the model streams. A broken line is skipped with a clear error, and the rest still renders.</p>
+          </div>
+          <div class="wv-feature">
+            <span class="wv-feature-icon"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 7-6 2-2 6z"></path></svg></span>
+            <h3>You decide what buttons do</h3>
+            <p>User actions arrive in your code by name. Nothing happens until your code checks them.</p>
+          </div>
+          <div class="wv-feature">
+            <span class="wv-feature-icon"><svg class="icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6"></path><path d="M15 2v6"></path><path d="M6 8h12v3a6 6 0 0 1-12 0z"></path><path d="M12 17v5"></path></svg></span>
+            <h3>Runs where you do</h3>
+            <p>Core runs in browsers, Node and Cloudflare Workers. Add HTTP streaming or MCP only if you need them.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- STRICTNESS -->
+      <section class="wrap section-block" aria-labelledby="strict-title">
+        <h2 id="strict-title" class="wv-heading wv-heading-xl strict-title">Broken output is caught, not patched<span class="wv-heading-sub">and you’re told exactly why</span></h2>
+
+        <div class="window">
+          <div class="window-bar">
+            <span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span>
+            <span class="mono window-title">createA2UIV091StreamIngestion({ runtime })</span>
+          </div>
+
+          <div class="stream-tabs" role="tablist" aria-label="Demo step" id="stream-tabs">
+            <button type="button" role="tab" id="tab-model" class="stream-tab" aria-selected="false" aria-controls="pane-model" data-pane="pane-model" tabindex="-1">1 · Model</button>
+            <button type="button" role="tab" id="tab-checks" class="stream-tab" aria-selected="true" aria-controls="pane-checks" data-pane="pane-checks">2 · Checks</button>
+            <button type="button" role="tab" id="tab-screen" class="stream-tab" aria-selected="false" aria-controls="pane-screen" data-pane="pane-screen" tabindex="-1">3 · Screen</button>
+          </div>
+
+          <div class="stream-panes">
+            <section class="pane" id="pane-model" aria-label="From the model">
+              <p class="pane-label">From the model · untrusted</p>
+              <div class="mono stream-lines">
+                <div class="stream-line"><span class="stream-num">1</span><span class="stream-text">{"version":"v0.9.1","createSurface":{…}}</span></div>
+                <div class="stream-line"><span class="stream-num">2</span><span class="stream-text">{"version":"v0.9.1","updateComponents":{…}}</span></div>
+                <div class="stream-line"><span class="stream-num">3</span><span class="stream-text">{"version":"v0.9.1","updateComponents":{…}}</span></div>
+                <div class="stream-line is-rejected"><span class="stream-num">4</span><span class="stream-text">{"version":"v0.9.1","updateComp</span></div>
+                <div class="stream-line"><span class="stream-num">5</span><span class="stream-text">{"version":"v0.9.1","updateDataModel":{…}}</span></div>
+              </div>
+            </section>
+
+            <section class="pane is-active" id="pane-checks" aria-label="Weaver checks each line">
+              <p class="pane-label">Weaver checks each line</p>
+              <div class="frame-list">
+                <div class="wv-frame wv-frame-accepted" role="status"><span class="wv-frame-mark"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><div><div class="wv-frame-meta"><span>frame 1</span><span class="wv-frame-code">createSurface</span></div></div></div>
+                <div class="wv-frame wv-frame-accepted" role="status"><span class="wv-frame-mark"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><div><div class="wv-frame-meta"><span>frame 2</span><span class="wv-frame-code">updateComponents</span></div></div></div>
+                <div class="wv-frame wv-frame-accepted" role="status"><span class="wv-frame-mark"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><div><div class="wv-frame-meta"><span>frame 3</span><span class="wv-frame-code">updateComponents</span></div></div></div>
+                <div class="wv-frame wv-frame-rejected" role="status"><span class="wv-frame-mark"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg></span><div><div class="wv-frame-meta"><span>frame 4</span><span class="wv-frame-code">INVALID_JSON</span></div><p class="wv-frame-msg">Not valid JSON. Skipped, and nothing on screen changed.</p></div></div>
+                <div class="wv-frame wv-frame-accepted" role="status"><span class="wv-frame-mark"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg></span><div><div class="wv-frame-meta"><span>frame 5</span><span class="wv-frame-code">updateDataModel</span></div></div></div>
+              </div>
+            </section>
+
+            <section class="pane" id="pane-screen" aria-label="What your user sees">
+              <p class="pane-label">What your user sees</p>
+              <div class="ui-sample" data-theme="light">
+                <p class="ui-sample-title">Book a table</p>
+                <label class="ui-field" for="demo-name"><span>Name</span><input id="demo-name" type="text" value="Ada" /></label>
+                <label class="ui-field" for="demo-party"><span>Party size</span><input id="demo-party" type="text" value="4" inputmode="numeric" /></label>
+                <button type="button" class="wv-btn wv-btn-dark"><span>Reserve</span></button>
+              </div>
+              <p class="mono pane-caption">Reserve → sent to your code as “reserve”</p>
+            </section>
+          </div>
+        </div>
+
+        <div class="strict-grid">
+          <div class="strict-code">
+            <figure class="wv-code">
+              <figcaption class="wv-code-head"><span>app.ts</span><span>TypeScript</span></figcaption>
+              <pre><code>import { createBasicWebRuntime } from "@cylayo/weaver-web";
+import { createA2UIV091StreamIngestion } from "@cylayo/weaver-core";
+
+const created = createBasicWebRuntime();
+if (!created.ok) throw new Error(created.error.code);
+const web = created.value;
+
+const ingestion = createA2UIV091StreamIngestion({ runtime: web.runtime });
+for await (const delta of providerTextDeltas) {
+  for (const event of ingestion.push(delta)) {
+    if (!event.ok) report(event.frame, event.error.code);
+  }
+}
+ingestion.finish();
+
+web.mount({ surfaceId: "main", target });</code></pre>
+            </figure>
+          </div>
+          <div class="strict-text">
+            <p class="strict-copy">Weaver doesn’t guess what the model meant. It won’t strip Markdown fences or patch half-written JSON, and a broken line never half-updates the screen. You get a typed error, and <code class="mono strong-code">describeWeaverError()</code> turns it into a plain summary and a suggested fix.</p>
+            <ul class="mono error-list">
+              <li><span class="reject">INVALID_JSON</span><span class="sans muted">The line isn’t valid JSON</span></li>
+              <li><span class="reject">FRAME_TOO_LARGE</span><span class="sans muted">The line is over the size limit</span></li>
+              <li><span class="reject">PROTOCOL_VALIDATION_FAILED</span><span class="sans muted">It isn’t a valid A2UI message</span></li>
+              <li><span class="reject">CATALOG_REGISTRY_ERROR</span><span class="sans muted">It doesn’t match your catalog</span></li>
+              <li><span class="reject">SURFACE_STORE_ERROR</span><span class="sans muted">It doesn’t fit the interface’s current state</span></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- PACKAGES -->
+      <section id="packages" class="wrap section-block" aria-labelledby="packages-title">
+        <h2 id="packages-title" class="wv-heading wv-heading-xl centered">Install only what you need<span class="wv-heading-sub">Start with Core</span></h2>
+        <div class="pkg-grid">
+          <article class="pkg-card">
+            <div class="pkg-head"><span class="mono pkg-name">@cylayo/weaver-core</span><span class="wv-badge wv-badge-outline">Required</span></div>
+            <h3 class="pkg-title">Checks, state and actions</h3>
+            <p class="pkg-body">The engine. Checks agent output, holds the interface’s state, handles input and actions, and builds prompts from your catalog. Runs in browsers, Node and Workers.</p>
+            <code class="mono install-line"><span class="muted">npm install</span> @cylayo/weaver-core</code>
+          </article>
+          <article class="pkg-card">
+            <div class="pkg-head"><span class="mono pkg-name">@cylayo/weaver-web</span><span class="wv-badge wv-badge-outline">For browsers</span></div>
+            <h3 class="pkg-title">Browser rendering</h3>
+            <p class="pkg-body">Draws the interface in the browser with ready-made components, wires up clicks and typing, and streams updates over HTTP.</p>
+            <code class="mono install-line"><span class="muted">npm install</span> @cylayo/weaver-web</code>
+          </article>
+          <article class="pkg-card">
+            <div class="pkg-head"><span class="mono pkg-name">@cylayo/weaver-mcp</span><span class="wv-badge wv-badge-muted">Optional</span></div>
+            <h3 class="pkg-title">MCP bridge</h3>
+            <p class="pkg-body">Brings agent interfaces in through an MCP client you already use. Needs Node 20 or later.</p>
+            <code class="mono install-line"><span class="muted">npm install</span> @cylayo/weaver-mcp</code>
+          </article>
+        </div>
+      </section>
+
+      <!-- WHAT'S NEW (light band) -->
+      <section id="new" class="band-light" data-theme="light" aria-labelledby="new-title">
+        <div class="wrap band-inner">
+          <div class="band-head">
+            <span class="wv-product">Weaver<span class="wv-badge wv-badge-outline">0.3</span></span>
+            <h2 id="new-title" class="wv-heading wv-heading-xl centered">Find out why an interface went wrong<span class="wv-heading-sub">Record it, replay it, read every step</span></h2>
+          </div>
+          <div class="new-grid">
+            <article class="new-card">
+              <h3>Prompts from your catalog</h3>
+              <p>The prompt tells the model exactly which components and actions your app accepts, so fewer answers get turned away.</p>
+              <code class="mono new-code">generateA2UIV091Prompt()</code>
+            </article>
+            <article class="new-card">
+              <h3>Watch every event</h3>
+              <p>See each message, input and action in order as it happens. Turn it on when you need it; it never changes a result.</p>
+              <code class="mono new-code">observer</code>
+            </article>
+            <article class="new-card">
+              <h3>Replay any session</h3>
+              <p>Record a session, replay it on a fresh runtime and see the exact step where something changed.</p>
+              <code class="mono new-code">replayWeaverTrace()</code>
+            </article>
+            <article class="new-card">
+              <h3>Errors that explain the fix</h3>
+              <p>Every error comes with a stable code, a plain summary and a hint on what to change.</p>
+              <code class="mono new-code">describeWeaverError()</code>
+            </article>
+          </div>
+          <div class="btn-row centered-row">
+            <a class="wv-btn wv-btn-dark wv-btn-has-orb" href="https://github.com/cyruslayo/weaver/blob/main/CHANGELOG.md"><span>Read the changelog</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+            <a class="wv-btn wv-btn-light wv-btn-has-orb" href="https://github.com/cyruslayo/weaver/blob/main/docs/debugging.md"><span>Read the debugging guide</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section class="wrap faq" aria-labelledby="faq-title">
+        <div class="faq-intro">
+          <h2 id="faq-title" class="wv-heading wv-heading-lg">Frequently asked questions</h2>
+          <p class="faq-note">More answers in the <a href="https://github.com/cyruslayo/weaver/tree/main/docs">documentation</a>.</p>
+        </div>
+        <div class="faq-list wv-acc">
+          <details>
+            <summary><span>What is A2UI?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
+            <p class="wv-acc-answer">An open format that lets an AI agent describe an interface as data: which components to show, what they say and what their buttons do. Weaver supports version 0.9.1.</p>
+          </details>
+          <details open>
+            <summary><span>Does Weaver call a model?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
+            <p class="wv-acc-answer">No. Your app calls the model. Weaver takes the text it streams back, checks it and draws the interface.</p>
+          </details>
+          <details>
+            <summary><span>What happens when the model sends broken output?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
+            <p class="wv-acc-answer">Weaver skips that line and tells you why with a typed error. It never patches the output or applies part of it, so people never see a half-broken screen.</p>
+          </details>
+          <details>
+            <summary><span>Which packages do I need?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
+            <p class="wv-acc-answer">A browser app needs Core and Web. Core alone works in Node and Workers. Add MCP only when your application talks MCP.</p>
+          </details>
+          <details>
+            <summary><span>Can an agent run its own code in my page?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
+            <p class="wv-acc-answer">No. Weaver never executes agent-provided HTML, CSS or JavaScript, and media stays blocked until your resource policy approves a URL.</p>
+          </details>
+          <details>
+            <summary><span>Is the API stable?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
+            <p class="wv-acc-answer">Weaver is pre-1.0, so the public API may still change between minor versions. The three packages always release together at one version.</p>
+          </details>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="cta" aria-labelledby="cta-title">
+        <div class="wrap cta-inner">
+          <h2 id="cta-title" class="wv-heading wv-heading-hero centered">Build your first agent interface<span class="wv-heading-sub">in a few lines of TypeScript</span></h2>
+          <div class="install-picker">
+            <div class="install-tabs" role="tablist" aria-label="Install target" id="install-tabs">
+              <button type="button" role="tab" class="install-tab" aria-selected="true" data-install="browser" tabindex="0">Browser app</button>
+              <button type="button" role="tab" class="install-tab" aria-selected="false" data-install="core" tabindex="-1">Core only</button>
+              <button type="button" role="tab" class="install-tab" aria-selected="false" data-install="mcp" tabindex="-1">With MCP</button>
+            </div>
+            <button type="button" class="wv-cmd" id="command-pill" aria-label="Copy command: npm install @cylayo/weaver-core @cylayo/weaver-web">
+              <code class="wv-cmd-text"><span class="wv-cmd-bin">npm</span><span id="command-args"> install @cylayo/weaver-core @cylayo/weaver-web</span></code>
+              <span class="wv-cmd-orb" aria-hidden="true">
+                <svg class="icon icon-copy" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9h11v11H9z"></path><path d="M5 15H4V4h11v1"></path></svg>
+                <svg class="icon icon-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"></path></svg>
+              </span>
+            </button>
+            <span class="sr-only" id="copy-status" aria-live="polite"></span>
+          </div>
+          <div class="btn-row centered-row">
+            <a class="wv-btn wv-btn-dark wv-btn-has-orb" href="https://github.com/cyruslayo/weaver/tree/main/docs"><span>Read the docs</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+            <a class="wv-btn wv-btn-light wv-btn-has-orb" href="./playground/"><span>Open the playground</span><span class="wv-btn-orb" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg></span></a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-row">
+        <span class="footer-name">Weaver</span>
+        <span>Pre-1.0 · Open source under Apache-2.0</span>
+        <span class="footer-spacer"></span>
+        <a href="https://github.com/cyruslayo/weaver/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://www.npmjs.com/package/@cylayo/weaver-core">npm</a>
+        <a href="https://a2ui.org">A2UI</a>
+        <a href="https://github.com/cyruslayo/weaver">GitHub</a>
+      </div>
+    </footer>
+  </body>
+</html>

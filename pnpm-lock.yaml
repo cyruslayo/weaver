@@ -113,6 +113,12 @@ importers:
         specifier: ^20.11.2
         version: 20.11.2
 
+  site:
+    devDependencies:
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.1(@types/node@22.20.1)(esbuild@0.28.2)
+
 packages:
 
   '@cfworker/json-schema@4.1.1':
