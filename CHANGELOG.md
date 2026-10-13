@@ -13,6 +13,8 @@ mark those releases. This file does not rewrite them.
 
 ## [Unreleased]
 
+- Examples: the hosted Weaver Playground (`examples/playground/index.html`) edits A2UI v0.9.1 JSONL, with a live preview, an inspector and a GitHub Pages workflow. The Basic component bench moved to `components.html`. No package changed.
+
 ## [0.3.1] - 2026-10-11
 
 **Upgrade:** none. This release is documentation and package metadata only. Install

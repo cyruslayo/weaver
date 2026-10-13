@@ -421,8 +421,9 @@ Basic factories remain public for advanced composition. See
 [docs/web-rendering.md](docs/web-rendering.md).
 
 The canonical runnable examples distinguish two purposes: the
-[playground](examples/playground/) explores renderers and Basic components,
-while the [reference application](examples/reference-app/) demonstrates the
+[playground](examples/playground/) explores renderers and Basic components, and its
+[Playground page](examples/playground/README.md) edits A2UI JSONL live, while the
+[reference application](examples/reference-app/) demonstrates the
 full application-agent -> producer -> JSONL ingestion -> runtime -> Web ->
 trusted action round trip. The loopback browser transport is demonstrated by
 the [HTTP/SSE reference server](examples/http-sse-server/).

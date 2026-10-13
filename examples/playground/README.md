@@ -3,9 +3,65 @@
 `@weaver/playground` is a private example. It is not published, and it is not part of
 `@cylayo/weaver-web`.
 
-- `index.html` is the Basic demo.
+- `index.html` is the **Playground**. It is the hosted page, described in the next section.
+- `components.html` is the Basic component bench. It was `index.html` before the Playground.
 - `inspector.html` is the **trace inspector**. It is a development-only page that loads
   a `weaver-trace` file, or the bundled sample, and steps through it.
+
+## Playground
+
+The Playground edits A2UI v0.9.1 JSONL, one message per line, and shows what Weaver does
+with it. It uses only the Basic Catalog. Its layout is an examples list, an editor, a live
+preview, and an inspector with four tabs: Events, Data model, Prompt and Errors.
+
+```sh
+pnpm --filter @weaver/playground dev
+# open /  (the Playground), /components.html or /inspector.html
+```
+
+- **Examples.** Hotel booking, Support form, Order summary and Broken output. The broken one
+  cuts frame 3 off mid-JSON, so the Errors tab shows one `INVALID_JSON` at line 3. Selecting an
+  example replaces the text. If you edited it, an in-page bar asks first.
+- **Editing.** Each pause in typing (about 300 ms) builds a fresh runtime from the whole text.
+  Every frame goes through `createA2UIV091StreamIngestion`. Nothing is repaired or skipped.
+  A rejected frame is listed in Errors and marked in the line gutter. The preview keeps every
+  frame that was accepted.
+- **Stream it.** Replays the text one line at a time into a fresh runtime, at 0.5x, 1x or 2x
+  speed. The editor is read-only while it runs. Stop ends the replay early.
+- **Events** lists input writes and actions from the preview, newest first (up to 50). A server
+  event is only shown. It is never sent.
+- **Copy as code** copies a short TypeScript snippet with `createBasicWebRuntime` and
+  `createA2UIV091StreamIngestion`, with the JSONL in a template literal. **Copy prompt** copies
+  the Basic Catalog prompt from `generateA2UIV091Prompt()`.
+
+### Media policy
+
+Images are denied by default. The Playground's `resourcePolicy` loads only a same-origin file
+under `samples/`, resolved against the Vite base. Any other URL typed into the editor is
+blocked, and it is not loaded. The three JPEGs in `public/samples/` are credited in
+`public/samples/CREDITS.md`.
+
+### Share links
+
+**Share** puts the text in the URL fragment as base64url of its UTF-8 bytes, `#jsonl=...`. A
+fragment is not sent to a server, so the text stays in the link. Anyone with the link can read
+the text. Do not share a link that holds private text. A link that is missing, too large (over
+64 KB), malformed or not UTF-8 is not loaded, and the page says why. A valid link pre-fills the
+editor, and its text goes through the same ingestion path as typed text.
+
+### Hosting
+
+`.github/workflows/pages.yml` builds the Playground on each push to `main`, or on a manual
+run, with `PLAYGROUND_BASE=/weaver/playground/`. It copies `examples/playground/dist` to
+`_site/playground/` and uploads `_site` to GitHub Pages with the official `configure-pages`,
+`upload-pages-artifact` and `deploy-pages` actions. The root is reserved for a landing page.
+Until that page exists, `.github/pages/index.html` is copied to `_site/index.html` and only
+redirects visitors to `./playground/`. The page has no network requests except its own files.
+It runs no `eval`, and it builds its DOM with `createElement` and `textContent`.
+
+**Enabling GitHub Pages.** Set the repository's Pages source to "GitHub Actions" once, under
+Settings > Pages, before the workflow can deploy. Until then the deploy job fails. The Playground
+URL is https://cyruslayo.github.io/weaver/playground/.
 
 ## Trace inspector
 
