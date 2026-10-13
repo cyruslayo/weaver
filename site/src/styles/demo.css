@@ -1,0 +1,1105 @@
+/*
+ * Agent-app demo styles, ported from the Demo artboard. The demo is a light surface inside a dark
+ * window, so the rendered "app" uses the light token set (data-theme="light" on .d-surface).
+ */
+
+.d-root {
+  width: 100%;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.d-window {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface-1);
+  overflow: hidden;
+}
+
+.d-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px 10px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.d-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.d-appname {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.d-spacer {
+  flex: 1 1 auto;
+}
+
+.d-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.d-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.d-muted {
+  color: var(--ink-muted);
+}
+
+.d-mono {
+  font-family: var(--font-mono);
+}
+
+/* Chips and pills */
+.d-chip {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+}
+
+.d-chip.is-on {
+  background: var(--ink);
+  color: var(--on-ink);
+  border-color: var(--ink);
+}
+
+.d-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.d-small {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.d-block {
+  width: 100%;
+}
+
+.d-primary {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.d-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.d-quiet {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.d-ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.d-step {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.d-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.d-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  min-width: 0;
+}
+
+.d-ar-43 {
+  aspect-ratio: 4 / 3;
+}
+
+.d-ar-32 {
+  aspect-ratio: 3 / 2;
+}
+
+.d-ar-11 {
+  aspect-ratio: 1 / 1;
+}
+
+.d-radius-10 {
+  border-radius: 10px;
+}
+
+.d-radius-12 {
+  border-radius: 12px;
+}
+
+.d-radius-14 {
+  border-radius: 14px;
+}
+
+.d-radius-16 {
+  border-radius: 16px;
+}
+
+/* Chat column */
+.d-chat {
+  flex: 999 1 540px;
+  min-width: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.d-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  margin: -2px -20px 0;
+  padding: 2px 20px 4px;
+  scrollbar-width: none;
+}
+
+.d-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.d-chips .d-chip {
+  flex: none;
+}
+
+.d-chips-label {
+  flex: none;
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.d-prompt {
+  align-self: flex-end;
+  max-width: 80%;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 18px 18px 4px 18px;
+  background: var(--surface-3);
+  font-size: 15px;
+}
+
+.d-agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.d-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--on-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.d-agent-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.d-agent-note {
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+/* The rendered surface uses the light token set */
+.d-surface {
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 520px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.d-surface:focus {
+  outline: none;
+}
+
+.d-surface [tabindex="-1"]:focus {
+  outline: none;
+}
+
+.d-surface .d-tabfocus:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.d-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.d-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.d-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.d-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.d-empty-box {
+  padding: 40px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 16px;
+}
+
+.d-empty-text {
+  margin: 0;
+  font-size: 15px;
+}
+
+/* Hotel cards */
+.d-hotels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.d-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+}
+
+.d-photo {
+  position: relative;
+  min-width: 0;
+}
+
+.d-save {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  border: 0;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0a0a0a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.d-tagline {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: rgba(10, 10, 10, 0.72);
+  color: #fafafa;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.d-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.d-card-row + .d-card-row {
+  align-items: center;
+}
+
+.d-minw {
+  min-width: 0;
+}
+
+.d-name {
+  margin: 0;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.d-area {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.d-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.d-price {
+  font-size: 14px;
+}
+
+.d-price strong {
+  font-weight: 600;
+}
+
+/* Hotel detail */
+.d-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.d-gallery {
+  flex: 3 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.d-thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.d-thumb {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: none;
+  cursor: pointer;
+  min-width: 0;
+  min-height: 40px;
+}
+
+.d-thumb.is-on {
+  border-color: var(--ink);
+}
+
+.d-thumb .d-img {
+  border-radius: 10px;
+}
+
+.d-info {
+  flex: 2 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.d-amenities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.d-amenity {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.d-booking {
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.d-stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.d-row-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.d-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.d-count {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.d-room-set {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.d-room-legend {
+  padding: 0 0 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.d-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.d-radio-name {
+  flex: 1;
+}
+
+.d-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.d-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.d-line-total {
+  font-size: 16px;
+  font-weight: 600;
+  padding-top: 4px;
+}
+
+.d-done-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
+.d-done-photo {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+
+.d-done-col {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.d-done-col.d-start {
+  align-items: flex-start;
+}
+
+.d-check-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--on-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Food */
+.d-food {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.d-dishes {
+  flex: 999 1 340px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 14px;
+}
+
+.d-dish {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.d-dish-name {
+  margin: 0;
+  font-size: 14px;
+  line-height: 19px;
+  font-weight: 600;
+}
+
+.d-dish-price {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.d-dish-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.d-dish-stepper .d-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.d-basket {
+  flex: 1 1 220px;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.d-basket-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.d-thumb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.d-thumb-72 {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+
+/* Trip */
+.d-days {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.d-day-tab {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--ink-muted);
+  border: 0;
+}
+
+.d-day-tab.is-on {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+}
+
+.d-stops {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.d-stop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.d-stop.is-skipped {
+  opacity: 0.45;
+}
+
+.d-stop-photo {
+  width: 128px;
+  height: 96px;
+  flex: none;
+  object-fit: cover;
+}
+
+.d-stop-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.d-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+.d-stop-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.d-stop-blurb {
+  font-size: 13px;
+}
+
+.d-include {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.d-include input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+}
+
+.d-trip-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.d-day-summary {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.d-grid-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+/* Composer */
+.d-composer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.d-composer-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.d-send {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  border: 0;
+  background: var(--surface-3);
+  color: var(--ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: not-allowed;
+}
+
+/* Side panel */
+.d-panel {
+  flex: 1 1 280px;
+  min-width: 0;
+  box-sizing: border-box;
+  border-left: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  margin-left: -1px;
+  margin-top: -1px;
+  padding: 20px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.d-panel-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.d-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.d-step-item {
+  display: flex;
+  gap: 12px;
+}
+
+.d-step-n {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.d-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.d-step-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.d-step-body {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-muted);
+}
+
+.d-events {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.d-events-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.d-empty-note {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--line-strong);
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.d-event {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.d-kind {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.d-kind-action {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.d-event-text {
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.d-details {
+  min-width: 0;
+}
+
+.d-details summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 500;
+  border-top: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.d-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.d-details .wv-code {
+  margin-top: 8px;
+}
+
+.d-credit {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink-muted);
+}
+
+/* Narrow screens: the chat stays full width, the filters and hotels scroll sideways */
+@media (max-width: 560px) {
+  .d-dot,
+  .d-appname {
+    display: none;
+  }
+
+  .d-chat {
+    padding: 14px;
+  }
+
+  .d-surface {
+    padding: 16px;
+    border-radius: 16px;
+    min-height: 0;
+  }
+
+  .d-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 2px 16px;
+  }
+
+  .d-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .d-filters .d-chip {
+    flex: none;
+  }
+
+  .d-hotels {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
+    margin: 0 -16px;
+    padding: 0 16px 4px;
+    scrollbar-width: none;
+  }
+
+  .d-hotels::-webkit-scrollbar {
+    display: none;
+  }
+
+  .d-hotels > * {
+    flex: 0 0 78%;
+    scroll-snap-align: start;
+  }
+
+  .d-stop {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 8px 12px;
+    align-items: start;
+  }
+
+  .d-stop > .d-stop-photo {
+    width: 88px;
+    height: 88px;
+    grid-row: span 2;
+  }
+
+  .d-stop > .d-include {
+    justify-self: start;
+    min-height: 40px;
+  }
+
+  .d-stop > .d-stop-text {
+    grid-column: 2;
+  }
+
+  .d-stop > .d-include {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d-chip,
+  .d-pill,
+  .d-step {
+    transition: none;
+  }
+}

@@ -54,10 +54,9 @@ editor, and its text goes through the same ingestion path as typed text.
 `.github/workflows/pages.yml` builds the Playground on each push to `main`, or on a manual
 run, with `PLAYGROUND_BASE=/weaver/playground/`. It copies `examples/playground/dist` to
 `_site/playground/` and uploads `_site` to GitHub Pages with the official `configure-pages`,
-`upload-pages-artifact` and `deploy-pages` actions. The root is reserved for a landing page.
-Until that page exists, `.github/pages/index.html` is copied to `_site/index.html` and only
-redirects visitors to `./playground/`. The page has no network requests except its own files.
-It runs no `eval`, and it builds its DOM with `createElement` and `textContent`.
+`upload-pages-artifact` and `deploy-pages` actions. The landing page in `site/` is built with
+`SITE_BASE=/weaver/` and copied to the site root. The Playground itself has no network requests
+except its own files. It runs no `eval`, and it builds its DOM with `createElement` and `textContent`.
 
 **Enabling GitHub Pages.** Set the repository's Pages source to "GitHub Actions" once, under
 Settings > Pages, before the workflow can deploy. Until then the deploy job fails. The Playground
