@@ -7,9 +7,13 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test dist-test/demo/model.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/demo/model.test.js dist-test/demo/media-policy.test.js dist-test/demo/scenarios.test.js"
   },
   "devDependencies": {
     "vite": "^8.2.0"
+  },
+  "dependencies": {
+    "@cylayo/weaver-core": "workspace:*",
+    "@cylayo/weaver-web": "workspace:*"
   }
 }

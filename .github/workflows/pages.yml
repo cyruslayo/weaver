@@ -49,6 +49,9 @@ jobs:
           PLAYGROUND_BASE: /weaver/playground/
         run: pnpm --filter @weaver/playground build
 
+      - name: Build workspace dependencies of the landing page
+        run: pnpm --filter "@weaver/site^..." run --if-present build
+
       - name: Build the landing page for /weaver/
         env:
           SITE_BASE: /weaver/

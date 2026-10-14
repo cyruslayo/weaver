@@ -1,8 +1,6 @@
 /**
- * Static content for the agent-app demo, copied from the design spec (Demo.dc.html).
- *
- * TODO(weaver-runtime): this demo mirrors the mocked agent app. A follow-up PR should run it on
- * the real Weaver runtime (createBasicWebRuntime and the reference app's A2UI messages) instead.
+ * Static content for the agent-app demo: the stays, dishes, trip stops, photo files and the copy for
+ * the "How Weaver built this" panel. The demo runs these through the real Weaver runtime.
  */
 
 export type ScenarioId = "hotel" | "food" | "trip";
@@ -53,28 +51,6 @@ export const IMAGE_FILES: Readonly<Record<ImageKey, string>> = {
   pena: "trip-pena",
   alfama: "trip-alfama",
   lx: "trip-lx",
-};
-
-/** Intrinsic pixel sizes of the photo files, used for width and height attributes. */
-export const IMAGE_SIZE: Readonly<Record<ImageKey, { width: number; height: number }>> = {
-  tejo: { width: 960, height: 640 },
-  azulejo: { width: 960, height: 640 },
-  ribeira: { width: 960, height: 640 },
-  lobby: { width: 960, height: 640 },
-  bed: { width: 960, height: 640 },
-  bath: { width: 960, height: 640 },
-  lounge: { width: 960, height: 640 },
-  pizza: { width: 640, height: 640 },
-  pasta: { width: 640, height: 640 },
-  salmon: { width: 640, height: 640 },
-  salad: { width: 640, height: 640 },
-  cake: { width: 640, height: 640 },
-  nata: { width: 640, height: 640 },
-  tram: { width: 960, height: 640 },
-  belem: { width: 960, height: 640 },
-  pena: { width: 960, height: 640 },
-  alfama: { width: 960, height: 640 },
-  lx: { width: 960, height: 640 },
 };
 
 /** Alt text for the hotel and room photos. */
@@ -237,41 +213,10 @@ export const MAX_NIGHTS = 14;
 export const MIN_GUESTS = 1;
 export const MAX_GUESTS = 6;
 
-export interface ScenarioSpec {
-  /** Describes the A2UI messages the agent sent, for step 1. */
-  messages: string;
-  /** The action name the main button sends to the app. */
-  action: string;
-  /** The formatted A2UI sample shown under "See the A2UI the agent sent". */
-  a2ui: string;
-  a2uiFile: string;
-}
-
-export const SCENARIO_SPECS: Readonly<Record<ScenarioId, ScenarioSpec>> = {
-  hotel: {
-    messages: "3 messages describing a List of Cards, each with an Image, Text and Buttons, plus a ChoicePicker for the room.",
-    action: "reserve_room",
-    a2uiFile: "hotel.jsonl · formatted",
-    a2ui: '{"version":"v0.9.1","updateComponents":{"surfaceId":"stays","components":[\n  {"id":"root","component":"Column","children":["title","filters","results"]},\n  {"id":"results","component":"List","children":{"componentId":"stay","path":"/stays"}},\n  {"id":"stay","component":"Card","child":"stay-body"},\n  {"id":"photo","component":"Image","url":{"path":"photo"},"description":{"path":"alt"}},\n  {"id":"room","component":"ChoicePicker", …},\n  {"id":"reserve","component":"Button","child":"reserve-label",\n   "action":{"event":{"name":"reserve_room","context":{"stay":{"path":"/selected/id"},"nights":{"path":"/booking/nights"}}}}},\n  …]}}',
-  },
-  food: {
-    messages: "3 messages describing a List of dishes with Images, prices and your own Stepper component.",
-    action: "place_order",
-    a2uiFile: "food.jsonl · formatted",
-    a2ui: '{"version":"v0.9.1","updateComponents":{"surfaceId":"order","components":[\n  {"id":"root","component":"Row","children":["menu","basket"]},\n  {"id":"menu","component":"List","children":{"componentId":"dish","path":"/menu"}},\n  {"id":"dish-photo","component":"Image","url":{"path":"photo"}},\n  {"id":"dish-qty","component":"Stepper","value":{"path":"qty"}},\n  {"id":"place","component":"Button","child":"place-label",\n   "action":{"event":{"name":"place_order","context":{"items":{"path":"/order"}}}}},\n  …]}}',
-  },
-  trip: {
-    messages: "3 messages describing Tabs for the days and a List of stops with Images and CheckBoxes.",
-    action: "add_to_calendar",
-    a2uiFile: "trip.jsonl · formatted",
-    a2ui: '{"version":"v0.9.1","updateComponents":{"surfaceId":"trip","components":[\n  {"id":"root","component":"Column","children":["title","days","save"]},\n  {"id":"days","component":"Tabs", …},\n  {"id":"stops","component":"List","children":{"componentId":"stop","path":"/days/0/stops"}},\n  {"id":"stop-photo","component":"Image","url":{"path":"photo"}},\n  {"id":"include","component":"CheckBox","value":{"path":"included"}},\n  {"id":"save","component":"Button","child":"save-label",\n   "action":{"event":{"name":"add_to_calendar","context":{"plan":{"path":"/days"}}}}},\n  …]}}',
-  },
-};
-
 /** Copy for the "How Weaver built this" panel. */
 export const STEP_BODIES = {
   checked: "Each one was checked against the components you registered. Anything else is turned away with a clear error.",
-  drawn: "Each A2UI component maps to one you registered, so the screen matches your app’s design. Photos load only from addresses your media policy allows.",
+  drawn: "Each A2UI component maps to one you registered, so the screen matches your app’s design. The photos load because the media policy allows this site’s own images.",
   notSent: (action: string): string =>
     "Each change updates the interface’s data inside Weaver. The main button sends " + action + " to your code, which decides what happens next.",
   sent: (action: string): string =>
