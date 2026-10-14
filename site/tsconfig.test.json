@@ -9,5 +9,5 @@
     "outDir": "dist-test",
     "types": ["node"]
   },
-  "include": ["src/demo/data.ts", "src/demo/model.ts", "src/demo/*.test.ts"]
+  "include": ["src/demo/**/*.ts"]
 }

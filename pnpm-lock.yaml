@@ -114,6 +114,13 @@ importers:
         version: 20.11.2
 
   site:
+    dependencies:
+      '@cylayo/weaver-core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@cylayo/weaver-web':
+        specifier: workspace:*
+        version: link:../packages/web
     devDependencies:
       vite:
         specifier: ^8.2.0
