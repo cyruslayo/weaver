@@ -22,7 +22,7 @@ export function createCodeSnippet(jsonl: string, options: CodeSnippetOptions = {
   const surfaceId = options.surfaceId ?? "main";
   const attributionName = options.attributionName ?? "Playground Agent";
   return [
-    'import { createA2UIV091StreamIngestion } from "@cylayo/weaver-core";',
+    'import { createA2UIV10StreamIngestion } from "@cylayo/weaver-core";',
     'import { createBasicWebRuntime } from "@cylayo/weaver-web";',
     "",
     "// The JSONL below is data from an agent, not code. Weaver validates each frame.",
@@ -41,7 +41,7 @@ export function createCodeSnippet(jsonl: string, options: CodeSnippetOptions = {
     "if (!created.ok) throw new Error(`Web runtime configuration failed: ${created.error.code}`);",
     "const web = created.value;",
     "",
-    "const ingestion = createA2UIV091StreamIngestion({ runtime: web.runtime });",
+    "const ingestion = createA2UIV10StreamIngestion({ runtime: web.runtime });",
     "for (const event of [...ingestion.push(jsonl), ...ingestion.finish()]) {",
     "  if (!event.ok) console.error('Rejected frame', event.frame, event.error.code);",
     "}",

@@ -6,14 +6,15 @@ import type { CatalogRegistration } from "../catalog/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { FunctionRegistration } from "../functions/index.js";
 import type { JsonObject } from "../protocol/index.js";
+import { demoteCatalogInstructionHeadings } from "./catalogInstructions.js";
 import {
-  generateA2UIV091Prompt,
-  type A2UIV091PromptSectionId,
-  type A2UIV091PromptConfig,
+  generateA2UIV10Prompt,
+  type A2UIV10PromptSectionId,
+  type A2UIV10PromptConfig,
 } from "./index.js";
 
 const BASIC_CATALOG_ID =
-  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
+  "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 const LABEL_CATALOG_ID = "https://example.test/catalogs/labels.json";
 const OTHER_CATALOG_ID = "https://example.test/catalogs/other.json";
 
@@ -49,6 +50,7 @@ function labelSchema(options: LabelOptions = {}): JsonObject {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: LABEL_CATALOG_ID,
     title: "Labels",
+    protocolVersion: "1.0",
     catalogId: LABEL_CATALOG_ID,
     components: {
       Label: {
@@ -70,8 +72,9 @@ function labelSchema(options: LabelOptions = {}): JsonObject {
       shout: {
         type: "object",
         description: "Uppercases text.",
+        returnType: "string",
         properties: {
-          call: { const: "shout" },
+          "@call": { const: "shout" },
           args: {
             type: "object",
             properties: {
@@ -80,16 +83,15 @@ function labelSchema(options: LabelOptions = {}): JsonObject {
             required: ["value"],
             additionalProperties: false,
           },
-          returnType: { const: "string" },
         },
-        required: ["call", "args"],
-        additionalProperties: false,
+        required: ["@call", "args"],
       },
       whisper: {
         type: "object",
         description: "Lowercases text.",
+        returnType: "string",
         properties: {
-          call: { const: "whisper" },
+          "@call": { const: "whisper" },
           args: {
             type: "object",
             properties: {
@@ -98,26 +100,13 @@ function labelSchema(options: LabelOptions = {}): JsonObject {
             required: ["value"],
             additionalProperties: false,
           },
-          returnType: { const: "string" },
         },
-        required: ["call", "args"],
-        additionalProperties: false,
+        required: ["@call", "args"],
       },
     },
     $defs: {
-      theme: {
-        type: "object",
-        properties: { accent: { type: "string" } },
-        additionalProperties: false,
-      },
-      commonTypes: {
-        $id: "common_types.json",
-        $defs: {
-          DynamicString: {
-            oneOf: [{ type: "string" }, { type: "object" }],
-          },
-        },
-      },
+      anyComponent: {},
+      anyFunction: {},
     },
   };
 }
@@ -142,22 +131,22 @@ function fn(
   };
 }
 
-function textOf(config: A2UIV091PromptConfig): string {
-  const result = generateA2UIV091Prompt(config);
+function textOf(config: A2UIV10PromptConfig): string {
+  const result = generateA2UIV10Prompt(config);
   assert.equal(result.ok, true, result.ok ? "" : JSON.stringify(result.error));
   if (!result.ok) throw new Error("unreachable");
   return result.value.text;
 }
 
-function sectionIds(config: A2UIV091PromptConfig): A2UIV091PromptSectionId[] {
-  const result = generateA2UIV091Prompt(config);
+function sectionIds(config: A2UIV10PromptConfig): A2UIV10PromptSectionId[] {
+  const result = generateA2UIV10Prompt(config);
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
   return result.value.sections.map((section) => section.id);
 }
 
 test("identical input produces byte-identical output across runs", () => {
-  const config: A2UIV091PromptConfig = {
+  const config: A2UIV10PromptConfig = {
     catalogs: [basicCatalog()],
     functions: [fn(BASIC_CATALOG_ID, "required")],
     actions: [
@@ -167,14 +156,14 @@ test("identical input produces byte-identical output across runs", () => {
       {
         title: "Hello",
         messages: [
-          { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: BASIC_CATALOG_ID } },
-          { version: "v0.9.1", deleteSurface: { surfaceId: "main" } },
+          { version: "1.0", createSurface: { surfaceId: "main", catalogId: BASIC_CATALOG_ID } },
+          { version: "1.0", deleteSurface: { surfaceId: "main" } },
         ],
       },
     ],
   };
-  const first = generateA2UIV091Prompt(config);
-  const second = generateA2UIV091Prompt(config);
+  const first = generateA2UIV10Prompt(config);
+  const second = generateA2UIV10Prompt(config);
   assert.deepEqual(first, second);
   assert.equal(
     JSON.stringify(first),
@@ -246,7 +235,7 @@ test("registered Basic functions are listed with their schema description and ar
   });
   assert.ok(
     text.includes(
-      "- `required` returns boolean. Checks that the value is not null, undefined, or empty.",
+      "- `required` returns validationResult. Checks that the value is not null, undefined, or empty.",
     ),
     "function name, return type and description are listed",
   );
@@ -278,7 +267,7 @@ test("changing a property schema description changes the output", () => {
 
 test("output above maxCharacters returns PROMPT_TOO_LARGE and never truncates", () => {
   const full = textOf({ catalogs: [labelCatalog()] });
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [labelCatalog()],
     maxCharacters: full.length - 1,
   });
@@ -295,7 +284,7 @@ test("output above maxCharacters returns PROMPT_TOO_LARGE and never truncates", 
 
 test("output exactly at maxCharacters is accepted and returned whole", () => {
   const full = textOf({ catalogs: [labelCatalog()] });
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [labelCatalog()],
     maxCharacters: full.length,
   });
@@ -305,11 +294,11 @@ test("output exactly at maxCharacters is accepted and returned whole", () => {
 });
 
 test("the default budget is 24000 characters and the Basic catalog fits within it", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [basicCatalog()] });
+  const result = generateA2UIV10Prompt({ catalogs: [basicCatalog()] });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
   assert.ok(result.value.text.length <= 24_000);
-  const tooSmall = generateA2UIV091Prompt({
+  const tooSmall = generateA2UIV10Prompt({
     catalogs: [basicCatalog()],
     maxCharacters: result.value.text.length - 1,
   });
@@ -321,7 +310,7 @@ test("an invalid catalog returns CATALOG_INVALID that wraps the registry error",
     catalogId: "https://example.test/catalogs/wrong.json",
     schema: labelSchema(),
   };
-  const result = generateA2UIV091Prompt({ catalogs: [mismatched] });
+  const result = generateA2UIV10Prompt({ catalogs: [mismatched] });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.error.code, "CATALOG_INVALID");
@@ -332,20 +321,20 @@ test("an invalid catalog returns CATALOG_INVALID that wraps the registry error",
   );
 });
 
-test("a catalog without a theme schema returns CATALOG_INVALID with the registry cause", () => {
+test("a catalog that declares a theme returns CATALOG_INVALID with the registry cause", () => {
   const schema = cloneJson(labelSchema());
-  delete (schema.$defs as JsonObject).theme;
-  const result = generateA2UIV091Prompt({
+  (schema.$defs as JsonObject).theme = { type: "object" };
+  const result = generateA2UIV10Prompt({
     catalogs: [{ catalogId: LABEL_CATALOG_ID, schema }],
   });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.error.code, "CATALOG_INVALID");
-  assert.equal(result.error.code === "CATALOG_INVALID" && result.error.cause?.code, "THEME_SCHEMA_NOT_FOUND");
+  assert.ok(result.error.code === "CATALOG_INVALID" && result.error.cause !== undefined);
 });
 
 test("registering the same catalog twice returns CATALOG_INVALID", () => {
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [labelCatalog(), labelCatalog()],
   });
   assert.equal(result.ok, false);
@@ -358,14 +347,14 @@ test("registering the same catalog twice returns CATALOG_INVALID", () => {
 });
 
 test("an empty catalog list returns CATALOG_INVALID", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [] });
+  const result = generateA2UIV10Prompt({ catalogs: [] });
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.error.code, "CATALOG_INVALID");
 });
 
 test("a duplicate action name returns ACTION_NAME_INVALID", () => {
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [labelCatalog()],
     actions: [
       { name: "submit", description: "First." },
@@ -384,7 +373,7 @@ test("a duplicate action name returns ACTION_NAME_INVALID", () => {
 });
 
 test("an empty action name returns ACTION_NAME_INVALID", () => {
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [labelCatalog()],
     actions: [{ name: "   ", description: "Blank." }],
   });
@@ -395,10 +384,11 @@ test("an empty action name returns ACTION_NAME_INVALID", () => {
 });
 
 test("generating the prompt for the Basic catalog succeeds and lists all 18 components", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [basicCatalog()] });
+  const result = generateA2UIV10Prompt({ catalogs: [basicCatalog()] });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
-  const headings = result.value.text.match(/^### .+$/gm) ?? [];
+  const componentsSection = result.value.sections.find((item) => item.id === "components")!.text;
+  const headings = componentsSection.match(/^### .+$/gm) ?? [];
   assert.equal(headings.length, 18);
   for (const name of BASIC_COMPONENT_NAMES) {
     assert.ok(headings.includes(`### ${name}`), `${name} is listed`);
@@ -428,13 +418,13 @@ test("the envelope names the catalog id, the root id, and the four message types
   }
   assert.ok(text.includes(`"${BASIC_CATALOG_ID}"`));
   assert.ok(text.includes('rooted at the component with id `"root"`'));
-  assert.ok(text.includes('"version": "v0.9.1"'));
+  assert.ok(text.includes('"version": "1.0"'));
   assert.ok(text.includes("JSON Lines"));
-  const envelope = generateA2UIV091Prompt({ catalogs: [basicCatalog()] });
+  const envelope = generateA2UIV10Prompt({ catalogs: [basicCatalog()] });
   assert.equal(envelope.ok, true);
   if (!envelope.ok) throw new Error("unreachable");
   const envelopeText = envelope.value.sections.find((s) => s.id === "envelope")!.text;
-  assert.ok(!envelopeText.includes("<"), "the envelope contains no OpenUI-style markup");
+  assert.ok(!/<\/?[A-Z]/.test(envelopeText), "the envelope contains no OpenUI-style markup");
 });
 
 test("the envelope lists every registered catalog id", () => {
@@ -447,12 +437,12 @@ test("host actions are listed with descriptions and canonical context, and no ot
   const text = textOf({
     catalogs: [labelCatalog()],
     actions: [
-      { name: "submit", description: "Submit the form.", context: { b: { path: "/x" }, a: 1 } },
+      { name: "submit", description: "Submit the form.", context: { b: { "@path": "/x" }, a: 1 } },
       { name: "cancel", description: "Cancel the form." },
     ],
   });
   assert.ok(
-    text.includes('- `submit`: Submit the form. Context: {"a":1,"b":{"path":"/x"}}.'),
+    text.includes('- `submit`: Submit the form. Context: {"a":1,"b":{"@path":"/x"}}.'),
     "context keys are sorted and bindings are kept",
   );
   assert.ok(text.includes("- `cancel`: Cancel the form. Context: none."));
@@ -492,7 +482,7 @@ test("sections appear in the fixed order, with edit mode before examples", () =>
 });
 
 test("each section's text is joined in order to form the full prompt", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [labelCatalog()] });
+  const result = generateA2UIV10Prompt({ catalogs: [labelCatalog()] });
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("unreachable");
   assert.equal(
@@ -508,8 +498,8 @@ test("examples are rendered as JSONL blocks with sorted keys", () => {
       {
         title: "Greeting",
         messages: [
-          { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: LABEL_CATALOG_ID } },
-          { version: "v0.9.1", deleteSurface: { surfaceId: "main" } },
+          { version: "1.0", createSurface: { surfaceId: "main", catalogId: LABEL_CATALOG_ID } },
+          { version: "1.0", deleteSurface: { surfaceId: "main" } },
         ],
       },
     ],
@@ -517,7 +507,7 @@ test("examples are rendered as JSONL blocks with sorted keys", () => {
   assert.ok(text.includes("### Greeting\n```jsonl\n"));
   assert.ok(
     text.includes(
-      `\`\`\`jsonl\n{"createSurface":{"catalogId":"${LABEL_CATALOG_ID}","surfaceId":"main"},"version":"v0.9.1"}\n{"deleteSurface":{"surfaceId":"main"},"version":"v0.9.1"}\n\`\`\``,
+      `\`\`\`jsonl\n{"createSurface":{"catalogId":"${LABEL_CATALOG_ID}","surfaceId":"main"},"version":"1.0"}\n{"deleteSurface":{"surfaceId":"main"},"version":"1.0"}\n\`\`\``,
     ),
   );
 });
@@ -527,11 +517,51 @@ test("the generator does not mutate its input", () => {
   const before = cloneJson(catalog.schema);
   const context: JsonObject = { b: 1, a: 2 };
   const contextBefore = cloneJson(context);
-  generateA2UIV091Prompt({
+  generateA2UIV10Prompt({
     catalogs: [catalog],
     actions: [{ name: "submit", description: "Submit.", context }],
   });
   assert.deepEqual(catalog.schema, before);
   assert.deepEqual(context, contextBefore);
   assert.deepEqual(Object.keys(context), ["b", "a"]);
+});
+
+test("the catalog instructions are a section of their own, copied verbatim after the envelope", () => {
+  const instructions = basicCatalog().schema.instructions;
+  assert.equal(typeof instructions, "string");
+  const result = generateA2UIV10Prompt({ catalogs: [basicCatalog()] });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  const section = result.value.sections.find((item) => item.id === "instructions");
+  assert.ok(section, "the instructions section is present");
+  assert.ok(section.text.startsWith("## Catalog instructions"));
+  assert.ok(
+    section.text.includes(demoteCatalogInstructionHeadings(String(instructions))),
+    "instructions are kept whole, with only their headings demoted",
+  );
+  assert.ok(!section.text.includes("\n## Catalog Guidelines"), "the Guidelines heading is demoted");
+  assert.ok(section.text.includes("### Catalog Guidelines"));
+  assert.deepEqual(
+    result.value.sections.map((item) => item.id).slice(0, 3),
+    ["envelope", "instructions", "components"],
+  );
+});
+
+test("a catalog without instructions adds no instructions section", () => {
+  assert.ok(!sectionIds({ catalogs: [labelCatalog()] }).includes("instructions"));
+});
+
+test("the envelope states the v1.0 rules for ids, bindings, checks, accessibility and null deletion", () => {
+  const text = textOf({ catalogs: [basicCatalog()] });
+  assert.ok(text.includes('"version": "1.0"'));
+  assert.ok(text.includes("UAX #31"));
+  assert.ok(text.includes("never start with a digit"));
+  assert.ok(text.includes('{"@path": "/json/pointer"}'));
+  assert.ok(text.includes('{"@call": "@index"}'));
+  assert.ok(text.includes("`@checks`"));
+  assert.ok(text.includes("`@accessibility`"));
+  assert.ok(text.includes("Set `value` to `null` to delete"));
+  assert.ok(text.includes("initial `dataModel`"));
+  assert.ok(!/theme/i.test(text), "no theme is mentioned");
+  assert.ok(!/h[1-5]\b/.test(text), "no h1 to h5 variants are mentioned");
 });

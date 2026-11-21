@@ -1,65 +1,49 @@
 import type { CatalogRegistry } from "../catalog/index.js";
 import { cloneJson } from "../data-model/clone.js";
-import { DataContext, isDataPathBinding } from "../data-context/index.js";
-import { FunctionEvaluator, isFunctionCall } from "../functions/index.js";
+import { DataContext } from "../data-context/index.js";
+import {
+  FunctionEvaluator,
+  isDataBinding,
+  isFunctionCall,
+  unescapeLiteralDynamicValue,
+} from "../functions/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { ActionContextResolutionResult } from "./types.js";
 
-function isAllowedLiteral(
-  value: unknown,
-): value is string | number | boolean | JsonValue[] {
-  return (
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    (typeof value === "number" && Number.isFinite(value)) ||
-    Array.isArray(value)
-  );
-}
-
-/** Resolves event fields atomically using A2UI DynamicValue semantics. */
+/**
+ * Resolves event context values as DynamicValues: a DataBinding is read, a
+ * FunctionCall is evaluated, and any other value is a literal whose reserved keys
+ * are checked and unescaped. Resolution is atomic: one failing value fails the event.
+ */
 export class ActionContextResolver {
   constructor(
     private readonly catalogs: CatalogRegistry,
     private readonly functionEvaluator: FunctionEvaluator,
   ) {}
 
-  resolve(
-    catalogId: string,
-    context: JsonObject,
-    dataContext: DataContext,
-  ): ActionContextResolutionResult {
+  resolve(catalogId: string, context: JsonObject, dataContext: DataContext): ActionContextResolutionResult {
     const resolved: JsonObject = {};
     for (const [key, value] of Object.entries(context)) {
-      if (isDataPathBinding(value)) {
+      if (isDataBinding(value)) {
         const binding = dataContext.resolveBinding(value);
         if (!binding.ok) {
           return {
             ok: false,
-            error: {
-              code: "ACTION_CONTEXT_RESOLUTION_FAILED",
-              message: "Event context binding could not be resolved",
-              key,
-            },
+            error: { code: "ACTION_CONTEXT_RESOLUTION_FAILED", message: "Event context binding could not be resolved", key },
           };
         }
         if (binding.value === undefined) {
           return {
             ok: false,
-            error: {
-              code: "ACTION_CONTEXT_VALUE_UNAVAILABLE",
-              message: "Event context value is unavailable",
-              key,
-            },
+            error: { code: "ACTION_CONTEXT_VALUE_UNAVAILABLE", message: "Event context value is unavailable", key },
           };
         }
         resolved[key] = cloneJson(binding.value);
         continue;
       }
       if (isFunctionCall(value)) {
-        const definition = this.catalogs.getFunctionDefinition(
-          catalogId,
-          value.call,
-        );
+        const functionName = value["@call"];
+        const definition = this.catalogs.getFunctionDefinition(catalogId, functionName);
         if (definition.ok && definition.value.returnType === "void") {
           return {
             ok: false,
@@ -67,15 +51,11 @@ export class ActionContextResolver {
               code: "ACTION_CONTEXT_VOID_FUNCTION",
               message: "Void functions cannot produce event context",
               key,
-              functionName: value.call,
+              functionName,
             },
           };
         }
-        const evaluated = this.functionEvaluator.evaluate(
-          catalogId,
-          value,
-          dataContext,
-        );
+        const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataContext);
         if (!evaluated.ok) {
           return {
             ok: false,
@@ -90,28 +70,26 @@ export class ActionContextResolver {
         if (evaluated.value === undefined) {
           return {
             ok: false,
-            error: {
-              code: "ACTION_CONTEXT_VALUE_UNAVAILABLE",
-              message: "Event context value is unavailable",
-              key,
-            },
+            error: { code: "ACTION_CONTEXT_VALUE_UNAVAILABLE", message: "Event context value is unavailable", key },
           };
         }
         resolved[key] = cloneJson(evaluated.value);
         continue;
       }
-      if (!isAllowedLiteral(value)) {
+      const literal = unescapeLiteralDynamicValue(value as JsonValue);
+      if (!literal.ok) {
         return {
           ok: false,
           error: {
-            code: "ACTION_CONTEXT_RESOLUTION_FAILED",
-            message: "Event context value is not an allowed DynamicValue",
+            code: "INVALID_RESERVED_KEY",
+            message: `Event context contains the reserved key "${literal.error.key}"`,
             key,
+            reservedKey: literal.error.key,
+            path: literal.error.path,
           },
         };
       }
-      // Arrays are literal JSON and are deliberately not recursively interpreted.
-      resolved[key] = cloneJson(value);
+      resolved[key] = literal.value;
     }
     return { ok: true, value: resolved };
   }

@@ -2,13 +2,18 @@ import type { ComponentInstanceSnapshot } from "../component-instances/index.js"
 import type { DataContextError } from "../data-context/index.js";
 import type { FunctionEvaluationError } from "../functions/index.js";
 
-export type CheckStatus = "passed" | "failed" | "pending" | "error";
+/**
+ * "passed" and "advisory" both leave a component valid. "advisory" is a
+ * non-blocking warning or info result: it is reported and blocks nothing.
+ */
+export type CheckStatus = "passed" | "failed" | "advisory" | "pending" | "error";
 export type ComponentCheckStatus = "valid" | "invalid" | "pending" | "error";
+export type CheckSeverity = "error" | "warning" | "info";
 
 export type CheckEvaluationIssue =
   | {
       code: "CHECK_CONDITION_TYPE_MISMATCH";
-      expected: "boolean";
+      expected: "ValidationResult";
       actual: string;
     }
   | {
@@ -23,7 +28,12 @@ export type CheckEvaluationIssue =
 export interface EvaluatedCheck {
   index: number;
   status: CheckStatus;
-  message: string;
+  /** ValidationResult.message when present, otherwise CheckRule.message. */
+  message?: string;
+  /** ValidationResult.code, when the condition supplied one. */
+  code?: string;
+  /** ValidationResult.severity; defaults to "error". */
+  severity: CheckSeverity;
   issues: CheckEvaluationIssue[];
 }
 

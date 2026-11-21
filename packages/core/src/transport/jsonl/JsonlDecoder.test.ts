@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { CatalogRegistry } from "../../catalog/index.js";
+import { catalogDocument, componentSchema } from "../../functions/catalogFixtures.test-helper.js";
 import { A2UIMessageProcessor } from "../../message-processor/index.js";
 import { SurfaceStore } from "../../surfaces/index.js";
 import { JsonlDecoder } from "./JsonlDecoder.js";
@@ -11,19 +12,9 @@ const successes = (events: ReturnType<JsonlDecoder["push"]>) =>
 
 function catalogs() {
   const registry = new CatalogRegistry();
-  const result = registry.register({ catalogId: "basic", schema: {
-    $schema: "https://json-schema.org/draft/2020-12/schema",
-    catalogId: "basic",
-    components: {
-      Text: {
-        type: "object",
-        properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
-        required: ["id", "component", "text"],
-        additionalProperties: false,
-      },
-    },
-    $defs: { theme: { type: "object" } },
-  } });
+  const result = registry.register({ catalogId: "basic", schema: catalogDocument("basic", {
+    Text: componentSchema("Text", { text: { type: "string" } }),
+  }) });
   assert.equal(result.ok, true);
   return registry;
 }
@@ -35,9 +26,9 @@ test("decodes one LF frame in one chunk", () => {
 
 test("buffers one frame over arbitrary chunks and a separate newline", () => {
   const decoder = new JsonlDecoder();
-  assert.deepEqual(decoder.push('{"version":"v0.'), []);
-  assert.deepEqual(decoder.push('9.1","value":"Zynra 🚀"}'), []);
-  assert.deepEqual(successes(decoder.push("\n")), [{ version: "v0.9.1", value: "Zynra 🚀" }]);
+  assert.deepEqual(decoder.push('{"version":"1.'), []);
+  assert.deepEqual(decoder.push('0","value":"Zynra 🚀"}'), []);
+  assert.deepEqual(successes(decoder.push("\n")), [{ version: "1.0", value: "Zynra 🚀" }]);
 });
 
 test("decodes many ordered frames in one chunk", () => {
@@ -157,7 +148,7 @@ test("valid JSON remains separate from A2UI protocol validation", () => {
 
 test("malformed JSON does not poison a following valid A2UI frame", () => {
   const decoder = new JsonlDecoder();
-  const events = decoder.push('{bad json}\n{"version":"v0.9.1","createSurface":{"surfaceId":"main","catalogId":"basic"}}\n');
+  const events = decoder.push('{bad json}\n{"version":"1.0","createSurface":{"surfaceId":"main","catalogId":"basic"}}\n');
   assert.equal(events[0]?.ok, false);
   assert.equal(!events[0]?.ok && events[0]?.error.code, "INVALID_JSON");
   assert.ok(events[1]?.ok);
@@ -167,10 +158,10 @@ test("malformed JSON does not poison a following valid A2UI frame", () => {
 
 test("awkward JSONL chunks compose through a complete A2UI lifecycle", () => {
   const messages = [
-    { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: "basic" } },
-    { version: "v0.9.1", updateComponents: { surfaceId: "main", components: [{ id: "root", component: "Text", text: "Hi" }] } },
-    { version: "v0.9.1", updateDataModel: { surfaceId: "main", path: "/name", value: "Zynra 🚀" } },
-    { version: "v0.9.1", deleteSurface: { surfaceId: "main" } },
+    { version: "1.0", createSurface: { surfaceId: "main", catalogId: "basic" } },
+    { version: "1.0", updateComponents: { surfaceId: "main", components: [{ id: "root", component: "Text", text: "Hi" }] } },
+    { version: "1.0", updateDataModel: { surfaceId: "main", path: "/name", value: "Zynra 🚀" } },
+    { version: "1.0", deleteSurface: { surfaceId: "main" } },
   ];
   const input = messages.map((message) => JSON.stringify(message)).join("\n");
   const cuts = [1, 7, 19, 38, 61, 103, input.length];

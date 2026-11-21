@@ -4,9 +4,9 @@ import {
   A2UI_V10_BASIC_CATALOG_ID,
   createA2UIV10Producer,
   createBasicCatalogV10Registration,
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   createWeaverRuntime,
-  type A2UIV091StreamIngestionEvent,
+  type A2UIV10StreamIngestionEvent,
   type WeaverRuntime,
   type WeaverRuntimeEvent,
 } from "../index.js";
@@ -38,10 +38,10 @@ function basicRuntime(observer?: (event: WeaverRuntimeEvent) => void): WeaverRun
 function mixedSession(options: { now?: () => Date; maxEntries?: number } = {}) {
   const recorder = createWeaverTraceRecorder({ now: options.now, maxEntries: options.maxEntries });
   const runtime = basicRuntime(recorder.observer);
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
 
   const push = (chunk: string) => {
-    const events: A2UIV091StreamIngestionEvent[] = ingestion.push(chunk);
+    const events: A2UIV10StreamIngestionEvent[] = ingestion.push(chunk);
     recorder.recordIngestion(events, chunk);
     return events;
   };
@@ -49,10 +49,10 @@ function mixedSession(options: { now?: () => Date; maxEntries?: number } = {}) {
   // 1. A valid frame: createSurface.
   push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID })));
   // 2. One malformed JSONL frame. It never reaches the runtime.
-  push('{"version":"v0.9.1",}\n');
+  push('{"version":"1.0",}\n');
   // 3. One catalog-invalid message: Text.text must be a string.
   push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "main", components: [{ id: "root", component: "Text", text: 42 }] },
   }));
   // 4. A valid components update with a bindable field and a button.
@@ -60,7 +60,7 @@ function mixedSession(options: { now?: () => Date; maxEntries?: number } = {}) {
     surfaceId: "main",
     components: [
       { id: "root", component: "Column", children: ["name", "submit"] },
-      { id: "name", component: "TextField", value: { path: "/name" }, label: "Name" },
+      { id: "name", component: "TextField", value: { "@path": "/name" }, label: "Name" },
       { id: "submit", component: "Button", child: "label", action: { event: { name: "submit", context: {} } } },
       { id: "label", component: "Text", text: "Submit" },
     ],
@@ -127,7 +127,7 @@ test("runtime results are recorded with their outcomes, and valid stream frames 
   assert.equal(invalid?.outcome.ok, false);
   assert.equal(invalid?.outcome.ok === false && (invalid.outcome.error as { code: string }).code, "CATALOG_REGISTRY_ERROR");
   assert.deepEqual(invalid?.input, {
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "main", components: [{ id: "root", component: "Text", text: 42 }] },
   });
 
@@ -160,7 +160,7 @@ test("runtime results are recorded with their outcomes, and valid stream frames 
 test("a frame-error entry carries the pushed chunk, and no input key when no chunk is given", () => {
   const recorder = createWeaverTraceRecorder();
   const runtime = basicRuntime(recorder.observer);
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const chunk = "not json\n";
   recorder.recordIngestion(ingestion.push(chunk), chunk);
   recorder.recordIngestion(ingestion.push("still not json\n"));
@@ -173,7 +173,7 @@ test("a frame-error entry carries the pushed chunk, and no input key when no chu
 
 test("recordIngestion records only JSONL decode failures, never runtime results", () => {
   const recorder = createWeaverTraceRecorder();
-  const events: A2UIV091StreamIngestionEvent[] = [
+  const events: A2UIV10StreamIngestionEvent[] = [
     { ok: false, frame: 1, error: { code: "PROTOCOL_VALIDATION_FAILED", issues: [] } },
     { ok: false, frame: 2, error: { code: "FRAME_TOO_LARGE", frame: 2, maxFrameCharacters: 10 } },
     {

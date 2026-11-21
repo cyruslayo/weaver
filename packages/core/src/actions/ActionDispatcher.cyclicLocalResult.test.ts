@@ -16,9 +16,9 @@ const NOW = new Date("2026-01-01T00:00:00.000Z");
 const ref = (name) => ({ $ref: "common_types.json#/$defs/" + name });
 const fnSchema = (name, returnType) => ({
   type: "object",
-  properties: { call: { const: name }, args: { type: "object" }, returnType: { const: returnType } },
-  required: ["call", "args"],
-  additionalProperties: false,
+  returnType,
+  properties: { "@call": { const: name }, args: { type: "object", properties: {}, required: [], additionalProperties: false } },
+  required: ["@call"],
 });
 const cyclicObject = () => { const value = {}; value.self = value; return value; };
 const cyclicArray = () => { const value = []; value.push(value); return value; };
@@ -38,22 +38,14 @@ const SCENARIOS = {
 };
 const schema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
+  protocolVersion: "1.0",
   catalogId: "test",
   components: {
-    Column: { type: "object", properties: { id: { type: "string" }, component: { const: "Column" }, children: ref("ChildList") }, required: ["id", "component"], additionalProperties: false },
-    Button: { type: "object", properties: { id: { type: "string" }, component: { const: "Button" }, action: ref("Action") }, required: ["id", "component"], additionalProperties: false },
+    Column: { type: "object", properties: { component: { const: "Column" }, children: ref("ChildList") }, required: ["component"], additionalProperties: false },
+    Button: { type: "object", properties: { component: { const: "Button" }, action: ref("Action") }, required: ["component"], additionalProperties: false },
   },
   functions: Object.fromEntries(Object.entries(SCENARIOS).map(([name, scenario]) => [name, fnSchema(name, scenario.returnType)])),
-  $defs: { theme: { type: "object" }, common: { $id: "common_types.json", $defs: {
-    ChildList: { oneOf: [
-      { type: "array", items: { type: "string" } },
-      { type: "object", properties: { path: { type: "string" }, componentId: { type: "string" } }, required: ["path", "componentId"], additionalProperties: false },
-    ] },
-    Action: { oneOf: [
-      { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
-      { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
-    ] },
-  } } },
+  $defs: { anyComponent: {}, anyFunction: {} },
 };
 
 function errorCodes(error) {
@@ -68,7 +60,7 @@ function errorCodes(error) {
 
 function dispatch(runtime, name) {
   try {
-    const result = runtime.dispatchAction({ surfaceId: "s", sourceComponentId: "btn-" + name, scopePath: "/", actionProperty: "action" });
+    const result = runtime.dispatchAction({ surfaceId: "s", sourceComponentId: "btn_" + name, scopePath: "/", actionProperty: "action" });
     if (!result.ok) return { ok: false, codes: errorCodes(result.error) };
     const value = result.value.value;
     let nextDepth = 0;
@@ -95,8 +87,8 @@ function build(withObserver) {
   const runtime = created.value;
   runtime.process({ version: "1.0", createSurface: { surfaceId: "s", catalogId: "test" } });
   runtime.process({ version: "1.0", updateComponents: { surfaceId: "s", components: [
-    { id: "root", component: "Column", children: Object.keys(SCENARIOS).map((name) => "btn-" + name) },
-    ...Object.keys(SCENARIOS).map((name) => ({ id: "btn-" + name, component: "Button", action: { functionCall: { call: name, args: {} } } })),
+    { id: "root", component: "Column", children: Object.keys(SCENARIOS).map((name) => "btn_" + name) },
+    ...Object.keys(SCENARIOS).map((name) => ({ id: "btn_" + name, component: "Button", action: { functionCall: { "@call": name, args: {} } } })),
   ] } });
   const out = {};
   for (const name of Object.keys(SCENARIOS)) out[name] = dispatch(runtime, name);

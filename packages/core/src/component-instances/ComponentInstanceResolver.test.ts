@@ -3,31 +3,21 @@ import { test } from "node:test";
 import { CatalogRegistry } from "../catalog/index.js";
 import { ComponentTreeResolver } from "../component-tree/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
+import { catalogDocument, componentSchema, ref } from "../functions/catalogFixtures.test-helper.js";
 import { SurfaceStore } from "../surfaces/index.js";
 import { ComponentInstanceResolver } from "./ComponentInstanceResolver.js";
 
-const childListRef = "common_types.json#/$defs/ChildList";
-const componentIdRef = "common_types.json#/$defs/ComponentId";
 function schema(name: string, structural: JsonObject = {}): JsonObject {
-  return { type: "object", properties: { id: { type: "string" }, component: { const: name }, ...structural }, required: ["id", "component"], additionalProperties: false };
+  return componentSchema(name, structural);
 }
 function setup(dataModel: JsonValue = {}) {
   const catalogId = "instances";
   const registry = new CatalogRegistry();
-  assert.equal(registry.register({ catalogId, schema: {
-    $schema: "https://json-schema.org/draft/2020-12/schema", $id: "https://example.test/instances.json", catalogId,
-    components: {
-      Container: schema("Container", { before: { $ref: componentIdRef }, children: { $ref: childListRef }, after: { $ref: componentIdRef } }),
-      Item: schema("Item", { children: { $ref: childListRef }, label: { $ref: componentIdRef } }),
-      Leaf: schema("Leaf"),
-    },
-    $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {
-      ComponentId: { type: "string" }, ChildList: { oneOf: [
-        { type: "array", items: { $ref: "#/$defs/ComponentId" } },
-        { type: "object", properties: { path: { type: "string" }, componentId: { $ref: "#/$defs/ComponentId" } }, required: ["path", "componentId"], additionalProperties: false },
-      ] },
-    } } },
-  } }).ok, true);
+  assert.equal(registry.register({ catalogId, schema: catalogDocument(catalogId, {
+    Container: schema("Container", { before: ref("ComponentId"), children: ref("ChildList"), after: ref("ComponentId") }),
+    Item: schema("Item", { children: ref("ChildList"), label: ref("ComponentId") }),
+    Leaf: schema("Leaf"),
+  }) }).ok, true);
   const store = new SurfaceStore();
   assert.equal(store.create({ surfaceId: "s", catalogId }).ok, true);
   assert.equal(store.replaceData("s", dataModel).ok, true);
@@ -48,18 +38,18 @@ function templateChildren(root: NonNullable<ReturnType<typeof value>["root"]>, i
 test("expands a dynamic list in order with positional identity and inherited descendant scope", () => {
   const { store, resolver, snapshot } = setup({ products: [{ name: "A" }, { name: "B" }] });
   store.updateComponents("s", [
-    { id: "root", component: "Container", children: { path: "/products", componentId: "product-card" } },
-    { id: "product-card", component: "Item", label: "product-name" },
-    { id: "product-name", component: "Leaf" },
+    { id: "root", component: "Container", children: { path: "/products", componentId: "product_card" } },
+    { id: "product_card", component: "Item", label: "product_name" },
+    { id: "product_name", component: "Leaf" },
   ]);
   const result = value(resolver.resolve(snapshot()));
   const children = templateChildren(result.root!, 0);
   assert.deepEqual(children.map(({ sourceComponentId, scopePath, collectionIndex }) => ({ sourceComponentId, scopePath, collectionIndex })), [
-    { sourceComponentId: "product-card", scopePath: "/products/0", collectionIndex: 0 },
-    { sourceComponentId: "product-card", scopePath: "/products/1", collectionIndex: 1 },
+    { sourceComponentId: "product_card", scopePath: "/products/0", collectionIndex: 0 },
+    { sourceComponentId: "product_card", scopePath: "/products/1", collectionIndex: 1 },
   ]);
   assert.deepEqual(children.map((child) => child.relationships[0]?.kind === "single" && child.relationships[0].child?.scopePath), ["/products/0", "/products/1"]);
-  assert.equal(children[0]?.definition.id, "product-card");
+  assert.equal(children[0]?.definition.id, "product_card");
 });
 
 test("supports nested relative templates and collection indices", () => {

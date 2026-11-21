@@ -21,12 +21,13 @@ export function resolveScopedPath(
     return success({ absolutePath: formatPointer(parsed.value), tokens: parsed.value });
   }
 
-  if (path.length === 0 || path.startsWith("#")) {
-    return { ok: false, error: { code: "INVALID_PATH", path } };
-  }
   if (scopeTokens.length === 0) {
+    if (path.length === 0 || path.startsWith("#")) return { ok: false, error: { code: "INVALID_PATH", path } };
     return { ok: false, error: { code: "RELATIVE_PATH_OUTSIDE_COLLECTION", path } };
   }
+  // An empty relative path names the current collection item itself.
+  if (path.length === 0) return success({ absolutePath: formatPointer(scopeTokens), tokens: [...scopeTokens] });
+  if (path.startsWith("#")) return { ok: false, error: { code: "INVALID_PATH", path } };
 
   const relativeTokens: string[] = [];
   for (const encoded of path.split("/")) {

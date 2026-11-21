@@ -14,7 +14,7 @@ function validTrace(): any {
         seq: 1,
         at: "2026-10-10T00:00:00.000Z",
         kind: "message",
-        input: { version: "v0.9.1" },
+        input: { version: "1.0" },
         outcome: { ok: true, summary: { operation: "surfaceCreated", surfaceId: "main" } },
       },
       {
@@ -115,5 +115,5 @@ test("does not alias the caller's value in the returned copy", () => {
   const parsed = parseWeaverTrace(trace);
   assert.equal(parsed.ok, true);
   trace.entries[0].input.version = "changed";
-  if (parsed.ok) assert.equal((parsed.value.entries[0]?.input as { version: string }).version, "v0.9.1");
+  if (parsed.ok) assert.equal((parsed.value.entries[0]?.input as { version: string }).version, "1.0");
 });

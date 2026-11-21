@@ -1,4 +1,4 @@
-import { createWeaverRuntime, generateA2UIV091Prompt } from "@cylayo/weaver-core";
+import { createWeaverRuntime, generateA2UIV10Prompt } from "@cylayo/weaver-core";
 import { describe, expect, it } from "vitest";
 
 const catalog = {
@@ -24,7 +24,7 @@ async function fetch() {
   const valid = runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [{ id: "root", component: "Text", text: "Worker safe" }] } });
   const invalid = runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [{ id: "bad", component: "Text", text: 42 }] } });
   // Prompt generation is pure, but it builds a scratch CatalogRegistry, so it must run inside workerd too.
-  const prompt = generateA2UIV091Prompt({ catalogs: [{ catalogId: "worker-test", schema: catalog }] });
+  const prompt = generateA2UIV10Prompt({ catalogs: [{ catalogId: "worker-test", schema: catalog }] });
   const promptResult = prompt.ok
     ? { ok: true, containsText: prompt.value.text.includes("Text") }
     : { ok: false, error: prompt.error };

@@ -1,7 +1,7 @@
-export { createA2UIV091StreamIngestion } from "./A2UIV091StreamIngestion.js";
+export { createA2UIV10StreamIngestion } from "./A2UIV10StreamIngestion.js";
 export type {
-  A2UIV091StreamIngestion,
-  A2UIV091StreamIngestionConfig,
-  A2UIV091StreamIngestionError,
-  A2UIV091StreamIngestionEvent,
+  A2UIV10StreamIngestion,
+  A2UIV10StreamIngestionConfig,
+  A2UIV10StreamIngestionError,
+  A2UIV10StreamIngestionEvent,
 } from "./types.js";

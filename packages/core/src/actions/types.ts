@@ -18,6 +18,8 @@ export interface ActionDispatchInput {
   surface: SurfaceSnapshot;
   instance: ResolvedComponentInstance;
   actionProperty: string;
+  /** True only for an explicit user gesture; activation-gated functions require it. Defaults to false. */
+  userActivation?: boolean;
 }
 
 export interface ActionDispatcherOptions {
@@ -27,7 +29,8 @@ export interface ActionDispatcherOptions {
 export type ActionContextResolutionError =
   | { code: "ACTION_CONTEXT_VOID_FUNCTION"; message: string; key: string; functionName: string }
   | { code: "ACTION_CONTEXT_VALUE_UNAVAILABLE"; message: string; key: string }
-  | { code: "ACTION_CONTEXT_RESOLUTION_FAILED"; message: string; key: string; cause?: FunctionEvaluationError };
+  | { code: "ACTION_CONTEXT_RESOLUTION_FAILED"; message: string; key: string; cause?: FunctionEvaluationError }
+  | { code: "INVALID_RESERVED_KEY"; message: string; key: string; reservedKey: string; path: string };
 
 export type ActionContextResolutionResult =
   | { ok: true; value: import("../protocol/index.js").JsonObject }

@@ -5,7 +5,7 @@ import { renderDiagnosticsPanel } from "@weaver/shared";
 import {
   WEAVER_CORE_VERSION,
   createBasicCatalogV10Registration,
-  generateA2UIV091Prompt,
+  generateA2UIV10Prompt,
   type WeaverErrorDescription,
   type WeaverRuntimeEvent,
 } from "@cylayo/weaver-core";
@@ -330,7 +330,7 @@ function renderErrors(errors: readonly WeaverErrorDescription[]): void {
 }
 
 function renderPrompt(): void {
-  const prompt = generateA2UIV091Prompt({
+  const prompt = generateA2UIV10Prompt({
     catalogs: [createBasicCatalogV10Registration()],
     mode: "create",
   });
@@ -595,7 +595,7 @@ function bindEvents(): void {
   ui.shareButton.addEventListener("click", () => void shareText());
   ui.copyButton.addEventListener("click", () => {
     const snippet = createCodeSnippet(ui.source.value, { surfaceId: PLAYGROUND_SURFACE_ID });
-    void copyText(snippet, "Code copied. It uses createBasicWebRuntime and createA2UIV091StreamIngestion.", "Copied");
+    void copyText(snippet, "Code copied. It uses createBasicWebRuntime and createA2UIV10StreamIngestion.", "Copied");
   });
   ui.copyPrompt.addEventListener("click", () => {
     void copyText(ui.promptText.textContent ?? "", "Prompt copied.", "Copied");

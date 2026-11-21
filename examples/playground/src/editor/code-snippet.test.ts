@@ -38,7 +38,7 @@ test("the snippet embeds the JSONL as one template literal that reads back exact
 test("the snippet uses the runtime and ingestion the Playground documents", () => {
   const snippet = createCodeSnippet("{}");
   assert.match(snippet, /import \{ createBasicWebRuntime \} from "@cylayo\/weaver-web";/);
-  assert.match(snippet, /import \{ createA2UIV091StreamIngestion \} from "@cylayo\/weaver-core";/);
+  assert.match(snippet, /import \{ createA2UIV10StreamIngestion \} from "@cylayo\/weaver-core";/);
   assert.match(snippet, /surfaceId: "main"/);
   assert.match(snippet, /resourcePolicy: \(\) => undefined/);
 });

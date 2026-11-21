@@ -1,10 +1,10 @@
 import { JsonlDecoder } from "../transport/jsonl/index.js";
 import type { WeaverRuntime } from "../runtime/index.js";
-import type { A2UIV091StreamIngestion, A2UIV091StreamIngestionConfig, A2UIV091StreamIngestionEvent } from "./types.js";
+import type { A2UIV10StreamIngestion, A2UIV10StreamIngestionConfig, A2UIV10StreamIngestionEvent } from "./types.js";
 
-export function createA2UIV091StreamIngestion(
-  config: A2UIV091StreamIngestionConfig,
-): A2UIV091StreamIngestion {
+export function createA2UIV10StreamIngestion(
+  config: A2UIV10StreamIngestionConfig,
+): A2UIV10StreamIngestion {
   const runtime = config.runtime;
   const decoder = new JsonlDecoder({ maxFrameCharacters: config.maxFrameCharacters });
 
@@ -30,7 +30,7 @@ function applyFrame(
   runtime: WeaverRuntime,
   frame: number,
   value: unknown,
-): A2UIV091StreamIngestionEvent {
+): A2UIV10StreamIngestionEvent {
   const result = runtime.process(value);
   return result.ok
     ? { ok: true, frame, value: result.value }

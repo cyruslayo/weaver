@@ -52,6 +52,8 @@ export type CatalogFunctionArgumentKind =
 export interface CatalogFunctionArgumentDefinition {
   kind: CatalogFunctionArgumentKind;
   properties?: Readonly<Record<string, CatalogFunctionArgumentDefinition>>;
+  /** For arrayOfDynamicValues: the kind each item resolves with (for example dynamicBoolean). */
+  items?: CatalogFunctionArgumentDefinition;
 }
 
 export interface CatalogFunctionDefinition {
@@ -72,9 +74,10 @@ export type DynamicValueLocationSegment =
   | { kind: "property"; name: string }
   | { kind: "arrayItems" };
 
+/** A DynamicValue location is a literal, binding, or call of any type (reserved keys are unescaped at evaluation). */
 export interface DynamicValueLocation {
   path: readonly DynamicValueLocationSegment[];
-  valueKind: DynamicPropertyKind;
+  valueKind: DynamicPropertyKind | "dynamicValue";
 }
 
 /** A location whose direct oneOf combines literal values with one DataBinding. */

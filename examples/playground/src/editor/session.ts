@@ -1,8 +1,8 @@
 import {
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   describeWeaverError,
-  type A2UIV091StreamIngestion,
-  type A2UIV091StreamIngestionEvent,
+  type A2UIV10StreamIngestion,
+  type A2UIV10StreamIngestionEvent,
   type JsonValue,
   type WeaverErrorDescription,
   type WeaverRuntimeEvent,
@@ -36,7 +36,7 @@ export interface SessionPage {
  */
 export class PlaygroundSession {
   readonly #web: BasicWebRuntime;
-  readonly #ingestion: A2UIV091StreamIngestion;
+  readonly #ingestion: A2UIV10StreamIngestion;
   readonly #rejected: WeaverErrorDescription[] = [];
   readonly #renderErrors: WeaverErrorDescription[] = [];
   #surfaceId: string | undefined;
@@ -57,7 +57,7 @@ export class PlaygroundSession {
     });
     if (!created.ok) throw new Error(`Playground runtime configuration failed: ${created.error.code}`);
     this.#web = created.value;
-    this.#ingestion = createA2UIV091StreamIngestion({ runtime: this.#web.runtime });
+    this.#ingestion = createA2UIV10StreamIngestion({ runtime: this.#web.runtime });
   }
 
   get surfaceId(): string | undefined {
@@ -83,7 +83,7 @@ export class PlaygroundSession {
     this.#apply(this.#ingestion.finish());
   }
 
-  #apply(events: readonly A2UIV091StreamIngestionEvent[]): void {
+  #apply(events: readonly A2UIV10StreamIngestionEvent[]): void {
     for (const event of events) {
       if (event.ok) {
         this.#acceptedFrames += 1;

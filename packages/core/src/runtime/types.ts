@@ -144,6 +144,8 @@ export interface WeaverInputRequest extends WeaverInstanceIdentity {
 
 export interface WeaverActionRequest extends WeaverInstanceIdentity {
   actionProperty: string;
+  /** Set only for an explicit user gesture (for example a click). Defaults to false, which denies openUrl-style functions. */
+  userActivation?: boolean;
 }
 
 export type WeaverRuntimeInteractionError =

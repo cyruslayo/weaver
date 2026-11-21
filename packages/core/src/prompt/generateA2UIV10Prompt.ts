@@ -6,6 +6,7 @@ import {
   type DynamicPropertyKind,
 } from "../catalog/index.js";
 import { describeWeaverError, type DescribableWeaverError } from "../diagnostics/index.js";
+import { demoteCatalogInstructionHeadings } from "./catalogInstructions.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { FunctionRegistration } from "../functions/index.js";
 import type { MessageProcessorError } from "../message-processor/index.js";
@@ -17,22 +18,22 @@ import {
   type WeaverSurfaceResolutionError,
 } from "../runtime/index.js";
 import type {
-  A2UIV091PromptGenerationError,
-  A2UIV091PromptSurfaceNotReadyCause,
+  A2UIV10PromptGenerationError,
+  A2UIV10PromptSurfaceNotReadyCause,
 } from "./errors.js";
 import type {
-  A2UIV091PromptAction,
-  A2UIV091PromptExample,
-  A2UIV091PromptSection,
-  A2UIV091PromptSectionId,
-  A2UIV091PromptConfig,
-  A2UIV091PromptResult,
+  A2UIV10PromptAction,
+  A2UIV10PromptExample,
+  A2UIV10PromptSection,
+  A2UIV10PromptSectionId,
+  A2UIV10PromptConfig,
+  A2UIV10PromptResult,
 } from "./types.js";
 
 const DEFAULT_MAX_CHARACTERS = 24_000;
 
 const BINDING_NOTE =
-  'Properties marked "binding allowed" accept a literal value, a data binding such as {"path": "/json/pointer"}, or a function call such as {"call": "<name>", "args": {...}}, as the property schema allows.';
+  'Properties marked "binding allowed" accept a literal value, a data binding such as {"@path": "/json/pointer"}, or a function call such as {"@call": "<name>", "args": {...}}, as the property schema allows.';
 
 const DYNAMIC_TYPE_LABEL: Readonly<Record<DynamicPropertyKind, string>> = {
   dynamicString: "string",
@@ -43,7 +44,7 @@ const DYNAMIC_TYPE_LABEL: Readonly<Record<DynamicPropertyKind, string>> = {
 
 type Outcome<T> =
   | { ok: true; value: T }
-  | { ok: false; error: A2UIV091PromptGenerationError };
+  | { ok: false; error: A2UIV10PromptGenerationError };
 
 interface RegisteredCatalogs {
   registry: CatalogRegistry;
@@ -51,13 +52,13 @@ interface RegisteredCatalogs {
 }
 
 /**
- * Compiles a trusted A2UI v0.9.1 catalog into deterministic model instructions.
+ * Compiles a trusted A2UI v1.0 catalog into deterministic model instructions.
  * The output depends only on the input: keys are sorted, nothing is timestamped,
  * and nothing is truncated silently.
  */
-export function generateA2UIV091Prompt(
-  config: A2UIV091PromptConfig,
-): A2UIV091PromptResult {
+export function generateA2UIV10Prompt(
+  config: A2UIV10PromptConfig,
+): A2UIV10PromptResult {
   const mode = config.mode ?? "create";
   const maxCharacters = config.maxCharacters ?? DEFAULT_MAX_CHARACTERS;
 
@@ -77,8 +78,9 @@ export function generateA2UIV091Prompt(
   const examples = validateExamples(config);
   if (!examples.ok) return { ok: false, error: examples.error };
 
-  const built: Partial<Record<A2UIV091PromptSectionId, string>> = {
+  const built: Partial<Record<A2UIV10PromptSectionId, string>> = {
     envelope: envelopeSection(snapshots),
+    instructions: instructionsSection(snapshots),
     components: components.value,
     functions: functions.value,
     actions: actions.value,
@@ -86,7 +88,7 @@ export function generateA2UIV091Prompt(
     examples: examplesSection(config.examples ?? []),
   };
 
-  const sections: A2UIV091PromptSection[] = [];
+  const sections: A2UIV10PromptSection[] = [];
   for (const id of SECTION_ORDER) {
     const text = built[id];
     if (text !== undefined) sections.push({ id, title: SECTION_TITLES[id], text });
@@ -107,8 +109,9 @@ export function generateA2UIV091Prompt(
   return { ok: true, value: { text, sections } };
 }
 
-const SECTION_ORDER: readonly A2UIV091PromptSectionId[] = [
+const SECTION_ORDER: readonly A2UIV10PromptSectionId[] = [
   "envelope",
+  "instructions",
   "components",
   "functions",
   "actions",
@@ -116,8 +119,9 @@ const SECTION_ORDER: readonly A2UIV091PromptSectionId[] = [
   "examples",
 ];
 
-const SECTION_TITLES: Readonly<Record<A2UIV091PromptSectionId, string>> = {
-  envelope: "Envelope rules",
+const SECTION_TITLES: Readonly<Record<A2UIV10PromptSectionId, string>> = {
+  envelope: "Message rules",
+  instructions: "Catalog instructions",
   components: "Components",
   functions: "Functions",
   actions: "Actions",
@@ -132,7 +136,7 @@ const SECTION_TITLES: Readonly<Record<A2UIV091PromptSectionId, string>> = {
  * Each scratch runtime is discarded afterwards, so nothing carries over
  * between examples and nothing reaches the prompt or the caller's config.
  */
-function validateExamples(config: A2UIV091PromptConfig): Outcome<void> {
+function validateExamples(config: A2UIV10PromptConfig): Outcome<void> {
   for (const [exampleIndex, example] of (config.examples ?? []).entries()) {
     const checked = validateExample(config, exampleIndex, example);
     if (!checked.ok) return checked;
@@ -141,9 +145,9 @@ function validateExamples(config: A2UIV091PromptConfig): Outcome<void> {
 }
 
 function validateExample(
-  config: A2UIV091PromptConfig,
+  config: A2UIV10PromptConfig,
   exampleIndex: number,
-  example: A2UIV091PromptExample,
+  example: A2UIV10PromptExample,
 ): Outcome<void> {
   const reject = (
     detail: string,
@@ -204,7 +208,7 @@ type ExampleStageFields =
   | {
       stage: "resolve";
       surfaceId: string;
-      cause: WeaverSurfaceResolutionError | A2UIV091PromptSurfaceNotReadyCause;
+      cause: WeaverSurfaceResolutionError | A2UIV10PromptSurfaceNotReadyCause;
     };
 
 /** The surfaces that exist after the messages run, in creation order. */
@@ -226,7 +230,7 @@ function surfaceIdsLeftBy(messages: readonly unknown[]): string[] {
 function surfaceNotReady(
   surfaceId: string,
   surface: WeaverResolvedSurface,
-): A2UIV091PromptSurfaceNotReadyCause | undefined {
+): A2UIV10PromptSurfaceNotReadyCause | undefined {
   const { tree, checks, issues } = surface;
   if (tree.ready && checks.ready && issueCount(issues) === 0) return undefined;
   return {
@@ -276,14 +280,34 @@ function envelopeSection(snapshots: readonly CatalogSnapshot[]): string {
   return [
     `## ${SECTION_TITLES.envelope}`,
     "",
-    '- Output A2UI v0.9.1 messages as JSON Lines: one complete JSON object per line, with no prose and no code fences.',
-    '- Every message has `"version": "v0.9.1"` and exactly one of `createSurface`, `updateComponents`, `updateDataModel` or `deleteSurface`.',
-    `- \`createSurface\` takes \`surfaceId\` and \`catalogId\`. The \`catalogId\` must equal one of these catalog ids: ${catalogIds}.`,
+    '- Output A2UI v1.0 messages as JSON Lines: one complete JSON object per line, with no prose and no code fences.',
+    '- Every message has `"version": "1.0"` and exactly one of `createSurface`, `updateComponents`, `updateDataModel` or `deleteSurface`.',
+    `- \`createSurface\` takes \`surfaceId\` and \`catalogId\`. The \`catalogId\` must equal one of these catalog ids: ${catalogIds}. It may also carry an initial \`components\` array and an initial \`dataModel\` object; the data model is applied first.`,
     '- `updateComponents` takes `surfaceId` and `components`. Components are flat objects. Each has a unique `id` and a `component` name from the catalog. Refer to children by id.',
+    '- Component ids must be UAX #31 identifiers: start with a letter or an underscore, continue with letters, digits or underscores, and never start with a digit. Hyphens, spaces and other symbols are not allowed. `user_card` and `userCard` are valid; `user-card` and `1st_item` are not.',
     '- The component tree is rooted at the component with id `"root"`.',
-    '- `updateDataModel` takes `surfaceId`, `path` (a JSON Pointer such as `"/form/name"`) and `value`.',
+    '- A container\'s `children` property is either an array of component ids, or a template object `{"componentId": "<id>", "path": "/json/pointer"}`. The template `path` is a plain string, not a binding. One child is built for each item of the array at that path.',
+    '- Inside a template, a path that does not start with `/` is relative to the current item: `"name"` reads `name` from that item. A path that starts with `/` is absolute. `{"@call": "@index"}` returns the 0-based index of the current item.',
+    '- Bindings: `{"@path": "/json/pointer"}` reads the data model. `{"@call": "<name>", "args": {...}}` calls a catalog function. To use a literal key that starts with `@`, double the `@` (`"@@path"` means `"@path"`).',
+    '- `formatString` builds text from `${...}` expressions, for example `{"@call": "formatString", "args": {"value": "Hello ${/user/name}"}}`. Write a literal `${` as `\\${`.',
+    '- `Text` supports simple Markdown. Write a heading as a Markdown heading such as `## Order shipped`. The `variant` of `Text` is only `caption` or `body`.',
+    '- Checkable components (inputs and buttons) accept `@checks`: a list of `{"condition": <binding or function call>, "message": "<text>"}`. A condition yields a boolean or a ValidationResult. `message` is the error text shown when the check fails.',
+    '- Components accept `@accessibility` with `label`, `description`, `live` (`"off"`, `"polite"` or `"assertive"`) and `hidden`. `label` and `description` are dynamic strings and `hidden` is a dynamic boolean.',
+    '- `updateDataModel` takes `surfaceId`, `path` (a JSON Pointer such as `"/form/name"`) and `value`. `value` is required. Set `value` to `null` to delete the key at `path`.',
     '- `deleteSurface` takes `surfaceId`.',
   ].join("\n");
+}
+
+/** The catalog-owned Markdown guidance, copied verbatim from each registered catalog. */
+function instructionsSection(snapshots: readonly CatalogSnapshot[]): string | undefined {
+  const lines = [`## ${SECTION_TITLES.instructions}`];
+  for (const snapshot of snapshots) {
+    const instructions = snapshot.schema.instructions;
+    if (typeof instructions !== "string" || instructions.trim() === "") continue;
+    // Presentation only: headings nest under this section; the text is otherwise verbatim.
+    lines.push("", `Catalog \`${snapshot.catalogId}\``, "", demoteCatalogInstructionHeadings(instructions));
+  }
+  return lines.length > 1 ? lines.join("\n") : undefined;
 }
 
 function componentsSection(
@@ -433,7 +457,7 @@ function functionSchemaOf(snapshot: CatalogSnapshot, name: string): JsonObject {
   return isJsonObject(schema) ? schema : {};
 }
 
-function actionsSection(actions: readonly A2UIV091PromptAction[]): Outcome<string> {
+function actionsSection(actions: readonly A2UIV10PromptAction[]): Outcome<string> {
   const seen = new Set<string>();
   for (const action of actions) {
     if (typeof action.name !== "string" || action.name.trim() === "") {
@@ -482,7 +506,7 @@ function editSection(): string {
   ].join("\n");
 }
 
-function examplesSection(examples: readonly A2UIV091PromptExample[]): string {
+function examplesSection(examples: readonly A2UIV10PromptExample[]): string {
   const lines = [`## ${SECTION_TITLES.examples}`];
   for (const example of examples) {
     lines.push(
@@ -544,14 +568,14 @@ function isJsonObject(value: unknown): value is JsonObject {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function fail<T>(error: A2UIV091PromptGenerationError): Outcome<T> {
+function fail<T>(error: A2UIV10PromptGenerationError): Outcome<T> {
   return { ok: false, error };
 }
 
 function catalogFailure(
   catalogId: string,
   cause: CatalogRegistryError,
-): A2UIV091PromptGenerationError {
+): A2UIV10PromptGenerationError {
   return {
     code: "CATALOG_INVALID",
     message: `Catalog ${catalogId} is invalid: ${cause.message}`,

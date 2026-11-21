@@ -126,7 +126,7 @@
         <div class="window">
           <div class="window-bar">
             <span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span>
-            <span class="mono window-title">createA2UIV091StreamIngestion({ runtime })</span>
+            <span class="mono window-title">createA2UIV10StreamIngestion({ runtime })</span>
           </div>
 
           <div class="stream-tabs" role="tablist" aria-label="Demo step" id="stream-tabs">
@@ -176,13 +176,13 @@
             <figure class="wv-code">
               <figcaption class="wv-code-head"><span>app.ts</span><span>TypeScript</span></figcaption>
               <pre><code>import { createBasicWebRuntime } from "@cylayo/weaver-web";
-import { createA2UIV091StreamIngestion } from "@cylayo/weaver-core";
+import { createA2UIV10StreamIngestion } from "@cylayo/weaver-core";
 
 const created = createBasicWebRuntime();
 if (!created.ok) throw new Error(created.error.code);
 const web = created.value;
 
-const ingestion = createA2UIV091StreamIngestion({ runtime: web.runtime });
+const ingestion = createA2UIV10StreamIngestion({ runtime: web.runtime });
 for await (const delta of providerTextDeltas) {
   for (const event of ingestion.push(delta)) {
     if (!event.ok) report(event.frame, event.error.code);
@@ -242,7 +242,7 @@ web.mount({ surfaceId: "main", target });</code></pre>
             <article class="new-card">
               <h3>Prompts from your catalog</h3>
               <p>The prompt tells the model exactly which components and actions your app accepts, so fewer answers get turned away.</p>
-              <code class="mono new-code">generateA2UIV091Prompt()</code>
+              <code class="mono new-code">generateA2UIV10Prompt()</code>
             </article>
             <article class="new-card">
               <h3>Watch every event</h3>

@@ -8,7 +8,7 @@ import {
   createWeaverRuntime,
   type A2UIAgentMessage,
 } from "../index.js";
-import { createA2UIV091StreamIngestion, type A2UIV091StreamIngestionEvent } from "./index.js";
+import { createA2UIV10StreamIngestion, type A2UIV10StreamIngestionEvent } from "./index.js";
 
 const producer = createA2UIV10Producer();
 
@@ -22,12 +22,12 @@ function frame(message: A2UIAgentMessage): string {
   return `${JSON.stringify(message)}\n`;
 }
 
-function success(event: A2UIV091StreamIngestionEvent) {
+function success(event: A2UIV10StreamIngestionEvent) {
   assert.equal(event.ok, true, event.ok ? undefined : JSON.stringify(event.error));
   return event.value;
 }
 
-function failure(event: A2UIV091StreamIngestionEvent, code: string) {
+function failure(event: A2UIV10StreamIngestionEvent, code: string) {
   assert.equal(event.ok, false);
   if (event.ok) throw new Error("expected ingestion failure");
   assert.equal(event.error.code, code);
@@ -47,7 +47,7 @@ function lifecycleMessages(surfaceId = "main"): A2UIAgentMessage[] {
 
 test("applies one valid frame and preserves its frame identity", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const events = ingestion.push(frame(lifecycleMessages("single")[0]!));
   assert.equal(events.length, 1);
   assert.equal(events[0]?.frame, 1);
@@ -57,7 +57,7 @@ test("applies one valid frame and preserves its frame identity", () => {
 
 test("applies multiple progressive frames in one push", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const events = ingestion.push(lifecycleMessages("many").map(frame).join(""));
   assert.deepEqual(events.map((event) => event.ok ? event.value.operation : event.error.code), [
     "surfaceCreated",
@@ -69,9 +69,9 @@ test("applies multiple progressive frames in one push", () => {
 
 test("buffers arbitrary chunk boundaries and composes Task60 producer output", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const serialized = lifecycleMessages("split").map(frame).join("");
-  const events: A2UIV091StreamIngestionEvent[] = [];
+  const events: A2UIV10StreamIngestionEvent[] = [];
   for (let offset = 0; offset < serialized.length; offset += 3) {
     events.push(...ingestion.push(serialized.slice(offset, offset + 3)));
   }
@@ -87,7 +87,7 @@ test("buffers arbitrary chunk boundaries and composes Task60 producer output", (
 
 test("supports CRLF framing and multiple inconvenient boundaries", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const serialized = lifecycleMessages("crlf").map((message) => `${JSON.stringify(message)}\r\n`).join("");
   const events = ingestion.push(serialized.slice(0, 17));
   events.push(...ingestion.push(serialized.slice(17)));
@@ -98,7 +98,7 @@ test("supports CRLF framing and multiple inconvenient boundaries", () => {
 
 test("reports malformed JSON and recovers for a later valid frame", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const events = ingestion.push(`{"version":"1.0",}\n${frame(lifecycleMessages("recover")[0]!)}`);
   assert.equal(failure(events[0]!, "INVALID_JSON").frame, 1);
   assert.equal(success(events[1]!).operation, "surfaceCreated");
@@ -107,7 +107,7 @@ test("reports malformed JSON and recovers for a later valid frame", () => {
 
 test("rejects Markdown fences and trailing commas without repair", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const create = frame(lifecycleMessages("fenced")[0]!);
   const fenced = `\`\`\`json\n${create}\`\`\`\n`;
   const fencedEvents = ingestion.push(fenced);
@@ -116,7 +116,7 @@ test("rejects Markdown fences and trailing commas without repair", () => {
   assert.equal(failure(fencedEvents[2]!, "INVALID_JSON").frame, 3);
 
   const trailingRuntime = basicRuntime();
-  const trailing = createA2UIV091StreamIngestion({ runtime: trailingRuntime });
+  const trailing = createA2UIV10StreamIngestion({ runtime: trailingRuntime });
   const trailingEvents = trailing.push('{"version":"1.0","createSurface":{},}\n');
   failure(trailingEvents[0]!, "INVALID_JSON");
   assert.equal(trailingRuntime.getSurface("fenced"), undefined);
@@ -124,7 +124,7 @@ test("rejects Markdown fences and trailing commas without repair", () => {
 
 test("uses the configured decoder frame limit and recovers after an oversized frame", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime, maxFrameCharacters: 200 });
+  const ingestion = createA2UIV10StreamIngestion({ runtime, maxFrameCharacters: 200 });
   const events = ingestion.push(`${"x".repeat(201)}\n${frame(lifecycleMessages("after-large")[0]!)}`);
   const oversized = failure(events[0]!, "FRAME_TOO_LARGE");
   assert.equal(oversized.frame, 1);
@@ -136,7 +136,7 @@ test("uses the configured decoder frame limit and recovers after an oversized fr
 
 test("distinguishes protocol, catalog, and runtime lifecycle failures", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const protocol = ingestion.push('{"version":"1.0","unknown":{}}\n')[0]!;
   failure(protocol, "PROTOCOL_VALIDATION_FAILED");
 
@@ -155,7 +155,7 @@ test("distinguishes protocol, catalog, and runtime lifecycle failures", () => {
 
 test("rejects invalid Basic components without mutating the active surface", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   assert.equal(success(ingestion.push(frame(lifecycleMessages("catalog")[0]!))[0]!).operation, "surfaceCreated");
   const before = runtime.getSurface("catalog");
   const invalid = ingestion.push(frame({
@@ -168,14 +168,14 @@ test("rejects invalid Basic components without mutating the active surface", () 
 
 test("finish processes a valid unterminated frame and reports an invalid final frame", () => {
   const validRuntime = basicRuntime();
-  const valid = createA2UIV091StreamIngestion({ runtime: validRuntime });
+  const valid = createA2UIV10StreamIngestion({ runtime: validRuntime });
   assert.deepEqual(valid.push(JSON.stringify(lifecycleMessages("final")[0]!)), []);
   const finalEvent = valid.finish()[0]!;
   assert.equal(finalEvent.frame, 1);
   assert.equal(success(finalEvent).operation, "surfaceCreated");
 
   const invalidRuntime = basicRuntime();
-  const invalid = createA2UIV091StreamIngestion({ runtime: invalidRuntime });
+  const invalid = createA2UIV10StreamIngestion({ runtime: invalidRuntime });
   invalid.push('{"version":"1.0",');
   const invalidEvent = invalid.finish()[0]!;
   failure(invalidEvent, "INVALID_JSON");
@@ -184,7 +184,7 @@ test("finish processes a valid unterminated frame and reports an invalid final f
 
 test("reset clears decoder state without changing runtime state", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   ingestion.push('{"version":"1.0","createSurface":');
   ingestion.reset();
   assert.deepEqual(ingestion.finish(), []);
@@ -200,8 +200,8 @@ test("reset clears decoder state without changing runtime state", () => {
 test("independent ingestion instances do not share framing state", () => {
   const firstRuntime = basicRuntime();
   const secondRuntime = basicRuntime();
-  const first = createA2UIV091StreamIngestion({ runtime: firstRuntime });
-  const second = createA2UIV091StreamIngestion({ runtime: secondRuntime });
+  const first = createA2UIV10StreamIngestion({ runtime: firstRuntime });
+  const second = createA2UIV10StreamIngestion({ runtime: secondRuntime });
   first.push('{"version":"1.0","createSurface":');
   const secondEvent = second.push(frame(lifecycleMessages("second")[0]!))[0]!;
   assert.equal(secondEvent.frame, 1);
@@ -215,7 +215,7 @@ test("snapshots the supplied runtime reference at creation", () => {
   const originalRuntime = basicRuntime();
   const replacementRuntime = basicRuntime();
   const config = { runtime: originalRuntime };
-  const ingestion = createA2UIV091StreamIngestion(config);
+  const ingestion = createA2UIV10StreamIngestion(config);
   config.runtime = replacementRuntime;
 
   const event = ingestion.push(frame(lifecycleMessages("snapshotted")[0]!))[0]!;
@@ -226,7 +226,7 @@ test("snapshots the supplied runtime reference at creation", () => {
 
 test("malformed and protocol-invalid frames never mutate runtime state", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const events = ingestion.push('{"version":"1.0",}\n{"version":"1.0","bad":true}\n');
   assert.deepEqual(events.map((event) => event.ok ? event.value.operation : event.error.code), [
     "INVALID_JSON",
@@ -237,7 +237,7 @@ test("malformed and protocol-invalid frames never mutate runtime state", () => {
 
 test("malformed and catalog-invalid frames keep the last good surface, describe the failure, and ingestion continues", () => {
   const runtime = basicRuntime();
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const created = ingestion.push(lifecycleMessages("lkg").map(frame).join(""));
   assert.deepEqual(created.map((event) => event.frame), [1, 2, 3]);
   assert.ok(created.every((event) => event.ok));

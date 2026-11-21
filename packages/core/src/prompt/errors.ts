@@ -7,10 +7,10 @@ import type {
 } from "../runtime/index.js";
 
 /**
- * Typed failures from `generateA2UIV091Prompt()`. The generator never returns
+ * Typed failures from `generateA2UIV10Prompt()`. The generator never returns
  * a partial prompt: every failure is one of these values.
  */
-export type A2UIV091PromptGenerationError =
+export type A2UIV10PromptGenerationError =
   | {
       code: "CATALOG_INVALID";
       message: string;
@@ -30,13 +30,13 @@ export type A2UIV091PromptGenerationError =
       characters: number;
       maxCharacters: number;
     }
-  | A2UIV091PromptExampleInvalidError;
+  | A2UIV10PromptExampleInvalidError;
 
 /**
  * A surface that resolves without a returned error but is not complete: no
  * root, a dangling reference, or a property or instance issue.
  */
-export interface A2UIV091PromptSurfaceNotReadyCause {
+export interface A2UIV10PromptSurfaceNotReadyCause {
   code: "SURFACE_NOT_READY";
   surfaceId: string;
   treeReady: boolean;
@@ -44,7 +44,7 @@ export interface A2UIV091PromptSurfaceNotReadyCause {
   issues: WeaverResolvedSurface["issues"];
 }
 
-interface A2UIV091PromptExampleInvalidBase {
+interface A2UIV10PromptExampleInvalidBase {
   code: "EXAMPLE_INVALID";
   message: string;
   /** Position of the example in `config.examples`. */
@@ -56,7 +56,7 @@ interface A2UIV091PromptExampleInvalidBase {
  * An example failed the strict pipeline in a fresh scratch runtime. `stage`
  * says which step rejected it, so a host knows where to look.
  */
-export type A2UIV091PromptExampleInvalidError = A2UIV091PromptExampleInvalidBase &
+export type A2UIV10PromptExampleInvalidError = A2UIV10PromptExampleInvalidBase &
   (
     | {
         /** The scratch runtime could not be created from the prompt config. */
@@ -73,8 +73,8 @@ export type A2UIV091PromptExampleInvalidError = A2UIV091PromptExampleInvalidBase
         /** Resolution of `surfaceId` failed, or the surface is not complete. */
         stage: "resolve";
         surfaceId: string;
-        cause: WeaverSurfaceResolutionError | A2UIV091PromptSurfaceNotReadyCause;
+        cause: WeaverSurfaceResolutionError | A2UIV10PromptSurfaceNotReadyCause;
       }
   );
 
-export type A2UIV091PromptGenerationErrorCode = A2UIV091PromptGenerationError["code"];
+export type A2UIV10PromptGenerationErrorCode = A2UIV10PromptGenerationError["code"];

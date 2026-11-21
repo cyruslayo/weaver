@@ -5,7 +5,7 @@
  * is produced by the agent module and enters the runtime as JSONL, the same way a model's output would.
  */
 import {
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   describeWeaverError,
   type A2UIAgentMessage,
   type JsonValue,
@@ -92,7 +92,7 @@ export function createScenarioSession<S, V extends string>(
   });
   if (!created.ok) throw new Error(`Demo runtime configuration failed: ${created.error.code}`);
   const web = created.value;
-  const ingestion = createA2UIV091StreamIngestion({ runtime: web.runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime: web.runtime });
   const surfaceId = definition.surfaceId;
 
   function record(kind: EventKind, text: string): void {

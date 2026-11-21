@@ -2,7 +2,7 @@ import {
   A2UI_V10_BASIC_CATALOG_ID,
   createBasicCatalogFunctionImplementations,
   createBasicCatalogV10Registration,
-  generateA2UIV091Prompt,
+  generateA2UIV10Prompt,
   type A2UIComponent,
   type BasicRegexMatcher,
   type JsonObject,
@@ -275,7 +275,7 @@ export const formScreen: CookbookScreenDefinition<FormState> = {
 
 /** The generated prompt for this screen. The test pins prompt.txt to this output. */
 export function formPrompt(): string {
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [createBasicCatalogV10Registration()],
     functions: formFunctions,
     actions: [

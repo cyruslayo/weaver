@@ -19,13 +19,44 @@ export type FunctionEvaluationError =
         | "FUNCTION_ARGUMENT_RESOLUTION_FAILED"
         | "FUNCTION_EXECUTION_FAILED"
         | "FUNCTION_RETURN_TYPE_MISMATCH"
-        | "FUNCTION_MAX_DEPTH_EXCEEDED";
+        | "FUNCTION_MAX_DEPTH_EXCEEDED"
+        | "FUNCTION_CALLER_NOT_ALLOWED";
       message: string;
       catalogId: string;
       functionName: string;
       cause?: DataContextError;
       expected?: string;
       actual?: string;
+    }
+  | {
+      /** Activation-gated functions outside a user gesture, and regex dialect or safety violations. */
+      code: "EXPRESSION_ERROR";
+      message: string;
+      catalogId: string;
+      functionName: string;
+    }
+  | {
+      /** Runtime failures such as @index outside a collection template scope. */
+      code: "EXECUTION_ERROR";
+      message: string;
+      catalogId: string;
+      functionName: string;
+    }
+  | {
+      /** A FunctionCall.catalogId that differs from the surface catalog (multi-catalog is not yet supported). */
+      code: "UNSUPPORTED_FEATURE";
+      message: string;
+      catalogId: string;
+      functionName: string;
+    }
+  | {
+      /** A reserved single-@ key inside a dynamic object (see functions/dynamic.ts). */
+      code: "INVALID_RESERVED_KEY";
+      message: string;
+      catalogId: string;
+      functionName: string;
+      key: string;
+      path: string;
     };
 
 export type FunctionRegistryErrorCode = FunctionRegistryError["code"];

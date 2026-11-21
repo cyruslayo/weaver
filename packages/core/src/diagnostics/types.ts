@@ -1,9 +1,9 @@
-import type { A2UIV091StreamIngestionError } from "../stream-ingestion/index.js";
+import type { A2UIV10StreamIngestionError } from "../stream-ingestion/index.js";
 import type { MessageProcessorError } from "../message-processor/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
 import type { WeaverRuntimeConfigurationError, WeaverRuntimeInteractionError, WeaverSurfaceResolutionError } from "../runtime/index.js";
 import type { FunctionRegistryError } from "../functions/index.js";
-import type { A2UIV091PromptGenerationError } from "../prompt/errors.js";
+import type { A2UIV10PromptGenerationError } from "../prompt/errors.js";
 
 export type WeaverErrorSeverity = "error" | "warning";
 
@@ -46,7 +46,7 @@ export type DescribableWeaverError =
   | JsonlDecodeError
   | WeaverSurfaceResolutionError
   | WeaverRuntimeInteractionError
-  | A2UIV091StreamIngestionError
+  | A2UIV10StreamIngestionError
   | WeaverRuntimeConfigurationError
   | FunctionRegistryError
-  | A2UIV091PromptGenerationError;
+  | A2UIV10PromptGenerationError;

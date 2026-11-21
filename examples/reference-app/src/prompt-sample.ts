@@ -1,9 +1,9 @@
 import {
   createBasicCatalogV10Registration,
   createA2UIV10Producer,
-  generateA2UIV091Prompt,
-  type A2UIV091PromptAction,
-  type A2UIV091PromptExample,
+  generateA2UIV10Prompt,
+  type A2UIV10PromptAction,
+  type A2UIV10PromptExample,
 } from "@cylayo/weaver-core";
 import {
   REFERENCE_CREATE_REQUEST,
@@ -12,7 +12,7 @@ import {
 } from "./application-agent.js";
 
 /** The app's single trusted action. Its context matches the Submit button's bindings. */
-export const REFERENCE_PROMPT_ACTION: A2UIV091PromptAction = {
+export const REFERENCE_PROMPT_ACTION: A2UIV10PromptAction = {
   name: REFERENCE_CREATE_REQUEST,
   description: `Create a reference request. title is the request title text. priority is a one-element list holding one of ${REFERENCE_PRIORITIES.join(", ")}.`,
   context: {
@@ -24,7 +24,7 @@ export const REFERENCE_PROMPT_ACTION: A2UIV091PromptAction = {
 const producer = createA2UIV10Producer();
 
 /** A worked example that the generator validates through a scratch runtime before it reaches the prompt. */
-const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
+const REFERENCE_PROMPT_EXAMPLE: A2UIV10PromptExample = {
   title: "Request form with a bound title and priority",
   messages: [
     producer.createSurface({
@@ -86,7 +86,7 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
  * model. Throws only if generation fails, which the tests guard against.
  */
 export function buildReferencePrompt(): string {
-  const result = generateA2UIV091Prompt({
+  const result = generateA2UIV10Prompt({
     catalogs: [createBasicCatalogV10Registration()],
     actions: [REFERENCE_PROMPT_ACTION],
     examples: [REFERENCE_PROMPT_EXAMPLE],

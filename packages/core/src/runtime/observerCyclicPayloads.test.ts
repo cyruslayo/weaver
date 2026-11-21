@@ -23,12 +23,12 @@ function run(withObserver) {
   });
   if (!created.ok) throw new Error("runtime was not created");
   const runtime = created.value;
-  runtime.process({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId: CAT } });
-  runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [
+  runtime.process({ version: "1.0", createSurface: { surfaceId: "s", catalogId: CAT } });
+  runtime.process({ version: "1.0", updateComponents: { surfaceId: "s", components: [
     { id: "root", component: "Column", children: ["btn", "field"] },
     { id: "btn", component: "Button", child: "label", action: { event: { name: "go", context: {} } } },
     { id: "label", component: "Text", text: "Go" },
-    { id: "field", component: "TextField", label: "Name", value: { path: "/name" } },
+    { id: "field", component: "TextField", label: "Name", value: { "@path": "/name" } },
   ] } });
   const cyclic = {};
   cyclic.self = cyclic;

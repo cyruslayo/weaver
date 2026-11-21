@@ -1,53 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
+import { catalogDocument, componentSchema, functionSchema } from "../functions/catalogFixtures.test-helper.js";
 import { createWeaverRuntime } from "./WeaverRuntime.js";
 import type { WeaverRuntimeEvent, WeaverRuntimeObserver } from "./types.js";
 
 const ref = (name: string): JsonObject => ({ $ref: `common_types.json#/$defs/${name}` });
-const dynamic = (literal: JsonObject): JsonObject => ({ oneOf: [literal, ref("PathBinding"), ref("FunctionCall")] });
-const component = (name: string, properties: JsonObject = {}, allOf: JsonObject[] = []): JsonObject => ({
-  type: "object", ...(allOf.length === 0 ? {} : { allOf }),
-  properties: { id: { type: "string" }, component: { const: name }, ...properties },
-  required: ["id", "component"], additionalProperties: false,
-});
-const fn = (name: string, returnType: string, args: JsonObject = {}): JsonObject => ({
-  type: "object", properties: {
-    call: { const: name },
-    args: { type: "object", properties: args, required: Object.keys(args), additionalProperties: false },
-    returnType: { const: returnType },
-  }, required: ["call", "args"], additionalProperties: false,
-});
+const component = (name: string, properties: JsonObject = {}, allOf: JsonObject[] = []): JsonObject =>
+  componentSchema(name, properties, { checkable: allOf.length > 0 });
+const fn = (name: string, returnType: string, args: JsonObject = {}): JsonObject => functionSchema(name, { returnType, args });
 function catalog(catalogId: string): JsonObject {
-  return {
-    $schema: "https://json-schema.org/draft/2020-12/schema", catalogId,
-    components: {
-      Text: component("Text", { text: ref("DynamicString") }),
-      TextField: component("TextField", { value: ref("DynamicString"), checks: { type: "array" } }, [ref("Checkable")]),
-      Button: component("Button", { action: ref("Action") }),
-      Column: component("Column", { children: ref("ChildList") }),
-    },
-    functions: {
-      format: fn("format", "string", { value: ref("DynamicString") }),
-      capture: fn("capture", "any", { value: ref("DynamicString") }),
-    },
-    $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {
-      ComponentId: { type: "string" },
-      ChildList: { oneOf: [
-        { type: "array", items: ref("ComponentId") },
-        { type: "object", properties: { path: { type: "string" }, componentId: ref("ComponentId") }, required: ["path", "componentId"], additionalProperties: false },
-      ] },
-      PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-      FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
-      DynamicString: dynamic({ type: "string" }), DynamicNumber: dynamic({ type: "number" }),
-      DynamicBoolean: dynamic({ type: "boolean" }), DynamicStringList: dynamic({ type: "array", items: { type: "string" } }),
-      Checkable: {},
-      Action: { oneOf: [
-        { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
-        { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
-      ] },
-    } } },
-  };
+  return catalogDocument(catalogId, {
+    Text: component("Text", { text: ref("DynamicString") }),
+    TextField: component("TextField", { value: ref("DynamicString") }, [ref("Checkable")]),
+    Button: component("Button", { action: ref("Action") }),
+    Column: component("Column", { children: ref("ChildList") }),
+  }, {
+    format: fn("format", "string", { value: ref("DynamicString") }),
+    capture: fn("capture", "any", { value: ref("DynamicString") }),
+  });
 }
 const create = (surfaceId = "s", catalogId = "test", sendDataModel = false) => ({ version: "1.0", createSurface: { surfaceId, catalogId, sendDataModel } });
 const components = (values: JsonObject[], surfaceId = "s") => ({ version: "1.0", updateComponents: { surfaceId, components: values } });
@@ -69,9 +40,9 @@ function readyRuntime(options: { observer?: WeaverRuntimeObserver; now?: () => D
   made.value.process(create());
   made.value.process(components([
     { id: "root", component: "Column", children: ["name", "title", "submit"] },
-    { id: "name", component: "TextField", value: { path: "/name" }, checks: [{ condition: { path: "/valid" }, message: "Required" }] },
-    { id: "title", component: "Text", text: { call: "format", args: { value: { path: "/name" } } } },
-    { id: "submit", component: "Button", action: { event: { name: "submit", context: { name: { path: "/name" } } } } },
+    { id: "name", component: "TextField", value: { "@path": "/name" }, "@checks": [{ condition: { "@path": "/valid" }, message: "Required" }] },
+    { id: "title", component: "Text", text: { "@call": "format", args: { value: { "@path": "/name" } } } },
+    { id: "submit", component: "Button", action: { event: { name: "submit", context: { name: { "@path": "/name" } } } } },
   ]));
   made.value.process(data({ name: "Ada", valid: true }));
   return made.value;
@@ -120,7 +91,7 @@ test("expands positional templates and rejects stale write and action identities
   rt.process(create());
   rt.process(components([
     { id: "root", component: "Column", children: { path: "/items", componentId: "item" } },
-    { id: "item", component: "TextField", value: { path: "name" } },
+    { id: "item", component: "TextField", value: { "@path": "name" } },
   ]));
   rt.process(data({ items: [{ name: "a" }, { name: "b" }, { name: "c" }] }));
   const resolved = rt.resolveSurface("s");
@@ -156,7 +127,7 @@ test("subscriptions derive future mutations, report deletion, isolate throws, an
   const received: string[] = [];
   rt.subscribeSurface("s", () => { throw new Error("isolated"); });
   rt.subscribeSurface("s", (result) => received.push(result.ok ? "resolved" : result.error.code));
-  rt.process(components([{ id: "root", component: "TextField", value: { path: "/name" } }]));
+  rt.process(components([{ id: "root", component: "TextField", value: { "@path": "/name" } }]));
   rt.process(data({ name: "Ada" }));
   rt.writeInput({ surfaceId: "s", sourceComponentId: "root", scopePath: "/", property: "value", value: "Grace" });
   rt.writeInput({ surfaceId: "s", sourceComponentId: "root", scopePath: "/", property: "value", value: 2 });
@@ -166,17 +137,17 @@ test("subscriptions derive future mutations, report deletion, isolate throws, an
 });
 
 test("capabilities are ordered and defensive, resolved state is defensive, and runtimes are isolated", () => {
-  const made = createWeaverRuntime({ catalogs: [{ catalogId: "catalog-a", schema: catalog("catalog-a") }, { catalogId: "catalog-b", schema: catalog("catalog-b") }] });
+  const made = createWeaverRuntime({ catalogs: [{ catalogId: "catalog_a", schema: catalog("catalog_a") }, { catalogId: "catalog_b", schema: catalog("catalog_b") }] });
   assert.ok(made.ok);
   const capabilities = made.value.getRendererCapabilities();
-  assert.deepEqual(capabilities, { "1.0": { supportedCatalogIds: ["catalog-a", "catalog-b"] } });
+  assert.deepEqual(capabilities, { "1.0": { supportedCatalogIds: ["catalog_a", "catalog_b"] } });
   assert.equal("inlineCatalogs" in capabilities["1.0"], false);
   capabilities["1.0"].supportedCatalogIds.push("bad");
-  assert.deepEqual(made.value.getRendererCapabilities()["1.0"].supportedCatalogIds, ["catalog-a", "catalog-b"]);
+  assert.deepEqual(made.value.getRendererCapabilities()["1.0"].supportedCatalogIds, ["catalog_a", "catalog_b"]);
 
   const a = runtime(); const b = runtime(); assert.ok(a.ok && b.ok);
-  a.value.process(create("only-a"));
-  assert.equal(b.value.getSurface("only-a"), undefined);
+  a.value.process(create("only_a"));
+  assert.equal(b.value.getSurface("only_a"), undefined);
   const rt = readyRuntime(); const resolved = rt.resolveSurface("s"); assert.ok(resolved.ok);
   resolved.value.tree.root!.properties.mutated = true;
   const again = rt.resolveSurface("s");

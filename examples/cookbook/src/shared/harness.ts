@@ -1,11 +1,11 @@
 import {
   A2UI_V10_BASIC_CATALOG_ID,
   createA2UIV10Producer,
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   createBasicCatalogFunctionImplementations,
   type A2UIComponent,
   type A2UIAgentMessage,
-  type A2UIV091StreamIngestionEvent,
+  type A2UIV10StreamIngestionEvent,
   type BasicRegexMatcher,
   type CatalogRegistration,
   type FunctionRegistration,
@@ -112,13 +112,13 @@ export interface CookbookStream {
    * instead of throwing. A screen uses it to feed bad input on purpose. Frame numbers
    * continue from the frames `send` already applied.
    */
-  push(chunk: string): A2UIV091StreamIngestionEvent[];
+  push(chunk: string): A2UIV10StreamIngestionEvent[];
   finish(): void;
   reset(): void;
 }
 
 export function createCookbookStream(runtime: WeaverRuntime): CookbookStream {
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
 
   const apply = (events: ReturnType<typeof ingestion.push>): void => {
     for (const event of events) {

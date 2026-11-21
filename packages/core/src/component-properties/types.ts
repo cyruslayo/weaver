@@ -24,12 +24,21 @@ export interface UnresolvedProperty {
   path?: string;
 }
 
+/** Resolved @accessibility envelope values (A2UI v1.0 AccessibilityAttributes). */
+export interface ResolvedAccessibility {
+  label?: string;
+  description?: string;
+  live?: "off" | "polite" | "assertive";
+  hidden?: boolean;
+}
+
 export interface HydratedComponentInstance {
   sourceComponentId: string;
   component: string;
   scopePath: string;
   collectionIndex?: number;
   properties: ResolvedComponentProperties;
+  accessibility?: ResolvedAccessibility;
   relationships: HydratedInstanceRelationship[];
   unresolved: UnresolvedProperty[];
 }
@@ -41,10 +50,18 @@ export type HydratedInstanceRelationship =
 
 export type ComponentPropertyIssue =
   | {
+      code: "INVALID_RESERVED_KEY";
+      sourceComponentId: string;
+      property: string;
+      key: string;
+      path: string;
+      location?: ComponentPropertyLocationSegment[];
+    }
+  | {
       code: "DYNAMIC_VALUE_TYPE_MISMATCH";
       sourceComponentId: string;
       property: string;
-      expected: DynamicPropertyKind;
+      expected: DynamicPropertyKind | "dynamicValue";
       location?: ComponentPropertyLocationSegment[];
       path?: string;
     }
@@ -74,6 +91,7 @@ export type ComponentPropertyIssue =
 
 export interface ResolvedInstanceProperties {
   properties: ResolvedComponentProperties;
+  accessibility?: ResolvedAccessibility;
   unresolved: UnresolvedProperty[];
   issues: ComponentPropertyIssue[];
 }

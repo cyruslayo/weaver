@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   A2UI_V10_BASIC_CATALOG_ID,
-  createA2UIV091StreamIngestion,
-  type A2UIV091StreamIngestionEvent,
+  createA2UIV10StreamIngestion,
+  type A2UIV10StreamIngestionEvent,
 } from "@cylayo/weaver-core";
 import { createBasicWebRuntime } from "@cylayo/weaver-web";
 import { Window } from "happy-dom";
@@ -49,9 +49,9 @@ test("the canned model response is valid A2UI and renders in happy-dom", () => {
   const web = createBasicWebRuntime();
   assert.equal(web.ok, true);
   if (!web.ok) return;
-  const ingestion = createA2UIV091StreamIngestion({ runtime: web.value.runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime: web.value.runtime });
 
-  const events: A2UIV091StreamIngestionEvent[] = [
+  const events: A2UIV10StreamIngestionEvent[] = [
     ...ingestion.push(CANNED_RESPONSE),
     ...ingestion.finish(),
   ];
@@ -74,7 +74,7 @@ test("a broken model response is rejected and the prior surface stays", () => {
   const web = createBasicWebRuntime();
   assert.equal(web.ok, true);
   if (!web.ok) return;
-  const ingestion = createA2UIV091StreamIngestion({ runtime: web.value.runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime: web.value.runtime });
   ingestion.push(CANNED_RESPONSE);
 
   const dom = target();

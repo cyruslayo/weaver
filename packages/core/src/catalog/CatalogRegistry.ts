@@ -176,7 +176,7 @@ function functionArgumentDefinition(
       item.kind === "dynamicBoolean" ||
       item.kind === "dynamicStringList"
     ) {
-      return { kind: "arrayOfDynamicValues" };
+      return { kind: "arrayOfDynamicValues", items: item };
     }
   }
 
@@ -251,14 +251,21 @@ function cloneFunctionDefinition(
 ): CatalogFunctionDefinition {
   const argumentsCopy: Record<string, CatalogFunctionArgumentDefinition> = {};
   for (const [name, argument] of Object.entries(definition.arguments)) {
-    argumentsCopy[name] = {
-      kind: argument.kind,
-      ...(argument.properties === undefined
-        ? {}
-        : { properties: cloneArgumentDefinitions(argument.properties) }),
-    };
+    argumentsCopy[name] = cloneArgumentDefinition(argument);
   }
   return { ...definition, arguments: argumentsCopy };
+}
+
+function cloneArgumentDefinition(
+  definition: CatalogFunctionArgumentDefinition,
+): CatalogFunctionArgumentDefinition {
+  return {
+    kind: definition.kind,
+    ...(definition.properties === undefined
+      ? {}
+      : { properties: cloneArgumentDefinitions(definition.properties) }),
+    ...(definition.items === undefined ? {} : { items: cloneArgumentDefinition(definition.items) }),
+  };
 }
 
 function cloneArgumentDefinitions(
@@ -266,12 +273,7 @@ function cloneArgumentDefinitions(
 ): Record<string, CatalogFunctionArgumentDefinition> {
   const result: Record<string, CatalogFunctionArgumentDefinition> = {};
   for (const [name, definition] of Object.entries(definitions)) {
-    result[name] = {
-      kind: definition.kind,
-      ...(definition.properties === undefined
-        ? {}
-        : { properties: cloneArgumentDefinitions(definition.properties) }),
-    };
+    result[name] = cloneArgumentDefinition(definition);
   }
   return result;
 }
@@ -375,16 +377,25 @@ function isCheckable(componentSchema: JsonObject): boolean {
   );
 }
 
-function dynamicKind(schema: JsonObject): DynamicPropertyKind | undefined {
+/** Property locations also recognize DynamicValue; the input-binding map above stays scalar-only. */
+const DYNAMIC_VALUE_LOCATION_REFS: Readonly<Record<string, DynamicPropertyKind | "dynamicValue">> = {
+  ...DYNAMIC_PROPERTY_REFS,
+  "common_types.json#/$defs/DynamicValue": "dynamicValue",
+};
+
+function dynamicKind(
+  schema: JsonObject,
+  refs: Readonly<Record<string, DynamicPropertyKind | "dynamicValue">> = DYNAMIC_PROPERTY_REFS,
+): DynamicPropertyKind | "dynamicValue" | undefined {
   const direct =
     typeof schema.$ref === "string"
-      ? DYNAMIC_PROPERTY_REFS[schema.$ref]
+      ? refs[schema.$ref]
       : undefined;
   if (direct !== undefined) return direct;
   if (!Array.isArray(schema.allOf)) return undefined;
   for (const member of schema.allOf) {
     if (!isPlainObject(member) || typeof member.$ref !== "string") continue;
-    const wrapped = DYNAMIC_PROPERTY_REFS[member.$ref];
+    const wrapped = refs[member.$ref];
     if (wrapped !== undefined) return wrapped;
   }
   return undefined;
@@ -398,7 +409,7 @@ function discoverDynamicValueLocations(
     schema: JsonObject,
     path: DynamicValueLocationSegment[],
   ): void => {
-    const valueKind = dynamicKind(schema);
+    const valueKind = dynamicKind(schema, DYNAMIC_VALUE_LOCATION_REFS);
     if (valueKind !== undefined) {
       locations.push({
         path: path.map((segment) => ({ ...segment })),
@@ -667,12 +678,12 @@ function normalizeErrors(
  * so every relative or absolute v1.0 common-types reference resolves locally.
  */
 function compilationDocument(schema: JsonObject, id: string): JsonObject {
-  const document = cloneJson(schema);
-  document.$id = id;
-  if (!isPlainObject(document.$defs)) document.$defs = {};
+  const catalogDocument = cloneJson(schema);
+  catalogDocument.$id = id;
+  if (!isPlainObject(catalogDocument.$defs)) catalogDocument.$defs = {};
   const functions = isPlainObject(schema.functions) ? schema.functions : {};
-  (document.$defs as JsonObject).weaverCommonTypes = buildCatalogCommonTypes(functions);
-  return document;
+  (catalogDocument.$defs as JsonObject).weaverCommonTypes = buildCatalogCommonTypes(functions);
+  return catalogDocument;
 }
 
 /** Strips the ComponentCommon envelope keys before validating catalog-owned properties. */
@@ -993,13 +1004,17 @@ export class CatalogRegistry {
     }
 
     const issues: CatalogValidationIssue[] = [];
-    if (
-      !isPlainObject(functionCall) ||
-      !isPlainObject(functionCall.args)
-    ) {
+    if (!isPlainObject(functionCall)) {
       issues.push({
         path: "/",
-        message: "FunctionCall must contain a call name and object args",
+        message: "FunctionCall must be an object",
+        keyword: "type",
+      });
+    } else if (functionCall.args !== undefined && !isPlainObject(functionCall.args)) {
+      // args is optional in v1.0 (FunctionCommon requires only @call); when present it must be an object.
+      issues.push({
+        path: "/args",
+        message: "FunctionCall args must be an object when present",
         keyword: "type",
       });
     }
@@ -1017,7 +1032,11 @@ export class CatalogRegistry {
     }
     const validator = catalog.functionValidators.get(functionName)!;
     if (issues.length === 0) {
-      const validation = validator.validate(functionCall);
+      // An absent args is validated as {} so the required arguments of the function still apply.
+      const candidate = isPlainObject(functionCall) && functionCall.args === undefined
+        ? { ...functionCall, args: {} }
+        : functionCall;
+      const validation = validator.validate(candidate);
       if (!validation.valid) issues.push(...normalizeErrors(validation.issues));
     }
     if (issues.length > 0) {
@@ -1079,6 +1098,30 @@ export class CatalogRegistry {
           : { allowedChildren: [...structure.allowedChildren] }),
       },
     };
+  }
+
+  /**
+   * True when the component's catalog schema declares the property directly. A
+   * bare envelope-like name (checks, accessibility, metadata, catalogId) is an
+   * ordinary property only when this is true.
+   */
+  declaresComponentProperty(
+    catalogId: string,
+    componentName: string,
+    property: string,
+  ): boolean {
+    const catalog = this.#catalogs.get(catalogId);
+    const components = catalog?.schema.components;
+    if (components === null || typeof components !== "object" || Array.isArray(components)) return false;
+    const component = (components as JsonObject)[componentName];
+    if (component === null || typeof component !== "object" || Array.isArray(component)) return false;
+    const properties = (component as JsonObject).properties;
+    return (
+      properties !== null &&
+      typeof properties === "object" &&
+      !Array.isArray(properties) &&
+      Object.hasOwn(properties, property)
+    );
   }
 
   getComponentStructureLocations(

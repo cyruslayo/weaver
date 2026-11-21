@@ -1,12 +1,12 @@
 import { A2UI_V10_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
 import { createA2UIV10Producer } from "../protocol/index.js";
-import type { A2UIV091PromptExample } from "./types.js";
+import type { A2UIV10PromptExample } from "./types.js";
 
 const producer = createA2UIV10Producer();
 
 /**
- * Canonical examples for the Basic catalog. They are built with the v0.9.1
- * producer, and `generateA2UIV091Prompt()` validates each one before it can
+ * Canonical examples for the Basic catalog. They are built with the v1.0
+ * producer, and `generateA2UIV10Prompt()` validates each one before it can
  * appear in a prompt. Pass them as `examples` to teach the model the shapes.
  */
 /**
@@ -21,7 +21,7 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
+export const A2UI_V10_BASIC_PROMPT_EXAMPLES: readonly A2UIV10PromptExample[] =
   deepFreeze([
     {
       title: "Simple card",
@@ -37,8 +37,7 @@ export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
             {
               id: "message",
               component: "Text",
-              text: "Your order has shipped.",
-              variant: "h3",
+              text: "## Your order has shipped.",
             },
           ],
         }),

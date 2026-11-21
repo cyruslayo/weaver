@@ -2,21 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { WeaverActionResult } from "../../runtime/index.js";
 import { createWeaverRuntime } from "../../runtime/index.js";
+import { catalogDocument, componentSchema } from "../../functions/catalogFixtures.test-helper.js";
 import { createA2UITransportSession } from "./createA2UITransportSession.js";
 
-const schema = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  catalogId: "test",
-  components: {
-    Text: {
-      type: "object",
-      properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
-      required: ["id", "component", "text"],
-      additionalProperties: false,
-    },
-  },
-  $defs: { theme: { type: "object", additionalProperties: false } },
-};
+const schema = catalogDocument("test", {
+  Text: componentSchema("Text", { text: { type: "string" } }, { required: ["text"] }),
+});
 const create = (surfaceId: string) => ({ version: "1.0", createSurface: { surfaceId, catalogId: "test" } });
 const update = (surfaceId: string, text: string) => ({ version: "1.0", updateComponents: { surfaceId, components: [{ id: "root", component: "Text", text }] } });
 const data = (surfaceId: string, value: unknown) => ({ version: "1.0", updateDataModel: { surfaceId, value } });

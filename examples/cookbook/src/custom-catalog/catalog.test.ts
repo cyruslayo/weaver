@@ -4,7 +4,7 @@ import {
   createA2UIV10Producer,
   createBasicCatalogV10Registration,
   createWeaverRuntime,
-  generateA2UIV091Prompt,
+  generateA2UIV10Prompt,
   type A2UIComponent,
   type JsonObject,
   type JsonValue,
@@ -162,7 +162,7 @@ test("BarChart rejects a values array of the wrong shape", () => {
 });
 
 test("the generated prompt presents the binding as preferred and names the literal alternative", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.match(result.value.text, /data binding such as \{"path": "\/orders"\} \(preferred\) or a literal array/);
@@ -170,7 +170,7 @@ test("the generated prompt presents the binding as preferred and names the liter
 });
 
 test("the generated prompt says DataTable is read-only and points row actions to a List template of Cards", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true, JSON.stringify(result));
   if (!result.ok) return;
   assert.match(result.value.text, /A read-only table of rows/);
@@ -265,7 +265,7 @@ test("a component outside the cookbook catalog is rejected, so one surface uses 
 });
 
 test("the generated prompt lists DataTable and BarChart and no undeclared component", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true, JSON.stringify(result));
   if (!result.ok) return;
 
@@ -282,7 +282,7 @@ test("the generated prompt lists DataTable and BarChart and no undeclared compon
   }
 
   assert.match(result.value.text, new RegExp(COOKBOOK_CATALOG_ID.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  const again = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const again = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(again.ok && again.value.text, result.value.text, "the prompt is deterministic");
 });
 
@@ -314,7 +314,7 @@ test("every DataTable and BarChart property has a description for the prompt", (
 });
 
 test("the prompt carries the schema descriptions and the cap", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.match(result.value.text, /A read-only table of rows/);

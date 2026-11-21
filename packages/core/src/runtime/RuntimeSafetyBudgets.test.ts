@@ -8,27 +8,20 @@ import { CatalogRegistry } from "../catalog/index.js";
 import { ComponentTreeResolver } from "../component-tree/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
+import { componentSchema } from "../functions/catalogFixtures.test-helper.js";
 import { createWeaverRuntime } from "./WeaverRuntime.js";
 import { ResolutionBudget, type WeaverRuntimeSafetyConfig } from "./safety.js";
 
 const ref = (name: string): JsonObject => ({
   $ref: `common_types.json#/$defs/${name}`,
 });
-const component = (name: string, properties: JsonObject = {}): JsonObject => ({
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    component: { const: name },
-    ...properties,
-  },
-  required: ["id", "component"],
-  additionalProperties: false,
-});
+const component = (name: string, properties: JsonObject = {}): JsonObject => componentSchema(name, properties);
 
 function catalog(): JsonObject {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://example.test/budget/catalog.json",
+    protocolVersion: "1.0",
     catalogId: "budget",
     components: {
       Branch: component("Branch", {
@@ -43,57 +36,9 @@ function catalog(): JsonObject {
       Payload: component("Payload", { payload: { type: "object" } }),
     },
     functions: {},
-    $defs: {
-      theme: { type: "object" },
-      commonTypes: {
-        $id: "common_types.json",
-        $defs: {
-          ComponentId: { type: "string" },
-          ChildList: {
-            oneOf: [
-              { type: "array", items: ref("ComponentId") },
-              {
-                type: "object",
-                properties: {
-                  path: { type: "string" },
-                  componentId: ref("ComponentId"),
-                },
-                required: ["path", "componentId"],
-                additionalProperties: false,
-              },
-            ],
-          },
-          PathBinding: {
-            type: "object",
-            properties: { path: { type: "string" } },
-            required: ["path"],
-            additionalProperties: false,
-          },
-          FunctionCall: {
-            type: "object",
-            properties: { call: { type: "string" }, args: { type: "object" } },
-            required: ["call", "args"],
-            additionalProperties: false,
-          },
-          DynamicString: {
-            oneOf: [
-              { type: "string" },
-              ref("PathBinding"),
-              ref("FunctionCall"),
-            ],
-          },
-          Action: {
-            type: "object",
-            properties: { event: { type: "object" } },
-            required: ["event"],
-            additionalProperties: false,
-          },
-        },
-      },
-    },
+    $defs: { anyComponent: {}, anyFunction: {} },
   };
 }
-
 function makeRuntime(safety?: WeaverRuntimeSafetyConfig) {
   return createWeaverRuntime({
     catalogs: [{ catalogId: "budget", schema: catalog() }],
@@ -145,9 +90,9 @@ function data(runtime: ReturnType<typeof readyRuntime>, value: unknown) {
 
 function chain(length: number): JsonObject[] {
   return Array.from({ length }, (_, index) => ({
-    id: index === 0 ? "root" : `node-${index}`,
+    id: index === 0 ? "root" : `node_${index}`,
     component: "Branch",
-    children: index === length - 1 ? [] : [`node-${index + 1}`],
+    children: index === length - 1 ? [] : [`node_${index + 1}`],
   }));
 }
 
@@ -529,7 +474,7 @@ test("fails interactions before input mutation or action dispatch", () => {
     {
       id: "item",
       component: "Input",
-      value: { path: "value" },
+      value: { "@path": "value" },
       action: { event: { name: "submit", context: {} } },
     },
   ]);

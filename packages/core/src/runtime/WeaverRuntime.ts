@@ -310,6 +310,7 @@ export class WeaverRuntime {
       surface: current.value.surface,
       instance: current.value.instance,
       actionProperty: request.actionProperty,
+      userActivation: request.userActivation === true,
     });
     return dispatched.ok
       ? dispatched

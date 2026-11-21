@@ -4,24 +4,18 @@ import { CatalogRegistry } from "../catalog/index.js";
 import { CheckEvaluator } from "../checks/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
+import { catalogDocument, componentSchema, functionSchema, ref } from "../functions/catalogFixtures.test-helper.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import { ActionDispatcher } from "./ActionDispatcher.js";
 
-const fn = (name: string, returnType: string): JsonObject => ({ type: "object", properties: { call: { const: name }, args: { type: "object" }, returnType: { const: returnType } }, required: ["call", "args"], additionalProperties: false });
+const fn = (name: string, returnType: string): JsonObject => functionSchema(name, { returnType });
 function schema(id: string): JsonObject {
-  return {
-    $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: id,
-    components: { Button: { type: "object", allOf: [{ $ref: "common_types.json#/$defs/Checkable" }], properties: { id: { type: "string" }, component: { const: "Button" }, primaryAction: { $ref: "common_types.json#/$defs/Action" }, checks: { type: "array" } }, required: ["id", "component"], additionalProperties: false } },
-    functions: { local: fn("local", "any"), noop: fn("noop", "void"), fail: fn("fail", "string"), value: fn("value", "string"), voidContext: fn("voidContext", "void") },
-    $defs: { theme: { type: "object" }, common: { $id: "common_types.json", $defs: {
-      Checkable: {},
-      Action: { oneOf: [
-        { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
-        { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
-      ] },
-    } } },
-  };
+  return catalogDocument(id, {
+    Button: componentSchema("Button", { primaryAction: ref("Action") }, { checkable: true }),
+  }, {
+    local: fn("local", "any"), noop: fn("noop", "void"), fail: fn("fail", "string"), value: fn("value", "string"), voidContext: fn("voidContext", "void"),
+  });
 }
 function setup(id = "test", implementations: Record<string, () => unknown> = {}) {
   const catalogs = new CatalogRegistry();
@@ -32,12 +26,12 @@ function setup(id = "test", implementations: Record<string, () => unknown> = {})
   return { catalogs, dispatcher: new ActionDispatcher(catalogs, evaluator, new CheckEvaluator(catalogs, evaluator), { now: () => new Date("2025-01-02T03:04:05.000Z") }) };
 }
 function instance(action: JsonValue, checks?: JsonValue[], scopePath = "/", collectionIndex?: number): ResolvedComponentInstance {
-  return { sourceComponentId: "item-button", component: "Button", scopePath, ...(collectionIndex === undefined ? {} : { collectionIndex }), definition: { id: "item-button", component: "Button", primaryAction: action, ...(checks === undefined ? {} : { checks }) }, relationships: [] };
+  return { sourceComponentId: "item_button", component: "Button", scopePath, ...(collectionIndex === undefined ? {} : { collectionIndex }), definition: { id: "item_button", component: "Button", primaryAction: action, ...(checks === undefined ? {} : { "@checks": checks }) }, relationships: [] };
 }
 function surface(dataModel: JsonValue = {}, sendDataModel = false, catalogId = "test"): SurfaceSnapshot {
-  return { surfaceId: "surface-1", catalogId, sendDataModel, components: {}, dataModel };
+  return { surfaceId: "surface_1", catalogId, sendDataModel, components: {}, dataModel };
 }
-const local = (name = "local") => ({ functionCall: { call: name, args: {} } });
+const local = (name = "local") => ({ functionCall: { "@call": name, args: {} } });
 const event = (context: JsonObject = {}) => ({ event: { name: "submit", context } });
 
 test("dispatches local values and void exactly once without outbound data", () => {
@@ -62,23 +56,23 @@ test("wraps local failures and validates the requested catalog action property",
   assert.equal(!absent.ok && absent.error.code, "ACTION_NOT_FOUND");
 });
 
-test("builds exact v0.9.1 event identity, timestamp, scoped context, and optional sync metadata", () => {
+test("builds exact 1.0 event identity, timestamp, scoped context, and optional sync metadata", () => {
   const { dispatcher } = setup();
   const model = { company: { id: "co" }, items: [{ id: "one" }, { id: "two" }] };
-  const result = dispatcher.dispatch({ surface: surface(model, true), instance: instance(event({ item: { path: "id" }, company: { path: "/company/id" }, literals: ["path", { path: "not-resolved" }] }), undefined, "/items/1", 1), actionProperty: "primaryAction" });
+  const result = dispatcher.dispatch({ surface: surface(model, true), instance: instance(event({ item: { "@path": "id" }, company: { "@path": "/company/id" }, literals: ["path", { path: "not_resolved" }] }), undefined, "/items/1", 1), actionProperty: "primaryAction" });
   assert.equal(result.ok, true);
   if (!result.ok || result.value.kind !== "serverEvent") return;
-  assert.deepEqual(result.value.message, { version: "1.0", action: { name: "submit", surfaceId: "surface-1", sourceComponentId: "item-button", timestamp: "2025-01-02T03:04:05.000Z", context: { item: "two", company: "co", literals: ["path", { path: "not-resolved" }] } } });
-  assert.deepEqual(result.value.metadata, { a2uiRendererDataModel: { version: "1.0", surfaces: { "surface-1": model } } });
+  assert.deepEqual(result.value.message, { version: "1.0", action: { name: "submit", surfaceId: "surface_1", sourceComponentId: "item_button", timestamp: "2025-01-02T03:04:05.000Z", context: { item: "two", company: "co", literals: ["path", { path: "not_resolved" }] } } });
+  assert.deepEqual(result.value.metadata, { a2uiRendererDataModel: { version: "1.0", surfaces: { "surface_1": model } } });
   (result.value.message.action.context.literals as JsonValue[]).push("mutated");
-  (result.value.metadata!.a2uiRendererDataModel.surfaces["surface-1"]!.items as JsonValue[]).push(null);
+  (result.value.metadata!.a2uiRendererDataModel.surfaces["surface_1"]!.items as JsonValue[]).push(null);
   assert.equal(model.items.length, 2);
 });
 
 test("omits sync metadata, uses fresh snapshots, and rejects non-object sync only for events", () => {
   const { dispatcher } = setup("test", { local: () => "ok" });
-  const old = dispatcher.dispatch({ surface: surface({ name: "Ada" }), instance: instance(event({ name: { path: "/name" } })), actionProperty: "primaryAction" });
-  const fresh = dispatcher.dispatch({ surface: surface({ name: "Grace" }, true), instance: instance(event({ name: { path: "/name" } })), actionProperty: "primaryAction" });
+  const old = dispatcher.dispatch({ surface: surface({ name: "Ada" }), instance: instance(event({ name: { "@path": "/name" } })), actionProperty: "primaryAction" });
+  const fresh = dispatcher.dispatch({ surface: surface({ name: "Grace" }, true), instance: instance(event({ name: { "@path": "/name" } })), actionProperty: "primaryAction" });
   assert.equal(old.ok && old.value.kind === "serverEvent" && old.value.metadata, undefined);
   assert.equal(fresh.ok && fresh.value.kind === "serverEvent" && fresh.value.message.action.context.name, "Grace");
   const bad = dispatcher.dispatch({ surface: surface("primitive", true), instance: instance(event()), actionProperty: "primaryAction" });
@@ -89,16 +83,17 @@ test("omits sync metadata, uses fresh snapshots, and rejects non-object sync onl
 test("only valid checks dispatch either action path", () => {
   let count = 0;
   const { dispatcher } = setup("test", { local: () => { count++; return "ok"; }, fail: () => { throw new Error(); } });
-  const cases: Array<[JsonValue, string]> = [[false, "invalid"], [{ path: "/missing" }, "pending"], [{ call: "fail", args: {} }, "error"]];
-  for (const [condition, status] of cases) {
+  // A literal boolean is not a CheckRule condition; a bound false is the invalid case.
+  const cases: Array<[JsonValue, string, JsonValue]> = [[{ "@path": "/no" }, "invalid", { no: false }], [{ "@path": "/missing" }, "pending", {}], [{ "@call": "fail", args: {} }, "error", {}]];
+  for (const [condition, status, data] of cases) {
     for (const action of [local(), event()]) {
-      const result = dispatcher.dispatch({ surface: surface(), instance: instance(action, [{ condition, message: "blocked" }]), actionProperty: "primaryAction" });
+      const result = dispatcher.dispatch({ surface: surface(data), instance: instance(action, [{ condition, message: "blocked" }]), actionProperty: "primaryAction" });
       assert.equal(!result.ok && result.error.code, "ACTION_BLOCKED_BY_CHECKS");
       if (!result.ok && result.error.code === "ACTION_BLOCKED_BY_CHECKS") assert.equal(result.error.checks.status, status);
     }
   }
   assert.equal(count, 0);
-  assert.equal(dispatcher.dispatch({ surface: surface(), instance: instance(local(), [{ condition: true, message: "ok" }]), actionProperty: "primaryAction" }).ok, true);
+  assert.equal(dispatcher.dispatch({ surface: surface({ yes: true }), instance: instance(local(), [{ condition: { "@path": "/yes" }, message: "ok" }]), actionProperty: "primaryAction" }).ok, true);
   assert.equal(count, 1);
 });
 

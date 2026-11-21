@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createA2UIV091StreamIngestion, type JsonObject, type JsonValue } from "@cylayo/weaver-core";
+import { createA2UIV10StreamIngestion, type JsonObject, type JsonValue } from "@cylayo/weaver-core";
 import { createBasicWebRuntime } from "@cylayo/weaver-web";
 import { dinnerComponents, dinnerData, type DinnerState } from "./agent/dinner.js";
 import { hotelComponents } from "./agent/hotel.js";
@@ -95,7 +95,7 @@ for (const [label, begin] of SCENARIO_STARTS) {
     const fresh = createBasicWebRuntime();
     assert.equal(fresh.ok, true);
     if (!fresh.ok) return;
-    const ingestion = createA2UIV091StreamIngestion({ runtime: fresh.value.runtime });
+    const ingestion = createA2UIV10StreamIngestion({ runtime: fresh.value.runtime });
     const jsonl = session.sentLines.slice(0, session.reply.count).map((line) => line + "\n").join("");
     const events = [...ingestion.push(jsonl), ...ingestion.finish()];
     assert.equal(events.length, 3);

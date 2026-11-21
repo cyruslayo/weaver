@@ -25,7 +25,7 @@ import type {
 import { SurfaceStore } from "../surfaces/index.js";
 import type { SurfaceStoreError } from "../surfaces/errors.js";
 import type { JsonlDecodeError } from "../transport/jsonl/errors.js";
-import type { A2UIV091PromptGenerationError } from "../prompt/errors.js";
+import type { A2UIV10PromptGenerationError } from "../prompt/errors.js";
 import { describeWeaverError } from "./describeWeaverError.js";
 import type { DescribableWeaverError, DescribeWeaverErrorContext, WeaverErrorDescription } from "./types.js";
 
@@ -49,16 +49,16 @@ const ALL_CODES = [
   "CATALOG_CONFIGURATION_FAILED", "FUNCTION_CONFIGURATION_FAILED", "SAFETY_CONFIGURATION_FAILED",
   "INVALID_SAFETY_LIMIT", "INVALID_SAFETY_CONFIGURATION",
   // CatalogRegistryError
-  "INVALID_CATALOG_SCHEMA", "CATALOG_ALREADY_REGISTERED", "CATALOG_NOT_FOUND", "THEME_SCHEMA_NOT_FOUND",
-  "THEME_VALIDATION_FAILED", "COMPONENT_NOT_ALLOWED", "COMPONENT_STRUCTURE_NOT_FOUND",
+  "INVALID_CATALOG_SCHEMA", "CATALOG_ALREADY_REGISTERED", "CATALOG_NOT_FOUND",
+  "COMPONENT_NOT_ALLOWED", "COMPONENT_STRUCTURE_NOT_FOUND",
   "COMPONENT_VALIDATION_FAILED", "FUNCTION_NOT_ALLOWED", "FUNCTION_VALIDATION_FAILED",
-  // A2UIV091PromptGenerationError
+  // A2UIV10PromptGenerationError
   "CATALOG_INVALID", "ACTION_NAME_INVALID", "PROMPT_TOO_LARGE", "EXAMPLE_INVALID",
   // FunctionRegistryError
   "FUNCTION_IMPLEMENTATION_ALREADY_REGISTERED", "FUNCTION_IMPLEMENTATION_NOT_FOUND",
   // FunctionEvaluationError
   "FUNCTION_EFFECT_NOT_ALLOWED", "FUNCTION_ARGUMENT_RESOLUTION_FAILED", "FUNCTION_EXECUTION_FAILED",
-  "FUNCTION_RETURN_TYPE_MISMATCH", "FUNCTION_MAX_DEPTH_EXCEEDED",
+  "FUNCTION_RETURN_TYPE_MISMATCH", "FUNCTION_MAX_DEPTH_EXCEEDED", "FUNCTION_CALLER_NOT_ALLOWED", "EXPRESSION_ERROR", "EXECUTION_ERROR", "INVALID_RESERVED_KEY",
   // ActionDispatchError and ActionContextResolutionError
   "ACTION_PROPERTY_NOT_ALLOWED", "ACTION_NOT_FOUND", "ACTION_INVALID", "ACTION_DATA_CONTEXT_FAILED",
   "ACTION_CHECK_EVALUATION_FAILED", "ACTION_BLOCKED_BY_CHECKS", "LOCAL_FUNCTION_FAILED",
@@ -107,7 +107,7 @@ type UnionCodes =
   | DataModelError["code"]
   | SurfaceStoreError["code"]
   | InputBindingWriteError["code"]
-  | A2UIV091PromptGenerationError["code"];
+  | A2UIV10PromptGenerationError["code"];
 
 // Compile-time: these fail the typecheck if a code is missing from ALL_CODES
 // or if ALL_CODES names something no errors.ts union defines.
@@ -124,8 +124,6 @@ const catalogCodes: CatalogRegistryError[] = [
   { code: "INVALID_CATALOG_SCHEMA", message: "bad schema", catalogId: "catalog", issues: [{ path: "/components", message: "must be an object" }] },
   { code: "CATALOG_ALREADY_REGISTERED", message: "registered", catalogId: "catalog" },
   { code: "CATALOG_NOT_FOUND", message: "missing", catalogId: "catalog" },
-  { code: "THEME_SCHEMA_NOT_FOUND", message: "no theme", catalogId: "catalog" },
-  { code: "THEME_VALIDATION_FAILED", message: "bad theme", catalogId: "catalog", issues: [{ path: "/primary", message: "must be a string" }] },
   { code: "COMPONENT_NOT_ALLOWED", message: "not allowed", catalogId: "catalog", componentId: "danger", component: "ExecuteJavaScript" },
   { code: "COMPONENT_STRUCTURE_NOT_FOUND", message: "no structure", catalogId: "catalog", component: "Text" },
   { code: "COMPONENT_VALIDATION_FAILED", message: "invalid component", catalogId: "catalog", componentId: "title", component: "Text", issues: [{ path: "/text", message: "must be a string" }] },
@@ -140,6 +138,11 @@ const functionEvaluationCodes: FunctionEvaluationError[] = [
   { code: "FUNCTION_EXECUTION_FAILED", message: "threw", catalogId: "catalog", functionName: "format" },
   { code: "FUNCTION_RETURN_TYPE_MISMATCH", message: "return", catalogId: "catalog", functionName: "count", expected: "string", actual: "number" },
   { code: "FUNCTION_MAX_DEPTH_EXCEEDED", message: "depth", catalogId: "catalog", functionName: "wrap" },
+  { code: "FUNCTION_CALLER_NOT_ALLOWED", message: "caller", catalogId: "catalog", functionName: "save" },
+  { code: "EXPRESSION_ERROR", message: "expression", catalogId: "catalog", functionName: "regex" },
+  { code: "EXECUTION_ERROR", message: "index", catalogId: "catalog", functionName: "index" },
+  { code: "UNSUPPORTED_FEATURE", message: "other catalog", catalogId: "catalog", functionName: "format" },
+  { code: "INVALID_RESERVED_KEY", message: "reserved", catalogId: "catalog", functionName: "format", key: "@name", path: "/args" },
 ];
 
 const functionRegistryCodes: FunctionRegistryError[] = [
@@ -161,11 +164,11 @@ const blockedSnapshot: ComponentCheckSnapshot = {
   scopePath: "/",
   checkable: true,
   status: "invalid",
-  checks: [{ index: 0, status: "failed", message: "Name is required", issues: [] }],
+  checks: [{ index: 0, status: "failed", message: "Name is required", severity: "error", issues: [] }],
 };
 
 const actionDispatchCodes: ActionDispatchError[] = [
-  { code: "ACTION_PROPERTY_NOT_ALLOWED", message: "not allowed", actionProperty: "onPress", cause: catalogCodes[5]! },
+  { code: "ACTION_PROPERTY_NOT_ALLOWED", message: "not allowed", actionProperty: "onPress", cause: catalogCodes[3]! },
   { code: "ACTION_NOT_FOUND", message: "no action", actionProperty: "onPress" },
   { code: "ACTION_INVALID", message: "invalid", actionProperty: "onPress" },
   { code: "ACTION_DATA_CONTEXT_FAILED", message: "data", cause: { code: "COLLECTION_NOT_ARRAY", path: "/items" } },
@@ -174,6 +177,7 @@ const actionDispatchCodes: ActionDispatchError[] = [
   { code: "LOCAL_FUNCTION_FAILED", message: "local", cause: functionEvaluationCodes[3]! },
   { code: "CLIENT_DATA_MODEL_NOT_OBJECT", message: "not object" },
   { code: "ACTION_CONTEXT_VOID_FUNCTION", message: "void", key: "name", functionName: "noop" },
+  { code: "INVALID_RESERVED_KEY", message: "reserved", key: "name", reservedKey: "@name", path: "/args" },
   { code: "ACTION_CONTEXT_VALUE_UNAVAILABLE", message: "unavailable", key: "name" },
   { code: "ACTION_CONTEXT_RESOLUTION_FAILED", message: "resolve", key: "name", cause: functionEvaluationCodes[0]! },
 ];
@@ -206,7 +210,7 @@ const surfaceStoreCodes: SurfaceStoreError[] = [
 
 const componentTreeCodes: ComponentTreeError[] = [
   { code: "CATALOG_NOT_FOUND", message: "no catalog", catalogId: "catalog", cause: catalogCodes[2]! },
-  { code: "COMPONENT_STRUCTURE_NOT_FOUND", message: "no structure", catalogId: "catalog", component: "Text", cause: catalogCodes[6]! },
+  { code: "COMPONENT_STRUCTURE_NOT_FOUND", message: "no structure", catalogId: "catalog", component: "Text", cause: catalogCodes[4]! },
   { code: "RESOLUTION_BUDGET_EXCEEDED", message: "too many", budget: "instances", limit: 1000, observed: 1001, phase: "component-tree", componentId: "root" },
 ];
 
@@ -216,12 +220,14 @@ const componentInstanceCodes: ComponentInstanceError[] = [
 ];
 
 const componentPropertyCodes: ComponentPropertyError[] = [
-  { code: "CATALOG_PROPERTY_METADATA_FAILED", message: "metadata", cause: catalogCodes[6]! },
+  { code: "CATALOG_PROPERTY_METADATA_FAILED", message: "metadata", cause: catalogCodes[4]! },
   {
     code: "DATA_CONTEXT_RECONSTRUCTION_FAILED",
     message: "scope",
     cause: { sourceComponentId: "row", scopePath: "/items/1", cause: { code: "COLLECTION_INDEX_OUT_OF_RANGE", path: "/items", index: 1, length: 1 } },
   },
+  { code: "INVALID_RESERVED_KEY", message: "conflict", sourceComponentId: "title", key: "@checks" },
+  { code: "UNSUPPORTED_FEATURE", message: "catalog id", sourceComponentId: "title", feature: "@catalogId" },
 ];
 
 const inputWriteCodes: InputBindingWriteError[] = [
@@ -231,7 +237,7 @@ const inputWriteCodes: InputBindingWriteError[] = [
   { code: "INPUT_PROPERTY_NOT_DYNAMIC", sourceComponentId: "field", property: "value" },
   { code: "INPUT_PROPERTY_NOT_BOUND", sourceComponentId: "field", property: "value" },
   { code: "INPUT_VALUE_TYPE_MISMATCH", sourceComponentId: "field", property: "value", expected: "dynamicString", actual: "number" },
-  { code: "CATALOG_REGISTRY_ERROR", cause: catalogCodes[7]! },
+  { code: "CATALOG_REGISTRY_ERROR", cause: catalogCodes[5]! },
   { code: "BINDING_PATH_RESOLUTION_FAILED", cause: dataContextCodes[0]! },
   { code: "SURFACE_STORE_ERROR", cause: surfaceStoreCodes[0]! },
 ];
@@ -363,12 +369,12 @@ const fixtures: Fixture[] = [
 // The two shared codes that need a dedicated top-level fixture each.
 fixtures.push(
   { code: "CATALOG_NOT_FOUND", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[2]! } },
-  { code: "COMPONENT_STRUCTURE_NOT_FOUND", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[6]! } },
+  { code: "COMPONENT_STRUCTURE_NOT_FOUND", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[4]! } },
   { code: "SURFACE_NOT_FOUND", error: { code: "INPUT_WRITE_FAILED", cause: { code: "SURFACE_NOT_FOUND", surfaceId: "main" } } },
   { code: "SURFACE_NOT_FOUND", error: { code: "SURFACE_STORE_ERROR", storeError: { code: "SURFACE_NOT_FOUND", surfaceId: "main" } } },
 );
 
-// A2UIV091PromptGenerationError: one fixture per code. CATALOG_INVALID also
+// A2UIV10PromptGenerationError: one fixture per code. CATALOG_INVALID also
 // carries its CatalogRegistryError cause so the chain is exercised.
 fixtures.push(
   {
@@ -378,7 +384,7 @@ fixtures.push(
       message: "Catalog failed registry validation",
       catalogId: "basic",
       cause: catalogCodes[2]!,
-    } satisfies A2UIV091PromptGenerationError,
+    } satisfies A2UIV10PromptGenerationError,
   },
   {
     code: "ACTION_NAME_INVALID",
@@ -478,6 +484,7 @@ test("a catalog-validation failure names the component id and the offending prop
     catalogId: "catalog",
     schema: {
       $schema: "https://json-schema.org/draft/2020-12/schema",
+      protocolVersion: "1.0",
       catalogId: "catalog",
       components: {
         Text: {
@@ -487,16 +494,16 @@ test("a catalog-validation failure names the component id and the offending prop
           additionalProperties: false,
         },
       },
-      $defs: { theme: { type: "object" } },
+      $defs: { anyComponent: {}, anyFunction: {} },
     },
   });
   assert.equal(registered.ok, true);
 
   const store = new SurfaceStore();
   const processor = new A2UIMessageProcessor(store, catalogs);
-  assert.equal(processor.process({ version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: "catalog" } }).ok, true);
+  assert.equal(processor.process({ version: "1.0", createSurface: { surfaceId: "main", catalogId: "catalog" } }).ok, true);
   const result = processor.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "main", components: [{ id: "title", component: "Text", text: 123 }] },
   });
   assert.equal(result.ok, false);
@@ -552,7 +559,7 @@ test("a process-stage EXAMPLE_INVALID names the example, stage, and message inde
       code: "PROTOCOL_VALIDATION_FAILED",
       issues: [{ code: "VALIDATION_FAILED", path: "/root", message: "missing root" }],
     },
-  } satisfies A2UIV091PromptGenerationError);
+  } satisfies A2UIV10PromptGenerationError);
   assert.match(description.summary, /example 2 \("Ticket"\)/);
   assert.match(description.summary, /stage "process", message 4/);
   assert.match(description.summary, /Example message was rejected/);
@@ -579,7 +586,7 @@ test("a resolve-stage EXAMPLE_INVALID carries its surface and the not-ready caus
       checksReady: false,
       issues: { tree: [], instances: [], properties: [] },
     },
-  } satisfies A2UIV091PromptGenerationError);
+  } satisfies A2UIV10PromptGenerationError);
   assert.equal(description.surfaceId, "main");
   assert.match(description.summary, /example 0 \("Login"\)/);
   assert.match(description.summary, /stage "resolve", surface "main"/);
@@ -598,7 +605,7 @@ test("a runtime-stage EXAMPLE_INVALID flattens the configuration cause chain", (
     exampleTitle: "Empty",
     stage: "runtime",
     cause: { code: "CATALOG_CONFIGURATION_FAILED", catalogError: catalogCodes[2]! },
-  } satisfies A2UIV091PromptGenerationError);
+  } satisfies A2UIV10PromptGenerationError);
   assert.match(description.summary, /stage "runtime"/);
   assert.ok(treeCodes(description).includes("CATALOG_CONFIGURATION_FAILED"));
   assert.ok(treeCodes(description).includes("CATALOG_NOT_FOUND"));

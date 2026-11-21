@@ -4,9 +4,9 @@ import {
   A2UI_V10_BASIC_CATALOG_ID,
   createA2UIV10Producer,
   createBasicCatalogV10Registration,
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   createWeaverRuntime,
-  type A2UIV091StreamIngestionEvent,
+  type A2UIV10StreamIngestionEvent,
   type FunctionRegistration,
   type WeaverRuntime,
   type WeaverRuntimeObserver,
@@ -72,23 +72,23 @@ function storedTrace(trace: WeaverTrace): WeaverTrace {
 function mixedSession() {
   const recorder = createWeaverTraceRecorder({ now: steppingClock() });
   const runtime = runtimeWith({ observer: recorder.observer });
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const push = (chunk: string) => {
-    const events: A2UIV091StreamIngestionEvent[] = ingestion.push(chunk);
+    const events: A2UIV10StreamIngestionEvent[] = ingestion.push(chunk);
     recorder.recordIngestion(events, chunk);
   };
 
   push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID })));
-  push('{"version":"v0.9.1",}\n');
+  push('{"version":"1.0",}\n');
   push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "main", components: [{ id: "root", component: "Text", text: 42 }] },
   }));
   push(frame(producer.updateComponents({
     surfaceId: "main",
     components: [
       { id: "root", component: "Column", children: ["name", "submit"] },
-      { id: "name", component: "TextField", value: { path: "/name" }, label: "Name" },
+      { id: "name", component: "TextField", value: { "@path": "/name" }, label: "Name" },
       { id: "submit", component: "Button", child: "label", action: { event: { name: "submit", context: {} } } },
       { id: "label", component: "Text", text: "Submit" },
     ],
@@ -204,12 +204,12 @@ test("replay makes no outbound calls: the recording's host callback is not invok
     surfaceId: "main",
     components: [
       { id: "root", component: "Column", children: ["open"] },
-      { id: "open", component: "Button", child: "label", action: { functionCall: { call: "openUrl", args: { url: "https://example.com/" } } } },
+      { id: "open", component: "Button", child: "label", action: { functionCall: { "@call": "openUrl", args: { url: "https://example.com/" } } } },
       { id: "label", component: "Text", text: "Open" },
     ],
   }));
   assert.equal(original.dispatchAction({
-    surfaceId: "main", sourceComponentId: "open", scopePath: "/", actionProperty: "action",
+    surfaceId: "main", sourceComponentId: "open", scopePath: "/", actionProperty: "action", userActivation: true,
   }).ok, true);
   assert.equal(recordedCalls, 1, "the recording invokes the real callback once");
 
@@ -226,7 +226,7 @@ test("replay makes no outbound calls: the recording's host callback is not invok
 test("frame-error entries are reported and never applied", () => {
   const recorder = createWeaverTraceRecorder();
   const runtime = runtimeWith({ observer: recorder.observer });
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const chunk = "not json\n";
   recorder.recordIngestion(ingestion.push(chunk), chunk);
   const trace = storedTrace(recorder.getTrace());
@@ -268,12 +268,12 @@ test("a session spanning two surfaces replays with zero divergence and every sur
     surfaceId: "main",
     components: [
       { id: "root", component: "Column", children: ["name"] },
-      { id: "name", component: "TextField", value: { path: "/name" }, label: "Name" },
+      { id: "name", component: "TextField", value: { "@path": "/name" }, label: "Name" },
     ],
   }));
   original.process(producer.updateComponents({
     surfaceId: "other",
-    components: [{ id: "root", component: "Text", text: { path: "/title" } }],
+    components: [{ id: "root", component: "Text", text: { "@path": "/title" } }],
   }));
   original.process(producer.updateDataModel({ surfaceId: "other", path: "/title", value: "Hello" }));
   assert.equal(original.writeInput({
@@ -296,16 +296,16 @@ test("a session spanning two surfaces replays with zero divergence and every sur
 test("a frame-error mid-trace is reported without applying it, and later steps still replay correctly", () => {
   const recorder = createWeaverTraceRecorder();
   const runtime = runtimeWith({ observer: recorder.observer });
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const push = (chunk: string) => recorder.recordIngestion(ingestion.push(chunk), chunk);
 
   push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID })));
-  push('{"version":"v0.9.1",}\n');
+  push('{"version":"1.0",}\n');
   push(frame(producer.updateComponents({
     surfaceId: "main",
     components: [
       { id: "root", component: "Column", children: ["name"] },
-      { id: "name", component: "TextField", value: { path: "/name" }, label: "Name" },
+      { id: "name", component: "TextField", value: { "@path": "/name" }, label: "Name" },
     ],
   })));
   push(frame(producer.updateDataModel({ surfaceId: "main", path: "/name", value: "Ada" })));

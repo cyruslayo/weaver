@@ -2,60 +2,22 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { CatalogRegistry } from "../catalog/index.js";
+import { catalogDocument, componentSchema, ref } from "../functions/catalogFixtures.test-helper.js";
 import type { JsonObject } from "../protocol/index.js";
 import { SurfaceStore } from "../surfaces/index.js";
 import { ComponentTreeResolver } from "./ComponentTreeResolver.js";
 
-const componentIdRef = "common_types.json#/$defs/ComponentId";
-const childListRef = "common_types.json#/$defs/ChildList";
-
 function component(name: string, structural: JsonObject = {}, values: JsonObject = {}): JsonObject {
-  return {
-    type: "object",
-    properties: {
-      id: { type: "string" },
-      component: { const: name },
-      url: { type: "string" },
-      ...structural,
-      ...values,
-    },
-    required: ["id", "component"],
-    additionalProperties: false,
-  };
+  return componentSchema(name, { url: { type: "string" }, ...structural, ...values });
 }
 
 function catalog(catalogId: string, components: JsonObject): JsonObject {
-  return {
-    $schema: "https://json-schema.org/draft/2020-12/schema",
-    $id: `https://example.test/${catalogId}/catalog.json`,
-    catalogId,
-    components,
-    $defs: {
-      theme: { type: "object" },
-      commonTypes: {
-        $id: "common_types.json",
-        $defs: {
-          ComponentId: { type: "string" },
-          ChildList: {
-            oneOf: [
-              { type: "array", items: { $ref: "#/$defs/ComponentId" } },
-              {
-                type: "object",
-                properties: { path: { type: "string" }, componentId: { $ref: "#/$defs/ComponentId" } },
-                required: ["path", "componentId"],
-                additionalProperties: false,
-              },
-            ],
-          },
-        },
-      },
-    },
-  };
+  return catalogDocument(catalogId, components);
 }
 
 function setup(catalogId = "custom", components?: JsonObject) {
   const schemas = components ?? {
-    Box: component("Box", { slot: { $ref: componentIdRef }, sections: { $ref: childListRef } }),
+    Box: component("Box", { slot: ref("ComponentId"), sections: ref("ChildList") }),
     Leaf: component("Leaf"),
   };
   const registry = new CatalogRegistry();
@@ -130,9 +92,9 @@ test("missing static references remain represented and recover on the next resol
 test("preserves static child ordering and multiple structural properties", () => {
   const schemas = {
     Layout: component("Layout", {
-      trigger: { $ref: componentIdRef },
-      content: { $ref: componentIdRef },
-      sections: { $ref: childListRef },
+      trigger: ref("ComponentId"),
+      content: ref("ComponentId"),
+      sections: ref("ChildList"),
     }),
     Leaf: component("Leaf"),
   };
@@ -151,10 +113,10 @@ test("preserves static child ordering and multiple structural properties", () =>
 test("resolves ordered nested array relationships with locations, reuse, missing recovery, and cycles", () => {
   const tabs = component("TabsLike", {}, {
     tabs: { type: "array", items: { type: "object", properties: {
-      title: { type: "string" }, child: { $ref: componentIdRef },
+      title: { type: "string" }, child: ref("ComponentId"),
     }, required: ["title", "child"], additionalProperties: false } },
   });
-  const { store, resolver } = setup("nested", { TabsLike: tabs, Leaf: component("Leaf", { child: { $ref: componentIdRef } }) });
+  const { store, resolver } = setup("nested", { TabsLike: tabs, Leaf: component("Leaf", { child: ref("ComponentId") }) });
   store.updateComponents("surface", [
     { id: "root", component: "TabsLike", tabs: [
       { title: "A", child: "shared" }, { title: "B", child: "missing" }, { title: "C", child: "shared" },
@@ -217,7 +179,7 @@ test("uses only the surface catalog and fails defensively for unknown component 
   const registry = new CatalogRegistry();
   assert.equal(registry.register({ catalogId: "a", schema: catalog("a", { Same: component("Same") }) }).ok, true);
   assert.equal(registry.register({ catalogId: "b", schema: catalog("b", {
-    Same: component("Same", { slot: { $ref: componentIdRef } }), Leaf: component("Leaf"),
+    Same: component("Same", { slot: ref("ComponentId") }), Leaf: component("Leaf"),
   }) }).ok, true);
   const resolver = new ComponentTreeResolver(registry);
   const surface = {

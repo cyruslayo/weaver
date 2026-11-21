@@ -1,6 +1,6 @@
 import {
   createA2UIV10Producer,
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   createWeaverTraceRecorder,
   type A2UIComponent,
   type A2UIAgentMessage,
@@ -78,7 +78,7 @@ export function createInspectorSampleTrace(): WeaverTrace {
   });
   if (!created.ok) throw new Error(`Sample runtime configuration failed: ${created.error.code}`);
   const { runtime, catalogId } = created.value;
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   const producer = createA2UIV10Producer();
 
   // Frames pass through the same ingestion path as a real stream.

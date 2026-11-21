@@ -3,7 +3,7 @@ import { CheckEvaluator } from "../checks/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext } from "../data-context/index.js";
-import { FunctionEvaluator, isFunctionCall } from "../functions/index.js";
+import { FunctionEvaluator, isDataBinding, isFunctionCall } from "../functions/index.js";
 import type {
   A2UIRendererActionMessage,
   JsonObject,
@@ -11,6 +11,7 @@ import type {
 } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import { ActionContextResolver } from "./ActionContextResolver.js";
+import type { ActionDispatchError } from "./errors.js";
 import type {
   ActionDispatchInput,
   ActionDispatcherOptions,
@@ -74,6 +75,7 @@ export class ActionDispatcher {
     surface,
     instance,
     actionProperty,
+    userActivation = false,
   }: ActionDispatchInput): ActionDispatchResult {
     const metadata = this.catalogs.getActionProperties(
       surface.catalogId,
@@ -177,6 +179,7 @@ export class ActionDispatcher {
         surface.catalogId,
         call,
         dataContext.value,
+        { userActivation },
       );
       if (!evaluated.ok) {
         return {
@@ -201,11 +204,7 @@ export class ActionDispatcher {
     }
 
     const event = action.event;
-    if (
-      !isPlainObject(event) ||
-      typeof event.name !== "string" ||
-      !isPlainObject(event.context)
-    ) {
+    if (!isPlainObject(event) || typeof event.name !== "string") {
       return {
         ok: false,
         error: {
@@ -215,9 +214,18 @@ export class ActionDispatcher {
         },
       };
     }
+    const eventContext = event.context === undefined ? {} : event.context;
+    if (!isPlainObject(eventContext)) {
+      return {
+        ok: false,
+        error: { code: "ACTION_INVALID", message: "Event context must be an object", actionProperty },
+      };
+    }
+    const userMessage = this.#resolveUserMessage(surface.catalogId, event.userMessage, dataContext.value, actionProperty);
+    if (!userMessage.ok) return userMessage;
     const context = this.#contextResolver.resolve(
       surface.catalogId,
-      event.context,
+      eventContext,
       dataContext.value,
     );
     if (!context.ok) return context;
@@ -234,6 +242,7 @@ export class ActionDispatcher {
       version: "1.0",
       action: {
         name: event.name,
+        ...(userMessage.value === undefined ? {} : { userMessage: userMessage.value }),
         surfaceId: surface.surfaceId,
         sourceComponentId: instance.sourceComponentId,
         timestamp: this.#now().toISOString(),
@@ -261,5 +270,31 @@ export class ActionDispatcher {
           : { metadata: transportMetadata }),
       },
     };
+  }
+
+  /** userMessage is a DynamicString; an absent value stays absent and a non-string result is invalid. */
+  #resolveUserMessage(
+    catalogId: string,
+    value: unknown,
+    dataModel: DataContext,
+    actionProperty: string,
+  ): { ok: true; value: string | undefined } | { ok: false; error: ActionDispatchError } {
+    if (value === undefined) return { ok: true, value: undefined };
+    const invalid = (message: string) => ({
+      ok: false as const,
+      error: { code: "ACTION_INVALID" as const, message, actionProperty },
+    });
+    if (typeof value === "string") return { ok: true, value };
+    if (isDataBinding(value)) {
+      const bound = dataModel.resolveBinding(value);
+      if (!bound.ok || typeof bound.value !== "string") return invalid("userMessage must resolve to a string");
+      return { ok: true, value: bound.value };
+    }
+    if (isFunctionCall(value)) {
+      const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataModel);
+      if (!evaluated.ok || typeof evaluated.value !== "string") return invalid("userMessage must resolve to a string");
+      return { ok: true, value: evaluated.value };
+    }
+    return invalid("userMessage must be a DynamicString");
   }
 }
