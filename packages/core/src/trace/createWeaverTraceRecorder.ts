@@ -41,6 +41,9 @@ function messageSummary(value: MessageProcessorSuccess): JsonValue {
   if (value.operation === "rendererFunctionResponded") {
     return { operation: value.operation, response: jsonCopy(value.response) };
   }
+  if (value.operation === "agentFunctionIgnored") {
+    return { operation: value.operation, functionCallId: value.functionCallId };
+  }
   return { operation: value.operation, surfaceId: value.surfaceId };
 }
 

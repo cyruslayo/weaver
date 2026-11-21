@@ -1,5 +1,6 @@
 import type { CatalogRegistry } from "../catalog/index.js";
 import { CheckEvaluator } from "../checks/index.js";
+import type { ActionCallMemo, AgentFunctionScope } from "../agent-functions/types.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext } from "../data-context/index.js";
@@ -53,6 +54,15 @@ function contextFor(
   return root.createCollectionItemContext(collectionPath, index);
 }
 
+/**
+ * The result of a dispatch that waits on agent calls: the callAgentFunction messages
+ * it created since the last report. The memo's outbox is emptied, so each message is
+ * reported once.
+ */
+function agentCallsResult(memo: ActionCallMemo | undefined): ActionDispatchResult {
+  return { ok: true, value: { kind: "agentFunctionCalls", messages: memo === undefined ? [] : memo.outbox.splice(0) } };
+}
+
 /** Executes one explicit interaction; it owns no transport or mutable surface state. */
 export class ActionDispatcher {
   readonly #contextResolver: ActionContextResolver;
@@ -76,6 +86,8 @@ export class ActionDispatcher {
     instance,
     actionProperty,
     userActivation = false,
+    memo,
+    continuation,
   }: ActionDispatchInput): ActionDispatchResult {
     const metadata = this.catalogs.getActionProperties(
       surface.catalogId,
@@ -125,10 +137,18 @@ export class ActionDispatcher {
         },
       };
     }
+    // Agent routing is enabled only when the runtime supplies a continuation. Its memo is shared by every run of this action.
+    const actionMemo: ActionCallMemo | undefined =
+      continuation === undefined ? undefined : (memo ?? { states: new Map(), outbox: [] });
+    const actionScope: AgentFunctionScope | undefined =
+      actionMemo === undefined || continuation === undefined
+        ? undefined
+        : { surfaceId: surface.surfaceId, kind: "action", memo: actionMemo, continuation };
     const checks = this.checkEvaluator.evaluate(
       surface.catalogId,
       instance,
       dataContext.value,
+      { surfaceId: surface.surfaceId, kind: "reactive" },
     );
     if (!checks.ok) {
       return {
@@ -179,7 +199,7 @@ export class ActionDispatcher {
         surface.catalogId,
         call,
         dataContext.value,
-        { userActivation },
+        { userActivation, ...(actionScope === undefined ? {} : { scope: actionScope }) },
       );
       if (!evaluated.ok) {
         return {
@@ -191,6 +211,7 @@ export class ActionDispatcher {
           },
         };
       }
+      if (evaluated.awaiting !== undefined) return agentCallsResult(actionMemo);
       return {
         ok: true,
         value: {
@@ -221,14 +242,23 @@ export class ActionDispatcher {
         error: { code: "ACTION_INVALID", message: "Event context must be an object", actionProperty },
       };
     }
-    const userMessage = this.#resolveUserMessage(surface.catalogId, event.userMessage, dataContext.value, actionProperty);
+    const userMessage = this.#resolveUserMessage(
+      surface.catalogId,
+      event.userMessage,
+      dataContext.value,
+      actionProperty,
+      actionScope,
+    );
     if (!userMessage.ok) return userMessage;
+    if (userMessage.awaiting !== undefined) return agentCallsResult(actionMemo);
     const context = this.#contextResolver.resolve(
       surface.catalogId,
       eventContext,
       dataContext.value,
+      actionScope,
     );
     if (!context.ok) return context;
+    if (context.awaiting !== undefined) return agentCallsResult(actionMemo);
     if (surface.sendDataModel && !isPlainObject(surface.dataModel)) {
       return {
         ok: false,
@@ -278,7 +308,8 @@ export class ActionDispatcher {
     value: unknown,
     dataModel: DataContext,
     actionProperty: string,
-  ): { ok: true; value: string | undefined } | { ok: false; error: ActionDispatchError } {
+    scope: AgentFunctionScope | undefined,
+  ): { ok: true; value: string | undefined; awaiting?: string } | { ok: false; error: ActionDispatchError } {
     if (value === undefined) return { ok: true, value: undefined };
     const invalid = (message: string) => ({
       ok: false as const,
@@ -291,7 +322,8 @@ export class ActionDispatcher {
       return { ok: true, value: bound.value };
     }
     if (isFunctionCall(value)) {
-      const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataModel);
+      const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataModel, scope);
+      if (evaluated.ok && evaluated.awaiting !== undefined) return { ok: true, value: undefined, awaiting: evaluated.awaiting };
       if (!evaluated.ok || typeof evaluated.value !== "string") return invalid("userMessage must resolve to a string");
       return { ok: true, value: evaluated.value };
     }

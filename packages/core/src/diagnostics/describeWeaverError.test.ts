@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { AgentFunctionsConfigurationError } from "../agent-functions/index.js";
 import type { ActionDispatchErrorCode, ActionDispatchError } from "../actions/errors.js";
 import type { ActionContextResolutionError } from "../actions/types.js";
 import type { CatalogRegistryError, CatalogRegistryErrorCode } from "../catalog/errors.js";
@@ -47,6 +48,7 @@ const ALL_CODES = [
   "INSTANCE_NOT_FOUND", "INPUT_WRITE_FAILED", "ACTION_DISPATCH_FAILED",
   // WeaverRuntimeConfigurationError and WeaverRuntimeSafetyConfigurationError
   "CATALOG_CONFIGURATION_FAILED", "FUNCTION_CONFIGURATION_FAILED", "SAFETY_CONFIGURATION_FAILED",
+  "AGENT_FUNCTIONS_CONFIGURATION_FAILED", "INVALID_AGENT_FUNCTIONS_CONFIGURATION",
   "INVALID_SAFETY_LIMIT", "INVALID_SAFETY_CONFIGURATION",
   // CatalogRegistryError
   "INVALID_CATALOG_SCHEMA", "CATALOG_ALREADY_REGISTERED", "CATALOG_NOT_FOUND",
@@ -93,6 +95,7 @@ type UnionCodes =
   | WeaverRuntimeInteractionError["code"]
   | WeaverRuntimeConfigurationError["code"]
   | WeaverRuntimeSafetyConfigurationError["code"]
+  | AgentFunctionsConfigurationError["code"]
   | CatalogRegistryErrorCode
   | FunctionRegistryErrorCode
   | FunctionEvaluationErrorCode
@@ -274,7 +277,11 @@ const fixtures: Fixture[] = [
   { code: "CATALOG_REGISTRY_ERROR", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[2]! } },
   {
     code: "UNSUPPORTED_FEATURE",
-    error: { code: "UNSUPPORTED_FEATURE", feature: "agentFunctionResponse", message: "remote function responses are not supported yet" },
+    error: {
+      code: "UNSUPPORTED_FEATURE",
+      feature: "createSurface.catalogId",
+      message: "createSurface without catalogId requires multi-catalog support, which is not available yet",
+    },
   },
 
   // JsonlDecodeError (top level)
@@ -304,6 +311,13 @@ const fixtures: Fixture[] = [
     error: { code: "FUNCTION_CONFIGURATION_FAILED", functionError: functionRegistryCodes[0]! },
   },
   { code: "SAFETY_CONFIGURATION_FAILED", error: { code: "SAFETY_CONFIGURATION_FAILED", safetyError: safetyConfigCodes[0]! } },
+  {
+    code: "AGENT_FUNCTIONS_CONFIGURATION_FAILED",
+    error: {
+      code: "AGENT_FUNCTIONS_CONFIGURATION_FAILED",
+      agentFunctionsError: { code: "INVALID_AGENT_FUNCTIONS_CONFIGURATION", reason: "MUST_BE_OBJECT" },
+    },
+  },
 
   // FunctionRegistryError (top level)
   ...functionRegistryCodes.map((functionError) => ({ code: functionError.code, error: functionError })),

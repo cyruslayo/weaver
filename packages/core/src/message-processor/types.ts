@@ -20,6 +20,22 @@ export type MessageProcessorSuccess =
        */
       operation: "rendererFunctionResponded";
       response: A2UIRendererFunctionResponseMessage;
+    }
+  | {
+      /**
+       * An agentFunctionResponse settled a pending call. The surface was notified,
+       * so subscribers re-resolve it. `continuation` is set when the call belongs to
+       * an action, and the runtime runs it. It is never returned by the runtime.
+       */
+      operation: "agentFunctionResolved";
+      surfaceId: string;
+      functionCallId: string;
+      continuation?: () => unknown;
+    }
+  | {
+      /** An agentFunctionResponse matched no pending call (unknown or already settled). Nothing changed and nothing is sent. */
+      operation: "agentFunctionIgnored";
+      functionCallId: string;
     };
 
 export type MessageProcessorResult =

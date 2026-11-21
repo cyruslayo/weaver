@@ -29,11 +29,15 @@ export type FunctionEvaluationError =
       actual?: string;
     }
   | {
-      /** Activation-gated functions outside a user gesture, and regex dialect or safety violations. */
+      /**
+       * Activation-gated functions outside a user gesture, regex dialect or safety violations, and
+       * agent routing refusals and failures. functionCallId is set when a routed agent call failed.
+       */
       code: "EXPRESSION_ERROR";
       message: string;
       catalogId: string;
       functionName: string;
+      functionCallId?: string;
     }
   | {
       /** Runtime failures such as @index outside a collection template scope. */

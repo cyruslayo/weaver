@@ -1,4 +1,5 @@
 import type { CatalogRegistry } from "../catalog/index.js";
+import type { AgentFunctionScope } from "../agent-functions/types.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext } from "../data-context/index.js";
 import { FunctionEvaluator, isDataBinding, isFunctionCall } from "../functions/index.js";
@@ -75,13 +76,18 @@ export class CheckEvaluator {
     private readonly functionEvaluator: FunctionEvaluator,
   ) {}
 
-  evaluate(catalogId: string, instance: ResolvedComponentInstance, dataContext: DataContext): CheckEvaluationResult {
+  evaluate(
+    catalogId: string,
+    instance: ResolvedComponentInstance,
+    dataContext: DataContext,
+    scope?: AgentFunctionScope,
+  ): CheckEvaluationResult {
     const checkable = this.catalogs.isComponentCheckable(catalogId, instance.component);
     if (!checkable) return { ok: true, value: this.snapshot(instance, false, []) };
 
     const declared = instance.definition["@checks"];
     const definitions = Array.isArray(declared) ? declared : [];
-    const checks = definitions.map((definition, index) => this.evaluateCheck(catalogId, definition, index, dataContext));
+    const checks = definitions.map((definition, index) => this.evaluateCheck(catalogId, definition, index, dataContext, scope));
     return { ok: true, value: this.snapshot(instance, true, checks) };
   }
 
@@ -91,7 +97,7 @@ export class CheckEvaluator {
     }
     const components: ComponentCheckSnapshot[] = [];
     const visit = (instance: ResolvedComponentInstance, context: DataContext): CheckTreeEvaluationResult | undefined => {
-      const own = this.evaluate(surface.catalogId, instance, context);
+      const own = this.evaluate(surface.catalogId, instance, context, { surfaceId: surface.surfaceId, kind: "reactive" });
       if (!own.ok) return own as CheckTreeEvaluationResult;
       components.push(own.value);
       for (const relationship of instance.relationships) {
@@ -145,7 +151,13 @@ export class CheckEvaluator {
     };
   }
 
-  private evaluateCheck(catalogId: string, definition: unknown, index: number, dataContext: DataContext): EvaluatedCheck {
+  private evaluateCheck(
+    catalogId: string,
+    definition: unknown,
+    index: number,
+    dataContext: DataContext,
+    scope: AgentFunctionScope | undefined,
+  ): EvaluatedCheck {
     if (!isCheckRule(definition)) return this.typeError(index, undefined, definition);
     const { condition } = definition;
     const message = definition.message as string | undefined;
@@ -157,7 +169,7 @@ export class CheckEvaluator {
       return this.conditionResult(index, message, resolved.value);
     }
     if (isFunctionCall(condition)) {
-      const evaluated = this.functionEvaluator.evaluate(catalogId, condition, dataContext);
+      const evaluated = this.functionEvaluator.evaluate(catalogId, condition, dataContext, scope);
       if (!evaluated.ok) {
         return this.issueResult(index, message, { code: "CHECK_FUNCTION_EVALUATION_FAILED", error: { ...evaluated.error } });
       }

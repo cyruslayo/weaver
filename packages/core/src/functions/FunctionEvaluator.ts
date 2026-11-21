@@ -1,8 +1,8 @@
 import type {
   CatalogFunctionArgumentDefinition,
-  CatalogFunctionDefinition,
   CatalogRegistry,
 } from "../catalog/index.js";
+import type { AgentFunctionRouter, AgentFunctionScope } from "../agent-functions/types.js";
 import { cloneJson } from "../data-model/clone.js";
 import { DataContext } from "../data-context/index.js";
 import type { DataContextError } from "../data-context/index.js";
@@ -33,8 +33,17 @@ class RecursiveFunctionFailure {
 }
 
 type InternalResult<T> =
-  | { ok: true; value: T }
+  | { ok: true; value: T; awaiting?: string }
   | { ok: false; error: FunctionEvaluationError };
+
+export interface FunctionEvaluatorOptions {
+  maxDepth?: number;
+  /**
+   * Routes calls that have no local implementation to the agent. Without it, such
+   * a call fails locally with EXPRESSION_ERROR. See agent-functions.
+   */
+  agentRouter?: AgentFunctionRouter;
+}
 
 /** Per-evaluation state. Activation is honored only at the action root. */
 interface EvaluationFrame {
@@ -46,6 +55,8 @@ interface EvaluationFrame {
    * calls in its arguments are always "renderer" frames.
    */
   caller: "renderer" | "agent";
+  /** Where a routed agent call belongs. Absent for an agent-initiated root, which never routes. */
+  scope?: AgentFunctionScope;
 }
 
 type DynamicArgumentKind = "dynamicValue" | "dynamicString" | "dynamicNumber" | "dynamicBoolean" | "dynamicStringList";
@@ -158,22 +169,50 @@ function argumentError(catalogId: string, functionName: string, message: string,
   };
 }
 
-/** Executes catalog-declared functions using only host-registered implementations. */
+function expressionError(catalogId: string, functionName: string, message: string): { ok: false; error: FunctionEvaluationError } {
+  return { ok: false, error: { code: "EXPRESSION_ERROR", message, catalogId, functionName } };
+}
+
+/** The frame of a call nested in the arguments or the body of another call. Nested calls are renderer calls and inherit the scope. */
+function nestedFrame(frame: EvaluationFrame): EvaluationFrame {
+  return {
+    depth: frame.depth + 1,
+    actionRoot: false,
+    userActivation: false,
+    caller: "renderer",
+    ...(frame.scope === undefined ? {} : { scope: frame.scope }),
+  };
+}
+
+/** Executes catalog-declared functions using host-registered implementations, and routes the rest to the agent when a router is configured. */
 export class FunctionEvaluator {
   readonly #catalogs: CatalogRegistry;
   readonly #functions: FunctionRegistry;
   readonly #maxDepth: number;
+  readonly #router: AgentFunctionRouter | undefined;
 
-  constructor(catalogs: CatalogRegistry, functions: FunctionRegistry, options: { maxDepth?: number } = {}) {
+  constructor(catalogs: CatalogRegistry, functions: FunctionRegistry, options: FunctionEvaluatorOptions = {}) {
     this.#catalogs = catalogs;
     this.#functions = functions;
     this.#maxDepth =
       Number.isSafeInteger(options.maxDepth) && (options.maxDepth ?? 0) > 0 ? options.maxDepth! : MAX_DEFAULT_DEPTH;
+    this.#router = options.agentRouter;
   }
 
-  /** Evaluates a passive DynamicValue: a property binding, a check condition, or a nested argument. */
-  evaluate(catalogId: string, functionCall: unknown, dataContext: DataContext): FunctionEvaluationResult {
-    return this.#evaluate(catalogId, functionCall, dataContext, { ...PASSIVE_FRAME });
+  /**
+   * Evaluates a passive DynamicValue: a property binding, a check condition, or a nested argument. A
+   * scope lets a call to an agent function route; without one such a call fails locally.
+   */
+  evaluate(
+    catalogId: string,
+    functionCall: unknown,
+    dataContext: DataContext,
+    scope?: AgentFunctionScope,
+  ): FunctionEvaluationResult {
+    return this.#evaluate(catalogId, functionCall, dataContext, {
+      ...PASSIVE_FRAME,
+      ...(scope === undefined ? {} : { scope }),
+    });
   }
 
   /**
@@ -184,13 +223,14 @@ export class FunctionEvaluator {
     catalogId: string,
     functionCall: unknown,
     dataContext: DataContext,
-    options: { userActivation: boolean },
+    options: { userActivation: boolean; scope?: AgentFunctionScope },
   ): FunctionEvaluationResult {
     return this.#evaluate(catalogId, functionCall, dataContext, {
       depth: 0,
       actionRoot: true,
       userActivation: options.userActivation === true,
       caller: "renderer",
+      ...(options.scope === undefined ? {} : { scope: options.scope }),
     });
   }
 
@@ -271,7 +311,7 @@ export class FunctionEvaluator {
         },
       };
     }
-    if (!validation.ok) return { ok: false, error: validation.error };
+    if (!validation.ok) return this.#validationFailure(catalogId, functionCall, validation.error, frame);
     if (!isFunctionCall(validation.value)) {
       return {
         ok: false,
@@ -314,31 +354,21 @@ export class FunctionEvaluator {
     if (!definitionResult.ok) return { ok: false, error: definitionResult.error };
     const definition = definitionResult.value;
 
+    // A renderer binding or action refuses an agentOnly function. The agent may call it with callRendererFunction.
     if (frame.caller === "renderer" && definition.allowedCallers === "agentOnly") {
-      return {
-        ok: false,
-        error: {
-          code: "FUNCTION_CALLER_NOT_ALLOWED",
-          message: `${functionName} is agentOnly and cannot be bound to properties or run from renderer actions`,
-          catalogId,
-          functionName,
-        },
-      };
+      return expressionError(
+        catalogId,
+        functionName,
+        `${functionName} is agentOnly and cannot be bound to properties or run from renderer actions`,
+      );
     }
     if (definition.requiresUserActivation && !(frame.actionRoot && frame.userActivation)) {
-      return {
-        ok: false,
-        error: {
-          code: "EXPRESSION_ERROR",
-          message: `${functionName} requires an active user gesture and cannot run from a passive binding`,
-          catalogId,
-          functionName,
-        },
-      };
+      return expressionError(catalogId, functionName, `${functionName} requires an active user gesture and cannot run from a passive binding`);
     }
 
     const registration = this.#functions.getRegistration(catalogId, functionName);
-    if (registration === undefined) {
+    // An agent-initiated root never routes, so a function without an implementation is simply not available.
+    if (registration === undefined && frame.caller === "agent") {
       return {
         ok: false,
         error: {
@@ -349,7 +379,7 @@ export class FunctionEvaluator {
         },
       };
     }
-    if (registration.effect === "action" && !frame.actionRoot) {
+    if (registration !== undefined && registration.effect === "action" && !frame.actionRoot) {
       return {
         ok: false,
         error: {
@@ -361,27 +391,27 @@ export class FunctionEvaluator {
       };
     }
 
-    const resolvedArgs: Record<string, unknown> = {};
-    for (const [name, value] of Object.entries(call.args ?? {})) {
-      const resolved = this.#resolveArgument(
-        catalogId,
-        functionName,
-        value,
-        definition.arguments[name] ?? { kind: "literal" },
-        dataContext,
-        frame.depth,
-      );
-      if (!resolved.ok) return resolved;
-      resolvedArgs[name] = resolved.value;
-    }
+    const args = this.#resolveCallArgs(
+      catalogId,
+      functionName,
+      call.args ?? {},
+      (name) => definition.arguments[name] ?? { kind: "literal" },
+      dataContext,
+      frame,
+    );
+    if (!args.ok) return args;
+    // A pending argument means the call is not run yet. It is never run with an incomplete value.
+    if (args.awaiting !== undefined) return { ok: true, value: undefined, awaiting: args.awaiting };
 
+    if (registration === undefined) return this.#route(catalogId, functionName, args.value, frame);
+
+    const resolvedArgs = args.value;
     let result: unknown;
     try {
       const context: FunctionExecutionContext = {
         catalogId,
         dataContext,
-        evaluateFunctionCall: (nestedCall) =>
-          this.#evaluate(catalogId, nestedCall, dataContext, { depth: frame.depth + 1, actionRoot: false, userActivation: false, caller: "renderer" }),
+        evaluateFunctionCall: (nestedCall) => this.#evaluate(catalogId, nestedCall, dataContext, nestedFrame(frame)),
         propagateFunctionFailure: (error) => {
           throw new RecursiveFunctionFailure(error);
         },
@@ -417,6 +447,84 @@ export class FunctionEvaluator {
   }
 
   /**
+   * A call that fails catalog validation. A declared function with no local
+   * implementation reports the argument failure as an EXPRESSION_ERROR that names
+   * it, because such a call is never run locally.
+   */
+  #validationFailure(
+    catalogId: string,
+    functionCall: unknown,
+    error: FunctionEvaluationError,
+    frame: EvaluationFrame,
+  ): FunctionEvaluationResult {
+    const name = isPlainObject(functionCall) && typeof functionCall["@call"] === "string" ? functionCall["@call"] : undefined;
+    if (
+      frame.caller === "renderer" &&
+      error.code === "FUNCTION_VALIDATION_FAILED" &&
+      name !== undefined &&
+      this.#isSchemaOnly(catalogId, name)
+    ) {
+      return expressionError(catalogId, name, `Validation failed for function '${name}'`);
+    }
+    return { ok: false, error };
+  }
+
+  /** A declared function the catalog describes but the renderer does not implement. */
+  #isSchemaOnly(catalogId: string, name: string): boolean {
+    return this.#catalogs.hasFunction(catalogId, name) && this.#functions.getRegistration(catalogId, name) === undefined;
+  }
+
+  /**
+   * Routes a call with no local implementation. A declared function's arguments
+   * are validated first. A refused call never reaches the agent, and the failure
+   * is local.
+   */
+  #route(
+    catalogId: string,
+    functionName: string,
+    args: Record<string, unknown>,
+    frame: EvaluationFrame,
+  ): FunctionEvaluationResult {
+    if (this.#router === undefined) {
+      return expressionError(
+        catalogId,
+        functionName,
+        `${functionName} has no local implementation, and agent function routing is not enabled`,
+      );
+    }
+    if (frame.scope === undefined) {
+      return expressionError(catalogId, functionName, `${functionName} has no local implementation, and no surface is available to route it`);
+    }
+    if (!isJsonSafe(args)) {
+      return expressionError(catalogId, functionName, `Arguments of ${functionName} are not JSON-compatible and were not sent`);
+    }
+
+    const validated = this.#catalogs.validateFunctionCall(catalogId, { "@call": functionName, args });
+    if (!validated.ok || !isFunctionCall(validated.value)) {
+      return expressionError(catalogId, functionName, `Validation failed for function '${functionName}'`);
+    }
+    // Validation does not apply schema defaults, so the call is sent with them, as the spec requires.
+    const routedArgs = this.#catalogs.applyFunctionArgumentDefaults(catalogId, functionName, (validated.value.args ?? {}) as JsonObject);
+
+    const outcome = this.#router.route({ scope: frame.scope, catalogId, functionName, args: routedArgs });
+    if (outcome.kind === "value") return { ok: true, value: outcome.value };
+    if (outcome.kind === "pending") return { ok: true, value: undefined, awaiting: outcome.functionCallId };
+    if (outcome.kind === "failed") {
+      return {
+        ok: false,
+        error: {
+          code: "EXPRESSION_ERROR",
+          message: outcome.failure.message,
+          catalogId,
+          functionName,
+          functionCallId: outcome.failure.functionCallId,
+        },
+      };
+    }
+    return expressionError(catalogId, functionName, `${functionName} was not sent: ${outcome.message}`);
+  }
+
+  /**
    * @index returns the innermost collection item index plus an optional offset. It
    * belongs to no catalog, so it is handled before catalog lookup.
    */
@@ -446,8 +554,9 @@ export class FunctionEvaluator {
 
     let offset = 0;
     if (Object.hasOwn(args, "offset")) {
-      const resolved = this.#resolveArgument(catalogId, INDEX_FUNCTION, args.offset!, { kind: "dynamicNumber" }, dataContext, frame.depth);
+      const resolved = this.#resolveArgument(catalogId, INDEX_FUNCTION, args.offset!, { kind: "dynamicNumber" }, dataContext, frame);
       if (!resolved.ok) return resolved;
+      if (resolved.awaiting !== undefined) return { ok: true, value: undefined, awaiting: resolved.awaiting };
       if (typeof resolved.value !== "number" || !Number.isFinite(resolved.value)) {
         return argumentError(catalogId, INDEX_FUNCTION, "@index offset must resolve to a finite number");
       }
@@ -456,40 +565,67 @@ export class FunctionEvaluator {
     return { ok: true, value: index + offset };
   }
 
+  /**
+   * Resolves every argument of a call. A pending argument is reported in `awaiting`
+   * while the others still resolve, so sibling agent calls are all sent together.
+   */
+  #resolveCallArgs(
+    catalogId: string,
+    functionName: string,
+    args: JsonObject,
+    definitionFor: (name: string) => CatalogFunctionArgumentDefinition,
+    dataContext: DataContext,
+    frame: EvaluationFrame,
+  ): InternalResult<Record<string, unknown>> {
+    const resolvedArgs: Record<string, unknown> = {};
+    let awaiting: string | undefined;
+    for (const [name, value] of Object.entries(args)) {
+      const resolved = this.#resolveArgument(catalogId, functionName, value, definitionFor(name), dataContext, frame);
+      if (!resolved.ok) return resolved;
+      if (resolved.awaiting !== undefined && awaiting === undefined) awaiting = resolved.awaiting;
+      resolvedArgs[name] = resolved.value;
+    }
+    return awaiting === undefined ? { ok: true, value: resolvedArgs } : { ok: true, value: resolvedArgs, awaiting };
+  }
+
   #resolveArgument(
     catalogId: string,
     functionName: string,
     value: JsonValue,
     definition: CatalogFunctionArgumentDefinition,
     dataContext: DataContext,
-    depth: number,
+    frame: EvaluationFrame,
   ): InternalResult<unknown> {
     if (definition.kind === "arrayOfDynamicValues") {
       if (!Array.isArray(value)) return defensiveValue(value, catalogId, functionName);
       const values: unknown[] = [];
+      let awaiting: string | undefined;
       // Each item resolves with its declared kind (for example dynamicBoolean, which coerces); default is dynamicValue.
       const itemDefinition: CatalogFunctionArgumentDefinition = definition.items ?? { kind: "dynamicValue" };
       for (const entry of value) {
-        const resolved = this.#resolveArgument(catalogId, functionName, entry, itemDefinition, dataContext, depth);
+        const resolved = this.#resolveArgument(catalogId, functionName, entry, itemDefinition, dataContext, frame);
         if (!resolved.ok) return resolved;
+        if (resolved.awaiting !== undefined && awaiting === undefined) awaiting = resolved.awaiting;
         values.push(resolved.value);
       }
-      return { ok: true, value: values };
+      return awaiting === undefined ? { ok: true, value: values } : { ok: true, value: values, awaiting };
     }
 
     if (definition.kind === "literalObject") {
       if (!isPlainObject(value)) return defensiveValue(value, catalogId, functionName);
       const fields: Record<string, unknown> = {};
+      let awaiting: string | undefined;
       for (const [name, entry] of Object.entries(value)) {
         const fieldDefinition = definition.properties?.[name];
         const resolved =
           fieldDefinition === undefined
             ? defensiveValue(entry, catalogId, functionName)
-            : this.#resolveArgument(catalogId, functionName, entry, fieldDefinition, dataContext, depth);
+            : this.#resolveArgument(catalogId, functionName, entry, fieldDefinition, dataContext, frame);
         if (!resolved.ok) return resolved;
+        if (resolved.awaiting !== undefined && awaiting === undefined) awaiting = resolved.awaiting;
         fields[name] = resolved.value;
       }
-      return { ok: true, value: fields };
+      return awaiting === undefined ? { ok: true, value: fields } : { ok: true, value: fields, awaiting };
     }
 
     if (
@@ -499,8 +635,8 @@ export class FunctionEvaluator {
       definition.kind === "dynamicBoolean" ||
       definition.kind === "dynamicStringList"
     ) {
-      const resolved = this.#resolveDynamic(catalogId, functionName, value, definition.kind, dataContext, depth);
-      if (!resolved.ok || definition.kind !== "dynamicBoolean") return resolved;
+      const resolved = this.#resolveDynamic(catalogId, functionName, value, definition.kind, dataContext, frame);
+      if (!resolved.ok || resolved.awaiting !== undefined || definition.kind !== "dynamicBoolean") return resolved;
       return { ok: true, value: coerceDynamicBoolean(resolved.value) };
     }
 
@@ -513,7 +649,7 @@ export class FunctionEvaluator {
     value: JsonValue,
     kind: DynamicArgumentKind,
     dataContext: DataContext,
-    depth: number,
+    frame: EvaluationFrame,
   ): InternalResult<unknown> {
     if (isDataBinding(value)) {
       const resolved = dataContext.resolveBinding(value);
@@ -521,7 +657,7 @@ export class FunctionEvaluator {
       return defensiveValue(resolved.value, catalogId, functionName);
     }
     if (isFunctionCall(value)) {
-      return this.#evaluate(catalogId, value, dataContext, { depth: depth + 1, actionRoot: false, userActivation: false, caller: "renderer" });
+      return this.#evaluate(catalogId, value, dataContext, nestedFrame(frame));
     }
     if (kind === "dynamicValue" && isPlainObject(value)) {
       const unescaped = unescapeLiteralDynamicValue(value);

@@ -1,11 +1,13 @@
 import { cloneJson } from "../../data-model/clone.js";
 import type { MessageProcessorResult } from "../../message-processor/index.js";
-import type { A2UIAgentMessage, JsonValue } from "../../protocol/index.js";
+import type { A2UIAgentMessage, A2UIRendererCallAgentFunctionMessage, JsonValue } from "../../protocol/index.js";
 import { buildA2UIGenericRendererErrorMessage, validateA2UIAgentMessage } from "../../protocol/index.js";
 import type {
+  A2UIActionCallDeliveryResult,
   A2UIActionDeliveryResult,
   A2UIFunctionResponseDeliveryResult,
   A2UIRouteId,
+  A2UIRoutedDelivery,
   A2UIRoutedProcessResult,
   A2UIRoutingError,
   A2UITransportSession,
@@ -58,6 +60,15 @@ export function createA2UITransportSession(
         }
       }
 
+      // A response settles a call that belongs to one surface, so it must arrive on that surface's route.
+      if (validation.ok && "agentFunctionResponse" in validation.value) {
+        const callSurface = runtime.getAgentFunctionCallSurface(validation.value.agentFunctionResponse.functionCallId);
+        const callOwner = callSurface === undefined ? undefined : routes.get(callSurface);
+        if (callSurface !== undefined && callOwner !== undefined && callOwner !== routeId) {
+          return { ok: false as const, error: { code: "SURFACE_ROUTE_MISMATCH" as const, surfaceId: callSurface } };
+        }
+      }
+
       const result = runtime.process(input);
       if (!result.ok) return result;
       if (result.value.operation === "surfaceCreated")
@@ -94,6 +105,37 @@ export function createA2UITransportSession(
             : { rendererDataModel: result.value.metadata.a2uiRendererDataModel }),
         }),
       };
+    },
+
+    prepareActionCallDelivery(result: Parameters<A2UITransportSession["prepareActionCallDelivery"]>[0]): A2UIActionCallDeliveryResult {
+      if (!result.ok || result.value.kind !== "agentFunctionCalls") {
+        return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } };
+      }
+      const deliveries: { routeId: A2UIRouteId; message: A2UIRendererCallAgentFunctionMessage }[] = [];
+      for (const message of result.value.messages) {
+        const routeId = routes.get(message.callAgentFunction.surfaceId);
+        if (routeId === undefined) {
+          // No route owns the surface, so the call cannot be delivered. It is cancelled rather than left pending.
+          runtime.cancelAgentFunctionCall(message.callAgentFunction.functionCallId, "TRANSPORT_FAILED");
+          continue;
+        }
+        deliveries.push({ routeId, message: cloneTransportJson(message) });
+      }
+      return { ok: true, value: deliveries };
+    },
+
+    drainOutbound(): A2UIRoutedDelivery[] {
+      const deliveries: A2UIRoutedDelivery[] = [];
+      for (const message of runtime.takeAgentFunctionCalls()) {
+        const routeId = routes.get(message.callAgentFunction.surfaceId);
+        if (routeId === undefined) {
+          // No route owns the surface, so the call cannot be delivered. It is cancelled rather than left pending.
+          runtime.cancelAgentFunctionCall(message.callAgentFunction.functionCallId, "TRANSPORT_FAILED");
+          continue;
+        }
+        deliveries.push({ routeId, message: cloneTransportJson(message) });
+      }
+      return deliveries;
     },
 
     prepareValidationErrorDelivery(

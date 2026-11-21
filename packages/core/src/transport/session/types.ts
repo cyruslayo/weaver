@@ -1,6 +1,7 @@
 import type { WeaverActionResult, WeaverRuntime } from "../../runtime/index.js";
 import type {
   A2UIRendererActionMessage,
+  A2UIRendererCallAgentFunctionMessage,
   A2UIRendererCapabilities,
   A2UIRendererDataModel,
   A2UIRendererErrorMessage,
@@ -51,7 +52,13 @@ export type A2UIRoutedDelivery =
   | {
       routeId: A2UIRouteId;
       message: A2UIValidationFailedRendererMessage | A2UIRendererErrorMessage | A2UIRendererFunctionResponseMessage;
-    };
+    }
+  /** A callAgentFunction the host must send on `routeId`. */
+  | { routeId: A2UIRouteId; message: A2UIRendererCallAgentFunctionMessage };
+
+export type A2UIActionCallDeliveryResult =
+  | { ok: true; value: { routeId: A2UIRouteId; message: A2UIRendererCallAgentFunctionMessage }[] }
+  | { ok: false; error: A2UIRoutingError };
 
 export type A2UIValidationErrorDeliveryResult =
   | {
@@ -71,6 +78,18 @@ export interface A2UITransportSession {
   processInbound(routeId: A2UIRouteId, input: unknown): A2UIRoutedProcessResult;
   getSurfaceRoute(surfaceId: string): A2UIRouteId | undefined;
   prepareActionDelivery(result: WeaverActionResult): A2UIActionDeliveryResult;
+  /**
+   * Prepares the callAgentFunction messages of an action result that is waiting on
+   * agent calls, each on the route that owns its surface. The host sends them once.
+   * A message whose surface has no route is cancelled with TRANSPORT_FAILED.
+   */
+  prepareActionCallDelivery(result: WeaverActionResult): A2UIActionCallDeliveryResult;
+  /**
+   * Takes every queued callAgentFunction, each with the route that owns its
+   * surface. The host sends each one. If a send fails, it reports that with
+   * runtime.cancelAgentFunctionCall(functionCallId, "TRANSPORT_FAILED").
+   */
+  drainOutbound(): A2UIRoutedDelivery[];
   /**
    * Prepares the reply for a failed inbound message. A callRendererFunction
    * envelope that failed schema validation with a functionCallId becomes a

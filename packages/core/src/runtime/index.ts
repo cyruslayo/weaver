@@ -10,9 +10,12 @@ export type {
 export type {
   WeaverActionRequest,
   WeaverActionResult,
+  WeaverAgentFunctionCancelResult,
   WeaverInputRequest,
   WeaverInputResult,
   WeaverInstanceIdentity,
+  WeaverProcessResult,
+  WeaverProcessSuccess,
   WeaverResolvedSurface,
   WeaverRuntimeConfig,
   WeaverRuntimeConfigurationError,
@@ -24,3 +27,4 @@ export type {
   WeaverSurfaceResolutionResult,
   WeaverSurfaceSubscriber,
 } from "./types.js";
+export type { AgentFunctionCancelReason, AgentFunctionsConfig, AgentFunctionsConfigurationError } from "../agent-functions/index.js";

@@ -34,6 +34,12 @@ export type SurfaceChange =
       /** A2UI pointer for the mutation; `/` denotes the complete model. */
       path: string;
     }
+  | {
+      /** A routed agent call settled, so bindings and checks that wait on it may now resolve differently. */
+      type: "agentFunctionSettled";
+      surface: SurfaceSnapshot;
+      functionCallId: string;
+    }
   | { type: "deleted"; surfaceId: string };
 
 export type SurfaceSubscriber = (change: SurfaceChange) => void;

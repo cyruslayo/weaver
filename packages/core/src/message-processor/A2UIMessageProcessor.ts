@@ -1,3 +1,4 @@
+import { AgentFunctionBroker, DEFAULT_MAX_PENDING } from "../agent-functions/index.js";
 import { CatalogRegistry, type CatalogRegistryError } from "../catalog/index.js";
 import { DataContext } from "../data-context/index.js";
 import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
@@ -5,6 +6,7 @@ import {
   validateA2UIAgentMessage,
   type A2UIAgentMessage,
   type A2UIComponent,
+  type A2UIFunctionResponse,
   type A2UIRendererFunctionResponseMessage,
   type JsonObject,
   type JsonValue,
@@ -31,12 +33,14 @@ export class A2UIMessageProcessor {
   /**
    * The evaluator runs callRendererFunction. Runtimes pass the evaluator that
    * holds their registered implementations. Without one, function calls run
-   * against an empty registry, so they are refused as unregistered.
+   * against an empty registry, so they are refused as unregistered. The broker
+   * holds the pending callAgentFunction calls that agentFunctionResponse settles.
    */
   constructor(
     private readonly store: SurfaceStore,
     private readonly catalogs: CatalogRegistry,
     private readonly functions: FunctionEvaluator = new FunctionEvaluator(catalogs, new FunctionRegistry(catalogs)),
+    private readonly broker: AgentFunctionBroker = new AgentFunctionBroker({ maxPending: DEFAULT_MAX_PENDING }),
   ) {}
 
   process(input: unknown): MessageProcessorResult {
@@ -64,10 +68,33 @@ export class A2UIMessageProcessor {
     if ("callRendererFunction" in message) {
       return this.callRendererFunction(message.callRendererFunction);
     }
-    return this.unsupported(
-      "agentFunctionResponse",
-      "agentFunctionResponse is valid A2UI v1.0 but remote function responses are not supported yet",
+    return this.agentFunctionResponse(message.agentFunctionResponse);
+  }
+
+  /**
+   * Settles the pending callAgentFunction that the response names. An unknown or
+   * already settled id is ignored, with nothing changed. A settled call notifies the
+   * surface, so the bindings and checks that wait on it re-resolve.
+   */
+  private agentFunctionResponse(response: A2UIFunctionResponse): MessageProcessorResult {
+    const { functionCallId } = response;
+    const settlement = this.broker.settle(
+      functionCallId,
+      response.error === undefined ? { value: response.value ?? null } : { error: { message: response.error.message } },
     );
+    if (settlement.status === "ignored") {
+      return { ok: true, value: { operation: "agentFunctionIgnored", functionCallId } };
+    }
+    this.store.notifyAgentFunctionSettled(settlement.surfaceId, functionCallId);
+    return {
+      ok: true,
+      value: {
+        operation: "agentFunctionResolved",
+        surfaceId: settlement.surfaceId,
+        functionCallId,
+        ...(settlement.continuation === undefined ? {} : { continuation: settlement.continuation }),
+      },
+    };
   }
 
   /**
@@ -169,6 +196,8 @@ export class A2UIMessageProcessor {
   private deleteSurface(surfaceId: string): MessageProcessorResult {
     const deletion = this.store.delete(surfaceId);
     if (!deletion.ok) return this.storeError(deletion.error);
+    // Pending calls of a deleted surface are dropped silently, and their answers are never reported.
+    this.broker.cancelSurface(surfaceId);
     return {
       ok: true,
       value: { operation: "surfaceDeleted", surfaceId },

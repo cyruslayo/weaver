@@ -6,9 +6,7 @@ import type { SurfaceStoreError } from "../surfaces/index.js";
  * Message features that are valid A2UI v1.0 but not yet executed by Weaver.
  * They are rejected with UNSUPPORTED_FEATURE rather than silently accepted.
  */
-export type UnsupportedFeature =
-  | "agentFunctionResponse"
-  | "createSurface.catalogId";
+export type UnsupportedFeature = "createSurface.catalogId";
 
 export type MessageProcessorError =
   | {

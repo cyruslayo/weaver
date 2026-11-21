@@ -47,6 +47,8 @@ interface RegisteredCatalog {
   validators: ReadonlyMap<string, SchemaValidator>;
   functionValidators: ReadonlyMap<string, SchemaValidator>;
   functionDefinitions: ReadonlyMap<string, CatalogFunctionDefinition>;
+  /** The raw declaration of each function, kept for the defaults of its arguments. */
+  functionArgumentSchemas: ReadonlyMap<string, JsonObject>;
   structures: ReadonlyMap<string, ComponentStructureDefinition>;
   structureLocations: ReadonlyMap<
     string,
@@ -695,6 +697,22 @@ function catalogOwnedBody(component: A2UIComponent): Record<string, unknown> {
   return body;
 }
 
+/** The defaults of the schema's properties, applied to the value where it omits them. Object schemas recurse. */
+function withSchemaDefaults(value: JsonObject, schema: unknown): JsonObject {
+  if (!isPlainObject(schema) || !isPlainObject(schema.properties)) return value;
+  const result: JsonObject = { ...value };
+  for (const [name, propertySchema] of Object.entries(schema.properties)) {
+    if (!isPlainObject(propertySchema)) continue;
+    const current = result[name];
+    if (current === undefined && propertySchema.default !== undefined) {
+      result[name] = cloneJson(propertySchema.default);
+    } else if (isPlainObject(current)) {
+      result[name] = withSchemaDefaults(current, propertySchema);
+    }
+  }
+  return result;
+}
+
 export class CatalogRegistry {
   readonly #validateCatalogShape = new SchemaValidator(A2UI_CATALOG_SCHEMA);
   readonly #catalogs = new Map<string, RegisteredCatalog>();
@@ -757,6 +775,7 @@ export class CatalogRegistry {
     const components = (schema.components ?? {}) as JsonObject;
     const validators = new Map<string, SchemaValidator>();
     const functionValidators = new Map<string, SchemaValidator>();
+    const functionArgumentSchemas = new Map<string, JsonObject>();
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
     const structures = new Map<string, ComponentStructureDefinition>();
     const structureLocations = new Map<
@@ -868,6 +887,7 @@ export class CatalogRegistry {
           new SchemaValidator(compilationSchema),
         );
         functionDefinitions.set(functionName, definition);
+        functionArgumentSchemas.set(functionName, functionSchema);
       }
     } catch {
       return {
@@ -886,6 +906,7 @@ export class CatalogRegistry {
       validators,
       functionValidators,
       functionDefinitions,
+      functionArgumentSchemas,
       structures,
       structureLocations,
       dynamicProperties,
@@ -1054,6 +1075,17 @@ export class CatalogRegistry {
       };
     }
     return { ok: true, value: functionCall };
+  }
+
+  /**
+   * Applies the schema `default` of each argument that the call omits, through object
+   * schemas. Validation does not apply defaults, so a call that is sent to the agent is
+   * built with them. An unknown function returns the arguments unchanged.
+   */
+  applyFunctionArgumentDefaults(catalogId: string, functionName: string, args: JsonObject): JsonObject {
+    const functionSchema = this.#catalogs.get(catalogId)?.functionArgumentSchemas.get(functionName);
+    const properties = isPlainObject(functionSchema?.properties) ? functionSchema.properties : undefined;
+    return withSchemaDefaults(args, properties?.args);
   }
 
   getComponentStructure(
