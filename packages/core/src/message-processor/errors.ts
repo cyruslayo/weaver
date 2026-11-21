@@ -7,7 +7,6 @@ import type { SurfaceStoreError } from "../surfaces/index.js";
  * They are rejected with UNSUPPORTED_FEATURE rather than silently accepted.
  */
 export type UnsupportedFeature =
-  | "callRendererFunction"
   | "agentFunctionResponse"
   | "createSurface.catalogId";
 
@@ -15,6 +14,12 @@ export type MessageProcessorError =
   | {
       code: "PROTOCOL_VALIDATION_FAILED";
       issues: ValidationIssue[];
+      /**
+       * Present only when the failed envelope is a callRendererFunction with a
+       * string functionCallId. A host uses it to send the renderer error that
+       * correlates with the call.
+       */
+      functionCallId?: string;
     }
   | {
       code: "SURFACE_STORE_ERROR";

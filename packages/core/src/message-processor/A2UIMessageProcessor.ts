@@ -1,8 +1,11 @@
 import { CatalogRegistry, type CatalogRegistryError } from "../catalog/index.js";
+import { DataContext } from "../data-context/index.js";
+import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
 import {
   validateA2UIAgentMessage,
   type A2UIAgentMessage,
   type A2UIComponent,
+  type A2UIRendererFunctionResponseMessage,
   type JsonObject,
   type JsonValue,
 } from "../protocol/index.js";
@@ -13,22 +16,40 @@ import {
   type SurfaceSnapshot,
 } from "../surfaces/index.js";
 import type { UnsupportedFeature } from "./errors.js";
+import { mapRendererFunctionError } from "./rendererFunctionCall.js";
 import type { MessageProcessorResult, MessageProcessorSuccess } from "./types.js";
 
 type DataModelOperation = "surfaceCreated" | "componentsUpdated" | "dataModelUpdated";
 
+type CallRendererFunctionPayload = {
+  surfaceId?: string;
+  functionCallId: string;
+  callFunction: { "@call": string; catalogId: string; args?: JsonObject };
+};
+
 export class A2UIMessageProcessor {
+  /**
+   * The evaluator runs callRendererFunction. Runtimes pass the evaluator that
+   * holds their registered implementations. Without one, function calls run
+   * against an empty registry, so they are refused as unregistered.
+   */
   constructor(
     private readonly store: SurfaceStore,
     private readonly catalogs: CatalogRegistry,
+    private readonly functions: FunctionEvaluator = new FunctionEvaluator(catalogs, new FunctionRegistry(catalogs)),
   ) {}
 
   process(input: unknown): MessageProcessorResult {
     const validation = validateA2UIAgentMessage(input);
     if (!validation.ok) {
+      const functionCallId = callRendererFunctionId(input);
       return {
         ok: false,
-        error: { code: "PROTOCOL_VALIDATION_FAILED", issues: validation.issues },
+        error: {
+          code: "PROTOCOL_VALIDATION_FAILED",
+          issues: validation.issues,
+          ...(functionCallId === undefined ? {} : { functionCallId }),
+        },
       };
     }
 
@@ -41,10 +62,7 @@ export class A2UIMessageProcessor {
     if ("updateDataModel" in message) return this.updateDataModel(message.updateDataModel);
     if ("deleteSurface" in message) return this.deleteSurface(message.deleteSurface.surfaceId);
     if ("callRendererFunction" in message) {
-      return this.unsupported(
-        "callRendererFunction",
-        "callRendererFunction is valid A2UI v1.0 but remote function calls are not supported yet",
-      );
+      return this.callRendererFunction(message.callRendererFunction);
     }
     return this.unsupported(
       "agentFunctionResponse",
@@ -175,9 +193,85 @@ export class A2UIMessageProcessor {
     return { ok: false, error: { code: "CATALOG_REGISTRY_ERROR", catalogError: error } };
   }
 
+  /**
+   * Executes an agent-initiated callRendererFunction. Every outcome is an ok
+   * result carrying a response for the host to send. Failures the agent can
+   * cause, such as an unknown surface, catalog or function, are error responses,
+   * not processing errors. The call is synchronous and Core sends nothing.
+   *
+   * With no surfaceId, the call runs against an isolated empty data model and
+   * has no effect on any surface. With a surfaceId, it runs against that
+   * surface's data model root and does not change the surface.
+   */
+  private callRendererFunction(call: CallRendererFunctionPayload): MessageProcessorResult {
+    const { functionCallId, callFunction } = call;
+    let dataContext: DataContext;
+    if (call.surfaceId === undefined) {
+      dataContext = DataContext.root({});
+    } else {
+      const surface = this.store.get(call.surfaceId);
+      if (surface === undefined) {
+        return rendererFunctionResponse({
+          functionCallId,
+          error: { code: "INVALID_FUNCTION_CALL", message: `Surface not found: ${call.surfaceId}` },
+        });
+      }
+      dataContext = DataContext.root(surface.dataModel);
+    }
+
+    const catalogId = callFunction.catalogId;
+    if (!this.catalogs.has(catalogId)) {
+      return rendererFunctionResponse({
+        functionCallId,
+        error: { code: "INVALID_FUNCTION_CALL", message: `Catalog not found: ${catalogId}` },
+      });
+    }
+
+    const evaluated = this.functions.evaluateAgentCall(
+      catalogId,
+      {
+        "@call": callFunction["@call"],
+        ...(callFunction.args === undefined ? {} : { args: callFunction.args }),
+      },
+      dataContext,
+    );
+    if (!evaluated.ok) {
+      const mapped = mapRendererFunctionError(evaluated.error);
+      return rendererFunctionResponse({
+        functionCallId,
+        error: { code: mapped.code, message: mapped.message },
+      });
+    }
+    return rendererFunctionResponse({ functionCallId, value: evaluated.value ?? null });
+  }
+
   private unsupported(feature: UnsupportedFeature, message: string): MessageProcessorResult {
     return { ok: false, error: { code: "UNSUPPORTED_FEATURE", feature, message } };
   }
+}
+
+/** Wraps one response body as an ok result. A semantic failure is still ok, because the host must send its error. */
+function rendererFunctionResponse(
+  body: A2UIRendererFunctionResponseMessage["rendererFunctionResponse"],
+): MessageProcessorResult {
+  return {
+    ok: true,
+    value: {
+      operation: "rendererFunctionResponded",
+      response: { version: "1.0", rendererFunctionResponse: body },
+    },
+  };
+}
+
+/** The functionCallId of a callRendererFunction envelope, when it is a string. Used only to correlate an envelope failure. */
+function callRendererFunctionId(input: unknown): string | undefined {
+  if (!isRecord(input) || !isRecord(input.callRendererFunction)) return undefined;
+  const functionCallId = input.callRendererFunction.functionCallId;
+  return typeof functionCallId === "string" ? functionCallId : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isArrayElementDeleteError(error: SurfaceStoreError): boolean {

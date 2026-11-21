@@ -22,6 +22,7 @@ function recordingSession(route = "route-a") {
     getSurfaceRoute() { return route; },
     prepareActionDelivery() { return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } }; },
     prepareValidationErrorDelivery() { return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } }; },
+    prepareFunctionResponseDelivery() { return { ok: false, error: { code: "FUNCTION_RESPONSE_UNAVAILABLE" } }; },
     getRendererCapabilities() { return structuredClone(capabilities); },
   };
   return { session, received };

@@ -29,7 +29,11 @@ export interface WeaverTraceReplayStep {
    * which are reported but never re-applied.
    */
   replayed: WeaverTraceReplayOutcome | null;
-  /** True when `ok` or the error `code` differs from the recording. */
+  /**
+   * True when `ok` or the error `code` differs from the recording. For a
+   * callRendererFunction response, any difference in the full response also
+   * diverges.
+   */
   diverged: boolean;
 }
 
@@ -67,6 +71,33 @@ function recordedOutcome(outcome: WeaverTraceOutcome): WeaverTraceReplayOutcome 
   if (outcome.ok) return { ok: true };
   const code = isObject(outcome.error) ? outcome.error.code : undefined;
   return typeof code === "string" ? { ok: false, code } : { ok: false };
+}
+
+/** The response a recorded message summary kept, when the message was a callRendererFunction. */
+function recordedFunctionResponse(summary: JsonValue): JsonValue | undefined {
+  if (!isObject(summary) || summary.operation !== "rendererFunctionResponded") return undefined;
+  return summary.response as JsonValue | undefined;
+}
+
+/** Deep equality for JSON-shaped values. Key order does not matter. */
+function jsonEqual(left: JsonValue, right: JsonValue): boolean {
+  if (left === right) return true;
+  if (left === null || right === null || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((entry, index) => jsonEqual(entry, right[index] as JsonValue))
+    );
+  }
+  const leftObject = left as Record<string, JsonValue>;
+  const rightObject = right as Record<string, JsonValue>;
+  const keys = Object.keys(leftObject);
+  return (
+    keys.length === Object.keys(rightObject).length &&
+    keys.every((key) => Object.hasOwn(rightObject, key) && jsonEqual(leftObject[key] as JsonValue, rightObject[key] as JsonValue))
+  );
 }
 
 function resultOutcome(
@@ -119,14 +150,20 @@ function reissue(
   entry: WeaverTraceEntry,
   runtime: WeaverRuntime,
   surfaceIds: Set<string>,
+  observed: { response?: JsonValue },
 ): WeaverTraceReplayOutcome | null {
   switch (entry.kind) {
     case "frame-error":
       return null;
     case "message": {
       const result = runtime.process(entry.input);
-      if (result.ok) surfaceIds.add(result.value.surfaceId);
-      return resultOutcome(result);
+      if (!result.ok) return { ok: false, code: result.error.code };
+      if ("surfaceId" in result.value) surfaceIds.add(result.value.surfaceId);
+      if (result.value.operation !== "rendererFunctionResponded") return { ok: true };
+      // SAFETY: a rendererFunctionResponse is built from JSON-shaped values only.
+      const response = result.value.response as unknown as JsonValue;
+      observed.response = response;
+      return { ok: true };
     }
     case "input": {
       const request = inputRequestOf(entry.input);
@@ -151,7 +188,8 @@ function reissue(
  *   dispatchAction(). A malformed request is reported as diverged, not thrown.
  * - `frame-error` entries are reported with `replayed: null` and not applied.
  * - A step diverges when `ok` or the error `code` differs from the recording.
- *   A different success value does not count as a divergence.
+ *   A different success value does not count as a divergence, except for a
+ *   callRendererFunction response: its full response must match.
  * - `until` replays only entries with `seq <= until`, which supports
  *   stepping to a point in the inspector.
  *
@@ -179,7 +217,13 @@ export function replayWeaverTrace(
   for (const entry of trace.entries) {
     if (until !== undefined && entry.seq > until) break;
     const recorded = recordedOutcome(entry.outcome);
-    const replayed = reissue(entry, runtime, surfaceIds);
+    const observed: { response?: JsonValue } = {};
+    const replayed = reissue(entry, runtime, surfaceIds, observed);
+    const recordedResponse =
+      entry.kind === "message" && entry.outcome.ok ? recordedFunctionResponse(entry.outcome.summary) : undefined;
+    const responseChanged =
+      recordedResponse !== undefined &&
+      (observed.response === undefined || !jsonEqual(recordedResponse, observed.response));
     steps.push({
       seq: entry.seq,
       kind: entry.kind,
@@ -187,7 +231,7 @@ export function replayWeaverTrace(
       replayed,
       diverged:
         replayed !== null &&
-        (recorded.ok !== replayed.ok || recorded.code !== replayed.code),
+        (recorded.ok !== replayed.ok || recorded.code !== replayed.code || responseChanged),
     });
   }
 

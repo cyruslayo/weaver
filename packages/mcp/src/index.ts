@@ -38,7 +38,7 @@ export type A2UIMcpReceiveResult =
 
 export type A2UIMcpSendResult =
   | { ok: true }
-  | { ok: false; error: { code: "MCP_DELIVERY_ROUTE_MISMATCH" } | { code: "MCP_REQUEST_FAILED" } | { code: "MCP_TOOL_ERROR" } };
+  | { ok: false; error: { code: "MCP_DELIVERY_ROUTE_MISMATCH" } | { code: "MCP_DELIVERY_UNSUPPORTED" } | { code: "MCP_REQUEST_FAILED" } | { code: "MCP_TOOL_ERROR" } };
 
 export interface A2UIMcpClientBridge {
   readResource(input: A2UIMcpReadResourceInput): Promise<A2UIMcpReceiveResult>;
@@ -132,6 +132,9 @@ export function createA2UIMcpClientBridge(options: A2UIMcpClientBridgeOptions): 
         arguments: structuredClone(delivery.message.error),
         _meta: capabilitiesMeta(),
       };
+    } else if (!("action" in delivery.message)) {
+      // A rendererFunctionResponse is not sent by this adapter yet.
+      return { ok: false, error: { code: "MCP_DELIVERY_UNSUPPORTED" } };
     } else {
       params = {
         name: actionToolName,

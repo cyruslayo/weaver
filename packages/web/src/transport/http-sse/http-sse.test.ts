@@ -14,6 +14,7 @@ function session(inputs: unknown[]): A2UITransportSession {
     getSurfaceRoute() { return undefined; },
     prepareActionDelivery() { return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } }; },
     prepareValidationErrorDelivery() { return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } }; },
+    prepareFunctionResponseDelivery() { return { ok: false, error: { code: "FUNCTION_RESPONSE_UNAVAILABLE" } }; },
     getRendererCapabilities() { return { "1.0": { supportedCatalogIds: ["basic"] } }; },
   };
 }

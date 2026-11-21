@@ -41,11 +41,16 @@ interface EvaluationFrame {
   depth: number;
   actionRoot: boolean;
   userActivation: boolean;
+  /**
+   * "agent" only for the root of an agent-initiated callRendererFunction. Nested
+   * calls in its arguments are always "renderer" frames.
+   */
+  caller: "renderer" | "agent";
 }
 
 type DynamicArgumentKind = "dynamicValue" | "dynamicString" | "dynamicNumber" | "dynamicBoolean" | "dynamicStringList";
 
-const PASSIVE_FRAME = { depth: 0, actionRoot: false, userActivation: false } as const;
+const PASSIVE_FRAME = { depth: 0, actionRoot: false, userActivation: false, caller: "renderer" } as const;
 
 function isPlainObject(value: unknown): value is JsonObject {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
@@ -185,6 +190,65 @@ export class FunctionEvaluator {
       depth: 0,
       actionRoot: true,
       userActivation: options.userActivation === true,
+      caller: "renderer",
+    });
+  }
+
+  /**
+   * Executes the root call of an agent-initiated callRendererFunction. Refusals
+   * that depend on the caller are checked first, in this order: rendererOnly,
+   * then requiresUserActivation (an agent call never carries a user gesture).
+   * The remaining checks, argument validation and execution are the same code as
+   * a renderer call. Action-effect implementations therefore cannot run here,
+   * because an agent call is not a local-action root.
+   *
+   * Nested calls inside the arguments are ordinary renderer expressions. Their
+   * own catalogId values are not changed or widened by this method. A nested
+   * catalogId that differs from the call's catalogId still fails with
+   * UNSUPPORTED_FEATURE, as in every other evaluation.
+   *
+   * Implementations are synchronous. A host implementation that returns a
+   * Promise fails the return-type check.
+   */
+  evaluateAgentCall(
+    catalogId: string,
+    functionCall: Pick<FunctionCall, "@call" | "args">,
+    dataContext: DataContext,
+  ): FunctionEvaluationResult {
+    const name = functionCall["@call"];
+    // @index is the reserved system function. It is never a catalog function, so it is handled in #evaluate.
+    if (name !== INDEX_FUNCTION) {
+      const definition = this.#catalogs.getFunctionDefinition(catalogId, name);
+      if (!definition.ok) return { ok: false, error: definition.error };
+      if (definition.value.allowedCallers === "rendererOnly") {
+        return {
+          ok: false,
+          error: {
+            code: "FUNCTION_CALLER_NOT_ALLOWED",
+            message: `Function '${name}' cannot be called by agent (allowedCallers is rendererOnly).`,
+            catalogId,
+            functionName: name,
+          },
+        };
+      }
+      // Defensive: the registry allows requiresUserActivation only with rendererOnly, so the check above already refused it.
+      if (definition.value.requiresUserActivation) {
+        return {
+          ok: false,
+          error: {
+            code: "FUNCTION_CALLER_NOT_ALLOWED",
+            message: `Function '${name}' requires user activation context to execute.`,
+            catalogId,
+            functionName: name,
+          },
+        };
+      }
+    }
+    return this.#evaluate(catalogId, functionCall, dataContext, {
+      depth: 0,
+      actionRoot: false,
+      userActivation: false,
+      caller: "agent",
     });
   }
 
@@ -250,7 +314,7 @@ export class FunctionEvaluator {
     if (!definitionResult.ok) return { ok: false, error: definitionResult.error };
     const definition = definitionResult.value;
 
-    if (definition.allowedCallers === "agentOnly") {
+    if (frame.caller === "renderer" && definition.allowedCallers === "agentOnly") {
       return {
         ok: false,
         error: {
@@ -317,7 +381,7 @@ export class FunctionEvaluator {
         catalogId,
         dataContext,
         evaluateFunctionCall: (nestedCall) =>
-          this.#evaluate(catalogId, nestedCall, dataContext, { depth: frame.depth + 1, actionRoot: false, userActivation: false }),
+          this.#evaluate(catalogId, nestedCall, dataContext, { depth: frame.depth + 1, actionRoot: false, userActivation: false, caller: "renderer" }),
         propagateFunctionFailure: (error) => {
           throw new RecursiveFunctionFailure(error);
         },
@@ -457,7 +521,7 @@ export class FunctionEvaluator {
       return defensiveValue(resolved.value, catalogId, functionName);
     }
     if (isFunctionCall(value)) {
-      return this.#evaluate(catalogId, value, dataContext, { depth: depth + 1, actionRoot: false, userActivation: false });
+      return this.#evaluate(catalogId, value, dataContext, { depth: depth + 1, actionRoot: false, userActivation: false, caller: "renderer" });
     }
     if (kind === "dynamicValue" && isPlainObject(value)) {
       const unescaped = unescapeLiteralDynamicValue(value);

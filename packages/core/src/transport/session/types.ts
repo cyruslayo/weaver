@@ -3,6 +3,8 @@ import type {
   A2UIRendererActionMessage,
   A2UIRendererCapabilities,
   A2UIRendererDataModel,
+  A2UIRendererErrorMessage,
+  A2UIRendererFunctionResponseMessage,
   A2UIValidationFailedRendererMessage,
   A2UIValidationFailureMappingError,
 } from "../../protocol/index.js";
@@ -16,34 +18,79 @@ export type A2UIRoutingError =
   | { code: "SURFACE_ROUTE_MISMATCH"; surfaceId: string }
   | { code: "SURFACE_ROUTE_UNKNOWN"; surfaceId: string }
   | { code: "ACTION_DELIVERY_UNAVAILABLE" }
+  /** The result is not a callRendererFunction response. */
+  | { code: "FUNCTION_RESPONSE_UNAVAILABLE" }
   | A2UIValidationFailureMappingError;
 
+/** A rendererFunctionResponse the host must send on `routeId`. */
+export interface A2UIFunctionResponseDelivery {
+  routeId: A2UIRouteId;
+  message: A2UIRendererFunctionResponseMessage;
+}
+
+/**
+ * A routing refusal. When the refused message is a callRendererFunction with a
+ * string functionCallId, `functionResponse` is the error response the host must
+ * send back on the inbound route. The routing error stays available for logging.
+ */
 export type A2UIRoutedProcessResult =
   | MessageProcessorResult
-  | { ok: false; error: A2UIRoutingError };
+  | { ok: false; error: A2UIRoutingError; functionResponse?: A2UIFunctionResponseDelivery };
 
 export type A2UIActionDeliveryResult =
   | { ok: true; value: { routeId: A2UIRouteId; message: A2UIRendererActionMessage; rendererDataModel?: A2UIRendererDataModel } }
   | { ok: false; error: A2UIRoutingError };
 
+/**
+ * A message the host sends back on a route. A function response is the reply to a
+ * callRendererFunction, and a renderer error is the reply to a malformed call
+ * envelope (its functionCallId is correlated, so surfaceId is never present).
+ */
 export type A2UIRoutedDelivery =
   | { routeId: A2UIRouteId; message: A2UIRendererActionMessage; rendererDataModel?: A2UIRendererDataModel }
-  | { routeId: A2UIRouteId; message: A2UIValidationFailedRendererMessage };
+  | {
+      routeId: A2UIRouteId;
+      message: A2UIValidationFailedRendererMessage | A2UIRendererErrorMessage | A2UIRendererFunctionResponseMessage;
+    };
 
 export type A2UIValidationErrorDeliveryResult =
-  | { ok: true; value: { routeId: A2UIRouteId; message: A2UIValidationFailedRendererMessage } }
+  | {
+      ok: true;
+      value: {
+        routeId: A2UIRouteId;
+        message: A2UIValidationFailedRendererMessage | A2UIRendererErrorMessage;
+      };
+    }
+  | { ok: false; error: A2UIRoutingError };
+
+export type A2UIFunctionResponseDeliveryResult =
+  | { ok: true; value: A2UIFunctionResponseDelivery }
   | { ok: false; error: A2UIRoutingError };
 
 export interface A2UITransportSession {
   processInbound(routeId: A2UIRouteId, input: unknown): A2UIRoutedProcessResult;
   getSurfaceRoute(surfaceId: string): A2UIRouteId | undefined;
   prepareActionDelivery(result: WeaverActionResult): A2UIActionDeliveryResult;
+  /**
+   * Prepares the reply for a failed inbound message. A callRendererFunction
+   * envelope that failed schema validation with a functionCallId becomes a
+   * generic INVALID_FUNCTION_CALL renderer error. Other failures map to a surface
+   * validation error where possible.
+   */
   prepareValidationErrorDelivery(
     routeId: A2UIRouteId,
     input: unknown,
     result: MessageProcessorResult,
     trustedSurfaceId?: string,
   ): A2UIValidationErrorDeliveryResult;
+  /**
+   * Prepares the rendererFunctionResponse for an ok callRendererFunction result.
+   * The host must send it back on the route that delivered the call.
+   */
+  prepareFunctionResponseDelivery(
+    routeId: A2UIRouteId,
+    result: MessageProcessorResult,
+  ): A2UIFunctionResponseDeliveryResult;
   getRendererCapabilities(): A2UIRendererCapabilities;
 }
 

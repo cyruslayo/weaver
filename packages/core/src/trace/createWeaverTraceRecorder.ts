@@ -1,3 +1,4 @@
+import type { MessageProcessorSuccess } from "../message-processor/index.js";
 import type { JsonValue } from "../protocol/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
 import type { WeaverRuntimeEvent } from "../runtime/index.js";
@@ -30,6 +31,17 @@ function jsonCopy(value: unknown): JsonValue {
   } catch {
     return { unserializable: true };
   }
+}
+
+/**
+ * The summary of an ok message. A function response keeps its full response, so
+ * a replay can compare it. Other operations keep their surfaceId.
+ */
+function messageSummary(value: MessageProcessorSuccess): JsonValue {
+  if (value.operation === "rendererFunctionResponded") {
+    return { operation: value.operation, response: jsonCopy(value.response) };
+  }
+  return { operation: value.operation, surfaceId: value.surfaceId };
 }
 
 /**
@@ -73,13 +85,7 @@ export function createWeaverTraceRecorder(
         append(
           "message",
           event.result.ok
-            ? {
-                ok: true,
-                summary: {
-                  operation: event.result.value.operation,
-                  surfaceId: event.result.value.surfaceId,
-                },
-              }
+            ? { ok: true, summary: messageSummary(event.result.value) }
             : { ok: false, error: jsonCopy(event.result.error) },
           jsonCopy(event.input),
         );

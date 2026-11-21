@@ -274,7 +274,7 @@ const fixtures: Fixture[] = [
   { code: "CATALOG_REGISTRY_ERROR", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[2]! } },
   {
     code: "UNSUPPORTED_FEATURE",
-    error: { code: "UNSUPPORTED_FEATURE", feature: "callRendererFunction", message: "remote function calls are not supported yet" },
+    error: { code: "UNSUPPORTED_FEATURE", feature: "agentFunctionResponse", message: "remote function responses are not supported yet" },
   },
 
   // JsonlDecodeError (top level)

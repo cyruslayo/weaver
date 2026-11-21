@@ -461,7 +461,7 @@ export function createWeaverRuntime(
       catalogs,
       functions,
       store,
-      processor: new A2UIMessageProcessor(store, catalogs),
+      processor: new A2UIMessageProcessor(store, catalogs, functionEvaluator),
       trees,
       instances,
       properties: new ComponentPropertyResolver(catalogs, functionEvaluator),
