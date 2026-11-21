@@ -1,7 +1,7 @@
 import {
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   defineCatalog,
-  type A2UIV091CatalogSchema,
+  type A2UIV10CatalogSchema,
   type JsonObject,
 } from "@cylayo/weaver-core";
 
@@ -22,7 +22,7 @@ export const COOKBOOK_CATALOG_ID = "https://weaver.dev/examples/cookbook/v1";
 /** The largest number of bars a BarChart may request. The schema enforces it. */
 export const COOKBOOK_MAX_BARS = 50;
 
-const basic = createBasicCatalogV091Registration().schema;
+const basic = createBasicCatalogV10Registration().schema;
 
 function basicComponent(name: string): JsonObject {
   const components = basic.components as Record<string, JsonObject> | undefined;
@@ -33,26 +33,30 @@ function basicComponent(name: string): JsonObject {
   return schema;
 }
 
-/**
- * Basic's shared definitions, without `anyComponent`. That definition is a
- * union over every Basic component, so keeping it would make the cookbook
- * catalog reference components it does not declare. Everything else (theme,
- * commonTypes, anyFunction, basicFunctions) is needed by the layout primitives.
- */
-const basicDefs = Object.fromEntries(
-  Object.entries(basic.$defs as JsonObject).filter(([name]) => name !== "anyComponent"),
-) as JsonObject & { theme: JsonObject };
 const basicFunctions = basic.functions as Record<string, JsonObject> | undefined;
+
+/**
+ * Basic's shared definitions (Weight, Action and the rest), with the
+ * `anyComponent` union replaced. Basic's union covers every Basic component, so
+ * keeping it would make the cookbook catalog reference components it does not
+ * declare. The common types are built into Core and are not repeated here.
+ */
+const basicDefs = basic.$defs as JsonObject;
+const cookbookDefs: NonNullable<A2UIV10CatalogSchema["$defs"]> = {
+  ...basicDefs,
+  anyFunction: basicDefs.anyFunction as JsonObject,
+  anyComponent: {
+    oneOf: ["Column", "Text", "Card", "Button", "DataTable", "BarChart"].map((name) => ({
+      $ref: `#/components/${name}`,
+    })),
+  },
+};
 
 const dataTable: JsonObject = {
   type: "object",
   description:
     "A read-only table of rows. Use it for lists of records such as orders, tickets, or results. Columns name the fields to show, and the rows come from a data binding. For rows with actions, use a List template of Cards instead.",
   properties: {
-    id: {
-      type: "string",
-      description: "The unique component id within the surface.",
-    },
     component: {
       const: "DataTable",
       description: "Must be the literal string DataTable.",
@@ -60,7 +64,7 @@ const dataTable: JsonObject = {
     caption: {
       $ref: "common_types.json#/$defs/DynamicString",
       description:
-        "A short caption shown above the table. Accepts a literal string or a data binding such as {\"path\": \"/table/caption\"}.",
+        "A short caption shown above the table. Accepts a literal string or a data binding such as {\"@path\": \"/table/caption\"}.",
     },
     columns: {
       type: "array",
@@ -105,10 +109,10 @@ const dataTable: JsonObject = {
         },
       ],
       description:
-        "The rows to show, as a data binding such as {\"path\": \"/orders\"} (preferred) or a literal array of row objects. Each object supplies the values for the columns.",
+        "The rows to show, as a data binding such as {\"@path\": \"/orders\"} (preferred) or a literal array of row objects. Each object supplies the values for the columns.",
     },
   },
-  required: ["id", "component", "columns", "rows"],
+  required: ["component", "columns", "rows"],
   additionalProperties: false,
 };
 
@@ -117,10 +121,6 @@ const barChart: JsonObject = {
   description:
     "A bar chart with one bar per item, drawn from a data binding. Use it for a small set of labelled numeric values, such as counts per status.",
   properties: {
-    id: {
-      type: "string",
-      description: "The unique component id within the surface.",
-    },
     component: {
       const: "BarChart",
       description: "Must be the literal string BarChart.",
@@ -147,7 +147,7 @@ const barChart: JsonObject = {
         },
       ],
       description:
-        "The bars, as a data binding such as {\"path\": \"/stats/byStatus\"} (preferred) or a literal array of {label, value} objects. Each object becomes one bar. The value is a number.",
+        "The bars, as a data binding such as {\"@path\": \"/stats/byStatus\"} (preferred) or a literal array of {label, value} objects. Each object becomes one bar. The value is a number.",
     },
     maxBars: {
       type: "integer",
@@ -156,17 +156,18 @@ const barChart: JsonObject = {
       description: `The most bars to draw, from 1 to ${COOKBOOK_MAX_BARS}. Extra items are not drawn.`,
     },
   },
-  required: ["id", "component", "title", "values", "maxBars"],
+  required: ["component", "title", "values", "maxBars"],
   additionalProperties: false,
 };
 
 /**
- * The catalog schema. The `$defs` object is copied from Basic, so the shared
- * common types and the theme definition come from the canonical registration.
+ * The catalog schema. Shared definitions are copied from Basic, and the
+ * functions travel with them because Basic's shared definitions refer to them.
  */
 export const cookbookCatalogSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: COOKBOOK_CATALOG_ID,
+  protocolVersion: "1.0",
   title: "Weaver Cookbook Catalog",
   description:
     "App-owned components for the cookbook screens: DataTable and BarChart, plus the Column, Text, Card, and Button primitives.",
@@ -179,10 +180,9 @@ export const cookbookCatalogSchema = {
     DataTable: dataTable,
     BarChart: barChart,
   },
-  // Basic's shared $defs refer to Basic's functions, so the functions travel with them.
   functions: basicFunctions ?? {},
-  $defs: basicDefs,
-} satisfies A2UIV091CatalogSchema;
+  $defs: cookbookDefs,
+} satisfies A2UIV10CatalogSchema;
 
 /** The typed catalog definition. Pass it to `createWeaverRuntime` or `createBasicWebRuntime({ additionalCatalogs })`. */
 export const cookbookCatalog = defineCatalog(cookbookCatalogSchema);

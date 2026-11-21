@@ -4,21 +4,21 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { A2UI_V091_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
+import { A2UI_V10_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
 import type { FunctionRegistration } from "../functions/index.js";
 import {
   BASIC_PROMPT_FIXTURE_FILES,
   basicPromptFixtureConfigs,
   type BasicPromptFixtureMode,
 } from "./basicPromptFixtures.test-helper.js";
-import { generateA2UIV091Prompt } from "./index.js";
+import { generateA2UIV10Prompt } from "./index.js";
 
 // This test runs from dist/prompt/, so the package root is two levels up.
 const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 /** Stand-in for the web openUrl registration. Core cannot import @cylayo/weaver-web. */
 const openUrlStandIn: FunctionRegistration = {
-  catalogId: A2UI_V091_BASIC_CATALOG_ID,
+  catalogId: A2UI_V10_BASIC_CATALOG_ID,
   name: "openUrl",
   effect: "action",
   implementation: () => undefined,
@@ -35,7 +35,7 @@ function fixturePath(mode: BasicPromptFixtureMode): string {
 }
 
 function generated(mode: BasicPromptFixtureMode): string {
-  const result = generateA2UIV091Prompt(basicPromptFixtureConfigs([openUrlStandIn])[mode]);
+  const result = generateA2UIV10Prompt(basicPromptFixtureConfigs([openUrlStandIn])[mode]);
   assert.equal(result.ok, true, `prompt generation failed: ${JSON.stringify(result.ok ? null : result.error)}`);
   if (!result.ok) throw new Error("unreachable");
   return result.value.text;

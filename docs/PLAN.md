@@ -1,5 +1,7 @@
 # Weaver Framework Plan
 
+> Historical document. It describes the A2UI v0.9.1 era (Weaver 0.3.x). Current behaviour is in the [README](../README.md) and the other documents in `docs/`.
+
 Weaver is an independent interface runtime framework. Package boundaries remain
 strict: `@cylayo/weaver-core` has no Web or MCP dependency; adapters depend on Core.
 
@@ -50,7 +52,7 @@ or action behavior.
 ## Task 35 — A2UI v0.9.1 conformance audit
 
 Complete. The canonical requirement-by-requirement tracker is
-[`conformance-v0.9.1.md`](conformance-v0.9.1.md). It supersedes the prior roadmap
+[`conformance-v1.0.md`](conformance-v1.0.md). It supersedes the prior roadmap
 ordering for remaining conformance work.
 
 ## Task 36 — protocol outbound conformance

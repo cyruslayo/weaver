@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Golden model-prompt fixtures for the canonical A2UI v0.9.1 Basic Catalog.
+// Golden model-prompt fixtures for the canonical A2UI v1.0 Basic Catalog.
 //
 // It generates the prompts from the same config the Core test uses
 // (packages/core/src/prompt/basicPromptFixtures.test-helper.ts) and writes:
@@ -40,7 +40,7 @@ for (const dir of [coreDir, webDir]) {
   execFileSync(process.execPath, [tsc, "-p", path.join(dir, "tsconfig.json")], { stdio: "inherit" });
 }
 
-const { generateA2UIV091Prompt, A2UI_V091_BASIC_CATALOG_ID } = await import(
+const { generateA2UIV10Prompt, A2UI_V10_BASIC_CATALOG_ID } = await import(
   pathToFileURL(path.join(coreDir, "dist", "index.js")).href
 );
 const { createBasicCatalogBrowserFunctionImplementations } = await import(
@@ -51,13 +51,13 @@ const { basicPromptFixtureConfigs, BASIC_PROMPT_FIXTURE_FILES } = await import(
 );
 
 const configs = basicPromptFixtureConfigs(
-  createBasicCatalogBrowserFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
+  createBasicCatalogBrowserFunctionImplementations({ catalogId: A2UI_V10_BASIC_CATALOG_ID }),
 );
 
 /** Each fixture is the generated text plus one trailing newline. */
 const fixtures = new Map();
 for (const [mode, file] of Object.entries(BASIC_PROMPT_FIXTURE_FILES)) {
-  const result = generateA2UIV091Prompt(configs[mode]);
+  const result = generateA2UIV10Prompt(configs[mode]);
   if (!result.ok) {
     process.stderr.write(`Basic prompt fixture "${mode}" failed to generate: ${result.error.code}: ${result.error.message}\n`);
     process.exit(1);

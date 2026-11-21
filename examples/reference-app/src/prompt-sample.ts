@@ -1,9 +1,9 @@
 import {
-  createBasicCatalogV091Registration,
-  createA2UIV091Producer,
-  generateA2UIV091Prompt,
-  type A2UIV091PromptAction,
-  type A2UIV091PromptExample,
+  createBasicCatalogV10Registration,
+  createA2UIV10Producer,
+  generateA2UIV10Prompt,
+  type A2UIV10PromptAction,
+  type A2UIV10PromptExample,
 } from "@cylayo/weaver-core";
 import {
   REFERENCE_CREATE_REQUEST,
@@ -12,24 +12,24 @@ import {
 } from "./application-agent.js";
 
 /** The app's single trusted action. Its context matches the Submit button's bindings. */
-export const REFERENCE_PROMPT_ACTION: A2UIV091PromptAction = {
+export const REFERENCE_PROMPT_ACTION: A2UIV10PromptAction = {
   name: REFERENCE_CREATE_REQUEST,
   description: `Create a reference request. title is the request title text. priority is a one-element list holding one of ${REFERENCE_PRIORITIES.join(", ")}.`,
   context: {
-    title: { path: "/draft/title" },
-    priority: { path: "/draft/priority" },
+    title: { "@path": "/draft/title" },
+    priority: { "@path": "/draft/priority" },
   },
 };
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 
 /** A worked example that the generator validates through a scratch runtime before it reaches the prompt. */
-const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
+const REFERENCE_PROMPT_EXAMPLE: A2UIV10PromptExample = {
   title: "Request form with a bound title and priority",
   messages: [
     producer.createSurface({
       surfaceId: REFERENCE_SURFACE_ID,
-      catalogId: createBasicCatalogV091Registration().catalogId,
+      catalogId: createBasicCatalogV10Registration().catalogId,
       sendDataModel: true,
     }),
     producer.updateDataModel({
@@ -44,7 +44,7 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
           id: "title",
           component: "TextField",
           label: "Request title",
-          value: { path: "/draft/title" },
+          value: { "@path": "/draft/title" },
         },
         {
           id: "priority",
@@ -57,24 +57,24 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
             { label: "High", value: "high" },
             { label: "Urgent", value: "urgent" },
           ],
-          value: { path: "/draft/priority" },
+          value: { "@path": "/draft/priority" },
         },
         {
           id: "submit",
           component: "Button",
           variant: "primary",
-          child: "submit-label",
+          child: "submitLabel",
           action: {
             event: {
               name: REFERENCE_CREATE_REQUEST,
               context: {
-                title: { path: "/draft/title" },
-                priority: { path: "/draft/priority" },
+                title: { "@path": "/draft/title" },
+                priority: { "@path": "/draft/priority" },
               },
             },
           },
         },
-        { id: "submit-label", component: "Text", text: "Create request" },
+        { id: "submitLabel", component: "Text", text: "Create request" },
       ],
     }),
   ],
@@ -86,8 +86,8 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
  * model. Throws only if generation fails, which the tests guard against.
  */
 export function buildReferencePrompt(): string {
-  const result = generateA2UIV091Prompt({
-    catalogs: [createBasicCatalogV091Registration()],
+  const result = generateA2UIV10Prompt({
+    catalogs: [createBasicCatalogV10Registration()],
     actions: [REFERENCE_PROMPT_ACTION],
     examples: [REFERENCE_PROMPT_EXAMPLE],
   });

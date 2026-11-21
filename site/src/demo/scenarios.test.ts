@@ -5,7 +5,7 @@
  */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createA2UIV091StreamIngestion, type JsonObject, type JsonValue } from "@cylayo/weaver-core";
+import { createA2UIV10StreamIngestion, type JsonObject, type JsonValue } from "@cylayo/weaver-core";
 import { createBasicWebRuntime } from "@cylayo/weaver-web";
 import { dinnerComponents, dinnerData, type DinnerState } from "./agent/dinner.js";
 import { hotelComponents } from "./agent/hotel.js";
@@ -58,7 +58,7 @@ function press(session: ScenarioSession, sourceComponentId: string, scopePath = 
 function serverEvent(surfaceId: string, name: string, context: JsonObject = {}) {
   return {
     message: {
-      version: "v0.9.1" as const,
+      version: "1.0" as const,
       action: {
         name,
         surfaceId,
@@ -95,7 +95,7 @@ for (const [label, begin] of SCENARIO_STARTS) {
     const fresh = createBasicWebRuntime();
     assert.equal(fresh.ok, true);
     if (!fresh.ok) return;
-    const ingestion = createA2UIV091StreamIngestion({ runtime: fresh.value.runtime });
+    const ingestion = createA2UIV10StreamIngestion({ runtime: fresh.value.runtime });
     const jsonl = session.sentLines.slice(0, session.reply.count).map((line) => line + "\n").join("");
     const events = [...ingestion.push(jsonl), ...ingestion.finish()];
     assert.equal(events.length, 3);
@@ -125,11 +125,11 @@ test("every view uses only Basic catalog components", () => {
 test("hotel: open a stay, change nights, guests and room, then reserve", () => {
   const session = start(hotelDefinition);
   assert.equal(session.view, "list");
-  press(session, "stay-open", "/stays/0");
+  press(session, "stay_open", "/stays/0");
   assert.equal(session.view, "detail");
   assert.equal(at(session.dataModel(), "/selected/name"), "Miradouro Pool House");
 
-  press(session, "nights-plus", "/");
+  press(session, "nights_plus", "/");
   assert.equal(at(session.dataModel(), "/booking/nights"), 4);
   assert.equal(at(session.dataModel(), "/booking/nightsText"), "4");
   assert.equal(at(session.dataModel(), "/totals/totalAmount"), "€1040");
@@ -139,7 +139,7 @@ test("hotel: open a stay, change nights, guests and room, then reserve", () => {
   assert.equal(at(session.dataModel(), "/totals/extraAmount"), "€180");
   assert.equal(at(session.dataModel(), "/totals/reserveLabel"), "Reserve for €1220");
 
-  press(session, "guests-plus", "/");
+  press(session, "guests_plus", "/");
   assert.equal(at(session.dataModel(), "/booking/guestsText"), "3");
 
   press(session, "reserve");
@@ -152,7 +152,7 @@ test("hotel: open a stay, change nights, guests and room, then reserve", () => {
   assert.equal(lastEvent(session).kind, "Action");
   assert.match(lastEvent(session).text, /^reserve_room \{"stay":"miradouro","nights":4,"guests":3,"room":\["river"\]\}$/);
 
-  press(session, "done-back");
+  press(session, "done_back");
   assert.equal(session.view, "list");
   assert.equal(session.rejectedFrames, 0);
 });
@@ -180,21 +180,21 @@ test("hotel: saving a stay toggles its label without leaving the list", () => {
   const session = start(hotelDefinition);
   // Casa Amarela is the second stay and starts saved.
   assert.equal(at(session.dataModel(), "/stays/1/saveLabel"), "♥ Saved");
-  press(session, "stay-save", "/stays/1");
+  press(session, "stay_save", "/stays/1");
   assert.equal(at(session.dataModel(), "/stays/1/saveLabel"), "♡ Save");
   assert.equal(session.view, "list");
 });
 
 test("hotel: the steppers clamp at their limits, and a bad room write is refused", () => {
   const session = start(hotelDefinition);
-  press(session, "stay-open", "/stays/0");
+  press(session, "stay_open", "/stays/0");
 
-  for (let step = 0; step < 20; step += 1) press(session, "nights-plus", "/");
+  for (let step = 0; step < 20; step += 1) press(session, "nights_plus", "/");
   assert.equal(at(session.dataModel(), "/booking/nights"), 14);
-  for (let step = 0; step < 20; step += 1) press(session, "nights-minus", "/");
+  for (let step = 0; step < 20; step += 1) press(session, "nights_minus", "/");
   assert.equal(at(session.dataModel(), "/booking/nights"), 1);
 
-  press(session, "guests-minus", "/");
+  press(session, "guests_minus", "/");
   assert.equal(at(session.dataModel(), "/booking/guests"), 1);
 
   write(session, "room", "/", ["sea"]);
@@ -265,15 +265,15 @@ test("hotel: an action from another surface is refused", () => {
 test("dinner: change quantities, then place the order", () => {
   const session = start(dinnerDefinition);
   // Pizza is the first dish and starts at two.
-  press(session, "dish-plus", "/menu/0");
+  press(session, "dish_plus", "/menu/0");
   assert.equal(at(session.dataModel(), "/menu/0/qtyLabel"), "3");
   assert.equal(at(session.dataModel(), "/basket/items"), 8);
   assert.equal(at(session.dataModel(), "/basket/total"), "€87.50");
 
   // Nata is the last dish and starts at two. The third press cannot go below zero.
-  press(session, "dish-minus", "/menu/5");
-  press(session, "dish-minus", "/menu/5");
-  press(session, "dish-minus", "/menu/5");
+  press(session, "dish_minus", "/menu/5");
+  press(session, "dish_minus", "/menu/5");
+  press(session, "dish_minus", "/menu/5");
   assert.equal(at(session.dataModel(), "/menu/5/qtyLabel"), "0");
   assert.equal(at(session.dataModel(), "/basket/items"), 6);
   assert.equal(at(session.dataModel(), "/basket/total"), "€79.50");
@@ -285,7 +285,7 @@ test("dinner: change quantities, then place the order", () => {
   assert.equal(session.mainActionSent, true);
   assert.match(lastEvent(session).text, /^place_order \{"items":6,"total":79.5\}$/);
 
-  press(session, "done-again");
+  press(session, "done_again");
   assert.equal(session.view, "menu");
   assert.equal(at(session.dataModel(), "/menu/0/qtyLabel"), "3", "the quantities survive a new order");
   assert.equal(session.rejectedFrames, 0);
@@ -323,6 +323,7 @@ test("dinner: the basket data matches the pure totals", () => {
     lines: [{ label: "1 × Margherita, wood-fired", amount: "€13" }],
     empty: "",
     total: formatEur(16.5),
+    totalTitle: "### " + formatEur(16.5),
     items: 1,
     totalValue: 16.5,
     placeLabel: "Place order · €16.50",
@@ -335,14 +336,14 @@ test("trip: toggle stops, then add the trip to the calendar", () => {
   const session = start(tripDefinition);
   assert.equal(at(session.dataModel(), "/trip/summary"), "6 of 7 stops · €39 in tickets · sample prices");
 
-  write(session, "stop-tram-28-include", "/", false);
+  write(session, "stop_tram_28_include", "/", false);
   assert.equal(at(session.dataModel(), "/trip/included/tram-28"), false);
   assert.equal(at(session.dataModel(), "/trip/includedCount"), 5);
   assert.equal(at(session.dataModel(), "/trip/summary"), "5 of 7 stops · €36 in tickets · sample prices");
   assert.equal(lastEvent(session).kind, "Input");
   assert.equal(lastEvent(session).text, "/trip/included/tram-28 = false");
 
-  write(session, "stop-dinner-river-include", "/", true);
+  write(session, "stop_dinner_river_include", "/", true);
   assert.equal(at(session.dataModel(), "/trip/days/2"), "2 stops · 6 h 30 min · €55");
   assert.equal(at(session.dataModel(), "/trip/includedCount"), 6);
 
@@ -352,7 +353,7 @@ test("trip: toggle stops, then add the trip to the calendar", () => {
   assert.equal(session.mainActionSent, true);
   assert.equal(lastEvent(session).text, 'add_to_calendar {"stops":6}');
 
-  press(session, "done-edit");
+  press(session, "done_edit");
   assert.equal(session.view, "plan");
   assert.equal(session.rejectedFrames, 0);
 });
@@ -362,7 +363,7 @@ test("trip: a stop write that is not a boolean is refused, and a stale stop coun
   // Whether Core or the app refuses the write, the stop stays included.
   session.runtime.writeInput({
     surfaceId: "trip",
-    sourceComponentId: "stop-tram-28-include",
+    sourceComponentId: "stop_tram_28_include",
     scopePath: "/",
     property: "value",
     value: "yes",
@@ -382,4 +383,48 @@ test("trip: the day summaries and the total agree with the pure model", () => {
   assert.equal(at(session.dataModel(), "/trip/summary"), tripSummary(included) + " · sample prices");
   assert.equal(at(session.dataModel(), "/trip/days/0"), "3 stops · 3 h 15 min · €9");
   assert.equal(at(session.dataModel(), "/trip/days/1"), "2 stops · 3 h 30 min · €10");
+});
+
+// ---- Whole flows on a v1.0 runtime ----------------------------------------------------------
+
+/** Feeds the lines through a fresh Basic Web runtime and ingestion, as the host's JSONL would arrive. */
+function replayOnFreshRuntime(lines: readonly string[]): { frames: number; rejected: number } {
+  const fresh = createBasicWebRuntime();
+  assert.equal(fresh.ok, true);
+  if (!fresh.ok) return { frames: 0, rejected: Number.POSITIVE_INFINITY };
+  const ingestion = createA2UIV10StreamIngestion({ runtime: fresh.value.runtime });
+  const events = [...ingestion.push(lines.map((line) => line + "\n").join("")), ...ingestion.finish()];
+  return { frames: events.length, rejected: events.filter((event) => !event.ok).length };
+}
+
+test("the whole demo flows run on a v1.0 runtime with zero rejected messages", () => {
+  const hotel = start(hotelDefinition);
+  press(hotel, "stay_open", "/stays/0");
+  press(hotel, "nights_plus", "/");
+  write(hotel, "room", "/", ["river"]);
+  press(hotel, "guests_plus", "/");
+  press(hotel, "reserve");
+  press(hotel, "done_back");
+
+  const dinner = start(dinnerDefinition);
+  press(dinner, "dish_plus", "/menu/0");
+  press(dinner, "dish_minus", "/menu/5");
+  press(dinner, "place");
+  press(dinner, "done_again");
+
+  const trip = start(tripDefinition);
+  write(trip, "stop_tram_28_include", "/", false);
+  write(trip, "stop_dinner_river_include", "/", true);
+  press(trip, "save");
+  press(trip, "done_edit");
+
+  for (const session of [hotel, dinner, trip]) {
+    assert.equal(session.rejectedFrames, 0, `${session.id} refused a frame while running`);
+    for (const line of session.sentLines) {
+      assert.equal(JSON.parse(line).version, "1.0", `${session.id} sent a non-v1.0 line`);
+    }
+    const replay = replayOnFreshRuntime(session.sentLines);
+    assert.equal(replay.frames, session.sentLines.length, `${session.id} replay frame count`);
+    assert.equal(replay.rejected, 0, `${session.id} replay refused a frame`);
+  }
 });

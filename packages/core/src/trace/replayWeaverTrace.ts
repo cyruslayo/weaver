@@ -97,7 +97,7 @@ function inputRequestOf(input: JsonValue | undefined): WeaverInputRequest | unde
 
 function actionRequestOf(input: JsonValue | undefined): WeaverActionRequest | undefined {
   if (!isObject(input)) return undefined;
-  const { surfaceId, sourceComponentId, scopePath, actionProperty } = input;
+  const { surfaceId, sourceComponentId, scopePath, actionProperty, userActivation } = input;
   if (
     typeof surfaceId !== "string" ||
     typeof sourceComponentId !== "string" ||
@@ -105,7 +105,10 @@ function actionRequestOf(input: JsonValue | undefined): WeaverActionRequest | un
     typeof actionProperty !== "string"
   )
     return undefined;
-  return { surfaceId, sourceComponentId, scopePath, actionProperty };
+  if (userActivation !== undefined && typeof userActivation !== "boolean") return undefined;
+  return userActivation === undefined
+    ? { surfaceId, sourceComponentId, scopePath, actionProperty }
+    : { surfaceId, sourceComponentId, scopePath, actionProperty, userActivation };
 }
 
 /**

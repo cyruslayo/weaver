@@ -1,32 +1,15 @@
 import type { CatalogFunctionReturnType } from "../catalog/index.js";
 import type { DataContext } from "../data-context/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
+import { isFunctionCall, type FunctionCallShape } from "./dynamic.js";
 
 export type FunctionReturnType = CatalogFunctionReturnType;
 export type FunctionEffect = "pure" | "action";
 
-export interface FunctionCall {
-  call: string;
-  args: JsonObject;
-  returnType?: FunctionReturnType;
-}
+/** A v1.0 FunctionCall. `args` is optional; `catalogId` must match the surface catalog until multi-catalog support lands. */
+export type FunctionCall = FunctionCallShape;
 
-/** Strict structural guard; catalog validation remains authoritative. */
-export function isFunctionCall(value: unknown): value is FunctionCall {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) return false;
-  const record = value as Record<string, unknown>;
-  if (typeof record.call !== "string" || record.args === null || typeof record.args !== "object" || Array.isArray(record.args)) {
-    return false;
-  }
-  const argsPrototype = Object.getPrototypeOf(record.args);
-  if (argsPrototype !== Object.prototype && argsPrototype !== null) return false;
-  return !("returnType" in record) || (
-    typeof record.returnType === "string" &&
-    ["string", "number", "boolean", "array", "object", "any", "void"].includes(record.returnType)
-  );
-}
+export { isFunctionCall };
 
 export type FunctionImplementation = (
   args: Readonly<Record<string, unknown>>,

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  createA2UIV091Producer,
-  createBasicCatalogV091Registration,
+  createA2UIV10Producer,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
-  generateA2UIV091Prompt,
+  generateA2UIV10Prompt,
   type A2UIComponent,
   type JsonObject,
   type JsonValue,
@@ -18,7 +18,7 @@ import {
 } from "./catalog.js";
 
 const SURFACE_ID = "cookbook-custom-catalog";
-const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
+const BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
 /** A screen that uses every cookbook component and the three layout primitives. */
 function screenComponents(overrides: {
@@ -39,13 +39,13 @@ function screenComponents(overrides: {
           { key: "id", header: "Order" },
           { key: "total", header: "Total", align: "end" },
         ],
-      rows: { path: "/orders" },
+      rows: { "@path": "/orders" },
     },
     {
       id: "chart",
       component: "BarChart",
       title: "By status",
-      values: { path: "/stats/byStatus" },
+      values: { "@path": "/stats/byStatus" },
       maxBars: 10,
       ...overrides.barChart,
     } as A2UIComponent,
@@ -61,7 +61,7 @@ function validationIssues(error: unknown): Array<{ path: string; keyword: string
 
 function runtimeWithCookbook() {
   const created = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration(), cookbookCatalog],
+    catalogs: [createBasicCatalogV10Registration(), cookbookCatalog],
   });
   assert.equal(created.ok, true, "cookbook catalog must register next to Basic");
   if (!created.ok) throw new Error("unreachable");
@@ -71,7 +71,7 @@ function runtimeWithCookbook() {
 /** Creates the surface with the cookbook catalog, then sends the given components. */
 function processComponents(components: JsonValue[]) {
   const runtime = runtimeWithCookbook();
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   const created = runtime.process(
     producer.createSurface({
       surfaceId: SURFACE_ID,
@@ -81,7 +81,7 @@ function processComponents(components: JsonValue[]) {
   );
   assert.equal(created.ok, true, "createSurface with the cookbook catalogId must succeed");
   return runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: SURFACE_ID, components },
   });
 }
@@ -99,16 +99,16 @@ test("the cookbook catalog declares its own catalogId and leaves the Basic catal
   assert.equal(cookbookCatalog.catalogId, COOKBOOK_CATALOG_ID);
   assert.notEqual(COOKBOOK_CATALOG_ID, BASIC_CATALOG_ID);
 
-  const basic = createBasicCatalogV091Registration().schema.components as Record<string, unknown>;
+  const basic = createBasicCatalogV10Registration().schema.components as Record<string, unknown>;
   assert.equal("DataTable" in basic, false, "Basic must not gain DataTable");
   assert.equal("BarChart" in basic, false, "Basic must not gain BarChart");
   assert.deepEqual(
-    cookbookCatalog.schema.components.Column,
+    cookbookCatalogSchema.components.Column,
     basic.Column,
     "layout primitives are reused from Basic, not redefined",
   );
-  assert.deepEqual(cookbookCatalog.schema.components.Text, basic.Text);
-  assert.deepEqual(cookbookCatalog.schema.components.Card, basic.Card);
+  assert.deepEqual(cookbookCatalogSchema.components.Text, basic.Text);
+  assert.deepEqual(cookbookCatalogSchema.components.Card, basic.Card);
 });
 
 test("a valid screen using every cookbook component passes message validation", () => {
@@ -162,15 +162,15 @@ test("BarChart rejects a values array of the wrong shape", () => {
 });
 
 test("the generated prompt presents the binding as preferred and names the literal alternative", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.match(result.value.text, /data binding such as \{"path": "\/orders"\} \(preferred\) or a literal array/);
-  assert.match(result.value.text, /data binding such as \{"path": "\/stats\/byStatus"\} \(preferred\) or a literal array/);
+  assert.match(result.value.text, /data binding such as \{"@path": "\/orders"\} \(preferred\) or a literal array/);
+  assert.match(result.value.text, /data binding such as \{"@path": "\/stats\/byStatus"\} \(preferred\) or a literal array/);
 });
 
 test("the generated prompt says DataTable is read-only and points row actions to a List template of Cards", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true, JSON.stringify(result));
   if (!result.ok) return;
   assert.match(result.value.text, /A read-only table of rows/);
@@ -265,7 +265,7 @@ test("a component outside the cookbook catalog is rejected, so one surface uses 
 });
 
 test("the generated prompt lists DataTable and BarChart and no undeclared component", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true, JSON.stringify(result));
   if (!result.ok) return;
 
@@ -282,7 +282,7 @@ test("the generated prompt lists DataTable and BarChart and no undeclared compon
   }
 
   assert.match(result.value.text, new RegExp(COOKBOOK_CATALOG_ID.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  const again = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const again = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(again.ok && again.value.text, result.value.text, "the prompt is deterministic");
 });
 
@@ -314,7 +314,7 @@ test("every DataTable and BarChart property has a description for the prompt", (
 });
 
 test("the prompt carries the schema descriptions and the cap", () => {
-  const result = generateA2UIV091Prompt({ catalogs: [cookbookCatalog] });
+  const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.match(result.value.text, /A read-only table of rows/);
@@ -343,7 +343,7 @@ test("a DataTable message that still sends rowAction is rejected at message vali
 
 test("registering the cookbook catalog twice is rejected rather than silently replaced", () => {
   const result = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration(), cookbookCatalog, cookbookCatalog],
+    catalogs: [createBasicCatalogV10Registration(), cookbookCatalog, cookbookCatalog],
   });
   assert.equal(result.ok, false, "a duplicate catalogId must not register silently");
 });

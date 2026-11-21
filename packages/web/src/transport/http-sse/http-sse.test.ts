@@ -14,7 +14,7 @@ function session(inputs: unknown[]): A2UITransportSession {
     getSurfaceRoute() { return undefined; },
     prepareActionDelivery() { return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } }; },
     prepareValidationErrorDelivery() { return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } }; },
-    getClientCapabilities() { return { "v0.9": { supportedCatalogIds: ["basic"] } }; },
+    getRendererCapabilities() { return { "1.0": { supportedCatalogIds: ["basic"] } }; },
   };
 }
 
@@ -58,7 +58,7 @@ test("opens POST event stream with capabilities and validates response", async (
   const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "local", streamUrl: "/stream", sendUrl: "/send", fetch: async (input, init) => { request = { input, init }; return response([]); } });
   assert.deepEqual(await adapter.run(), { ok: true, status: "closed" });
   assert.equal(request?.init?.method, "POST"); assert.equal((request?.init?.headers as Record<string,string>).Accept, "text/event-stream");
-  assert.deepEqual(JSON.parse(String(request?.init?.body)), { metadata: { a2uiClientCapabilities: { "v0.9": { supportedCatalogIds: ["basic"] } } } });
+  assert.deepEqual(JSON.parse(String(request?.init?.body)), { metadata: { a2uiRendererCapabilities: { "1.0": { supportedCatalogIds: ["basic"] } } } });
   assert.equal(JSON.stringify(request).includes("routeId"), false);
   const bad = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => new Response("", { status: 500 }) });
   assert.equal((await bad.run()).ok, false);
@@ -69,10 +69,10 @@ test("opens POST event stream with capabilities and validates response", async (
 test("serializes exact outbound wrappers, omits optional model, and recovers after failure", async () => {
   const calls: string[] = []; let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; }); let first = true;
   const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/s", sendUrl: "/send", fetch: async (_input, init) => { const body = String(init?.body); calls.push(body); if (first) { first = false; await gate; return new Response("", { status: 500 }); } return new Response(null, { status: 204 }); } });
-  const message = { version: "v0.9.1", action: { name: "go", surfaceId: "X", sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } } as const;
-  const a = adapter.sendDelivery({ routeId: "A", message }); const b = adapter.sendDelivery({ routeId: "A", message, clientDataModel: { version: "v0.9.1", surfaces: { X: { n: 1 } } } });
+  const message = { version: "1.0", action: { name: "go", surfaceId: "X", sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } } as const;
+  const a = adapter.sendDelivery({ routeId: "A", message }); const b = adapter.sendDelivery({ routeId: "A", message, rendererDataModel: { version: "1.0", surfaces: { X: { n: 1 } } } });
   await Promise.resolve(); assert.equal(calls.length, 1); release(); assert.equal((await a).ok, false); assert.equal((await b).ok, true); assert.equal(calls.length, 2);
-  const firstBody = JSON.parse(calls[0]!); const secondBody = JSON.parse(calls[1]!); assert.deepEqual(firstBody.message, message); assert.equal("a2uiClientDataModel" in firstBody.metadata, false); assert.deepEqual(secondBody.metadata.a2uiClientDataModel.surfaces.X, { n: 1 });
+  const firstBody = JSON.parse(calls[0]!); const secondBody = JSON.parse(calls[1]!); assert.deepEqual(firstBody.message, message); assert.equal("a2uiRendererDataModel" in firstBody.metadata, false); assert.deepEqual(secondBody.metadata.a2uiRendererDataModel.surfaces.X, { n: 1 });
   const before = calls.length; const mismatch: A2UIRoutedDelivery = { routeId: "B", message }; assert.equal((await adapter.sendDelivery(mismatch)).ok, false); assert.equal(calls.length, before);
 });
 
@@ -81,7 +81,7 @@ test("targets two routed surfaces and their data models through only the matchin
   const fetch = async (input: RequestInfo | URL) => { urls.push(String(input)); return new Response(null, { status: 204 }); };
   const a = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/stream-a", sendUrl: "/send-a", fetch });
   const b = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "B", streamUrl: "/stream-b", sendUrl: "/send-b", fetch });
-  const make = (routeId: string, surfaceId: string): A2UIRoutedDelivery => ({ routeId, message: { version: "v0.9.1", action: { name: "go", surfaceId, sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } }, clientDataModel: { version: "v0.9.1", surfaces: { [surfaceId]: { owner: routeId } } } });
+  const make = (routeId: string, surfaceId: string): A2UIRoutedDelivery => ({ routeId, message: { version: "1.0", action: { name: "go", surfaceId, sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } }, rendererDataModel: { version: "1.0", surfaces: { [surfaceId]: { owner: routeId } } } });
   const x = make("A", "X"); const y = make("B", "Y");
   assert.equal((await a.sendDelivery(x)).ok, true); assert.equal((await b.sendDelivery(x)).ok, false);
   assert.equal((await b.sendDelivery(y)).ok, true); assert.equal((await a.sendDelivery(y)).ok, false);
@@ -92,7 +92,7 @@ test("automatically posts a session-prepared validation failure", async () => {
   const requests: RequestInit[] = []; const inputs: unknown[] = [];
   const fake = session(inputs);
   fake.processInbound = () => ({ ok: false, error: { code: "PROTOCOL_VALIDATION_FAILED", issues: [{ code: "VALIDATION_FAILED", path: "/", message: "invalid" }] } });
-  fake.prepareValidationErrorDelivery = routeId => ({ ok: true, value: { routeId, message: { version: "v0.9.1", error: { code: "VALIDATION_FAILED", surfaceId: "X", path: "/", message: "invalid" } } } });
+  fake.prepareValidationErrorDelivery = routeId => ({ ok: true, value: { routeId, message: { version: "1.0", error: { code: "VALIDATION_FAILED", surfaceId: "X", path: "/", message: "invalid" } } } });
   const adapter = createBrowserA2UIHttpSseTransport({ session: fake, routeId: "A", streamUrl: "/stream", sendUrl: "/send", fetch: async (input, init) => { if (String(input) === "/stream") return response([encoder.encode('data: {"version":"bad"}\n\n')]); requests.push(init ?? {}); return new Response(null, { status: 204 }); } });
   assert.equal((await adapter.run()).ok, true); assert.equal(requests.length, 1);
   assert.equal(JSON.parse(String(requests[0]?.body)).message.error.code, "VALIDATION_FAILED");
@@ -106,18 +106,15 @@ test("rejects concurrent run, permits rerun, and reports pre-abort deterministic
 });
 
 const integrationSchema: JsonObject = {
-  $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: "basic",
+  $schema: "https://json-schema.org/draft/2020-12/schema", protocolVersion: "1.0", catalogId: "basic",
   components: {
-    Button: { type: "object", properties: { id: { type: "string" }, component: { const: "Button" }, action: { $ref: "common_types.json#/$defs/Action" } }, required: ["id", "component", "action"], additionalProperties: false },
+    Button: { type: "object", properties: { component: { const: "Button" }, action: { $ref: "common_types.json#/$defs/Action" } }, required: ["component", "action"], additionalProperties: false },
   },
-  $defs: { theme: { type: "object", additionalProperties: false }, commonTypes: { $id: "common_types.json", $defs: {
-    Action: { type: "object", properties: { event: { type: "object", properties: { name: { type: "string" }, context: { type: "object" } }, required: ["name", "context"], additionalProperties: false } }, required: ["event"], additionalProperties: false },
-  } } },
 };
 function integration() { const made = createWeaverRuntime({ catalogs: [{ catalogId: "basic", schema: integrationSchema }], now: () => new Date("2026-01-01T00:00:00.000Z") }); assert.ok(made.ok); return { runtime: made.value, session: createA2UITransportSession({ runtime: made.value }) }; }
-const createMessage = (surfaceId: string, sendDataModel = false) => ({ version: "v0.9.1", createSurface: { surfaceId, catalogId: "basic", sendDataModel } });
-const componentsMessage = (surfaceId: string) => ({ version: "v0.9.1", updateComponents: { surfaceId, components: [{ id: "root", component: "Button", action: { event: { name: "go", context: { fixed: 1 } } } }] } });
-const dataMessage = (surfaceId: string, owner: string) => ({ version: "v0.9.1", updateDataModel: { surfaceId, value: { owner } } });
+const createMessage = (surfaceId: string, sendDataModel = false) => ({ version: "1.0", createSurface: { surfaceId, catalogId: "basic", sendDataModel } });
+const componentsMessage = (surfaceId: string) => ({ version: "1.0", updateComponents: { surfaceId, components: [{ id: "root", component: "Button", action: { event: { name: "go", context: { fixed: 1 } } } }] } });
+const dataMessage = (surfaceId: string, owner: string) => ({ version: "1.0", updateDataModel: { surfaceId, value: { owner } } });
 async function waitFor(predicate: () => boolean): Promise<void> { for (let n = 0; n < 100 && !predicate(); n++) await new Promise(resolve => setTimeout(resolve, 10)); assert.equal(predicate(), true); }
 
 test("real loopback stream updates runtime, posts action/model and validation failure, and preserves ownership across reopen", async () => {
@@ -127,7 +124,7 @@ test("real loopback stream updates runtime, posts action/model and validation fa
   const adapter = createBrowserA2UIHttpSseTransport({ session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl, onDiagnostic: d => diagnostics.push(d.message) });
   let run = adapter.run();
   try {
-    await waitFor(() => opened.length === 1); assert.deepEqual(opened[0], { "v0.9": { supportedCatalogIds: ["basic"] } });
+    await waitFor(() => opened.length === 1); assert.deepEqual(opened[0], { "1.0": { supportedCatalogIds: ["basic"] } });
     assert.equal((await server.sendA2UI(createMessage("X", true))).ok, true);
     assert.equal((await server.sendA2UI(componentsMessage("X"))).ok, true);
     assert.equal((await server.sendA2UI(dataMessage("X", "A"))).ok, true);
@@ -135,12 +132,12 @@ test("real loopback stream updates runtime, posts action/model and validation fa
     assert.equal(runtime.getSurface("X")?.components.root?.component, "Button"); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "A" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
     const action = runtime.dispatchAction({ surfaceId: "X", sourceComponentId: "root", scopePath: "/", actionProperty: "action" });
     const delivery = transportSession.prepareActionDelivery(action); assert.ok(delivery.ok); assert.equal((await adapter.sendDelivery(delivery.value)).ok, true);
-    await waitFor(() => received.length === 1); assert.equal(received[0]?.message.version, "v0.9.1"); assert.deepEqual(received[0]?.message.action, { name: "go", surfaceId: "X", sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: { fixed: 1 } }); assert.deepEqual(received[0]?.clientDataModel, { version: "v0.9.1", surfaces: { X: { owner: "A" } } });
-    assert.deepEqual(received[0]?.capabilities, { "v0.9": { supportedCatalogIds: ["basic"] } }); assert.equal(JSON.stringify(received).includes("routeId"), false);
-    await server.sendA2UI({ version: "v0.9.1", updateComponents: { surfaceId: "X", components: [] } });
-    await waitFor(() => received.length === 2); assert.deepEqual(received[1]?.message, { version: "v0.9.1", error: { code: "VALIDATION_FAILED", surfaceId: "X", path: "/updateComponents/components", message: "Expected at least one component" } });
+    await waitFor(() => received.length === 1); assert.equal(received[0]?.message.version, "1.0"); assert.deepEqual(received[0]?.message.action, { name: "go", surfaceId: "X", sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: { fixed: 1 } }); assert.deepEqual(received[0]?.rendererDataModel, { version: "1.0", surfaces: { X: { owner: "A" } } });
+    assert.deepEqual(received[0]?.capabilities, { "1.0": { supportedCatalogIds: ["basic"] } }); assert.equal(JSON.stringify(received).includes("routeId"), false);
+    await server.sendA2UI({ version: "1.0", updateComponents: { surfaceId: "X", components: [] } });
+    await waitFor(() => received.length === 2); assert.deepEqual(received[1]?.message, { version: "1.0", error: { code: "VALIDATION_FAILED", surfaceId: "X", path: "/updateComponents/components", message: "Expected at least one component" } });
     server.closeStream(); assert.deepEqual(await run, { ok: true, status: "closed" }); assert.equal(transportSession.getSurfaceRoute("X"), "A");
-    run = adapter.run(); await waitFor(() => opened.length === 2); await server.sendA2UI({ version: "v0.9.1", deleteSurface: { surfaceId: "X" } }); await waitFor(() => runtime.getSurface("X") === undefined); assert.equal(transportSession.getSurfaceRoute("X"), undefined);
+    run = adapter.run(); await waitFor(() => opened.length === 2); await server.sendA2UI({ version: "1.0", deleteSurface: { surfaceId: "X" } }); await waitFor(() => runtime.getSurface("X") === undefined); assert.equal(transportSession.getSurfaceRoute("X"), undefined);
     assert.deepEqual(diagnostics, []);
   } finally { server.closeStream(); await run; await server.close(); }
 });
@@ -156,7 +153,7 @@ test("two real loopback peers target only their owned route and reject cross-rou
     await waitFor(() => runtime.getSurface("Y")?.dataModel !== undefined); assert.equal(shared.getSurfaceRoute("X"), "A"); assert.equal(shared.getSurfaceRoute("Y"), "B");
     await bServer.sendA2UI(dataMessage("X", "intruder")); await waitFor(() => bDiagnostics.length === 1); assert.deepEqual(runtime.getSurface("X")?.dataModel, { owner: "A" }); assert.equal(bReceived.length, 0);
     for (const [adapter, id] of [[a, "X"], [b, "Y"]] as const) { const routed = shared.prepareActionDelivery(runtime.dispatchAction({ surfaceId: id, sourceComponentId: "root", scopePath: "/", actionProperty: "action" })); assert.ok(routed.ok); assert.equal((await adapter.sendDelivery(routed.value)).ok, true); }
-    await waitFor(() => aReceived.length === 1 && bReceived.length === 1); assert.deepEqual((aReceived[0]?.clientDataModel as { surfaces: object }).surfaces, { X: { owner: "A" } }); assert.deepEqual((bReceived[0]?.clientDataModel as { surfaces: object }).surfaces, { Y: { owner: "B" } });
+    await waitFor(() => aReceived.length === 1 && bReceived.length === 1); assert.deepEqual((aReceived[0]?.rendererDataModel as { surfaces: object }).surfaces, { X: { owner: "A" } }); assert.deepEqual((bReceived[0]?.rendererDataModel as { surfaces: object }).surfaces, { Y: { owner: "B" } });
   } finally { aServer.closeStream(); bServer.closeStream(); await Promise.all([arun, brun]); await Promise.all([aServer.close(), bServer.close()]); }
 });
 
@@ -207,7 +204,7 @@ test("fatal reconnect responses stop and resumed 410 is distinct without clearin
 
 test("reference server assigns bounded sequential IDs and replays known gaps in order", async () => {
   const cursors: Array<string | undefined> = []; const server = await startReferenceServer({ replayCapacity: 2, onStreamOpen: (_c, id) => { cursors.push(id); } });
-  const body = JSON.stringify({ metadata: { a2uiClientCapabilities: {} } }); const open = (id?: string) => fetch(server.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json", ...(id === undefined ? {} : { "Last-Event-ID": id }) }, body });
+  const body = JSON.stringify({ metadata: { a2uiRendererCapabilities: {} } }); const open = (id?: string) => fetch(server.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json", ...(id === undefined ? {} : { "Last-Event-ID": id }) }, body });
   try {
     assert.deepEqual(await server.sendA2UI({ n: 0 }), { ok: false, error: "NO_ACTIVE_STREAM" });
     let stream = await open(); assert.equal(stream.status, 200); const one = await server.sendA2UI({ n: 1 }); const two = await server.sendA2UI({ n: 2 }); assert.ok(one.ok && two.ok); assert.deepEqual([one.eventId, two.eventId], ["1", "2"]); server.closeStream(); await stream.body?.cancel(); await waitFor(() => true);
@@ -233,11 +230,11 @@ test("reference server enforces endpoint methods, exact wrappers, limits, and on
     assert.equal((await fetch(server.streamUrl)).status, 405); assert.equal((await fetch(server.sendUrl)).status, 405); assert.equal((await fetch(server.url + "/missing", { method: "POST" })).status, 404);
     assert.equal((await post("/a2ui/stream", "{" , { Accept: "text/event-stream" })).status, 400);
     assert.equal((await post("/a2ui/stream", JSON.stringify({ metadata: {} }), { Accept: "text/event-stream" })).status, 400);
-    assert.equal((await post("/a2ui/send", "{")).status, 400); assert.equal((await post("/a2ui/send", JSON.stringify({ message: {}, metadata: { a2uiClientCapabilities: {} }, routeId: "A" }))).status, 400);
+    assert.equal((await post("/a2ui/send", "{")).status, 400); assert.equal((await post("/a2ui/send", JSON.stringify({ message: {}, metadata: { a2uiRendererCapabilities: {} }, routeId: "A" }))).status, 400);
     assert.equal((await post("/a2ui/send", `{"padding":"${"x".repeat(1_048_576)}"}`)).status, 413);
     assert.equal((await post("/a2ui/stream", `{"padding":"${"x".repeat(1_048_576)}"}`, { Accept: "text/event-stream" })).status, 413);
-    let opened = false; const stream = fetch(server.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json" }, body: JSON.stringify({ metadata: { a2uiClientCapabilities: {} } }) }).then(r => { opened = r.ok; return r; }); await waitFor(() => opened);
-    assert.equal((await post("/a2ui/stream", JSON.stringify({ metadata: { a2uiClientCapabilities: {} } }), { Accept: "text/event-stream" })).status, 409);
+    let opened = false; const stream = fetch(server.streamUrl, { method: "POST", headers: { Accept: "text/event-stream", "Content-Type": "application/json" }, body: JSON.stringify({ metadata: { a2uiRendererCapabilities: {} } }) }).then(r => { opened = r.ok; return r; }); await waitFor(() => opened);
+    assert.equal((await post("/a2ui/stream", JSON.stringify({ metadata: { a2uiRendererCapabilities: {} } }), { Accept: "text/event-stream" })).status, 409);
     assert.equal((await server.sendA2UI(undefined)).ok, false); server.closeStream(); await stream;
   } finally { await server.close(); }
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
-import { createA2UIV091Producer } from "@cylayo/weaver-core";
+import { createA2UIV10Producer } from "@cylayo/weaver-core";
 import { describeWebRenderError, type WebRenderError } from "@cylayo/weaver-web";
 import { encodeA2UIMessage, mountCookbookScreen, type CookbookScreen } from "../shared/harness.js";
 import {
@@ -123,7 +123,7 @@ test("a render failure keeps the accepted data in the store and the last good re
 
 test("a still-over-budget update keeps failing, and a corrective update re-syncs the store and the DOM", () => {
   const { surface, screen, renderErrors } = mountObserved();
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   const lastGoodText = surface.textContent ?? "";
   screen.stream.push(errorDemoBadUpdates()[2]!.chunk);
 

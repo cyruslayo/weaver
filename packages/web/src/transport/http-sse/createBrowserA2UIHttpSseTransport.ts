@@ -17,12 +17,12 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
   let lastEventId = "";
 
   const diagnostic = (value: BrowserA2UIHttpSseDiagnostic): void => { try { options.onDiagnostic?.(value); } catch { /* trusted callback is isolated */ } };
-  const capabilities = () => structuredClone(options.session.getClientCapabilities());
+  const capabilities = () => structuredClone(options.session.getRendererCapabilities());
 
   async function sendNow(delivery: A2UIRoutedDelivery): Promise<BrowserA2UIHttpSseSendResult> {
     if (delivery.routeId !== options.routeId) return { ok: false, error: { code: "DELIVERY_ROUTE_MISMATCH", message: "Delivery route does not match this adapter" } };
-    const metadata: Record<string, unknown> = { a2uiClientCapabilities: capabilities() };
-    if ("clientDataModel" in delivery && delivery.clientDataModel !== undefined) metadata.a2uiClientDataModel = structuredClone(delivery.clientDataModel);
+    const metadata: Record<string, unknown> = { a2uiRendererCapabilities: capabilities() };
+    if ("rendererDataModel" in delivery && delivery.rendererDataModel !== undefined) metadata.a2uiRendererDataModel = structuredClone(delivery.rendererDataModel);
     const body = { message: structuredClone(delivery.message), metadata };
     try {
       const response = await fetchImpl(options.sendUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -59,7 +59,7 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
     if (isHeaderSafeCursor(lastEventId) && lastEventId !== "") headers["Last-Event-ID"] = lastEventId;
     let response: Response;
     try {
-      response = await fetchImpl(options.streamUrl, { method: "POST", headers, body: JSON.stringify({ metadata: { a2uiClientCapabilities: capabilities() } }), ...(signal === undefined ? {} : { signal }) });
+      response = await fetchImpl(options.streamUrl, { method: "POST", headers, body: JSON.stringify({ metadata: { a2uiRendererCapabilities: capabilities() } }), ...(signal === undefined ? {} : { signal }) });
     } catch { return signal?.aborted ? { ok: true, status: "aborted" } : "STREAM_FETCH_FAILED"; }
     if (headers["Last-Event-ID"] !== undefined && response.status === 410) {
       diagnostic({ code: "RESUME_UNAVAILABLE", message: "Server cannot resume from the stored SSE event ID" });

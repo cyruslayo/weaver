@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Weaver is an independent runtime for agent-driven UI. It checks A2UI v0.9.1 output against your catalog, renders it with your components and sends user actions back to your code." />
+    <meta name="description" content="Weaver is an independent runtime for agent-driven UI. It checks A2UI v1.0 output against your catalog, renders it with your components and sends user actions back to your code." />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Weaver — the runtime for agent-driven UI" />
     <meta property="og:description" content="Weaver checks every A2UI message against your catalog, renders it with your components and sends user actions back to your code. Agent output is data, never code." />
@@ -126,7 +126,7 @@
         <div class="window">
           <div class="window-bar">
             <span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span><span class="dot" aria-hidden="true"></span>
-            <span class="mono window-title">createA2UIV091StreamIngestion({ runtime })</span>
+            <span class="mono window-title">createA2UIV10StreamIngestion({ runtime })</span>
           </div>
 
           <div class="stream-tabs" role="tablist" aria-label="Demo step" id="stream-tabs">
@@ -139,11 +139,11 @@
             <section class="pane" id="pane-model" aria-label="From the model">
               <p class="pane-label">From the model · untrusted</p>
               <div class="mono stream-lines">
-                <div class="stream-line"><span class="stream-num">1</span><span class="stream-text">{"version":"v0.9.1","createSurface":{…}}</span></div>
-                <div class="stream-line"><span class="stream-num">2</span><span class="stream-text">{"version":"v0.9.1","updateComponents":{…}}</span></div>
-                <div class="stream-line"><span class="stream-num">3</span><span class="stream-text">{"version":"v0.9.1","updateComponents":{…}}</span></div>
-                <div class="stream-line is-rejected"><span class="stream-num">4</span><span class="stream-text">{"version":"v0.9.1","updateComp</span></div>
-                <div class="stream-line"><span class="stream-num">5</span><span class="stream-text">{"version":"v0.9.1","updateDataModel":{…}}</span></div>
+                <div class="stream-line"><span class="stream-num">1</span><span class="stream-text">{"version":"1.0","createSurface":{…}}</span></div>
+                <div class="stream-line"><span class="stream-num">2</span><span class="stream-text">{"version":"1.0","updateComponents":{…}}</span></div>
+                <div class="stream-line"><span class="stream-num">3</span><span class="stream-text">{"version":"1.0","updateComponents":{…}}</span></div>
+                <div class="stream-line is-rejected"><span class="stream-num">4</span><span class="stream-text">{"version":"1.0","updateComp</span></div>
+                <div class="stream-line"><span class="stream-num">5</span><span class="stream-text">{"version":"1.0","updateDataModel":{…}}</span></div>
               </div>
             </section>
 
@@ -176,13 +176,13 @@
             <figure class="wv-code">
               <figcaption class="wv-code-head"><span>app.ts</span><span>TypeScript</span></figcaption>
               <pre><code>import { createBasicWebRuntime } from "@cylayo/weaver-web";
-import { createA2UIV091StreamIngestion } from "@cylayo/weaver-core";
+import { createA2UIV10StreamIngestion } from "@cylayo/weaver-core";
 
 const created = createBasicWebRuntime();
 if (!created.ok) throw new Error(created.error.code);
 const web = created.value;
 
-const ingestion = createA2UIV091StreamIngestion({ runtime: web.runtime });
+const ingestion = createA2UIV10StreamIngestion({ runtime: web.runtime });
 for await (const delta of providerTextDeltas) {
   for (const event of ingestion.push(delta)) {
     if (!event.ok) report(event.frame, event.error.code);
@@ -242,7 +242,7 @@ web.mount({ surfaceId: "main", target });</code></pre>
             <article class="new-card">
               <h3>Prompts from your catalog</h3>
               <p>The prompt tells the model exactly which components and actions your app accepts, so fewer answers get turned away.</p>
-              <code class="mono new-code">generateA2UIV091Prompt()</code>
+              <code class="mono new-code">generateA2UIV10Prompt()</code>
             </article>
             <article class="new-card">
               <h3>Watch every event</h3>
@@ -276,7 +276,7 @@ web.mount({ surfaceId: "main", target });</code></pre>
         <div class="faq-list wv-acc">
           <details>
             <summary><span>What is A2UI?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>
-            <p class="wv-acc-answer">An open format that lets an AI agent describe an interface as data: which components to show, what they say and what their buttons do. Weaver supports version 0.9.1.</p>
+            <p class="wv-acc-answer">An open format that lets an AI agent describe an interface as data: which components to show, what they say and what their buttons do. Weaver supports A2UI v1.0.</p>
           </details>
           <details open>
             <summary><span>Does Weaver call a model?</span><span class="wv-acc-toggle" aria-hidden="true"><svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></span></summary>

@@ -6,14 +6,21 @@ import type {
 } from "../catalog/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { cloneJson } from "../data-model/clone.js";
-import { DataContext, isDataPathBinding } from "../data-context/index.js";
-import { FunctionEvaluator } from "../functions/index.js";
+import { DataContext } from "../data-context/index.js";
+import {
+  coerceDynamicBoolean,
+  FunctionEvaluator,
+  isDataBinding,
+  isFunctionCall,
+  unescapeLiteralDynamicValue,
+} from "../functions/index.js";
 import type { FunctionEvaluationError } from "../functions/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import type { ComponentPropertyError } from "./errors.js";
 import type {
   ComponentInstanceTreeInput,
+  ResolvedAccessibility,
   ComponentPropertyIssue,
   ComponentPropertyLocationSegment,
   ComponentPropertyResult,
@@ -30,17 +37,26 @@ function clonePlain<T>(value: T): T {
   return cloneJson(value as unknown as JsonValue) as T;
 }
 
-function isFunctionCall(value: JsonValue): value is JsonObject {
-  return (
-    value !== null &&
-    !Array.isArray(value) &&
-    typeof value === "object" &&
-    typeof value.call === "string" &&
-    value.args !== null &&
-    !Array.isArray(value.args) &&
-    typeof value.args === "object"
-  );
-}
+/**
+ * Envelope keys are component-level mixins, not catalog properties. Resolved
+ * accessibility is returned separately; the rest are stripped from properties.
+ */
+const ENVELOPE_KEYS: ReadonlySet<string> = new Set([
+  "id",
+  "component",
+  "@catalogId",
+  "@accessibility",
+  "@metadata",
+  "@checks",
+]);
+const ACCESSIBILITY_LIVE: ReadonlySet<string> = new Set(["off", "polite", "assertive"]);
+/** Envelope mixin pairs where the @-form and the bare form may not coexist. */
+const ENVELOPE_PAIRS: readonly (readonly [string, string])[] = [
+  ["@accessibility", "accessibility"],
+  ["@checks", "checks"],
+  ["@metadata", "metadata"],
+  ["@catalogId", "catalogId"],
+];
 
 function readablePath(
   location: readonly ComponentPropertyLocationSegment[],
@@ -81,7 +97,7 @@ function functionError(
   };
 }
 
-function compatible(kind: DynamicPropertyKind, value: JsonValue): boolean {
+function compatible(kind: DynamicPropertyKind | "dynamicValue", value: JsonValue): boolean {
   switch (kind) {
     case "dynamicString":
       return typeof value === "string";
@@ -89,6 +105,9 @@ function compatible(kind: DynamicPropertyKind, value: JsonValue): boolean {
       return typeof value === "number" && Number.isFinite(value);
     case "dynamicBoolean":
       return typeof value === "boolean";
+    case "dynamicValue":
+      // Any JSON type; literal objects are checked and unescaped by the caller.
+      return true;
     case "dynamicStringList":
       return (
         Array.isArray(value) &&
@@ -97,12 +116,77 @@ function compatible(kind: DynamicPropertyKind, value: JsonValue): boolean {
   }
 }
 
+/**
+ * Rejects envelope conflicts before any evaluation: a component carrying both the
+ * @-form and the bare form of a mixin, or a @catalogId that is not the surface catalog.
+ */
+function checkEnvelope(
+  instance: ResolvedComponentInstance,
+  catalogId: string,
+  catalogs: CatalogRegistry,
+): ComponentPropertyError | undefined {
+  const definition = instance.definition as Record<string, unknown>;
+  for (const [atKey, bareKey] of ENVELOPE_PAIRS) {
+    if (!Object.hasOwn(definition, bareKey)) continue;
+    // A bare key the catalog declares is an ordinary property and may coexist with its @ form.
+    if (catalogs.declaresComponentProperty(catalogId, instance.component, bareKey)) continue;
+    // Deliberate deviation: the v1.0 transitional dual-read of legacy bare accessibility/checks is NOT
+    // implemented. An undeclared bare key (with or without its @ form) is rejected as a reserved-key conflict.
+    return {
+      code: "INVALID_RESERVED_KEY",
+      message: Object.hasOwn(definition, atKey)
+        ? `Component "${instance.sourceComponentId}" carries both "${atKey}" and the undeclared "${bareKey}"`
+        : `Component "${instance.sourceComponentId}" carries the undeclared bare "${bareKey}"; use "${atKey}"`,
+      sourceComponentId: instance.sourceComponentId,
+      key: bareKey,
+    };
+  }
+  const declared = definition["@catalogId"];
+  if (declared !== undefined && declared !== catalogId) {
+    return {
+      code: "UNSUPPORTED_FEATURE",
+      message: `Component "${instance.sourceComponentId}" declares @catalogId "${String(declared)}" which differs from the surface catalog; multi-catalog components are not yet supported`,
+      sourceComponentId: instance.sourceComponentId,
+      feature: "@catalogId",
+    };
+  }
+  return undefined;
+}
+
 function catalogFailure(cause: CatalogRegistryError): ComponentPropertyError {
   return {
     code: "CATALOG_PROPERTY_METADATA_FAILED",
     message: cause.message,
     cause,
   };
+}
+
+/** Resolves the @accessibility envelope; label and description are DynamicStrings and hidden is a DynamicBoolean. */
+function resolveAccessibility(
+  instance: ResolvedComponentInstance,
+  hydrate: (original: JsonValue, valueKind: DynamicPropertyKind | "dynamicValue", location: readonly ComponentPropertyLocationSegment[]) => HydratedValue,
+): ResolvedAccessibility | undefined {
+  const source = instance.definition["@accessibility"];
+  if (source === undefined || source === null || typeof source !== "object" || Array.isArray(source)) return undefined;
+  const attributes = source as JsonObject;
+  const base = (name: string): readonly ComponentPropertyLocationSegment[] => [
+    { kind: "property", name: "@accessibility" },
+    { kind: "property", name },
+  ];
+  const result: ResolvedAccessibility = {};
+  for (const name of ["label", "description"] as const) {
+    if (!Object.hasOwn(attributes, name)) continue;
+    const value = hydrate(attributes[name]!, "dynamicString", base(name));
+    if (typeof value === "string") result[name] = value;
+  }
+  if (typeof attributes.live === "string" && ACCESSIBILITY_LIVE.has(attributes.live)) {
+    result.live = attributes.live as ResolvedAccessibility["live"];
+  }
+  if (Object.hasOwn(attributes, "hidden")) {
+    const value = hydrate(attributes.hidden!, "dynamicBoolean", base("hidden"));
+    if (typeof value === "boolean") result.hidden = value;
+  }
+  return result;
 }
 
 /** Hydrates catalog-declared dynamic properties, evaluating catalog functions through the evaluator. */
@@ -117,6 +201,8 @@ export class ComponentPropertyResolver {
     dataContext: DataContext,
     catalogId: string,
   ): ComponentPropertyResult {
+    const envelope = checkEnvelope(instance, catalogId, this.catalogs);
+    if (envelope !== undefined) return { ok: false, error: envelope };
     const structure = this.catalogs.getComponentStructure(
       catalogId,
       instance.component,
@@ -147,13 +233,13 @@ export class ComponentPropertyResolver {
     const issues: ComponentPropertyIssue[] = [];
 
     for (const [property, original] of Object.entries(instance.definition)) {
-      if (property === "id" || property === "component") continue;
+      if (ENVELOPE_KEYS.has(property)) continue;
       properties[property] = cloneJson(original);
     }
 
     const hydrateValue = (
       original: JsonValue,
-      valueKind: DynamicPropertyKind,
+      valueKind: DynamicPropertyKind | "dynamicValue",
       location: readonly ComponentPropertyLocationSegment[],
     ): HydratedValue => {
       const property = location[0]?.kind === "property" ? location[0].name : "";
@@ -169,7 +255,7 @@ export class ComponentPropertyResolver {
           unresolved.push({
             property,
             reason: "FUNCTION_EVALUATION_FAILED",
-            functionCall: cloneJson(original),
+            functionCall: cloneJson(original) as JsonObject,
             ...nestedLocation(location),
           });
           issues.push(
@@ -184,13 +270,32 @@ export class ComponentPropertyResolver {
         }
         value = evaluated.value;
         functionOwned = true;
-      } else if (isDataPathBinding(original)) {
+      } else if (isDataBinding(original)) {
         const resolved = dataContext.resolveBinding(original);
         value = resolved.ok ? resolved.value : undefined;
+      } else if (valueKind === "dynamicValue") {
+        // A DynamicValue literal: @@ keys unescape to @; any other reserved key is a typed issue.
+        const unescaped = unescapeLiteralDynamicValue(original);
+        if (!unescaped.ok) {
+          issues.push({
+            code: "INVALID_RESERVED_KEY",
+            sourceComponentId: instance.sourceComponentId,
+            property,
+            key: unescaped.error.key,
+            path: unescaped.error.path,
+            ...nestedLocation(location),
+          });
+          return undefined;
+        }
+        value = unescaped.value;
       } else {
         value = cloneJson(original);
       }
 
+      // DynamicBoolean positions always receive a boolean (absent and null become false).
+      if (valueKind === "dynamicBoolean") {
+        return coerceDynamicBoolean(value);
+      }
       if (value !== undefined && !compatible(valueKind, value)) {
         issues.push({
           code: "DYNAMIC_VALUE_TYPE_MISMATCH",
@@ -214,7 +319,7 @@ export class ComponentPropertyResolver {
       original: JsonValue,
       target: HydratedValue,
       runtimePath: ComponentPropertyLocationSegment[],
-      valueKind: DynamicPropertyKind,
+      valueKind: DynamicPropertyKind | "dynamicValue",
     ): HydratedValue => {
       if (offset === schemaPath.length)
         return hydrateValue(original, valueKind, runtimePath);
@@ -281,7 +386,7 @@ export class ComponentPropertyResolver {
       runtimePath: ComponentPropertyLocationSegment[],
     ): HydratedValue => {
       if (offset === schemaPath.length) {
-        if (!isDataPathBinding(original)) return cloneJson(original);
+        if (!isDataBinding(original)) return cloneJson(original);
         const property =
           runtimePath[0]?.kind === "property" ? runtimePath[0].name : "";
         const resolved = dataContext.resolveBinding(original);
@@ -394,7 +499,8 @@ export class ComponentPropertyResolver {
     for (const location of structuralMetadata.value)
       removeStructural(properties, location.path, 0);
 
-    return { ok: true, value: { properties, unresolved, issues } };
+    const accessibility = resolveAccessibility(instance, hydrateValue);
+    return { ok: true, value: { properties, unresolved, issues, ...(accessibility === undefined ? {} : { accessibility }) } };
   }
 
   resolveTree(
@@ -516,6 +622,7 @@ export class ComponentPropertyResolver {
             ? {}
             : { collectionIndex: instance.collectionIndex }),
           properties: own.value.properties,
+          ...(own.value.accessibility === undefined ? {} : { accessibility: own.value.accessibility }),
           relationships,
           unresolved: own.value.unresolved,
         },

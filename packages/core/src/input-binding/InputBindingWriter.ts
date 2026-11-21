@@ -1,6 +1,7 @@
 import type { CatalogRegistry, DynamicPropertyKind } from "../catalog/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
-import { DataContext, isDataPathBinding } from "../data-context/index.js";
+import { DataContext } from "../data-context/index.js";
+import { isDataBinding } from "../functions/index.js";
 import type { JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot, SurfaceStore } from "../surfaces/index.js";
 import type { InputBindingWriteResult, InputBindingWriteRequest } from "./types.js";
@@ -61,7 +62,7 @@ export class InputBindingWriter {
     }
 
     const binding = component[property];
-    if (!isDataPathBinding(binding)) {
+    if (!isDataBinding(binding)) {
       return { ok: false, error: { code: "INPUT_PROPERTY_NOT_BOUND", sourceComponentId: instance.sourceComponentId, property } };
     }
 

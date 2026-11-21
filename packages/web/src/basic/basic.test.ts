@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Window } from "happy-dom";
-import type { BasicRegexMatcher } from "@cylayo/weaver-core";
 import { RendererRegistry, type WebComponentInteractions, type WebComponentRenderInput, type WebComponentRenderer } from "../renderers/index.js";
 import { createBasicCatalogRendererRegistrations } from "./createBasicCatalogRendererRegistrations.js";
 import type { BasicIconResolver } from "./icon.js";
 import type { BasicResourcePolicy } from "./media.js";
 
-function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy, iconResolver?: BasicIconResolver, regexMatcher?: BasicRegexMatcher) {
+function setup(component: string, overrides: Partial<WebComponentRenderInput> = {}, resourcePolicy?: BasicResourcePolicy, iconResolver?: BasicIconResolver) {
   const window = new Window();
   const document = window.document as unknown as Document;
   const calls: string[] = [];
-  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy, iconResolver, regexMatcher })
+  const registration = createBasicCatalogRendererRegistrations({ catalogId: "test-basic", resourcePolicy, iconResolver })
     .find((candidate) => candidate.component === component);
   assert.ok(registration);
   const input = {
@@ -91,6 +90,75 @@ test("media skips unavailable URLs and denied or empty rewrites", () => {
   assert.equal(calls, 1);
 });
 
+test("media URL rule rejects unsafe schemes and protocol-relative paths before the host policy runs", () => {
+  const rejected = [
+    "javascript:alert(1)", "JAVASCRIPT:alert(1)", "file:///etc/passwd", "content://app/x", "blob:https://example.com/x",
+    "ftp://example.com/x", "ht\ttps://host/x", "https:host/x", "https:/host/x", "https://", "https:///path",
+    "https:\\\\host/x", "//evil.example/x", "\t//evil.example/x", "/\\evil.example/x", "\\\\evil.example/x", "\\/evil.example/x",
+  ];
+  for (const component of ["Image", "Video", "AudioPlayer"] as const) {
+    for (const url of rejected) {
+      let calls = 0;
+      const node = setup(component, { properties: { url } }, () => { calls++; return url; }).node;
+      assert.equal(node.querySelector("[data-a2ui-resource-state]")?.getAttribute("data-a2ui-resource-state") ?? node.getAttribute("data-a2ui-resource-state"), "rejected", `${component} ${JSON.stringify(url)}`);
+      assert.equal(calls, 0, `${component} ${JSON.stringify(url)} never reaches the policy`);
+      assert.equal(node.querySelector("[src]") === null && !node.hasAttribute("src"), true, `${component} ${JSON.stringify(url)} renders no src`);
+    }
+  }
+});
+
+test("media URL rule accepts trimmed http(s) with a host, data URLs, and same-host relative paths", () => {
+  const eligible: Array<[string, string]> = [
+    ["https://cdn.example/a.png", "https://cdn.example/a.png"],
+    ["  https://cdn.example/a.png \n", "https://cdn.example/a.png"],
+    ["HTTPS://Cdn.Example/A.png", "HTTPS://Cdn.Example/A.png"],
+    ["http://127.0.0.1:8080/x", "http://127.0.0.1:8080/x"],
+    ["data:image/png;base64,AAAA", "data:image/png;base64,AAAA"],
+    ["/assets/a.png", "/assets/a.png"],
+    ["assets/a.png", "assets/a.png"],
+    ["./a.png", "./a.png"],
+  ];
+  for (const [url, expected] of eligible) {
+    const seen: string[] = [];
+    const node = setup("Image", { properties: { url } }, (request) => { seen.push(request.url); return request.url; }).node;
+    assert.deepEqual(seen, [expected], url);
+    assert.equal(node.getAttribute("src"), expected, url);
+  }
+});
+
+test("media URL rule trims control characters and never replaces the host policy", () => {
+  const policy: BasicResourcePolicy = () => undefined;
+  const node = setup("Video", { properties: { url: "https://cdn.example/v.mp4" } }, policy).node;
+  assert.equal(node.getAttribute("data-a2ui-resource-state"), "blocked");
+  assert.equal(setup("AudioPlayer", { properties: { url: "\u0000\u0001  " } }).node.querySelector("audio")?.getAttribute("data-a2ui-resource-state"), "unavailable");
+  // A host policy may approve even a non-spec string, but only the policy's output is loaded.
+  assert.equal(setup("Image", { properties: { url: "/a.png" } }, () => "/proxy/a.png").node.getAttribute("src"), "/proxy/a.png");
+});
+
+test("Video posterUrl is deny-by-default, uses the image policy, and follows the same URL rule", () => {
+  const blocked = setup("Video", { properties: { url: "/v.mp4", posterUrl: "/poster.png" } }).node as HTMLVideoElement;
+  assert.equal(blocked.hasAttribute("poster"), false);
+  assert.equal(blocked.getAttribute("data-a2ui-poster-state"), "blocked");
+  assert.equal(blocked.getAttribute("data-a2ui-resource-state"), "blocked");
+
+  const requests: unknown[] = [];
+  const policy: BasicResourcePolicy = (request) => { requests.push(request); return request.kind === "image" ? "/proxy/poster.png" : request.url; };
+  const approved = setup("Video", { properties: { url: "/v.mp4", posterUrl: "  /poster.png  " } }, policy).node as HTMLVideoElement;
+  assert.equal(approved.getAttribute("poster"), "/proxy/poster.png");
+  assert.equal(approved.getAttribute("src"), "/v.mp4");
+  assert.deepEqual(requests, [{ kind: "video", url: "/v.mp4" }, { kind: "image", url: "/poster.png" }]);
+
+  for (const posterUrl of ["javascript:alert(1)", "//evil.example/p.png", "https:host/p.png", "", undefined, 42]) {
+    let calls = 0;
+    const video = setup("Video", { properties: { url: "/v.mp4", posterUrl } }, (request) => { if (request.kind === "image") calls++; return "/p.png"; }).node as HTMLVideoElement;
+    assert.equal(video.hasAttribute("poster"), false, String(posterUrl));
+    assert.equal(calls, 0, `${String(posterUrl)} never reaches the policy`);
+  }
+  const absent = setup("Video", { properties: { url: "/v.mp4" } }, policy).node as HTMLVideoElement;
+  assert.equal(absent.getAttribute("data-a2ui-poster-state"), "unavailable");
+  assert.equal(setup("AudioPlayer", { properties: { url: "/a.mp3", posterUrl: "/p.png" } }, policy).node.querySelector("audio")?.hasAttribute("poster"), false);
+});
+
 test("Image maps native accessibility, fit, and variant behavior", () => {
   const fits = { contain: "contain", cover: "cover", fill: "fill", none: "none", scaleDown: "scale-down" };
   for (const [fit, css] of Object.entries(fits)) assert.equal(setup("Image", { properties: { fit } }).node.style.objectFit, css);
@@ -124,14 +192,38 @@ test("Video and AudioPlayer use native controls without autoplay and safe captio
   assert.equal(setup("AudioPlayer").node.querySelector("figcaption") === null, true, "no figcaption");
 });
 
-test("Text selects native semantic elements and defaults to body", () => {
-  const variants = { h1: "H1", h2: "H2", h3: "H3", h4: "H4", h5: "H5", caption: "SMALL", body: "P" };
-  for (const [variant, tag] of Object.entries(variants)) assert.equal(setup("Text", { properties: { text: "x", variant } }).node.tagName, tag);
+test("Text selects native semantic elements; only caption and body variants exist", () => {
+  assert.equal(setup("Text", { properties: { text: "x", variant: "caption" } }).node.tagName, "SMALL");
+  assert.equal(setup("Text", { properties: { text: "x", variant: "body" } }).node.tagName, "P");
   assert.equal(setup("Text", { properties: { text: "x" } }).node.tagName, "P");
+  // Removed v0.9.1 heading variants fall back to body instead of selecting a heading element.
+  for (const variant of ["h1", "h2", "h3", "h4", "h5", "unknown"]) assert.equal(setup("Text", { properties: { text: "x", variant } }).node.tagName, "P", variant);
+});
+
+test("Text Markdown headings render as native h1..h5 elements inside a div root", () => {
+  const node = setup("Text", { properties: { text: "# One\n## Two\n### Three\n#### Four\n##### Five\nbody **strong**" } }).node;
+  assert.equal(node.tagName, "DIV");
+  assert.deepEqual([...node.children].map((item) => item.tagName), ["H1", "H2", "H3", "H4", "H5", "P"]);
+  assert.deepEqual([...node.querySelectorAll("h1,h2,h3,h4,h5")].map((item) => (item as HTMLElement).style.fontSize), ["2.5em", "2em", "1.75em", "1.5em", "1.25em"]);
+  assert.equal(node.querySelector("h1")?.textContent, "One");
+  assert.equal(node.querySelector("p strong")?.textContent, "strong");
+  assert.equal(node.querySelector("h2")?.style.fontWeight, "700");
+});
+
+test("Text Markdown heading syntax is strict: six hashes, missing space, and empty headings stay literal", () => {
+  for (const text of ["###### six", "#nospace", "#", "# ", "    # indented"]) {
+    const node = setup("Text", { properties: { text } }).node;
+    assert.equal(node.tagName, "P", text);
+    assert.equal(node.querySelector("h1,h2,h3,h4,h5,h6") === null, true, text);
+    assert.equal(node.textContent, text, text);
+  }
+  const mixed = setup("Text", { properties: { text: "# Title\n" } }).node;
+  assert.equal(mixed.querySelector("h1")?.textContent, "Title");
+  assert.equal(setup("Text", { properties: { text: "# Windows\r\nbody" } }).node.querySelector("h1")?.textContent, "Windows");
 });
 
 test("Text variants own deterministic typography, margin, and inherited color", () => {
-  const sizes = { h1: "2.5em", h2: "2em", h3: "1.75em", h4: "1.5em", h5: "1.25em", caption: "0.8em", body: "1em" };
+  const sizes = { caption: "0.8em", body: "1em" };
   for (const [variant, size] of Object.entries(sizes)) {
     const node = setup("Text", { properties: { variant, text: "x" } }).node;
     assert.equal(node.style.fontSize, size); assert.match(node.getAttribute("style") ?? "", /margin: var\(--a2ui-space, 8px\)/); assert.equal(node.style.color, "");
@@ -151,15 +243,19 @@ test("Text safely renders the supported inline Markdown subset", () => {
 test("Text Markdown treats HTML, links, images, code contents, and headings as inert text", () => {
   const source = "# Heading <b>bold?</b> <script>alert(1)</script> [click](javascript:alert(1)) ![x](https://example.com/x.png) `<script>x</script>`";
   const node = setup("Text", { properties: { text: source } }).node;
-  assert.equal(node.textContent, source.replaceAll("`", ""));
+  assert.equal(node.querySelector("h1")?.textContent, source.slice("# ".length).replaceAll("`", ""));
   for (const selector of ["b", "script", "a", "img"]) assert.equal(node.querySelector(selector) === null, true, `no ${selector}`);
   assert.equal(node.querySelector("code")?.textContent, "<script>x</script>");
+  const paragraph = setup("Text", { properties: { text: "<b>bold</b> [link](https://x.example) ![img](https://x.example/i.png)" } }).node;
+  for (const selector of ["b", "a", "img"]) assert.equal(paragraph.querySelector(selector) === null, true, `no ${selector} in paragraph`);
+  assert.equal(paragraph.textContent, "<b>bold</b> [link](https://x.example) ![img](https://x.example/i.png)");
 });
 
 test("Text Markdown preserves escapes, malformed markers, variants, and missing text", () => {
   assert.equal(setup("Text", { properties: { text: String.raw`\*literal* \_literal_ \`literal\` \\` } }).node.textContent, "*literal* _literal_ `literal` \\");
   for (const text of ["**hello", "`code", "text_"]) assert.equal(setup("Text", { properties: { text } }).node.textContent, text);
   assert.equal(setup("Text", { properties: { variant: "h2", text: "Hello **world**" } }).node.querySelector("strong")?.textContent, "world");
+  assert.equal(setup("Text", { properties: { variant: "h2", text: "Hello **world**" } }).node.tagName, "P");
   assert.equal(setup("Text", { properties: { variant: "caption", text: "*small*" } }).node.tagName, "SMALL");
   assert.equal(setup("Text", { properties: { text: undefined } }).node.textContent, "");
   assert.equal(setup("Text", { properties: { text: null } }).node.textContent, "");
@@ -449,13 +545,6 @@ test("checked CheckBox, Slider and ChoicePicker accents meet 3:1 non-text contra
   for (const ratio of ratios) assert.ok(ratio >= 3, `non-text accent contrast ${ratio.toFixed(4)} is below 3`);
 });
 
-test("Button mirrors supplied checks and disables a progressively empty control", () => {
-  for (const status of ["invalid", "pending", "error"] as const) assert.equal((setup("Button", { checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status, checks: [] } }).node as HTMLButtonElement).disabled, true);
-  const base = setup("Button"); const label = child(base.document, "Go");
-  const valid = setup("Button", { checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status: "valid", checks: [] }, relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: label }] }).node as HTMLButtonElement;
-  assert.equal(valid.disabled, false);
-  assert.equal((setup("Button").node as HTMLButtonElement).disabled, true);
-});
 
 test("Basic inputs use native controls and normalized writes", () => {
   const cases = [
@@ -476,50 +565,75 @@ test("Basic inputs use native controls and normalized writes", () => {
   assert.equal((setup("Slider", { properties: { max: 10 } }).node.querySelector("input") as HTMLInputElement).disabled, true);
 });
 
-test("TextField validationRegexp uses only the optional trusted matcher", () => {
-  const calls: unknown[] = [];
-  const matcher: BasicRegexMatcher = (request) => { calls.push(request); return request.value === "42.5"; };
-  const noPattern = setup("TextField", { properties: { value: "42.5" } }, undefined, undefined, matcher).node;
-  assert.equal(calls.length, 0); assert.equal(noPattern.getAttribute("data-a2ui-regexp-state"), null);
-  const unavailable = setup("TextField", { properties: { value: "x", validationRegexp: "trusted syntax" } }).node;
-  assert.equal(unavailable.getAttribute("data-a2ui-regexp-state"), "unavailable"); assert.equal(unavailable.querySelector("input")?.hasAttribute("pattern"), false); assert.notEqual(unavailable.querySelector("input")?.getAttribute("aria-invalid"), "true");
-  const passed = setup("TextField", { properties: { value: "42.5", validationRegexp: "decimal", variant: "number" } }, undefined, undefined, matcher).node;
-  assert.equal(passed.getAttribute("data-a2ui-regexp-state"), "passed"); assert.notEqual(passed.querySelector("input")?.getAttribute("aria-invalid"), "true");
-  const failed = setup("TextField", { properties: { value: "bad", validationRegexp: "decimal" } }, undefined, undefined, matcher).node;
-  assert.equal(failed.getAttribute("data-a2ui-regexp-state"), "failed"); assert.equal(failed.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(failed.querySelector("input")?.getAttribute("aria-invalid"), "true"); assert.equal((failed.querySelector("input") as HTMLInputElement).disabled, false);
-  assert.deepEqual(calls, [{ value: "42.5", pattern: "decimal" }, { value: "bad", pattern: "decimal" }]);
+test("TextField renders placeholder, disables an unresolved required value, and writes bound text", () => {
+  const writes: unknown[] = [];
+  const bound = setup("TextField", { properties: { label: "Name", value: "Ada", placeholder: "Enter name" }, interactions: interactions(writes) }).node.querySelector("input")!;
+  assert.equal(bound.placeholder, "Enter name"); assert.equal(bound.disabled, false); assert.equal(bound.value, "Ada");
+  const unresolved = setup("TextField", { properties: { label: "Name" } }).node.querySelector("input")!;
+  assert.equal(unresolved.disabled, true); assert.equal(unresolved.hasAttribute("placeholder"), false);
 });
 
-test("TextField regexp handles empty, missing, throwing, and non-boolean matcher results", () => {
-  const values: string[] = [];
-  const matcher: BasicRegexMatcher = ({ value }) => { values.push(value); return true; };
-  setup("TextField", { properties: { value: "", validationRegexp: "p" } }, undefined, undefined, matcher);
-  const pending = setup("TextField", { properties: { value: undefined, validationRegexp: "p" } }, undefined, undefined, matcher).node;
-  assert.deepEqual(values, [""]); assert.equal(pending.getAttribute("data-a2ui-regexp-state"), "pending"); assert.notEqual(pending.querySelector("input")?.getAttribute("aria-invalid"), "true");
-  for (const unsafe of [(() => { throw new Error("host secret"); }) as BasicRegexMatcher, (() => "yes") as unknown as BasicRegexMatcher]) {
-    const node = setup("TextField", { properties: { value: "x", validationRegexp: "p" } }, undefined, undefined, unsafe).node;
-    assert.equal(node.getAttribute("data-a2ui-regexp-state"), "error"); assert.equal(node.getAttribute("data-a2ui-validation-state"), "error"); assert.notEqual(node.querySelector("input")?.getAttribute("aria-invalid"), "true"); assert.equal(node.textContent?.includes("host secret"), false);
+test("Slider steps divide the range into equal intervals and snap written values", () => {
+  const writes: unknown[] = [];
+  const stepped = setup("Slider", { properties: { min: 0, max: 10, steps: 4, value: 2.5 }, interactions: interactions(writes) }).node.querySelector("input") as HTMLInputElement;
+  assert.equal(stepped.step, "2.5");
+  stepped.value = "4.2"; fire(stepped, "input");
+  assert.deepEqual(writes, [["value", 5]]);
+  stepped.value = "10"; fire(stepped, "input");
+  assert.deepEqual(writes.at(-1), ["value", 10]);
+  for (const steps of [0, 1.5, "4", -1, undefined]) {
+    assert.equal((setup("Slider", { properties: { min: 0, max: 10, value: 1, steps } }).node.querySelector("input") as HTMLInputElement).step, "any", String(steps));
   }
+  const offset = setup("Slider", { properties: { min: 1, max: 2, steps: 3, value: 1 }, interactions: interactions(writes) }).node.querySelector("input") as HTMLInputElement;
+  assert.equal(offset.step, String(1 / 3));
+  offset.value = "1.4"; fire(offset, "input");
+  assert.deepEqual(writes.at(-1), ["value", 1.3333333333]);
 });
 
-test("TextField combines Core checks and renderer-owned regexp messages", () => {
-  const coreInvalid = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Core message", issues: [] }] };
-  const coreError = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "error" as const, checks: [] };
-  const pass: BasicRegexMatcher = () => true; const fail: BasicRegexMatcher = () => false; const error: BasicRegexMatcher = () => { throw new Error("private"); };
-  const invalidPass = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreInvalid }, undefined, undefined, pass).node;
-  assert.equal(invalidPass.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(invalidPass.textContent?.includes("Core message"), true);
-  const errorFail = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreError }, undefined, undefined, fail).node;
-  assert.equal(errorFail.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(errorFail.querySelector("input")?.getAttribute("aria-invalid"), "true");
-  assert.equal(errorFail.textContent?.includes("Value does not match the required format."), true);
-  const invalidError = setup("TextField", { properties: { value: "x", validationRegexp: "p" }, checks: coreInvalid }, undefined, undefined, error).node;
-  assert.equal(invalidError.getAttribute("data-a2ui-validation-state"), "invalid"); assert.equal(invalidError.textContent?.includes("Core message"), true);
-  const validError = setup("TextField", { properties: { value: "x", validationRegexp: "p" } }, undefined, undefined, error).node;
-  assert.equal(validError.getAttribute("data-a2ui-validation-state"), "error"); assert.notEqual(validError.querySelector("input")?.getAttribute("aria-invalid"), "true");
+test("Basic inputs render Core check messages by severity; advisory checks never block", () => {
+  const advisory = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "valid" as const, checks: [{ index: 0, status: "advisory" as const, severity: "warning" as const, message: "Consider a longer name", issues: [] }] };
+  const advisoryNode = setup("TextField", { properties: { value: "A" }, checks: advisory }).node;
+  assert.equal(advisoryNode.getAttribute("data-a2ui-validation-state"), "valid");
+  const input = advisoryNode.querySelector("input")!;
+  assert.notEqual(input.getAttribute("aria-invalid"), "true"); assert.equal(input.disabled, false);
+  const note = advisoryNode.querySelector('[data-a2ui-check-status="advisory"]')!;
+  assert.equal(note.textContent, "Consider a longer name"); assert.equal(note.getAttribute("data-a2ui-check-severity"), "warning");
+  assert.equal(input.getAttribute("aria-describedby"), note.id);
+
+  const failed = { sourceComponentId: "root", scopePath: "/", checkable: true, status: "invalid" as const, checks: [
+    { index: 0, status: "failed" as const, severity: "error" as const, message: "Required", issues: [] },
+    { index: 1, status: "advisory" as const, severity: "info" as const, message: "Tip", issues: [] },
+  ] };
+  const blocked = setup("CheckBox", { properties: { label: "Accept", value: false }, checks: failed }).node;
+  assert.equal(blocked.getAttribute("data-a2ui-validation-state"), "invalid");
+  const box = blocked.querySelector("input")!;
+  assert.equal(box.getAttribute("aria-invalid"), "true");
+  assert.equal(blocked.querySelector('[data-a2ui-check-status="failed"]')?.textContent, "Required");
+  assert.equal(blocked.querySelector('[data-a2ui-check-status="advisory"]')?.getAttribute("data-a2ui-check-severity"), "info");
+  assert.equal(box.getAttribute("aria-describedby")?.split(" ").length, 2);
+
+  const pending = setup("TextField", { properties: { value: "" }, checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status: "pending" as const, checks: [] } }).node;
+  assert.equal(pending.getAttribute("data-a2ui-validation-state"), "pending");
+  assert.notEqual(pending.querySelector("input")?.getAttribute("aria-invalid"), "true");
+  assert.equal(pending.querySelector("[data-a2ui-check-status]"), null);
+});
+
+test("Button disables only on a blocking invalid check; pending and error are left to Core's action gate", () => {
+  const base = setup("Button");
+  const withChild = (status: "valid" | "invalid" | "pending" | "error") => setup("Button", {
+    checks: { sourceComponentId: "root", scopePath: "/", checkable: true, status, checks: [] },
+    relationships: [{ kind: "single", property: "child", location: [{ kind: "property", name: "child" }], child: child(base.document, "Go") }],
+  }).node as HTMLButtonElement;
+  assert.equal(withChild("invalid").disabled, true);
+  assert.equal(withChild("pending").disabled, false);
+  assert.equal(withChild("error").disabled, false);
+  assert.equal(withChild("valid").disabled, false);
+  assert.equal((setup("Button").node as HTMLButtonElement).disabled, true, "a progressively empty button stays disabled");
 });
 
 test("TextField defers writes until IME composition ends", () => {
   const writes: unknown[] = [];
-  const control = setup("TextField", { properties: { label: undefined }, interactions: interactions(writes) }).node.querySelector("input")!;
+  const control = setup("TextField", { properties: { label: undefined, value: "" }, interactions: interactions(writes) }).node.querySelector("input")!;
   fire(control, "compositionstart"); control.value = "に"; fire(control, "input"); control.value = "日本"; fire(control, "input"); fire(control, "compositionend");
   assert.deepEqual(writes, [["value", "日本"]]);
 });
@@ -558,11 +672,12 @@ test("DateTimeInput applies safe native date/time policy", () => {
 });
 
 test("invalid inputs associate every failed message with their bound native controls", () => {
-  const checks = { sourceComponentId: "internal-id", scopePath: "/private/path", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, message: "Required", issues: [] }, { index: 1, status: "failed" as const, message: "Too short", issues: [] }] };
+  const checks = { sourceComponentId: "internal-id", scopePath: "/private/path", checkable: true, status: "invalid" as const, checks: [{ index: 0, status: "failed" as const, severity: "error" as const, message: "Required", issues: [] }, { index: 1, status: "failed" as const, severity: "error" as const, message: "Too short", issues: [] }] };
   for (const component of ["TextField", "CheckBox", "Slider", "ChoicePicker", "DateTimeInput"] as const) {
     const properties = component === "ChoicePicker" ? { filterable: true, options: [{ label: "A", value: "a" }], value: [] }
       : component === "DateTimeInput" ? { enableDate: true, enableTime: true, value: "" }
-      : component === "Slider" ? { value: 1 } : {};
+      : component === "Slider" ? { value: 1 } : component === "TextField" ? { value: "" } : {};
+
     const node = setup(component, { properties, checks }).node;
     const controls = [...node.querySelectorAll<HTMLInputElement>(component === "ChoicePicker" ? 'input[type="radio"]' : "input,textarea")].filter((control) => control.type !== "search");
     assert.ok(controls.length > 0);
@@ -573,14 +688,6 @@ test("invalid inputs associate every failed message with their bound native cont
     }
     assert.equal(node.querySelector('input[type="search"]')?.hasAttribute("aria-describedby") ?? false, false);
   }
-});
-
-test("TextField regexp failure is associated and recovery removes renderer-owned state", () => {
-  const fail = setup("TextField", { properties: { value: "bad", validationRegexp: "p" } }, undefined, undefined, () => false).node;
-  const control = fail.querySelector("input")!; const described = control.getAttribute("aria-describedby")!;
-  assert.equal(fail.querySelector(`#${described}`)?.textContent, "Value does not match the required format.");
-  const recovered = setup("TextField", { properties: { value: "good", validationRegexp: "p" } }, undefined, undefined, () => true).node;
-  assert.notEqual(recovered.querySelector("input")?.getAttribute("aria-invalid"), "true"); assert.equal(recovered.querySelector("input")?.hasAttribute("aria-describedby"), false); assert.equal(recovered.textContent?.includes("required format"), false);
 });
 
 function interactions(writes: unknown[]) { return { registerControl: () => {}, getLocalState: <T>(_key: string, fallback: T) => structuredClone(fallback), setLocalState: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }), writeInput: (property: string, value: unknown) => { writes.push([property, value]); return { ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }; }, dispatchAction: () => ({ ok: false as const, error: { code: "STALE_RENDER_INTERACTION" as const } }) }; }

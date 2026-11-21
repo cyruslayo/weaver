@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DataContext } from "./DataContext.js";
-import { isDataPathBinding } from "./types.js";
+import { isDataBinding } from "../functions/dynamic.js";
 
 function ok<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   assert.equal(result.ok, true);
@@ -103,17 +103,26 @@ test("absolute and relative paths share pointer escaping semantics", () => {
 test("bindings resolve values and expose absolute write-preparation paths", () => {
   const root = DataContext.root(snapshot);
   const child = ok(root.createCollectionItemContext("/users", 0));
-  assert.equal(ok(root.resolveBinding({ path: "/company" })), "Acme");
-  assert.equal(ok(child.resolveBinding({ path: "/company" })), "Acme");
-  assert.equal(ok(child.resolveBinding({ path: "name" })), "Ada");
-  assert.equal(ok(child.resolveBindingPath({ path: "name" })), "/users/0/name");
+  assert.equal(ok(root.resolveBinding({ "@path": "/company" })), "Acme");
+  assert.equal(ok(child.resolveBinding({ "@path": "/company" })), "Acme");
+  assert.equal(ok(child.resolveBinding({ "@path": "name" })), "Ada");
+  assert.equal(ok(child.resolveBindingPath({ "@path": "name" })), "/users/0/name");
   assert.equal(ok(child.resolvePath("/company")), "/company");
 });
 
 test("path binding detection is strict and excludes function calls", () => {
-  assert.equal(isDataPathBinding({ path: "/company" }), true);
-  assert.equal(isDataPathBinding({ path: "name", extra: true }), false);
-  assert.equal(isDataPathBinding({ call: "formatString", args: {} }), false);
+  assert.equal(isDataBinding({ "@path": "/company" }), true);
+  assert.equal(isDataBinding({ "@path": "name", extra: true }), false);
+  assert.equal(isDataBinding({ path: "/company" }), false, "the legacy path key is literal");
+  assert.equal(isDataBinding({ call: "formatString", args: {} }), false);
+});
+
+test("an empty relative path names the current collection item", () => {
+  const root = DataContext.root(snapshot);
+  const child = ok(root.createCollectionItemContext("/users", 1));
+  assert.equal((ok(child.resolveBinding({ "@path": "" })) as { name: string }).name, "Grace");
+  assert.equal(ok(child.resolvePath("")), "/users/1");
+  assert.equal(errorCode(root.resolvePath("")), "INVALID_PATH");
 });
 
 test("child reads are defensive and cannot affect parent or sibling contexts", () => {

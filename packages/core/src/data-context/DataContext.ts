@@ -49,11 +49,11 @@ export class DataContext {
   }
 
   resolveBinding(binding: DataPathBinding): DataContextResult<JsonValue | undefined> {
-    return this.get(binding.path);
+    return this.get(binding["@path"]);
   }
 
   resolveBindingPath(binding: DataPathBinding): DataContextResult<string> {
-    return this.resolvePath(binding.path);
+    return this.resolvePath(binding["@path"]);
   }
 
   createCollectionItemContext(

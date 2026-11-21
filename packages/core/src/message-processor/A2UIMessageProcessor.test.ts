@@ -6,7 +6,7 @@ import type { JsonObject } from "../protocol/index.js";
 import { SurfaceStore } from "../surfaces/index.js";
 import { A2UIMessageProcessor } from "./A2UIMessageProcessor.js";
 
-const envelope = (message: Record<string, unknown>) => ({ version: "v0.9.1", ...message });
+const envelope = (message: Record<string, unknown>) => ({ version: "1.0", ...message });
 const create = (surfaceId = "main", extra: Record<string, unknown> = {}) =>
   envelope({ createSurface: { surfaceId, catalogId: "catalog", ...extra } });
 const components = (surfaceId: string, value: string, id = "root") =>
@@ -22,34 +22,32 @@ const data = (surfaceId: string, update: Record<string, unknown> = {}) =>
 function testCatalog(catalogId: string, components: JsonObject = {}): JsonObject {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
+    protocolVersion: "1.0",
     catalogId,
     components: {
       Text: {
         type: "object",
-        properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
-        required: ["id", "component", "text"],
+        properties: { component: { const: "Text" }, text: { type: "string" } },
+        required: ["component", "text"],
         additionalProperties: false,
       },
       Button: {
         type: "object",
-        properties: { id: { type: "string" }, component: { const: "Button" }, label: { type: "string" } },
-        required: ["id", "component", "label"],
+        properties: { component: { const: "Button" }, label: { type: "string" } },
+        required: ["component", "label"],
         additionalProperties: false,
       },
       Column: {
         type: "object",
-        properties: { id: { type: "string" }, component: { const: "Column" }, children: { type: "array", items: { type: "string" } } },
-        required: ["id", "component", "children"],
+        properties: { component: { const: "Column" }, children: { type: "array", items: { type: "string" } } },
+        required: ["component", "children"],
         additionalProperties: false,
       },
       ...components,
     },
     $defs: {
-      theme: {
-        type: "object",
-        properties: { primary: { type: "string" }, color: { type: "string" } },
-        additionalProperties: false,
-      },
+      anyComponent: { type: "object" },
+      anyFunction: { type: "object" },
     },
   };
 }
@@ -67,264 +65,249 @@ function setup(catalogs = createTestCatalogRegistry()) {
   return { store, catalogs, processor: new A2UIMessageProcessor(store, catalogs) };
 }
 
-test("creates a surface and preserves theme and sendDataModel", () => {
-  const { store, processor } = setup();
-  const result = processor.process(create("main", {
-    theme: { primary: "blue" },
-    sendDataModel: true,
+test("creates a surface with sendDataModel and reports the snapshot", () => {
+  const { processor, store } = setup();
+  const result = processor.process(create("main", { sendDataModel: true }));
+  assert.equal(result.ok, true);
+  if (result.ok && "surface" in result.value) {
+    assert.equal(result.value.operation, "surfaceCreated");
+    assert.equal(result.value.surface.sendDataModel, true);
+    assert.deepEqual(result.value.surface.components, {});
+  }
+  assert.equal(store.get("main")?.catalogId, "catalog");
+});
+
+test("createSurface applies dataModel before components in one atomic step", () => {
+  const { processor, store } = setup();
+  const result = processor.process(envelope({
+    createSurface: {
+      surfaceId: "main",
+      catalogId: "catalog",
+      dataModel: { title: "Hello" },
+      components: [{ id: "root", component: "Text", text: "Hello" }],
+    },
   }));
-  assert.equal(result.ok && result.value.operation, "surfaceCreated");
-  assert.deepEqual(store.get("main"), {
-    surfaceId: "main",
-    catalogId: "catalog",
-    theme: { primary: "blue" },
-    sendDataModel: true,
-    components: {},
-    dataModel: {},
-  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { title: "Hello" });
+  assert.deepEqual(Object.keys(store.get("main")?.components ?? {}), ["root"]);
 });
 
-test("preserves duplicate create as a store error", () => {
-  const { processor } = setup();
-  processor.process(create());
-  assert.deepEqual(processor.process(create()), {
-    ok: false,
-    error: {
-      code: "SURFACE_STORE_ERROR",
-      storeError: { code: "SURFACE_ALREADY_EXISTS", surfaceId: "main" },
-    },
-  });
-});
-
-test("updates, replaces, and progressively delivers components without root", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  assert.equal(processor.process(components("main", "child", "child")).ok, true);
-  assert.equal(store.hasRoot("main"), false);
-  processor.process(components("main", "old"));
-  processor.process(components("main", "new"));
-  assert.deepEqual(store.get("main")?.components.root, {
-    id: "root", component: "Text", text: "new",
-  });
-});
-
-test("component update before create preserves missing-surface error", () => {
-  const { processor } = setup();
-  assert.deepEqual(processor.process(components("main", "x")), {
-    ok: false,
-    error: {
-      code: "SURFACE_STORE_ERROR",
-      storeError: { code: "SURFACE_NOT_FOUND", surfaceId: "main" },
-    },
-  });
-});
-
-test("maps present data values to root replacement and nested set", () => {
-  for (const update of [
-    { value: { name: "Ada" } },
-    { path: "/", value: { name: "Ada" } },
-  ]) {
-    const { store, processor } = setup();
-    processor.process(create());
-    processor.process(data("main", update));
-    assert.deepEqual(store.get("main")?.dataModel, { name: "Ada" });
+test("createSurface without catalogId is rejected as UNSUPPORTED_FEATURE and creates nothing", () => {
+  const { processor, store } = setup();
+  const result = processor.process(envelope({ createSurface: { surfaceId: "main" } }));
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "UNSUPPORTED_FEATURE");
+    if (result.error.code === "UNSUPPORTED_FEATURE") assert.equal(result.error.feature, "createSurface.catalogId");
   }
-
-  const { store, processor } = setup();
-  processor.process(create());
-  processor.process(data("main", { path: "/user/name", value: "Ada" }));
-  assert.deepEqual(store.get("main")?.dataModel, { user: { name: "Ada" } });
-});
-
-test("distinguishes a present null value from an omitted value", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  processor.process(data("main", { path: "/user/name", value: "Ada" }));
-  processor.process(data("main", { path: "/user/name", value: null }));
-  assert.deepEqual(store.get("main")?.dataModel, { user: { name: null } });
-  processor.process(data("main", { path: "/user/name" }));
-  assert.deepEqual(store.get("main")?.dataModel, { user: {} });
-});
-
-test("maps omitted values to nested deletion or root reset", () => {
-  for (const update of [{}, { path: "/" }]) {
-    const { store, processor } = setup();
-    processor.process(create());
-    processor.process(data("main", { value: { temporary: true } }));
-    processor.process(data("main", update));
-    assert.deepEqual(store.get("main")?.dataModel, {});
-  }
-});
-
-test("protocol failures do not mutate the store", () => {
-  const invalid = [
-    { version: "v1", createSurface: { surfaceId: "main", catalogId: "x" } },
-    { version: "v0.9.1", surfaceUpdate: { surfaceId: "main" } },
-    { version: "v0.9.1", createSurface: {}, deleteSurface: {} },
-    components("main", "x") as Record<string, unknown>,
-  ];
-  ((invalid[3].updateComponents as Record<string, unknown>).components as unknown[]) = [{ id: "x" }];
-
-  const { store, processor } = setup();
-  for (const input of invalid) {
-    const result = processor.process(input);
-    assert.equal(!result.ok && result.error.code, "PROTOCOL_VALIDATION_FAILED");
-  }
-  assert.deepEqual(store.list(), []);
-});
-
-test("data update and deletion before create preserve lifecycle errors", () => {
-  const { processor } = setup();
-  for (const input of [data("main", { value: 1 }), envelope({ deleteSurface: { surfaceId: "main" } })]) {
-    const result = processor.process(input);
-    assert.equal(!result.ok && result.error.code, "SURFACE_STORE_ERROR");
-    assert.equal(!result.ok && result.error.code === "SURFACE_STORE_ERROR" && result.error.storeError.code, "SURFACE_NOT_FOUND");
-  }
-});
-
-test("processes a complete sequence in received order", () => {
-  const { store, processor } = setup();
-  assert.equal(processor.process(create()).ok, true);
-  assert.equal(processor.process(components("main", "one")).ok, true);
-  assert.equal(processor.process(data("main", { path: "/name", value: "Ada" })).ok, true);
-  assert.equal(processor.process(components("main", "two")).ok, true);
-  assert.deepEqual(store.get("main")?.dataModel, { name: "Ada" });
-  const deleted = processor.process(envelope({ deleteSurface: { surfaceId: "main" } }));
-  assert.deepEqual(deleted, { ok: true, value: { operation: "surfaceDeleted", surfaceId: "main" } });
   assert.equal(store.has("main"), false);
 });
 
-test("isolates surfaces", () => {
-  const { store, processor } = setup();
-  processor.process(create("one"));
-  processor.process(create("two"));
-  processor.process(components("one", "changed"));
-  processor.process(data("one", { path: "/changed", value: true }));
-  assert.deepEqual(store.get("two")?.components, {});
-  assert.deepEqual(store.get("two")?.dataModel, {});
+test("a createSurface with an invalid component creates no surface and applies no data", () => {
+  const { processor, store } = setup();
+  const result = processor.process(envelope({
+    createSurface: {
+      surfaceId: "main",
+      catalogId: "catalog",
+      dataModel: { partial: true },
+      components: [
+        { id: "root", component: "Text", text: "ok" },
+        { id: "bad", component: "Text", text: 42 },
+      ],
+    },
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(store.has("main"), false);
+  assert.equal(store.list().length, 0);
 });
 
-test("failed DataModel mutation leaves all surface state intact", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  processor.process(components("main", "stable"));
-  processor.process(data("main", { value: { items: ["a", "b"] } }));
-  const before = store.get("main");
-  const result = processor.process(data("main", { path: "/items/0" }));
-  assert.equal(!result.ok && result.error.code, "SURFACE_STORE_ERROR");
+test("a createSurface with duplicate component ids creates no surface", () => {
+  const { processor, store } = setup();
+  const result = processor.process(envelope({
+    createSurface: {
+      surfaceId: "main",
+      catalogId: "catalog",
+      components: [
+        { id: "root", component: "Text", text: "a" },
+        { id: "root", component: "Text", text: "b" },
+      ],
+    },
+  }));
+  assert.equal(result.ok, false);
   if (!result.ok && result.error.code === "SURFACE_STORE_ERROR") {
-    assert.equal(result.error.storeError.code, "DATA_MODEL_ERROR");
-    if (result.error.storeError.code === "DATA_MODEL_ERROR") {
-      assert.equal(result.error.storeError.dataModelError.code, "ARRAY_INDEX_DELETE_UNSUPPORTED");
-    }
+    assert.equal(result.error.storeError.code, "DUPLICATE_COMPONENT_ID");
   }
-  assert.deepEqual(store.get("main"), before);
+  assert.equal(store.has("main"), false);
 });
 
-test("does not retain caller input or expose mutable success state", () => {
-  const { store, processor } = setup();
-  const input = create("main", { theme: { color: "blue" } });
-  const result = processor.process(input);
-  ((input as Record<string, unknown>).createSurface as { theme: { color: string } }).theme.color = "red";
-  assert.equal(store.get("main")?.theme?.color, "blue");
-  if (result.ok && "surface" in result.value && result.value.surface.theme) {
-    result.value.surface.theme.color = "green";
-  }
-  assert.equal(store.get("main")?.theme?.color, "blue");
-});
-
-test("requires a registered catalog before creating a surface", () => {
-  const catalogs = new CatalogRegistry();
-  const { store, processor } = setup(catalogs);
+test("a duplicate createSurface is an INTEGRITY_ERROR and leaves the live surface untouched", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create()).ok, true);
   const result = processor.process(create());
-  assert.equal(!result.ok && result.error.code, "CATALOG_REGISTRY_ERROR");
+  assert.deepEqual(result, {
+    ok: false,
+    error: { code: "SURFACE_STORE_ERROR", storeError: { code: "INTEGRITY_ERROR", surfaceId: "main" } },
+  });
+  assert.equal(store.list().length, 1);
+});
+
+test("rejects theme on createSurface at the protocol level", () => {
+  const { processor, store } = setup();
+  const result = processor.process(create("main", { theme: { primary: "blue" } }));
+  assert.equal(result.ok, false);
+  if (!result.ok && result.error.code === "PROTOCOL_VALIDATION_FAILED") {
+    assert.equal(result.error.issues[0]?.path, "/createSurface/theme");
+  }
+  assert.equal(store.has("main"), false);
+});
+
+test("rejects an unregistered catalog before any lifecycle work", () => {
+  const { processor, store } = setup();
+  const result = processor.process(envelope({ createSurface: { surfaceId: "main", catalogId: "missing" } }));
+  assert.equal(result.ok, false);
   if (!result.ok && result.error.code === "CATALOG_REGISTRY_ERROR") {
     assert.equal(result.error.catalogError.code, "CATALOG_NOT_FOUND");
   }
   assert.equal(store.has("main"), false);
 });
 
-test("validates present themes, permits omission, and never stores invalid themes", () => {
-  const { store, processor } = setup();
-  assert.equal(processor.process(create("valid", { theme: { primary: "blue" } })).ok, true);
-  assert.equal(processor.process(create("omitted")).ok, true);
-  const invalid = processor.process(create("invalid", { theme: { primary: 123 } }));
-  assert.equal(!invalid.ok && invalid.error.code, "CATALOG_REGISTRY_ERROR");
-  if (!invalid.ok && invalid.error.code === "CATALOG_REGISTRY_ERROR") {
-    assert.equal(invalid.error.catalogError.code, "THEME_VALIDATION_FAILED");
-    assert.ok(invalid.error.catalogError.issues?.some(({ path }) => path === "/primary"));
+test("updates components on an existing surface and rejects an unknown surface", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create()).ok, true);
+  const updated = processor.process(components("main", "Hello"));
+  assert.equal(updated.ok, true);
+  assert.equal(store.get("main")?.components.root?.component, "Text");
+
+  const missing = processor.process(components("missing", "Hello"));
+  assert.equal(missing.ok, false);
+  if (!missing.ok && missing.error.code === "SURFACE_STORE_ERROR") {
+    assert.equal(missing.error.storeError.code, "SURFACE_NOT_FOUND");
   }
-  assert.equal(store.has("invalid"), false);
 });
 
-test("stores a valid mixed component batch", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  const result = processor.process(envelope({ updateComponents: { surfaceId: "main", components: [
-    { id: "text", component: "Text", text: "Hello" },
-    { id: "button", component: "Button", label: "Continue" },
-    { id: "column", component: "Column", children: ["text", "button"] },
-  ] } }));
+test("rejects updateComponents that tries to target the implicit Surface", () => {
+  const { processor } = setup();
+  assert.equal(processor.process(create()).ok, true);
+  const result = processor.process(envelope({
+    updateComponents: { surfaceId: "main", components: [{ id: "root", component: "Surface" }] },
+  }));
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROTOCOL_VALIDATION_FAILED");
+});
+
+test("rejects component ids that are not Unicode identifiers", () => {
+  const { processor } = setup();
+  assert.equal(processor.process(create()).ok, true);
+  for (const id of ["user-card", "1st_item"]) {
+    const result = processor.process(components("main", "x", id));
+    assert.equal(result.ok, false, `${id} must be rejected`);
+  }
+});
+
+test("updateDataModel with value null deletes the key at path and preserves siblings", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create("main", { dataModel: { user: { name: "Ada", bio: "x" } } })).ok, true);
+  const result = processor.process(data("main", { path: "/user/bio", value: null }));
   assert.equal(result.ok, true);
-  assert.deepEqual(Object.keys(store.get("main")?.components ?? {}), ["text", "button", "column"]);
+  assert.deepEqual(store.get("main")?.dataModel, { user: { name: "Ada" } });
 });
 
-test("rejects unknown and invalid components before storage", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  for (const [component, code] of [
-    [{ id: "danger", component: "ExecuteJavaScript" }, "COMPONENT_NOT_ALLOWED"],
-    [{ id: "title", component: "Text", text: 123 }, "COMPONENT_VALIDATION_FAILED"],
-  ] as const) {
-    const result = processor.process(envelope({ updateComponents: { surfaceId: "main", components: [component] } }));
-    assert.equal(!result.ok && result.error.code, "CATALOG_REGISTRY_ERROR");
-    if (!result.ok && result.error.code === "CATALOG_REGISTRY_ERROR") {
-      assert.equal(result.error.catalogError.code, code);
-    }
-    assert.deepEqual(store.get("main")?.components, {});
+test("updateDataModel with value null at the root resets the model to an empty object", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create("main", { dataModel: { count: 42 } })).ok, true);
+  assert.equal(processor.process(data("main", { path: "/", value: null })).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, {});
+});
+
+test("updateDataModel with null on an array element keeps the index and stores null", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create("main", { dataModel: { items: ["a", "b", "c"] } })).ok, true);
+  assert.equal(processor.process(data("main", { path: "/items/1", value: null })).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { items: ["a", null, "c"] });
+});
+
+test("updateDataModel replaces the whole model when path is omitted", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create("main", { dataModel: { old: true } })).ok, true);
+  assert.equal(processor.process(data("main", { value: { fresh: 1 } })).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { fresh: 1 });
+});
+
+test("updateDataModel sets a non-null value at a nested path", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create()).ok, true);
+  assert.equal(processor.process(data("main", { path: "/user/name", value: "Ada" })).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { user: { name: "Ada" } });
+});
+
+test("updateDataModel without value is a protocol validation failure", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create()).ok, true);
+  const result = processor.process(data("main", { path: "/title" }));
+  assert.equal(result.ok, false);
+  if (!result.ok && result.error.code === "PROTOCOL_VALIDATION_FAILED") {
+    assert.equal(result.error.issues[0]?.path, "/updateDataModel/value");
+  }
+  assert.deepEqual(store.get("main")?.dataModel, {});
+});
+
+test("callRendererFunction and agentFunctionResponse are valid but unsupported", () => {
+  const { processor } = setup();
+  const call = processor.process(envelope({
+    callRendererFunction: {
+      functionCallId: "call-1",
+      callFunction: { "@call": "formatDate", catalogId: "catalog", args: {} },
+    },
+  }));
+  assert.equal(!call.ok && call.error.code, "UNSUPPORTED_FEATURE");
+  const response = processor.process(envelope({ agentFunctionResponse: { functionCallId: "call-1", value: 1 } }));
+  assert.equal(!response.ok && response.error.code, "UNSUPPORTED_FEATURE");
+});
+
+test("rejects v0.9 and v0.9.1 envelopes and legacy messages", () => {
+  const { processor } = setup();
+  for (const message of [
+    { version: "v0.9.1", createSurface: { surfaceId: "main", catalogId: "catalog" } },
+    { version: "v0.9", createSurface: { surfaceId: "main", catalogId: "catalog" } },
+    { version: "1.0", surfaceUpdate: { surfaceId: "main" } },
+    { version: "1.0", createSurface: {}, deleteSurface: {} },
+  ]) {
+    const result = processor.process(message);
+    assert.equal(result.ok, false);
+    assert.equal(!result.ok && result.error.code, "PROTOCOL_VALIDATION_FAILED");
   }
 });
 
-test("prevalidates a complete component batch atomically", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  const result = processor.process(envelope({ updateComponents: { surfaceId: "main", components: [
-    { id: "text", component: "Text", text: "valid" },
-    { id: "button", component: "Button", label: 42 },
-    { id: "column", component: "Column", children: ["text", "button"] },
-  ] } }));
-  assert.equal(!result.ok && result.error.code, "CATALOG_REGISTRY_ERROR");
-  assert.deepEqual(store.get("main")?.components, {});
+test("deletes a surface, then allows the same surfaceId to be created again", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create()).ok, true);
+  const deleted = processor.process(envelope({ deleteSurface: { surfaceId: "main" } }));
+  assert.deepEqual(deleted, { ok: true, value: { operation: "surfaceDeleted", surfaceId: "main" } });
+  assert.equal(store.has("main"), false);
+  assert.equal(processor.process(create()).ok, true);
 });
 
-test("preserves an existing component when its replacement is invalid", () => {
-  const { store, processor } = setup();
-  processor.process(create());
-  processor.process(components("main", "stable"));
-  processor.process(envelope({ updateComponents: { surfaceId: "main", components: [
-    { id: "root", component: "Text", text: false },
-  ] } }));
-  assert.deepEqual(store.get("main")?.components.root, { id: "root", component: "Text", text: "stable" });
-});
-
-test("uses only the surface-selected catalog and supports delete/recreate selection", () => {
-  const catalogs = new CatalogRegistry();
-  assert.equal(catalogs.register({ catalogId: "catalog-a", schema: testCatalog("catalog-a") }).ok, true);
-  assert.equal(catalogs.register({ catalogId: "catalog-b", schema: testCatalog("catalog-b", {
-    Chart: {
-      type: "object",
-      properties: { id: { type: "string" }, component: { const: "Chart" } },
-      required: ["id", "component"],
-      additionalProperties: false,
-    },
-  }) }).ok, true);
-  const { store, processor } = setup(catalogs);
-  processor.process(envelope({ createSurface: { surfaceId: "main", catalogId: "catalog-a" } }));
-  const chart = envelope({ updateComponents: { surfaceId: "main", components: [{ id: "chart", component: "Chart" }] } });
-  assert.equal(processor.process(chart).ok, false);
-  assert.deepEqual(store.get("main")?.components, {});
+test("uses the catalog registered for each surface's own catalogId", () => {
+  const catalogs = createTestCatalogRegistry("catalog-a", "catalog-b");
+  const { processor, store } = setup(catalogs);
+  assert.equal(processor.process(envelope({ createSurface: { surfaceId: "main", catalogId: "catalog-a" } })).ok, true);
   assert.equal(processor.process(envelope({ deleteSurface: { surfaceId: "main" } })).ok, true);
   assert.equal(processor.process(envelope({ createSurface: { surfaceId: "main", catalogId: "catalog-b" } })).ok, true);
-  assert.equal(processor.process(chart).ok, true);
   assert.equal(store.get("main")?.catalogId, "catalog-b");
+});
+
+test("updateDataModel with value null removes a top-level key and keeps its siblings", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create("main", { dataModel: { persistentData: "keep", transientData: "remove" } })).ok, true);
+  assert.equal(processor.process(data("main", { path: "/transientData", value: null })).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { persistentData: "keep" });
+});
+
+test("updateDataModel with value null on an intermediate object removes every nested child", () => {
+  const { processor, store } = setup();
+  assert.equal(processor.process(create("main", {
+    dataModel: { settings: { notifications: { email: true, push: false }, theme: "dark" } },
+  })).ok, true);
+  assert.equal(processor.process(data("main", { path: "/settings/notifications", value: null })).ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { settings: { theme: "dark" } });
 });

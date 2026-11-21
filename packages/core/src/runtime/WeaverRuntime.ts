@@ -12,9 +12,9 @@ import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
 import { InputBindingWriter } from "../input-binding/index.js";
 import { A2UIMessageProcessor } from "../message-processor/index.js";
 import {
-  buildA2UIClientCapabilities,
+  buildA2UIRendererCapabilities,
   mapA2UIValidationFailure,
-  type A2UIClientCapabilities,
+  type A2UIRendererCapabilities,
   type A2UIValidationFailureMappingInput,
   type A2UIValidationFailureMappingResult,
 } from "../protocol/index.js";
@@ -248,9 +248,6 @@ export class WeaverRuntime {
       value: {
         surfaceId: surface.surfaceId,
         catalogId: surface.catalogId,
-        ...(surface.theme === undefined
-          ? {}
-          : { theme: cloneJson(surface.theme) }),
         sendDataModel: surface.sendDataModel,
         tree: hydrated.value,
         checks: checks.value,
@@ -313,6 +310,7 @@ export class WeaverRuntime {
       surface: current.value.surface,
       instance: current.value.instance,
       actionProperty: request.actionProperty,
+      userActivation: request.userActivation === true,
     });
     return dispatched.ok
       ? dispatched
@@ -328,8 +326,8 @@ export class WeaverRuntime {
     );
   }
 
-  getClientCapabilities(): A2UIClientCapabilities {
-    return buildA2UIClientCapabilities({
+  getRendererCapabilities(): A2UIRendererCapabilities {
+    return buildA2UIRendererCapabilities({
       supportedCatalogIds: this.#services.catalogs.getSupportedCatalogIds(),
     });
   }

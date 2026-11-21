@@ -1,12 +1,13 @@
 /**
  * The hotel agent: a deterministic stand-in for a model. Given the app state it describes the
- * screen with A2UI v0.9.1 components from the Basic catalog, and the data those components read.
+ * screen with A2UI v1.0 components from the Basic catalog, and the data those components read.
  * It calls no model and it sends no code. Every message is produced through the producer.
  */
 import type { A2UIComponent, JsonObject } from "@cylayo/weaver-core";
 import { FILTERS, PHOTO_ALT, RIVER_VIEW_EXTRA_PER_NIGHT, type FilterId, type Hotel, type HotelId, type ImageKey, type RoomId } from "../data.js";
 import { imageSource } from "../images.js";
 import { bookingTotals, findHotel, formatEur, roomName, visibleHotels } from "../model.js";
+import { bind, heading } from "../a2ui.js";
 
 export const HOTEL_SURFACE_ID = "stays";
 
@@ -45,7 +46,7 @@ function stayItem(state: HotelState, hotel: Hotel): JsonObject {
   const lead = photoAt(hotel, 0);
   return {
     id: hotel.id,
-    name: hotel.name,
+    title: heading(3, hotel.name),
     line: `${hotel.area} · ★ ${hotel.rating} · ${hotel.tagLine}`,
     price: `${formatEur(hotel.price)} a night`,
     saveLabel: saved ? "♥ Saved" : "♡ Save",
@@ -68,6 +69,7 @@ export function hotelData(state: HotelState): JsonObject {
     selected: {
       id: hotel.id,
       name: hotel.name,
+      title: heading(2, hotel.name),
       line: `${hotel.area} · ★ ${hotel.rating} · ${formatEur(hotel.price)} a night`,
       amenities: hotel.amenities.join(" · "),
     },
@@ -82,6 +84,8 @@ export function hotelData(state: HotelState): JsonObject {
       room: [state.room],
       nightsText: String(state.nights),
       guestsText: String(state.guests),
+      nightsTitle: heading(3, String(state.nights)),
+      guestsTitle: heading(3, String(state.guests)),
     },
     totals: {
       baseLabel: `${formatEur(totals.basePerNight)} × ${state.nights} nights`,
@@ -89,6 +93,7 @@ export function hotelData(state: HotelState): JsonObject {
       extraLabel: river ? `River view × ${state.nights}` : "",
       extraAmount: river ? formatEur(totals.extraTotal) : "",
       totalAmount: formatEur(totals.total),
+      totalTitle: heading(3, formatEur(totals.total)),
       reserveLabel: `Reserve for ${formatEur(totals.total)}`,
     },
     done: {
@@ -107,9 +112,9 @@ export function hotelComponents(view: HotelView): A2UIComponent[] {
 
 function listComponents(): A2UIComponent[] {
   return [
-    { id: "root", component: "Column", children: ["list-title", "list-sub", "filters", "list-note", "stays"] },
-    { id: "list-title", component: "Text", variant: "h2", text: "Modern stays in Lisbon" },
-    { id: "list-sub", component: "Text", variant: "caption", text: "12–15 May · 2 guests · sample data" },
+    { id: "root", component: "Column", children: ["list_title", "list_sub", "filters", "list_note", "stays"] },
+    { id: "list_title", component: "Text", text: heading(2, "Modern stays in Lisbon") },
+    { id: "list_sub", component: "Text", variant: "caption", text: "12–15 May · 2 guests · sample data" },
     {
       id: "filters",
       component: "ChoicePicker",
@@ -117,52 +122,52 @@ function listComponents(): A2UIComponent[] {
       variant: "multipleSelection",
       displayStyle: "chips",
       options: FILTERS.map((filter) => ({ label: filter.label, value: filter.id })),
-      value: { path: "/filters" },
+      value: bind("/filters"),
     },
-    { id: "list-note", component: "Row", justify: "spaceBetween", children: ["list-note-text", "clear"] },
-    { id: "list-note-text", component: "Text", text: { path: "/listNote" } },
+    { id: "list_note", component: "Row", justify: "spaceBetween", children: ["list_note_text", "clear"] },
+    { id: "list_note_text", component: "Text", text: bind("/listNote") },
     {
       id: "clear",
       component: "Button",
-      child: "clear-label",
+      child: "clear_label",
       action: { event: { name: "clear_filters", context: {} } },
     },
-    { id: "clear-label", component: "Text", text: "Clear filters" },
-    { id: "stays", component: "List", children: { path: "/stays", componentId: "stay-card" } },
-    { id: "stay-card", component: "Card", child: "stay-body" },
+    { id: "clear_label", component: "Text", text: "Clear filters" },
+    { id: "stays", component: "List", children: { componentId: "stay_card", path: "/stays" } },
+    { id: "stay_card", component: "Card", child: "stay_body" },
     {
-      id: "stay-body",
+      id: "stay_body",
       component: "Column",
-      children: ["stay-photo", "stay-name", "stay-line", "stay-price", "stay-actions"],
+      children: ["stay_photo", "stay_name", "stay_line", "stay_price", "stay_actions"],
     },
     {
-      id: "stay-photo",
+      id: "stay_photo",
       component: "Image",
-      url: { path: "url" },
-      description: { path: "alt" },
+      url: bind("url"),
+      description: bind("alt"),
       fit: "cover",
       variant: "largeFeature",
     },
-    { id: "stay-name", component: "Text", variant: "h3", text: { path: "name" } },
-    { id: "stay-line", component: "Text", variant: "caption", text: { path: "line" } },
-    { id: "stay-price", component: "Text", text: { path: "price" } },
-    { id: "stay-actions", component: "Row", justify: "spaceBetween", children: ["stay-save", "stay-open"] },
+    { id: "stay_name", component: "Text", text: bind("title") },
+    { id: "stay_line", component: "Text", variant: "caption", text: bind("line") },
+    { id: "stay_price", component: "Text", text: bind("price") },
+    { id: "stay_actions", component: "Row", justify: "spaceBetween", children: ["stay_save", "stay_open"] },
     {
-      id: "stay-save",
+      id: "stay_save",
       component: "Button",
       variant: "borderless",
-      child: "stay-save-label",
-      action: { event: { name: "toggle_save", context: { stay: { path: "id" } } } },
+      child: "stay_save_label",
+      action: { event: { name: "toggle_save", context: { stay: bind("id") } } },
     },
-    { id: "stay-save-label", component: "Text", text: { path: "saveLabel" } },
+    { id: "stay_save_label", component: "Text", text: bind("saveLabel") },
     {
-      id: "stay-open",
+      id: "stay_open",
       component: "Button",
       variant: "primary",
-      child: "stay-open-label",
-      action: { event: { name: "open_stay", context: { stay: { path: "id" } } } },
+      child: "stay_open_label",
+      action: { event: { name: "open_stay", context: { stay: bind("id") } } },
     },
-    { id: "stay-open-label", component: "Text", text: "View rooms" },
+    { id: "stay_open_label", component: "Text", text: "View rooms" },
   ];
 }
 
@@ -170,17 +175,17 @@ function thumbComponents(): A2UIComponent[] {
   // Every stay has three photos, so the detail view has three thumbnail buttons.
   return [0, 1, 2].flatMap((index): A2UIComponent[] => [
     {
-      id: `thumb-${index}`,
+      id: `thumb_${index}`,
       component: "Button",
       variant: "borderless",
-      child: `thumb-${index}-img`,
+      child: `thumb_${index}_img`,
       action: { event: { name: "show_photo", context: { index } } },
     },
     {
-      id: `thumb-${index}-img`,
+      id: `thumb_${index}_img`,
       component: "Image",
-      url: { path: `/detail/thumbs/${index}/url` },
-      description: { path: `/detail/thumbs/${index}/alt` },
+      url: bind(`/detail/thumbs/${index}/url`),
+      description: bind(`/detail/thumbs/${index}/alt`),
       fit: "cover",
       variant: "smallFeature",
     },
@@ -193,24 +198,24 @@ function thumbComponents(): A2UIComponent[] {
  */
 function stepperComponents(field: "nights" | "guests", label: string): A2UIComponent[] {
   return [
-    { id: `${field}-row`, component: "Row", justify: "spaceBetween", children: [`${field}-label`, `${field}-stepper`] },
-    { id: `${field}-label`, component: "Text", text: label },
-    { id: `${field}-stepper`, component: "Row", children: [`${field}-minus`, `${field}-value`, `${field}-plus`] },
+    { id: `${field}_row`, component: "Row", justify: "spaceBetween", children: [`${field}_label`, `${field}_stepper`] },
+    { id: `${field}_label`, component: "Text", text: label },
+    { id: `${field}_stepper`, component: "Row", children: [`${field}_minus`, `${field}_value`, `${field}_plus`] },
     {
-      id: `${field}-minus`,
+      id: `${field}_minus`,
       component: "Button",
-      child: `${field}-minus-label`,
+      child: `${field}_minus_label`,
       action: { event: { name: "change_booking", context: { field, delta: -1 } } },
     },
-    { id: `${field}-minus-label`, component: "Text", text: "−" },
-    { id: `${field}-value`, component: "Text", variant: "h3", text: { path: `/booking/${field}Text` } },
+    { id: `${field}_minus_label`, component: "Text", text: "−" },
+    { id: `${field}_value`, component: "Text", text: bind(`/booking/${field}Title`) },
     {
-      id: `${field}-plus`,
+      id: `${field}_plus`,
       component: "Button",
-      child: `${field}-plus-label`,
+      child: `${field}_plus_label`,
       action: { event: { name: "change_booking", context: { field, delta: 1 } } },
     },
-    { id: `${field}-plus-label`, component: "Text", text: "+" },
+    { id: `${field}_plus_label`, component: "Text", text: "+" },
   ];
 }
 
@@ -221,34 +226,34 @@ function detailComponents(): A2UIComponent[] {
       id: "back",
       component: "Button",
       variant: "borderless",
-      child: "back-label",
+      child: "back_label",
       action: { event: { name: "back_to_stays", context: {} } },
     },
-    { id: "back-label", component: "Text", text: "← Back to stays" },
+    { id: "back_label", component: "Text", text: "← Back to stays" },
     { id: "detail", component: "Row", children: ["gallery", "info"] },
-    { id: "gallery", component: "Column", children: ["main-photo", "thumbs", "photo-label"] },
+    { id: "gallery", component: "Column", children: ["main_photo", "thumbs", "photo_label"] },
     {
-      id: "main-photo",
+      id: "main_photo",
       component: "Image",
-      url: { path: "/detail/main/url" },
-      description: { path: "/detail/main/alt" },
+      url: bind("/detail/main/url"),
+      description: bind("/detail/main/alt"),
       fit: "cover",
       variant: "largeFeature",
     },
-    { id: "thumbs", component: "Row", children: ["thumb-0", "thumb-1", "thumb-2"] },
+    { id: "thumbs", component: "Row", children: ["thumb_0", "thumb_1", "thumb_2"] },
     ...thumbComponents(),
     ...stepperComponents("nights", "Nights"),
     ...stepperComponents("guests", "Guests"),
-    { id: "photo-label", component: "Text", variant: "caption", text: { path: "/detail/photoLabel" } },
+    { id: "photo_label", component: "Text", variant: "caption", text: bind("/detail/photoLabel") },
     { id: "info", component: "Column", children: ["name", "line", "amenities", "booking"] },
-    { id: "name", component: "Text", variant: "h2", text: { path: "/selected/name" } },
-    { id: "line", component: "Text", variant: "caption", text: { path: "/selected/line" } },
-    { id: "amenities", component: "Text", text: { path: "/selected/amenities" } },
-    { id: "booking", component: "Card", child: "booking-body" },
+    { id: "name", component: "Text", text: bind("/selected/title") },
+    { id: "line", component: "Text", variant: "caption", text: bind("/selected/line") },
+    { id: "amenities", component: "Text", text: bind("/selected/amenities") },
+    { id: "booking", component: "Card", child: "booking_body" },
     {
-      id: "booking-body",
+      id: "booking_body",
       component: "Column",
-      children: ["nights-row", "guests-row", "room", "totals", "reserve"],
+      children: ["nights_row", "guests_row", "room", "totals", "reserve"],
     },
     {
       id: "room",
@@ -259,59 +264,59 @@ function detailComponents(): A2UIComponent[] {
         { label: "City view · included", value: "city" },
         { label: `River view · +${formatEur(RIVER_VIEW_EXTRA_PER_NIGHT)} a night`, value: "river" },
       ],
-      value: { path: "/booking/room" },
+      value: bind("/booking/room"),
     },
-    { id: "totals", component: "Column", children: ["base-row", "extra-row", "total-row"] },
-    { id: "base-row", component: "Row", justify: "spaceBetween", children: ["base-label", "base-amount"] },
-    { id: "base-label", component: "Text", variant: "caption", text: { path: "/totals/baseLabel" } },
-    { id: "base-amount", component: "Text", text: { path: "/totals/baseAmount" } },
-    { id: "extra-row", component: "Row", justify: "spaceBetween", children: ["extra-label", "extra-amount"] },
-    { id: "extra-label", component: "Text", variant: "caption", text: { path: "/totals/extraLabel" } },
-    { id: "extra-amount", component: "Text", text: { path: "/totals/extraAmount" } },
-    { id: "total-row", component: "Row", justify: "spaceBetween", children: ["total-label", "total-amount"] },
-    { id: "total-label", component: "Text", variant: "h3", text: "Total" },
-    { id: "total-amount", component: "Text", variant: "h3", text: { path: "/totals/totalAmount" } },
+    { id: "totals", component: "Column", children: ["base_row", "extra_row", "total_row"] },
+    { id: "base_row", component: "Row", justify: "spaceBetween", children: ["base_label", "base_amount"] },
+    { id: "base_label", component: "Text", variant: "caption", text: bind("/totals/baseLabel") },
+    { id: "base_amount", component: "Text", text: bind("/totals/baseAmount") },
+    { id: "extra_row", component: "Row", justify: "spaceBetween", children: ["extra_label", "extra_amount"] },
+    { id: "extra_label", component: "Text", variant: "caption", text: bind("/totals/extraLabel") },
+    { id: "extra_amount", component: "Text", text: bind("/totals/extraAmount") },
+    { id: "total_row", component: "Row", justify: "spaceBetween", children: ["total_label", "total_amount"] },
+    { id: "total_label", component: "Text", text: heading(3, "Total") },
+    { id: "total_amount", component: "Text", text: bind("/totals/totalTitle") },
     {
       id: "reserve",
       component: "Button",
       variant: "primary",
-      child: "reserve-label",
+      child: "reserve_label",
       action: {
         event: {
           name: "reserve_room",
           context: {
-            stay: { path: "/selected/id" },
-            nights: { path: "/booking/nights" },
-            guests: { path: "/booking/guests" },
-            room: { path: "/booking/room" },
+            stay: bind("/selected/id"),
+            nights: bind("/booking/nights"),
+            guests: bind("/booking/guests"),
+            room: bind("/booking/room"),
           },
         },
       },
     },
-    { id: "reserve-label", component: "Text", text: { path: "/totals/reserveLabel" } },
+    { id: "reserve_label", component: "Text", text: bind("/totals/reserveLabel") },
   ];
 }
 
 function doneComponents(): A2UIComponent[] {
   return [
-    { id: "root", component: "Column", children: ["done-photo", "done-title", "done-summary", "done-note", "done-back"] },
+    { id: "root", component: "Column", children: ["done_photo", "done_title", "done_summary", "done_note", "done_back"] },
     {
-      id: "done-photo",
+      id: "done_photo",
       component: "Image",
-      url: { path: "/done/photo/url" },
-      description: { path: "/done/photo/alt" },
+      url: bind("/done/photo/url"),
+      description: bind("/done/photo/alt"),
       fit: "cover",
       variant: "largeFeature",
     },
-    { id: "done-title", component: "Text", variant: "h2", text: "Booking requested" },
-    { id: "done-summary", component: "Text", variant: "caption", text: { path: "/done/summary" } },
-    { id: "done-note", component: "Text", text: "We’ll email you as soon as the hotel confirms." },
+    { id: "done_title", component: "Text", text: heading(2, "Booking requested") },
+    { id: "done_summary", component: "Text", variant: "caption", text: bind("/done/summary") },
+    { id: "done_note", component: "Text", text: "We’ll email you as soon as the hotel confirms." },
     {
-      id: "done-back",
+      id: "done_back",
       component: "Button",
-      child: "done-back-label",
+      child: "done_back_label",
       action: { event: { name: "back_to_stays", context: {} } },
     },
-    { id: "done-back-label", component: "Text", text: "Back to stays" },
+    { id: "done_back_label", component: "Text", text: "Back to stays" },
   ];
 }

@@ -137,8 +137,9 @@ export async function tabUntil(
 export async function columnCards(page: Page, columnTitle: string): Promise<string[]> {
   return page.evaluate((title) => {
     const heading = Array.from(document.querySelectorAll("h2")).find((h) => h.textContent?.trim() === title);
-    if (heading === undefined || heading.parentElement === null) return [];
-    return Array.from(heading.parentElement.querySelectorAll("h3")).map((h) => h.textContent?.trim() ?? "");
+    const column = heading?.closest('[data-a2ui-component="Column"]');
+    if (column === undefined || column === null) return [];
+    return Array.from(column.querySelectorAll("h3")).map((h) => h.textContent?.trim() ?? "");
   }, columnTitle);
 }
 

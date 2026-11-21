@@ -11,24 +11,24 @@ import { before, test } from "node:test";
 
 const CHILD = `
 const core = await import(process.argv[1]);
-const CAT = core.A2UI_V091_BASIC_CATALOG_ID;
+const CAT = core.A2UI_V10_BASIC_CATALOG_ID;
 const now = () => new Date("2026-01-01T00:00:00.000Z");
 
 function run(withObserver) {
   const events = [];
   const created = core.createWeaverRuntime({
-    catalogs: [core.createBasicCatalogV091Registration()],
+    catalogs: [core.createBasicCatalogV10Registration()],
     now,
     ...(withObserver ? { observer: (event) => events.push(event) } : {}),
   });
   if (!created.ok) throw new Error("runtime was not created");
   const runtime = created.value;
-  runtime.process({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId: CAT } });
-  runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [
+  runtime.process({ version: "1.0", createSurface: { surfaceId: "s", catalogId: CAT } });
+  runtime.process({ version: "1.0", updateComponents: { surfaceId: "s", components: [
     { id: "root", component: "Column", children: ["btn", "field"] },
     { id: "btn", component: "Button", child: "label", action: { event: { name: "go", context: {} } } },
     { id: "label", component: "Text", text: "Go" },
-    { id: "field", component: "TextField", label: "Name", value: { path: "/name" } },
+    { id: "field", component: "TextField", label: "Name", value: { "@path": "/name" } },
   ] } });
   const cyclic = {};
   cyclic.self = cyclic;

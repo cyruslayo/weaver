@@ -6,6 +6,7 @@ import type { A2UIComponent, JsonObject } from "@cylayo/weaver-core";
 import { DISHES, FOOD_DELIVERY_FEE, type ImageKey } from "../data.js";
 import { imageSource } from "../images.js";
 import { basketLines, foodItemCount, foodTotal, formatEur, roundCents, type DishQuantities } from "../model.js";
+import { bind, heading } from "../a2ui.js";
 
 export const DINNER_SURFACE_ID = "order";
 
@@ -30,6 +31,7 @@ export function dinnerData(state: DinnerState): JsonObject {
     menu: DISHES.map((dish) => ({
       id: dish.id,
       name: dish.name,
+      title: heading(3, dish.name),
       price: formatEur(dish.price),
       img: imageSource(dish.id),
       alt: dish.alt,
@@ -39,6 +41,7 @@ export function dinnerData(state: DinnerState): JsonObject {
       lines: lines.map((line) => ({ label: `${line.qty} × ${line.name}`, amount: formatEur(line.amount) })),
       empty: items === 0 ? "Add dishes to start an order." : "",
       total,
+      totalTitle: heading(3, total),
       items,
       totalValue: roundCents(foodTotal(state.qty)),
       placeLabel: `Place order · ${total}`,
@@ -59,99 +62,99 @@ export function dinnerComponents(view: DinnerView): A2UIComponent[] {
 
 function dishCardComponents(): A2UIComponent[] {
   return [
-    { id: "dish-card", component: "Card", child: "dish-body" },
-    { id: "dish-body", component: "Column", children: ["dish-photo", "dish-name", "dish-price", "dish-stepper"] },
+    { id: "dish_card", component: "Card", child: "dish_body" },
+    { id: "dish_body", component: "Column", children: ["dish_photo", "dish_name", "dish_price", "dish_stepper"] },
     {
-      id: "dish-photo",
+      id: "dish_photo",
       component: "Image",
-      url: { path: "img" },
-      description: { path: "alt" },
+      url: bind("img"),
+      description: bind("alt"),
       fit: "cover",
       variant: "largeFeature",
     },
-    { id: "dish-name", component: "Text", variant: "h3", text: { path: "name" } },
-    { id: "dish-price", component: "Text", variant: "caption", text: { path: "price" } },
-    { id: "dish-stepper", component: "Row", justify: "spaceBetween", children: ["dish-minus", "dish-qty", "dish-plus"] },
+    { id: "dish_name", component: "Text", text: bind("title") },
+    { id: "dish_price", component: "Text", variant: "caption", text: bind("price") },
+    { id: "dish_stepper", component: "Row", justify: "spaceBetween", children: ["dish_minus", "dish_qty", "dish_plus"] },
     {
-      id: "dish-minus",
+      id: "dish_minus",
       component: "Button",
-      child: "dish-minus-label",
-      action: { event: { name: "change_qty", context: { dish: { path: "id" }, delta: -1 } } },
+      child: "dish_minus_label",
+      action: { event: { name: "change_qty", context: { dish: bind("id"), delta: -1 } } },
     },
-    { id: "dish-minus-label", component: "Text", text: "−" },
-    { id: "dish-qty", component: "Text", text: { path: "qtyLabel" } },
+    { id: "dish_minus_label", component: "Text", text: "−" },
+    { id: "dish_qty", component: "Text", text: bind("qtyLabel") },
     {
-      id: "dish-plus",
+      id: "dish_plus",
       component: "Button",
-      child: "dish-plus-label",
-      action: { event: { name: "change_qty", context: { dish: { path: "id" }, delta: 1 } } },
+      child: "dish_plus_label",
+      action: { event: { name: "change_qty", context: { dish: bind("id"), delta: 1 } } },
     },
-    { id: "dish-plus-label", component: "Text", text: "+" },
+    { id: "dish_plus_label", component: "Text", text: "+" },
   ];
 }
 
 function menuComponents(): A2UIComponent[] {
   return [
-    { id: "root", component: "Column", children: ["menu-title", "menu-sub", "layout"] },
-    { id: "menu-title", component: "Text", variant: "h2", text: "Dinner for four from Tasca Nova" },
-    { id: "menu-sub", component: "Text", variant: "caption", text: "Delivers in about 40 minutes · sample menu and prices" },
+    { id: "root", component: "Column", children: ["menu_title", "menu_sub", "layout"] },
+    { id: "menu_title", component: "Text", text: heading(2, "Dinner for four from Tasca Nova") },
+    { id: "menu_sub", component: "Text", variant: "caption", text: "Delivers in about 40 minutes · sample menu and prices" },
     { id: "layout", component: "Row", children: ["menu", "basket"] },
-    { id: "menu", component: "List", children: { path: "/menu", componentId: "dish-card" } },
+    { id: "menu", component: "List", children: { componentId: "dish_card", path: "/menu" } },
     ...dishCardComponents(),
-    { id: "basket", component: "Card", child: "basket-body" },
+    { id: "basket", component: "Card", child: "basket_body" },
     {
-      id: "basket-body",
+      id: "basket_body",
       component: "Column",
-      children: ["basket-title", "basket-empty", "basket-lines", "basket-delivery", "basket-total", "place"],
+      children: ["basket_title", "basket_empty", "basket_lines", "basket_delivery", "basket_total", "place"],
     },
-    { id: "basket-title", component: "Text", variant: "h3", text: "Your order" },
-    { id: "basket-empty", component: "Text", variant: "caption", text: { path: "/basket/empty" } },
-    { id: "basket-lines", component: "List", children: { path: "/basket/lines", componentId: "basket-line" } },
-    { id: "basket-line", component: "Row", justify: "spaceBetween", children: ["basket-line-label", "basket-line-amount"] },
-    { id: "basket-line-label", component: "Text", text: { path: "label" } },
-    { id: "basket-line-amount", component: "Text", text: { path: "amount" } },
-    { id: "basket-delivery", component: "Row", justify: "spaceBetween", children: ["basket-delivery-label", "basket-delivery-amount"] },
-    { id: "basket-delivery-label", component: "Text", variant: "caption", text: "Delivery" },
-    { id: "basket-delivery-amount", component: "Text", text: formatEur(FOOD_DELIVERY_FEE) },
-    { id: "basket-total", component: "Row", justify: "spaceBetween", children: ["basket-total-label", "basket-total-amount"] },
-    { id: "basket-total-label", component: "Text", variant: "h3", text: "Total" },
-    { id: "basket-total-amount", component: "Text", variant: "h3", text: { path: "/basket/total" } },
+    { id: "basket_title", component: "Text", text: heading(3, "Your order") },
+    { id: "basket_empty", component: "Text", variant: "caption", text: bind("/basket/empty") },
+    { id: "basket_lines", component: "List", children: { componentId: "basket_line", path: "/basket/lines" } },
+    { id: "basket_line", component: "Row", justify: "spaceBetween", children: ["basket_line_label", "basket_line_amount"] },
+    { id: "basket_line_label", component: "Text", text: bind("label") },
+    { id: "basket_line_amount", component: "Text", text: bind("amount") },
+    { id: "basket_delivery", component: "Row", justify: "spaceBetween", children: ["basket_delivery_label", "basket_delivery_amount"] },
+    { id: "basket_delivery_label", component: "Text", variant: "caption", text: "Delivery" },
+    { id: "basket_delivery_amount", component: "Text", text: formatEur(FOOD_DELIVERY_FEE) },
+    { id: "basket_total", component: "Row", justify: "spaceBetween", children: ["basket_total_label", "basket_total_amount"] },
+    { id: "basket_total_label", component: "Text", text: heading(3, "Total") },
+    { id: "basket_total_amount", component: "Text", text: bind("/basket/totalTitle") },
     {
       id: "place",
       component: "Button",
       variant: "primary",
-      child: "place-label",
+      child: "place_label",
       action: {
         event: {
           name: "place_order",
-          context: { items: { path: "/basket/items" }, total: { path: "/basket/totalValue" } },
+          context: { items: bind("/basket/items"), total: bind("/basket/totalValue") },
         },
       },
     },
-    { id: "place-label", component: "Text", text: { path: "/basket/placeLabel" } },
+    { id: "place_label", component: "Text", text: bind("/basket/placeLabel") },
   ];
 }
 
 function doneComponents(): A2UIComponent[] {
   return [
-    { id: "root", component: "Column", children: ["done-title", "done-summary", "done-photos", "done-again"] },
-    { id: "done-title", component: "Text", variant: "h2", text: "Order placed" },
-    { id: "done-summary", component: "Text", variant: "caption", text: { path: "/done/summary" } },
-    { id: "done-photos", component: "List", direction: "horizontal", children: { path: "/done/photos", componentId: "done-photo" } },
+    { id: "root", component: "Column", children: ["done_title", "done_summary", "done_photos", "done_again"] },
+    { id: "done_title", component: "Text", text: heading(2, "Order placed") },
+    { id: "done_summary", component: "Text", variant: "caption", text: bind("/done/summary") },
+    { id: "done_photos", component: "List", direction: "horizontal", children: { componentId: "done_photo", path: "/done/photos" } },
     {
-      id: "done-photo",
+      id: "done_photo",
       component: "Image",
-      url: { path: "url" },
-      description: { path: "alt" },
+      url: bind("url"),
+      description: bind("alt"),
       fit: "cover",
       variant: "smallFeature",
     },
     {
-      id: "done-again",
+      id: "done_again",
       component: "Button",
-      child: "done-again-label",
+      child: "done_again_label",
       action: { event: { name: "new_order", context: {} } },
     },
-    { id: "done-again-label", component: "Text", text: "Start a new order" },
+    { id: "done_again_label", component: "Text", text: "Start a new order" },
   ];
 }

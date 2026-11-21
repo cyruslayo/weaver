@@ -1,5 +1,5 @@
 import type { JsonValue } from "../protocol/index.js";
-import type { A2UIV091StreamIngestionEvent } from "../stream-ingestion/index.js";
+import type { A2UIV10StreamIngestionEvent } from "../stream-ingestion/index.js";
 import type { WeaverRuntimeObserver } from "../runtime/index.js";
 
 export const WEAVER_TRACE_FORMAT = "weaver-trace";
@@ -61,7 +61,7 @@ export interface WeaverTraceRecorder {
    * push() or finish().
    */
   recordIngestion(
-    events: readonly A2UIV091StreamIngestionEvent[],
+    events: readonly A2UIV10StreamIngestionEvent[],
     chunk?: string,
   ): void;
   /** Returns a defensive copy of the current trace. */

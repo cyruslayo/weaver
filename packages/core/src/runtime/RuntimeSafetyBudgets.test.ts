@@ -1,34 +1,27 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createBasicCatalogV091Registration,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createBasicCatalogV10Registration,
 } from "../basic-catalog/index.js";
 import { CatalogRegistry } from "../catalog/index.js";
 import { ComponentTreeResolver } from "../component-tree/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
+import { componentSchema } from "../functions/catalogFixtures.test-helper.js";
 import { createWeaverRuntime } from "./WeaverRuntime.js";
 import { ResolutionBudget, type WeaverRuntimeSafetyConfig } from "./safety.js";
 
 const ref = (name: string): JsonObject => ({
   $ref: `common_types.json#/$defs/${name}`,
 });
-const component = (name: string, properties: JsonObject = {}): JsonObject => ({
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    component: { const: name },
-    ...properties,
-  },
-  required: ["id", "component"],
-  additionalProperties: false,
-});
+const component = (name: string, properties: JsonObject = {}): JsonObject => componentSchema(name, properties);
 
 function catalog(): JsonObject {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     $id: "https://example.test/budget/catalog.json",
+    protocolVersion: "1.0",
     catalogId: "budget",
     components: {
       Branch: component("Branch", {
@@ -43,57 +36,9 @@ function catalog(): JsonObject {
       Payload: component("Payload", { payload: { type: "object" } }),
     },
     functions: {},
-    $defs: {
-      theme: { type: "object" },
-      commonTypes: {
-        $id: "common_types.json",
-        $defs: {
-          ComponentId: { type: "string" },
-          ChildList: {
-            oneOf: [
-              { type: "array", items: ref("ComponentId") },
-              {
-                type: "object",
-                properties: {
-                  path: { type: "string" },
-                  componentId: ref("ComponentId"),
-                },
-                required: ["path", "componentId"],
-                additionalProperties: false,
-              },
-            ],
-          },
-          PathBinding: {
-            type: "object",
-            properties: { path: { type: "string" } },
-            required: ["path"],
-            additionalProperties: false,
-          },
-          FunctionCall: {
-            type: "object",
-            properties: { call: { type: "string" }, args: { type: "object" } },
-            required: ["call", "args"],
-            additionalProperties: false,
-          },
-          DynamicString: {
-            oneOf: [
-              { type: "string" },
-              ref("PathBinding"),
-              ref("FunctionCall"),
-            ],
-          },
-          Action: {
-            type: "object",
-            properties: { event: { type: "object" } },
-            required: ["event"],
-            additionalProperties: false,
-          },
-        },
-      },
-    },
+    $defs: { anyComponent: {}, anyFunction: {} },
   };
 }
-
 function makeRuntime(safety?: WeaverRuntimeSafetyConfig) {
   return createWeaverRuntime({
     catalogs: [{ catalogId: "budget", schema: catalog() }],
@@ -108,7 +53,7 @@ function readyRuntime(safety?: WeaverRuntimeSafetyConfig) {
   const runtime = made.value;
   assert.equal(
     runtime.process({
-      version: "v0.9.1",
+      version: "1.0",
       createSurface: { surfaceId: "s", catalogId: "budget" },
     }).ok,
     true,
@@ -121,7 +66,7 @@ function update(
   components: JsonObject[],
 ) {
   const result = runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "s", components },
   });
   assert.equal(
@@ -133,7 +78,7 @@ function update(
 
 function data(runtime: ReturnType<typeof readyRuntime>, value: unknown) {
   const result = runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateDataModel: { surfaceId: "s", value },
   });
   assert.equal(
@@ -145,9 +90,9 @@ function data(runtime: ReturnType<typeof readyRuntime>, value: unknown) {
 
 function chain(length: number): JsonObject[] {
   return Array.from({ length }, (_, index) => ({
-    id: index === 0 ? "root" : `node-${index}`,
+    id: index === 0 ? "root" : `node_${index}`,
     component: "Branch",
-    children: index === length - 1 ? [] : [`node-${index + 1}`],
+    children: index === length - 1 ? [] : [`node_${index + 1}`],
   }));
 }
 
@@ -181,23 +126,23 @@ function nestedDepth(value: unknown): number {
 
 test("finite defaults resolve an ordinary canonical Basic Catalog surface", () => {
   const made = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
   });
   assert.equal(made.ok, true);
   if (!made.ok) return;
   assert.equal(
     made.value.process({
-      version: "v0.9.1",
+      version: "1.0",
       createSurface: {
         surfaceId: "basic",
-        catalogId: A2UI_V091_BASIC_CATALOG_ID,
+        catalogId: A2UI_V10_BASIC_CATALOG_ID,
       },
     }).ok,
     true,
   );
   assert.equal(
     made.value.process({
-      version: "v0.9.1",
+      version: "1.0",
       updateComponents: {
         surfaceId: "basic",
         components: [{ id: "root", component: "Text", text: "ordinary" }],
@@ -529,7 +474,7 @@ test("fails interactions before input mutation or action dispatch", () => {
     {
       id: "item",
       component: "Input",
-      value: { path: "value" },
+      value: { "@path": "value" },
       action: { event: { name: "submit", context: {} } },
     },
   ]);
@@ -588,17 +533,17 @@ test("keeps deeply nested non-structural component and data JSON stack-safe", ()
   });
   assert.equal(themed.ok, true);
   if (!themed.ok) return;
-  const theme = deeplyNestedObject(5000);
+  const dataModel = deeplyNestedObject(5000);
   assert.equal(
     themed.value.process({
-      version: "v0.9.1",
-      createSurface: { surfaceId: "themed", catalogId: "budget", theme },
+      version: "1.0",
+      createSurface: { surfaceId: "themed", catalogId: "budget", dataModel },
     }).ok,
     true,
   );
   assert.equal(
     themed.value.process({
-      version: "v0.9.1",
+      version: "1.0",
       updateComponents: {
         surfaceId: "themed",
         components: [{ id: "root", component: "Payload", payload: {} }],
@@ -608,6 +553,5 @@ test("keeps deeply nested non-structural component and data JSON stack-safe", ()
   );
   const themedResolution = themed.value.resolveSurface("themed");
   assert.equal(themedResolution.ok, true);
-  if (themedResolution.ok)
-    assert.equal(nestedDepth(themedResolution.value.theme), 5000);
+  assert.equal(nestedDepth(themed.value.getSurface("themed")?.dataModel), 5000);
 });

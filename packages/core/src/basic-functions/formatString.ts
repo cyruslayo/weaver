@@ -1,18 +1,21 @@
-import type { JsonValue } from "../protocol/index.js";
-import type { FunctionCall, FunctionExecutionContext } from "../functions/index.js";
+import type { JsonObject, JsonValue } from "../protocol/index.js";
+import { isDataBinding, isFunctionCall, type FunctionCall, type FunctionExecutionContext } from "../functions/index.js";
+
+/** A parsed interpolation expression: a literal, a DataBinding, or a FunctionCall in v1.0 wire shape. */
+type Expression = JsonValue | FunctionCall | { "@path": string };
 
 class ExpressionParser {
   #index = 0;
   constructor(private readonly source: string) {}
 
-  parse(): JsonValue | FunctionCall {
+  parse(): Expression {
     const value = this.#expression();
     this.#space();
     if (this.#index !== this.source.length) throw new Error("Unexpected interpolation input");
     return value;
   }
 
-  #expression(): JsonValue | FunctionCall {
+  #expression(): Expression {
     this.#space();
     if (this.source.startsWith("${", this.#index)) {
       const end = findInterpolationEnd(this.source, this.#index + 2);
@@ -34,15 +37,15 @@ class ExpressionParser {
     if (name === "") throw new Error("Expected expression");
     this.#space();
     if (this.source[this.#index] === "(") return this.#call(name);
-    return { path: name };
+    return { "@path": name };
   }
 
   #call(name: string): FunctionCall {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error("Invalid function name");
+    if (name !== "@index" && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) throw new Error("Invalid function name");
     this.#index++;
-    const args: Record<string, JsonValue> = {};
+    const args: JsonObject = {};
     this.#space();
-    if (this.source[this.#index] === ")") { this.#index++; return { call: name, args }; }
+    if (this.source[this.#index] === ")") { this.#index++; return { "@call": name, args }; }
     while (true) {
       this.#space();
       const match = this.source.slice(this.#index).match(/^[A-Za-z_][A-Za-z0-9_]*/u);
@@ -58,7 +61,7 @@ class ExpressionParser {
       if (this.source[this.#index] !== ",") throw new Error("Expected comma or closing parenthesis");
       this.#index++;
     }
-    return { call: name, args };
+    return { "@call": name, args };
   }
 
   #string(quote: string): string {
@@ -111,18 +114,16 @@ function stringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function evaluateExpression(expression: JsonValue | FunctionCall, context: FunctionExecutionContext): unknown {
-  if (expression !== null && typeof expression === "object" && !Array.isArray(expression)) {
-    if ("call" in expression) {
-      const result = context.evaluateFunctionCall(expression as FunctionCall);
-      if (!result.ok) context.propagateFunctionFailure(result.error);
-      return result.value;
-    }
-    if ("path" in expression && typeof expression.path === "string") {
-      const result = context.dataContext.get(expression.path);
-      if (!result.ok) throw new Error("Unable to resolve interpolation path");
-      return result.value;
-    }
+function evaluateExpression(expression: Expression, context: FunctionExecutionContext): unknown {
+  if (isFunctionCall(expression)) {
+    const result = context.evaluateFunctionCall(expression);
+    if (!result.ok) context.propagateFunctionFailure(result.error);
+    return result.value;
+  }
+  if (isDataBinding(expression)) {
+    const result = context.dataContext.get(expression["@path"]);
+    if (!result.ok) throw new Error("Unable to resolve interpolation path");
+    return result.value;
   }
   return expression;
 }

@@ -1,8 +1,13 @@
+import { coerceDynamicBoolean } from "../functions/index.js";
+
+/**
+ * and/or take DynamicBoolean items. The catalog layer reports an array of
+ * DynamicBoolean as a dynamic-value array, so each item is coerced here with the
+ * shared DynamicBoolean table (ValidationResult.valid, "true"/"false", and so on).
+ */
 function booleanValues(args: Readonly<Record<string, unknown>>): boolean[] {
-  if (!Array.isArray(args.values) || args.values.some((value) => typeof value !== "boolean")) {
-    throw new Error("values must contain only booleans");
-  }
-  return args.values;
+  if (!Array.isArray(args.values)) throw new TypeError("values must be an array");
+  return args.values.map((value) => coerceDynamicBoolean(value));
 }
 
 export function and(args: Readonly<Record<string, unknown>>): boolean {
@@ -14,6 +19,5 @@ export function or(args: Readonly<Record<string, unknown>>): boolean {
 }
 
 export function not(args: Readonly<Record<string, unknown>>): boolean {
-  if (typeof args.value !== "boolean") throw new Error("value must be a boolean");
-  return !args.value;
+  return !coerceDynamicBoolean(args.value);
 }

@@ -1,0 +1,33 @@
+A2UI repository: a2ui-project/a2ui (formerly google/A2UI)
+A2UI version: 1.0
+Commit: 5ff1b05f02d39f969b52a942e78e864ef3ac01fa
+Test data only. These are exact unmodified copies of upstream conformance
+files at that commit. They are not production code and are not shipped in the
+npm package (see Packaging below).
+
+Conformance YAML (conformance/core/ -> conformance/core/):
+  conformance/core/validator_v1_0.yaml
+  conformance/core/message_processor_v1_0.yaml
+  conformance/core/reserved_keys.yaml
+  conformance/core/validation_result.yaml
+  conformance/core/index_function.yaml
+  conformance/core/data_deletion.yaml
+  conformance/core/expressions.yaml
+  conformance/core/accessibility.yaml
+  conformance/core/rpc_functions.yaml
+  conformance/core/agent_function_routing.yaml
+  conformance/core/multi_catalog.yaml
+  conformance/core/composition_constraints.yaml
+  conformance/core/error_responses.yaml
+  conformance/core/functions.yaml
+  conformance/core/data_model.yaml
+  conformance/core/common_types.yaml
+  conformance/core/actions.yaml
+  conformance/core/catalog.yaml
+
+Referenced test data (preserved relative paths under conformance/test_data/):
+  conformance/test_data/catalogs/*_v1_0.json             (15 files)
+  conformance/test_data/validation_schema/*.json          (5 files, referenced by catalog.yaml expectFile)
+
+Packaging: the npm package ships only dist/ (package.json "files"); tsc
+includes only src/**/*.ts, so these .yaml and .json files are never emitted.

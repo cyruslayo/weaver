@@ -7,7 +7,7 @@ import {
   encodeSharedJsonl,
 } from "./share.js";
 
-const UNICODE_TEXT = 'Olá — 😀 中文 `backtick` ${not-a-template}\n{"version":"v0.9.1"}';
+const UNICODE_TEXT = 'Olá — 😀 中文 `backtick` ${not-a-template}\n{"version":"1.0"}';
 
 test("encode then decode round-trips unicode text exactly", () => {
   const encoded = encodeSharedJsonl(UNICODE_TEXT);

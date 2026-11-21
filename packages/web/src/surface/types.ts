@@ -1,29 +1,15 @@
-import type { ActionTransportMetadata, A2UIClientActionMessage, JsonObject, WeaverRuntime } from "@cylayo/weaver-core";
+import type { ActionTransportMetadata, A2UIRendererActionMessage, WeaverRuntime } from "@cylayo/weaver-core";
 import type { RendererRegistry } from "../renderers/index.js";
 import type { WebRenderError } from "./errors.js";
 
 export interface WebServerEventHandoff {
-  message: A2UIClientActionMessage;
+  message: A2UIRendererActionMessage;
   metadata?: ActionTransportMetadata;
 }
-
-export interface WebSurfaceThemeInput {
-  catalogId: string;
-  theme: JsonObject | undefined;
-}
-
-export interface WebSurfaceThemeResult {
-  customProperties: Readonly<Record<string, string>>;
-}
-
-export type WebSurfaceThemeAdapter = (
-  input: Readonly<WebSurfaceThemeInput>,
-) => WebSurfaceThemeResult;
 
 export interface WebSurfaceAttributionInput {
   surfaceId: string;
   catalogId: string;
-  theme: JsonObject | undefined;
 }
 
 export interface WebVerifiedSurfaceAttribution {
@@ -31,7 +17,7 @@ export interface WebVerifiedSurfaceAttribution {
   iconUrl?: string;
 }
 
-/** Trusted host boundary for turning surface context and untrusted theme claims into verified identity. */
+/** Trusted host boundary that supplies the verified identity shown in surface attribution chrome. */
 export type WebSurfaceAttributionProvider = (
   input: Readonly<WebSurfaceAttributionInput>,
 ) => WebVerifiedSurfaceAttribution | undefined;
@@ -39,8 +25,6 @@ export type WebSurfaceAttributionProvider = (
 export interface WebSurfaceRendererConfig {
   runtime: WeaverRuntime;
   renderers: RendererRegistry;
-  /** Optional trusted, pure translation from validated surface theme to custom properties. */
-  themeAdapter?: WebSurfaceThemeAdapter;
   /** Optional trusted host provider. No attribution is rendered when absent. */
   attributionProvider?: WebSurfaceAttributionProvider;
   /** Optional transport-neutral notification. Missing handlers do not fail dispatch. */

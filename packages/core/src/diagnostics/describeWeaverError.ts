@@ -20,9 +20,9 @@ import type {
   WeaverSurfaceResolutionError,
 } from "../runtime/index.js";
 import type {
-  A2UIV091PromptExampleInvalidError,
-  A2UIV091PromptGenerationError,
-  A2UIV091PromptSurfaceNotReadyCause,
+  A2UIV10PromptExampleInvalidError,
+  A2UIV10PromptGenerationError,
+  A2UIV10PromptSurfaceNotReadyCause,
 } from "../prompt/errors.js";
 import type { SurfaceStoreError } from "../surfaces/index.js";
 import type { JsonlDecodeError } from "../transport/jsonl/index.js";
@@ -307,7 +307,7 @@ function catalogRegistryError(error: CatalogRegistryError): ErrorNode {
         `Catalog "${catalogId}" is not a valid A2UI catalog schema.${issueSentence(first)}`,
         {
           dataPath,
-          hint: "Check the catalog against the A2UI v0.9.1 catalog schema, starting with the path above.",
+          hint: "Check the catalog against the A2UI v1.0 catalog schema, starting with the path above.",
         },
       );
     case "CATALOG_ALREADY_REGISTERED":
@@ -318,19 +318,6 @@ function catalogRegistryError(error: CatalogRegistryError): ErrorNode {
       return node("CATALOG_NOT_FOUND", `Catalog "${catalogId}" is not registered.`, {
         hint: "Register the catalog before a surface or component uses it, and check that the catalogId matches exactly.",
       });
-    case "THEME_SCHEMA_NOT_FOUND":
-      return node("THEME_SCHEMA_NOT_FOUND", `Catalog "${catalogId}" has no theme schema.`, {
-        hint: "Add a theme schema to the catalog, or stop sending a theme for this catalog.",
-      });
-    case "THEME_VALIDATION_FAILED":
-      return node(
-        "THEME_VALIDATION_FAILED",
-        `The theme does not match the schema of catalog "${catalogId}".${issueSentence(first)}`,
-        {
-          dataPath,
-          hint: "Fix the theme value at the path above, or update the catalog's theme schema.",
-        },
-      );
     case "COMPONENT_NOT_ALLOWED":
       return node(
         "COMPONENT_NOT_ALLOWED",
@@ -396,8 +383,6 @@ function functionRegistryError(error: FunctionRegistryError): ErrorNode {
     case "INVALID_CATALOG_SCHEMA":
     case "CATALOG_ALREADY_REGISTERED":
     case "CATALOG_NOT_FOUND":
-    case "THEME_SCHEMA_NOT_FOUND":
-    case "THEME_VALIDATION_FAILED":
     case "COMPONENT_NOT_ALLOWED":
     case "COMPONENT_STRUCTURE_NOT_FOUND":
     case "COMPONENT_VALIDATION_FAILED":
@@ -446,11 +431,42 @@ function functionEvaluationError(error: FunctionEvaluationError): ErrorNode {
       return node("FUNCTION_MAX_DEPTH_EXCEEDED", `Function calls for "${error.functionName}" are nested too deeply.`, {
         hint: "Remove some nested function calls, or simplify the expression.",
       });
+    case "FUNCTION_CALLER_NOT_ALLOWED":
+      return node("FUNCTION_CALLER_NOT_ALLOWED", `Function "${error.functionName}" cannot be called by this caller.`, {
+        hint: "Call the function from a caller that its allowedCallers permits, or change the catalog's function definition.",
+      });
+    case "EXPRESSION_ERROR":
+      return node(
+        "EXPRESSION_ERROR",
+        `Function "${error.functionName}" cannot run as written: it needs a user gesture, or its regex or expression breaks a safety rule.`,
+        {
+          hint: "Call an activation-gated function from a user action, and use only the A2UI regex dialect in patterns.",
+        },
+      );
+    case "EXECUTION_ERROR":
+      return node(
+        "EXECUTION_ERROR",
+        `Function "${error.functionName}" could not run in this context.`,
+        {
+          hint: "Call the function where it is valid, for example @index only inside a list template.",
+        },
+      );
+    case "UNSUPPORTED_FEATURE":
+      return node("UNSUPPORTED_FEATURE", error.message, {
+        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
+      });
+    case "INVALID_RESERVED_KEY":
+      return node(
+        "INVALID_RESERVED_KEY",
+        `Function "${error.functionName}" received an object with the reserved key "${error.key}" at "${error.path}".`,
+        {
+          dataPath: error.path,
+          hint: "Rename the key. To write a literal key that starts with @, double the @ (for example \"@@path\").",
+        },
+      );
     case "INVALID_CATALOG_SCHEMA":
     case "CATALOG_ALREADY_REGISTERED":
     case "CATALOG_NOT_FOUND":
-    case "THEME_SCHEMA_NOT_FOUND":
-    case "THEME_VALIDATION_FAILED":
     case "COMPONENT_NOT_ALLOWED":
     case "COMPONENT_STRUCTURE_NOT_FOUND":
     case "COMPONENT_VALIDATION_FAILED":
@@ -468,10 +484,10 @@ function functionEvaluationError(error: FunctionEvaluationError): ErrorNode {
 
 function surfaceStoreError(error: SurfaceStoreError): ErrorNode {
   switch (error.code) {
-    case "SURFACE_ALREADY_EXISTS":
-      return node("SURFACE_ALREADY_EXISTS", `Surface "${error.surfaceId}" already exists.`, {
+    case "INTEGRITY_ERROR":
+      return node("INTEGRITY_ERROR", `Surface "${error.surfaceId}" already exists.`, {
         surfaceId: error.surfaceId,
-        hint: "Update the existing surface instead of creating it again.",
+        hint: "Delete the surface with deleteSurface before creating it again, or use a new surfaceId.",
       });
     case "SURFACE_NOT_FOUND":
       return surfaceNotFound(error.surfaceId);
@@ -511,7 +527,7 @@ function validationIssue(issue: ValidationIssue): ErrorNode {
 function messageProcessorError(error: MessageProcessorError): ErrorNode {
   switch (error.code) {
     case "PROTOCOL_VALIDATION_FAILED":
-      return node("PROTOCOL_VALIDATION_FAILED", "The message does not match the A2UI v0.9.1 protocol.", {
+      return node("PROTOCOL_VALIDATION_FAILED", "The message does not match the A2UI v1.0 protocol.", {
         children: error.issues.map(validationIssue),
         hint: "Correct the listed fields in the A2UI output, then send the message again.",
       });
@@ -522,6 +538,10 @@ function messageProcessorError(error: MessageProcessorError): ErrorNode {
     case "CATALOG_REGISTRY_ERROR":
       return node("CATALOG_REGISTRY_ERROR", "The message does not satisfy its catalog.", {
         children: [catalogRegistryError(error.catalogError)],
+      });
+    case "UNSUPPORTED_FEATURE":
+      return node("UNSUPPORTED_FEATURE", error.message, {
+        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
       });
     default:
       return unknownError(error);
@@ -613,6 +633,20 @@ function checkEvaluatorError(error: CheckEvaluatorError): ErrorNode {
 
 function componentPropertyError(error: ComponentPropertyError): ErrorNode {
   switch (error.code) {
+    case "INVALID_RESERVED_KEY":
+      return node(
+        "INVALID_RESERVED_KEY",
+        `Component "${error.sourceComponentId}" uses conflicting reserved keys, including "${error.key}".`,
+        {
+          componentId: error.sourceComponentId,
+          hint: "Keep one of the conflicting keys on the component, such as only @checks, not both @checks and checks.",
+        },
+      );
+    case "UNSUPPORTED_FEATURE":
+      return node("UNSUPPORTED_FEATURE", error.message, {
+        componentId: error.sourceComponentId,
+        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
+      });
     case "CATALOG_PROPERTY_METADATA_FAILED":
       return node("CATALOG_PROPERTY_METADATA_FAILED", "The catalog metadata for a component property could not be read.", {
         children: [catalogRegistryError(error.cause)],
@@ -668,6 +702,15 @@ function checkSnapshotLocation(checks: ComponentCheckSnapshot): Location {
 
 function actionContextResolutionError(error: ActionContextResolutionError): ErrorNode {
   switch (error.code) {
+    case "INVALID_RESERVED_KEY":
+      return node(
+        "INVALID_RESERVED_KEY",
+        `Action context key "${error.key}" contains the reserved key "${error.reservedKey}" at "${error.path}".`,
+        {
+          dataPath: error.path,
+          hint: "Rename the key. To write a literal key that starts with @, double the @ (for example \"@@path\").",
+        },
+      );
     case "ACTION_CONTEXT_VOID_FUNCTION":
       return node(
         "ACTION_CONTEXT_VOID_FUNCTION",
@@ -739,6 +782,7 @@ function actionDispatchError(error: ActionDispatchError): ErrorNode {
       });
     case "ACTION_CONTEXT_VOID_FUNCTION":
     case "ACTION_CONTEXT_VALUE_UNAVAILABLE":
+    case "INVALID_RESERVED_KEY":
     case "ACTION_CONTEXT_RESOLUTION_FAILED":
       return actionContextResolutionError(error);
     default:
@@ -872,7 +916,7 @@ function runtimeConfigurationError(error: WeaverRuntimeConfigurationError): Erro
 // Entry point.
 // ---------------------------------------------------------------------------
 
-function promptGenerationError(error: A2UIV091PromptGenerationError): ErrorNode {
+function promptGenerationError(error: A2UIV10PromptGenerationError): ErrorNode {
   switch (error.code) {
     case "CATALOG_INVALID":
       return node(
@@ -911,7 +955,7 @@ function promptGenerationError(error: A2UIV091PromptGenerationError): ErrorNode 
   }
 }
 
-function surfaceNotReady(error: A2UIV091PromptSurfaceNotReadyCause): ErrorNode {
+function surfaceNotReady(error: A2UIV10PromptSurfaceNotReadyCause): ErrorNode {
   const issueCount = error.issues.tree.length + error.issues.instances.length + error.issues.properties.length;
   const gaps: string[] = [];
   if (!error.treeReady) gaps.push("the component tree is incomplete");
@@ -931,9 +975,9 @@ function surfaceNotReady(error: A2UIV091PromptSurfaceNotReadyCause): ErrorNode {
  * The example's typed cause is attached as a child node, so `causes` carries
  * the whole chain below it. `stage` decides which Core union that cause is.
  */
-function exampleInvalidError(error: A2UIV091PromptExampleInvalidError): ErrorNode {
+function exampleInvalidError(error: A2UIV10PromptExampleInvalidError): ErrorNode {
   const example = `example ${error.exampleIndex} ("${error.exampleTitle}")`;
-  const hint = "Correct the example so it is valid A2UI v0.9.1 for this catalog, then generate the prompt again.";
+  const hint = "Correct the example so it is valid A2UI v1.0 for this catalog, then generate the prompt again.";
   const message = trimPeriod(error.message);
   switch (error.stage) {
     case "runtime":
@@ -972,6 +1016,7 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "PROTOCOL_VALIDATION_FAILED":
     case "SURFACE_STORE_ERROR":
     case "CATALOG_REGISTRY_ERROR":
+    case "UNSUPPORTED_FEATURE":
       return messageProcessorError(error as MessageProcessorError);
     case "INVALID_JSON":
     case "FRAME_TOO_LARGE":
@@ -997,8 +1042,6 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "INVALID_CATALOG_SCHEMA":
     case "CATALOG_ALREADY_REGISTERED":
     case "CATALOG_NOT_FOUND":
-    case "THEME_SCHEMA_NOT_FOUND":
-    case "THEME_VALIDATION_FAILED":
     case "COMPONENT_NOT_ALLOWED":
     case "COMPONENT_STRUCTURE_NOT_FOUND":
     case "COMPONENT_VALIDATION_FAILED":
@@ -1009,7 +1052,7 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "ACTION_NAME_INVALID":
     case "PROMPT_TOO_LARGE":
     case "EXAMPLE_INVALID":
-      return promptGenerationError(error as A2UIV091PromptGenerationError);
+      return promptGenerationError(error as A2UIV10PromptGenerationError);
     default:
       return unknownError(error);
   }

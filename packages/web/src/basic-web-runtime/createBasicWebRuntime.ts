@@ -1,12 +1,9 @@
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createBasicCatalogV091Registration,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
 } from "@cylayo/weaver-core";
-import {
-  createBasicCatalogRendererRegistrations,
-  createBasicCatalogThemeAdapter,
-} from "../basic/index.js";
+import { createBasicCatalogRendererRegistrations } from "../basic/index.js";
 import {
   RendererRegistry,
   RendererRegistryConfigurationError,
@@ -22,10 +19,10 @@ import type {
 export function createBasicWebRuntime(
   config: BasicWebRuntimeConfig = {},
 ): BasicWebRuntimeCreationResult {
-  const catalogId = A2UI_V091_BASIC_CATALOG_ID;
+  const catalogId = A2UI_V10_BASIC_CATALOG_ID;
   const runtimeCreated = createWeaverRuntime({
     ...config.runtime,
-    catalogs: [createBasicCatalogV091Registration(), ...(config.additionalCatalogs ?? [])],
+    catalogs: [createBasicCatalogV10Registration(), ...(config.additionalCatalogs ?? [])],
   });
   if (!runtimeCreated.ok) return runtimeCreated;
 
@@ -35,7 +32,6 @@ export function createBasicWebRuntime(
       catalogId,
       ...(basic?.resourcePolicy === undefined ? {} : { resourcePolicy: basic.resourcePolicy }),
       ...(basic?.iconResolver === undefined ? {} : { iconResolver: basic.iconResolver }),
-      ...(basic?.regexMatcher === undefined ? {} : { regexMatcher: basic.regexMatcher }),
       ...(basic?.dateTimeInputLocalValueResolver === undefined
         ? {}
         : { dateTimeInputLocalValueResolver: basic.dateTimeInputLocalValueResolver }),
@@ -55,7 +51,6 @@ export function createBasicWebRuntime(
   const surface = new WebSurfaceRenderer({
     runtime: runtimeCreated.value,
     renderers,
-    themeAdapter: createBasicCatalogThemeAdapter({ catalogId }),
     ...(config.rendering?.attributionProvider === undefined ? {} : { attributionProvider: config.rendering.attributionProvider }),
     ...(config.rendering?.onServerEvent === undefined ? {} : { onServerEvent: config.rendering.onServerEvent }),
   });

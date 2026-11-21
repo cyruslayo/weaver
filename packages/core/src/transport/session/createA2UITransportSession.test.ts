@@ -2,25 +2,16 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { WeaverActionResult } from "../../runtime/index.js";
 import { createWeaverRuntime } from "../../runtime/index.js";
+import { catalogDocument, componentSchema } from "../../functions/catalogFixtures.test-helper.js";
 import { createA2UITransportSession } from "./createA2UITransportSession.js";
 
-const schema = {
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  catalogId: "test",
-  components: {
-    Text: {
-      type: "object",
-      properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
-      required: ["id", "component", "text"],
-      additionalProperties: false,
-    },
-  },
-  $defs: { theme: { type: "object", additionalProperties: false } },
-};
-const create = (surfaceId: string) => ({ version: "v0.9.1", createSurface: { surfaceId, catalogId: "test" } });
-const update = (surfaceId: string, text: string) => ({ version: "v0.9.1", updateComponents: { surfaceId, components: [{ id: "root", component: "Text", text }] } });
-const data = (surfaceId: string, value: unknown) => ({ version: "v0.9.1", updateDataModel: { surfaceId, value } });
-const remove = (surfaceId: string) => ({ version: "v0.9.1", deleteSurface: { surfaceId } });
+const schema = catalogDocument("test", {
+  Text: componentSchema("Text", { text: { type: "string" } }, { required: ["text"] }),
+});
+const create = (surfaceId: string) => ({ version: "1.0", createSurface: { surfaceId, catalogId: "test" } });
+const update = (surfaceId: string, text: string) => ({ version: "1.0", updateComponents: { surfaceId, components: [{ id: "root", component: "Text", text }] } });
+const data = (surfaceId: string, value: unknown) => ({ version: "1.0", updateDataModel: { surfaceId, value } });
+const remove = (surfaceId: string) => ({ version: "1.0", deleteSurface: { surfaceId } });
 function setup() {
   const made = createWeaverRuntime({ catalogs: [{ catalogId: "test", schema }] });
   assert.ok(made.ok);
@@ -30,8 +21,8 @@ function setup() {
 function action(surfaceId: string, withData = false): WeaverActionResult {
   return { ok: true, value: {
     kind: "serverEvent",
-    message: { version: "v0.9.1", action: { name: "go", surfaceId, sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } },
-    ...(withData ? { metadata: { a2uiClientDataModel: { version: "v0.9.1", surfaces: { [surfaceId]: { secret: true } } } } } : {}),
+    message: { version: "1.0", action: { name: "go", surfaceId, sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } },
+    ...(withData ? { metadata: { a2uiRendererDataModel: { version: "1.0", surfaces: { [surfaceId]: { secret: true } } } } } : {}),
   } };
 }
 
@@ -44,7 +35,7 @@ test("binds only successful creates and preserves same-owner lifecycle handling"
   assert.equal(!duplicate.ok && duplicate.error.code, "SURFACE_STORE_ERROR");
   assert.equal(session.getSurfaceRoute("X"), "A");
 
-  const invalid = session.processInbound("A", { version: "v0.9.1", createSurface: { surfaceId: "Y", catalogId: "missing" } });
+  const invalid = session.processInbound("A", { version: "1.0", createSurface: { surfaceId: "Y", catalogId: "missing" } });
   assert.equal(invalid.ok, false);
   assert.equal(session.getSurfaceRoute("Y"), undefined);
   assert.equal(runtime.getSurface("Y"), undefined);
@@ -92,18 +83,18 @@ test("routes actions and client data only to the surface owner with defensive ou
   const result = session.prepareActionDelivery(action("X", true));
   assert.ok(result.ok);
   assert.equal(result.value.routeId, "A");
-  assert.deepEqual(result.value.clientDataModel?.surfaces.X, { secret: true });
+  assert.deepEqual(result.value.rendererDataModel?.surfaces.X, { secret: true });
   result.value.message.action.context.changed = true;
   assert.deepEqual(session.prepareActionDelivery(action("unknown")), { ok: false, error: { code: "SURFACE_ROUTE_UNKNOWN", surfaceId: "unknown" } });
   const without = session.prepareActionDelivery(action("X"));
   assert.ok(without.ok);
-  assert.equal("clientDataModel" in without.value, false);
+  assert.equal("rendererDataModel" in without.value, false);
 });
 
 test("routes validation responses to their inbound source and never maps route mismatch", () => {
   const { runtime, session } = setup();
   session.processInbound("B", create("X"));
-  const malformed = { version: "v0.9.1", updateComponents: { surfaceId: "X", components: [] } };
+  const malformed = { version: "1.0", updateComponents: { surfaceId: "X", components: [] } };
   const failure = session.processInbound("A", malformed);
   assert.equal(!failure.ok && failure.error.code, "PROTOCOL_VALIDATION_FAILED");
   const delivery = session.prepareValidationErrorDelivery("A", malformed, failure as ReturnType<typeof runtime.process>);
@@ -123,7 +114,7 @@ test("validates opaque route IDs, ignores identity-like message fields, and isol
   assert.equal(one.session.getSurfaceRoute("agent-b"), undefined);
   one.session.processInbound("A", create("X"));
   assert.equal(two.session.getSurfaceRoute("X"), undefined);
-  const capabilities = one.session.getClientCapabilities();
-  capabilities["v0.9"].supportedCatalogIds.push("mutated");
-  assert.deepEqual(one.session.getClientCapabilities()["v0.9"].supportedCatalogIds, ["test"]);
+  const capabilities = one.session.getRendererCapabilities();
+  capabilities["1.0"].supportedCatalogIds.push("mutated");
+  assert.deepEqual(one.session.getRendererCapabilities()["1.0"].supportedCatalogIds, ["test"]);
 });

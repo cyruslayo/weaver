@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  createA2UIV091Producer,
+  createA2UIV10Producer,
   type A2UIComponent,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type JsonObject,
 } from "@cylayo/weaver-core";
 import {
@@ -18,7 +18,7 @@ import { DATA_TABLE_COMPONENT } from "./dataTableRenderer.js";
 import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 
 const SURFACE_ID = "cookbook-data-table";
-const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
+const BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
 const ORDERS: JsonObject[] = [
   { id: "A-1", status: "Paid", total: 1250 },
@@ -41,7 +41,7 @@ function screenComponents(): A2UIComponent[] {
         { key: "status", header: "Status" },
         { key: "total", header: "Total" },
       ],
-      rows: { path: "/orders" },
+      rows: { "@path": "/orders" },
     } as unknown as A2UIComponent,
   ];
 }
@@ -65,9 +65,9 @@ function mountTable(): MountedTable {
   assert.equal(created.ok, true, "the cookbook renderers must register next to Basic");
   if (!created.ok) throw new Error("unreachable");
 
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   const runtime = created.value.runtime;
-  const send = (message: A2UIServerMessage): void => {
+  const send = (message: A2UIAgentMessage): void => {
     const result = runtime.process(message);
     assert.equal(result.ok, true, JSON.stringify(result));
   };

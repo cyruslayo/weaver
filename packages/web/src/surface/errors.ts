@@ -10,7 +10,6 @@ export type WebRenderError =
        */
       surfaceId?: string;
     }
-  | { code: "THEME_ADAPTER_FAILED" }
   | { code: "ATTRIBUTION_PROVIDER_FAILED" }
   | { code: "INVALID_VERIFIED_ATTRIBUTION" }
   | {

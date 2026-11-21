@@ -6,6 +6,7 @@ import type { A2UIComponent, JsonObject } from "@cylayo/weaver-core";
 import { TRIP_DAYS, type Stop } from "../data.js";
 import { imageSource } from "../images.js";
 import { allStops, daySummary, includedStops, stopMeta, tripSummary, type StopInclusion } from "../model.js";
+import { bind, heading } from "../a2ui.js";
 
 export const TRIP_SURFACE_ID = "trip";
 
@@ -19,6 +20,14 @@ export interface TripState {
 
 export function tripView(state: TripState): TripView {
   return state.done ? "done" : "plan";
+}
+
+/**
+ * A component id from a data id. A2UI v1.0 ids are identifiers, so a hyphen becomes an underscore.
+ * The data paths keep the original stop ids, which are JSON Pointer segments and may contain hyphens.
+ */
+function componentKey(id: string): string {
+  return id.replace(/-/g, "_");
 }
 
 /** The data every view reads. The host sends it after each change. */
@@ -45,7 +54,7 @@ export function tripComponents(view: TripView): A2UIComponent[] {
 }
 
 function stopComponents(stop: Stop): A2UIComponent[] {
-  const id = (suffix: string): string => `stop-${stop.id}-${suffix}`;
+  const id = (suffix: string): string => `stop_${componentKey(stop.id)}_${suffix}`;
   return [
     { id: id("card"), component: "Card", child: id("body") },
     { id: id("body"), component: "Column", children: [id("photo"), id("meta"), id("title"), id("blurb"), id("include")] },
@@ -58,13 +67,13 @@ function stopComponents(stop: Stop): A2UIComponent[] {
       variant: "largeFeature",
     },
     { id: id("meta"), component: "Text", variant: "caption", text: `${stop.time} · ${stopMeta(stop)}` },
-    { id: id("title"), component: "Text", variant: "h3", text: stop.title },
+    { id: id("title"), component: "Text", text: heading(3, stop.title) },
     { id: id("blurb"), component: "Text", text: stop.blurb },
     {
       id: id("include"),
       component: "CheckBox",
       label: `Include ${stop.title}`,
-      value: { path: `/trip/included/${stop.id}` },
+      value: bind(`/trip/included/${stop.id}`),
     },
   ];
 }
@@ -72,61 +81,61 @@ function stopComponents(stop: Stop): A2UIComponent[] {
 function dayComponents(dayIndex: number): A2UIComponent[] {
   const day = TRIP_DAYS[dayIndex];
   if (day === undefined) return [];
-  const dayId = `day-${day.n}`;
+  const dayId = `day_${day.n}`;
   return [
     {
       id: dayId,
       component: "Column",
-      children: [`${dayId}-title`, `${dayId}-summary`, ...day.stops.map((stop) => `stop-${stop.id}-card`)],
+      children: [`${dayId}_title`, `${dayId}_summary`, ...day.stops.map((stop) => `stop_${componentKey(stop.id)}_card`)],
     },
-    { id: `${dayId}-title`, component: "Text", variant: "h3", text: `${day.label} · ${day.name}` },
-    { id: `${dayId}-summary`, component: "Text", variant: "caption", text: { path: `/trip/days/${dayIndex}` } },
+    { id: `${dayId}_title`, component: "Text", text: heading(3, `${day.label} · ${day.name}`) },
+    { id: `${dayId}_summary`, component: "Text", variant: "caption", text: bind(`/trip/days/${dayIndex}`) },
     ...day.stops.flatMap(stopComponents),
   ];
 }
 
 function planComponents(): A2UIComponent[] {
   return [
-    { id: "root", component: "Column", children: ["trip-title", "trip-summary", "days", "save"] },
-    { id: "trip-title", component: "Text", variant: "h2", text: "Three days in Lisbon" },
-    { id: "trip-summary", component: "Text", variant: "caption", text: { path: "/trip/summary" } },
+    { id: "root", component: "Column", children: ["trip_title", "trip_summary", "days", "save"] },
+    { id: "trip_title", component: "Text", text: heading(2, "Three days in Lisbon") },
+    { id: "trip_summary", component: "Text", variant: "caption", text: bind("/trip/summary") },
     {
       id: "days",
       component: "Tabs",
-      tabs: TRIP_DAYS.map((day) => ({ title: day.label, child: `day-${day.n}` })),
+      tabs: TRIP_DAYS.map((day) => ({ title: day.label, child: `day_${day.n}` })),
     },
     ...TRIP_DAYS.flatMap((_, index) => dayComponents(index)),
     {
       id: "save",
       component: "Button",
       variant: "primary",
-      child: "save-label",
-      action: { event: { name: "add_to_calendar", context: { stops: { path: "/trip/includedCount" } } } },
+      child: "save_label",
+      action: { event: { name: "add_to_calendar", context: { stops: bind("/trip/includedCount") } } },
     },
-    { id: "save-label", component: "Text", text: "Add trip to calendar" },
+    { id: "save_label", component: "Text", text: "Add trip to calendar" },
   ];
 }
 
 function doneComponents(): A2UIComponent[] {
   return [
-    { id: "root", component: "Column", children: ["done-title", "done-summary", "done-photos", "done-edit"] },
-    { id: "done-title", component: "Text", variant: "h2", text: "Trip added to your calendar" },
-    { id: "done-summary", component: "Text", variant: "caption", text: { path: "/done/summary" } },
-    { id: "done-photos", component: "List", direction: "horizontal", children: { path: "/done/photos", componentId: "done-photo" } },
+    { id: "root", component: "Column", children: ["done_title", "done_summary", "done_photos", "done_edit"] },
+    { id: "done_title", component: "Text", text: heading(2, "Trip added to your calendar") },
+    { id: "done_summary", component: "Text", variant: "caption", text: bind("/done/summary") },
+    { id: "done_photos", component: "List", direction: "horizontal", children: { componentId: "done_photo", path: "/done/photos" } },
     {
-      id: "done-photo",
+      id: "done_photo",
       component: "Image",
-      url: { path: "url" },
-      description: { path: "alt" },
+      url: bind("url"),
+      description: bind("alt"),
       fit: "cover",
       variant: "smallFeature",
     },
     {
-      id: "done-edit",
+      id: "done_edit",
       component: "Button",
-      child: "edit-label",
+      child: "edit_label",
       action: { event: { name: "edit_trip", context: {} } },
     },
-    { id: "edit-label", component: "Text", text: "Edit the plan" },
+    { id: "edit_label", component: "Text", text: "Edit the plan" },
   ];
 }

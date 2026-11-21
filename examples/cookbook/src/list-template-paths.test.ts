@@ -26,7 +26,7 @@ function probeDefinition(textPath: string): CookbookScreenDefinition<ProbeState>
         component: "List",
         children: { componentId: "ticketName", path: "/items" },
       } as unknown as A2UIComponent,
-      { id: "ticketName", component: "Text", text: { path: textPath } },
+      { id: "ticketName", component: "Text", text: { "@path": textPath } },
     ],
     actions: {},
   };

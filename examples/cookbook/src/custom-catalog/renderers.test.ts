@@ -39,7 +39,7 @@ test("the list passed as additionalRenderers creates the cookbook web runtime wi
   if (!created.ok) return;
 
   const web = created.value;
-  assert.equal(web.runtime.process({ version: "v0.9.1", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
   const components: A2UIComponent[] = [
     { id: "root", component: "Column", children: ["card"] },
     { id: "card", component: "Card", child: "content" },
@@ -48,7 +48,7 @@ test("the list passed as additionalRenderers creates the cookbook web runtime wi
     { id: "table", component: "DataTable", columns: [{ key: "name", header: "Name" }], rows: [{ name: "Ada" }] } as unknown as A2UIComponent,
     { id: "chart", component: "BarChart", title: "Counts", values: [{ label: "Open", value: 2 }], maxBars: 5 } as unknown as A2UIComponent,
   ];
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: SURFACE_ID, components } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateComponents: { surfaceId: SURFACE_ID, components } }).ok, true);
   const window = new Window();
   const target = window.document.createElement("main") as unknown as Element;
   assert.equal(web.mount({ surfaceId: SURFACE_ID, target }).ok, true);

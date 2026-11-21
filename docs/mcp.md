@@ -31,11 +31,11 @@ The bridge processes text only, accepts MIME parameters, applies a 1 MiB UTF-8 d
 ## Outbound delivery
 
 ```text
-A2UI server event → session routed delivery → a2ui_action MCP tool
+A2UI renderer action → session routed delivery → a2ui_action MCP tool
 A2UI validation failure → a2ui_error MCP tool
 ```
 
-Action business arguments are exactly `{ name, context }`. Validation arguments are exactly `{ code, surfaceId, path, message }`. Defaults may be replaced with non-empty `actionToolName` and `errorToolName` options.
+Action business arguments are exactly `{ name, context }`. Validation arguments are exactly `{ code, surfaceId, path, message }`, the fields of the v1.0 validation-failed renderer message `error`. Defaults may be replaced with non-empty `actionToolName` and `errorToolName` options.
 
 ## Weaver/A2UI MCP metadata mapping
 
@@ -43,21 +43,21 @@ These are Weaver/A2UI mapping fields, not MCP core fields:
 
 ```text
 _meta.a2ui = {
-  clientCapabilities: session.getClientCapabilities(),
+  rendererCapabilities: session.getRendererCapabilities(),
   action?: {
     surfaceId,
     sourceComponentId,
     timestamp
   },
-  clientDataModel?: A2UIClientDataModel
+  rendererDataModel?: A2UIRendererDataModel
 }
 ```
 
-Every bridge-owned `resources/read` and `tools/call` carries a fresh `clientCapabilities` value. Action metadata is present for `a2ui_action`; `clientDataModel` is present only when the session-prepared delivery includes it. The official SDK owns reserved `io.modelcontextprotocol/*` metadata.
+Every bridge-owned `resources/read` and `tools/call` carries a fresh `rendererCapabilities` value. Action metadata is present for `a2ui_action`; `rendererDataModel` is present only when the session-prepared delivery includes it. The official SDK owns reserved `io.modelcontextprotocol/*` metadata.
 
 ## Application capabilities
 
-Host applications can expose trusted domain integrations as ordinary MCP tools with `registerMcpApplicationCapability` or the batch helper `registerMcpApplicationCapabilities`:
+Host applications can expose trusted domain integrations as ordinary MCP tools with `registerMcpApplicationCapability` or the batch helper `registerMcpApplicationCapabilities`. The fragment assumes that `server` is the application's MCP server, and that `emptyObjectSchema`, `profileSchema` and `profileService` come from the application. It shows the call shape only:
 
 ```ts
 registerMcpApplicationCapability(server, {

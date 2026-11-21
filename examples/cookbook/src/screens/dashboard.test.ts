@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { A2UIServerMessage } from "@cylayo/weaver-core";
+import type { A2UIAgentMessage } from "@cylayo/weaver-core";
 import type { WebServerEventHandoff } from "@cylayo/weaver-web";
 import { Window } from "happy-dom";
 import { mountCookbookScreen } from "../shared/harness.js";
@@ -19,7 +19,7 @@ function mount() {
   const target = window.document.body.appendChild(
     window.document.createElement("main"),
   ) as unknown as Element;
-  const outbound: (readonly A2UIServerMessage[])[] = [];
+  const outbound: (readonly A2UIAgentMessage[])[] = [];
   const screen = mountCookbookScreen(target, dashboardScreen, {
     onOutbound: (messages) => outbound.push([...messages]),
   });
@@ -29,7 +29,7 @@ function mount() {
 function clickEvent(name: string, filter: unknown): WebServerEventHandoff {
   return {
     message: {
-      version: "v0.9.1",
+      version: "1.0",
       action: {
         name,
         surfaceId: DASHBOARD_SURFACE_ID,

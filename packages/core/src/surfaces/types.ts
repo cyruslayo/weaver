@@ -3,17 +3,22 @@ import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js"
 export interface SurfaceSnapshot {
   surfaceId: string;
   catalogId: string;
-  theme?: JsonObject;
   sendDataModel: boolean;
   components: Record<string, A2UIComponent>;
   dataModel: JsonValue;
 }
 
+/**
+ * Input for a surface created in one step. dataModel is applied before
+ * components. Either input can make the whole creation fail, in which case
+ * the store is left unchanged.
+ */
 export interface CreateSurfaceInput {
   surfaceId: string;
   catalogId: string;
-  theme?: JsonObject;
   sendDataModel?: boolean;
+  dataModel?: JsonObject;
+  components?: readonly A2UIComponent[];
 }
 
 export type SurfaceChange =

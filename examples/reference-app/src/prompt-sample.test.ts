@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createA2UIV091StreamIngestion,
-  type A2UIV091StreamIngestionEvent,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createA2UIV10StreamIngestion,
+  type A2UIV10StreamIngestionEvent,
 } from "@cylayo/weaver-core";
 import { createBasicWebRuntime } from "@cylayo/weaver-web";
 import { Window } from "happy-dom";
@@ -31,7 +31,7 @@ function listedActionNames(prompt: string): string[] {
 test("the prompt lists reference.createRequest as the only action", () => {
   const prompt = buildReferencePrompt();
   assert.deepEqual(listedActionNames(prompt), [REFERENCE_CREATE_REQUEST]);
-  assert.match(prompt, /Context: \{"priority":\{"path":"\/draft\/priority"\},"title":\{"path":"\/draft\/title"\}\}\./);
+  assert.match(prompt, /Context: \{"priority":\{"@path":"\/draft\/priority"\},"title":\{"@path":"\/draft\/title"\}\}\./);
 
   const eventNames = [...prompt.matchAll(/"name":"([^"]*)"/g)].map((match) => match[1]);
   assert.ok(eventNames.length > 0, "the validated example carries an event");
@@ -42,16 +42,16 @@ test("the prompt lists reference.createRequest as the only action", () => {
 test("the prompt is deterministic and keeps the Basic catalog id", () => {
   const first = buildReferencePrompt();
   assert.equal(buildReferencePrompt(), first);
-  assert.ok(first.includes(A2UI_V091_BASIC_CATALOG_ID));
+  assert.ok(first.includes(A2UI_V10_BASIC_CATALOG_ID));
 });
 
 test("the canned model response is valid A2UI and renders in happy-dom", () => {
   const web = createBasicWebRuntime();
   assert.equal(web.ok, true);
   if (!web.ok) return;
-  const ingestion = createA2UIV091StreamIngestion({ runtime: web.value.runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime: web.value.runtime });
 
-  const events: A2UIV091StreamIngestionEvent[] = [
+  const events: A2UIV10StreamIngestionEvent[] = [
     ...ingestion.push(CANNED_RESPONSE),
     ...ingestion.finish(),
   ];
@@ -74,7 +74,7 @@ test("a broken model response is rejected and the prior surface stays", () => {
   const web = createBasicWebRuntime();
   assert.equal(web.ok, true);
   if (!web.ok) return;
-  const ingestion = createA2UIV091StreamIngestion({ runtime: web.value.runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime: web.value.runtime });
   ingestion.push(CANNED_RESPONSE);
 
   const dom = target();
@@ -88,8 +88,8 @@ test("a broken model response is rejected and the prior surface stays", () => {
   // Frame 0 names a component the catalog does not declare, and would replace the
   // root. Frame 1 is truncated JSON. Neither may change the surface.
   const broken = [
-    '{"version":"v0.9.1","updateComponents":{"surfaceId":"reference-request","components":[{"id":"root","component":"Hologram","text":"Broken"}]}}',
-    '{"version":"v0.9.1","updateDataModel":{"surfaceId":"reference-request","value":{"draft":{"title":"x"}',
+    '{"version":"1.0","updateComponents":{"surfaceId":"reference-request","components":[{"id":"root","component":"Hologram","text":"Broken"}]}}',
+    '{"version":"1.0","updateDataModel":{"surfaceId":"reference-request","value":{"draft":{"title":"x"}',
   ];
   const events = broken.flatMap((frame) => ingestion.push(`${frame}\n`));
   assert.equal(events.length, 2);

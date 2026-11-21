@@ -1,11 +1,14 @@
 # @cylayo/weaver-core
 
 Core is the runtime and protocol foundation of Weaver. Weaver is an
-[A2UI v0.9.1](https://a2ui.org) runtime for dynamic interfaces.
+[A2UI v1.0](https://a2ui.org) runtime for dynamic interfaces.
+
+> **0.4.0 is unreleased.** This README describes the A2UI v1.0 API on the
+> `0.4.0` line. The released `0.3.1` package implements A2UI v0.9.1.
 
 ## What it does
 
-Core checks A2UI v0.9.1 messages against the trusted catalogs that your code
+Core checks A2UI v1.0 messages against the trusted catalogs that your code
 registers. It stores surface state, resolves the component tree, binds user
 input to the data model, and dispatches explicit actions. Core has no DOM and
 no Node APIs. It runs in a browser, in Node.js, and in Cloudflare Workers.
@@ -33,8 +36,8 @@ as JSON.
 
 ```ts
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createBasicCatalogV091Registration,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
 } from "@cylayo/weaver-core";
 
@@ -42,16 +45,16 @@ import {
 export default {
   fetch(request: Request): Response {
     const name = new URL(request.url).searchParams.get("name") ?? "Weaver";
-    const made = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+    const made = createWeaverRuntime({ catalogs: [createBasicCatalogV10Registration()] });
     if (!made.ok) return Response.json({ error: "runtime configuration failed" }, { status: 500 });
 
     const runtime = made.value;
     runtime.process({
-      version: "v0.9.1",
-      createSurface: { surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID },
+      version: "1.0",
+      createSurface: { surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID },
     });
     const updated = runtime.process({
-      version: "v0.9.1",
+      version: "1.0",
       updateComponents: {
         surfaceId: "main",
         components: [{ id: "root", component: "Text", text: `Hello, ${name}` }],
@@ -71,8 +74,8 @@ export default {
 | Package | Use it when | Also install |
 | --- | --- | --- |
 | [`@cylayo/weaver-core`](https://www.npmjs.com/package/@cylayo/weaver-core) (this package) | You need the runtime and the A2UI protocol, with no DOM. | Nothing else |
-| [`@cylayo/weaver-web`](https://www.npmjs.com/package/@cylayo/weaver-web) | You render a surface in a browser page. | Core, version `0.3.x` |
-| [`@cylayo/weaver-mcp`](https://www.npmjs.com/package/@cylayo/weaver-mcp) | You expose A2UI over MCP from a backend. Needs Node.js 20 or later. | Core, version `0.3.x` |
+| [`@cylayo/weaver-web`](https://www.npmjs.com/package/@cylayo/weaver-web) | You render a surface in a browser page. | Core, version `0.4.x` |
+| [`@cylayo/weaver-mcp`](https://www.npmjs.com/package/@cylayo/weaver-mcp) | You expose A2UI over MCP from a backend. Needs Node.js 20 or later. | Core, version `0.4.x` |
 
 ## Full documentation
 
@@ -81,8 +84,8 @@ export default {
 - [Prompt generation](https://github.com/cyruslayo/weaver/blob/main/docs/prompt-generation.md): build model instructions from a catalog.
 - [Custom catalogs](https://github.com/cyruslayo/weaver/blob/main/docs/custom-catalogs.md): register an app-owned catalog.
 - [Stream ingestion](https://github.com/cyruslayo/weaver/blob/main/docs/a2ui-stream-ingestion.md): validate streamed A2UI JSONL.
-- [Conformance](https://github.com/cyruslayo/weaver/blob/main/docs/conformance-v0.9.1.md): A2UI v0.9.1 requirement status.
-- [Changelog](https://github.com/cyruslayo/weaver/blob/main/CHANGELOG.md): release notes.
+- [Conformance](https://github.com/cyruslayo/weaver/blob/main/docs/conformance-v1.0.md): A2UI v1.0 requirement status.
+- [Changelog](https://github.com/cyruslayo/weaver/blob/main/CHANGELOG.md): release notes and the 0.3.x migration guide.
 
 ## License
 

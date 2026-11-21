@@ -5,92 +5,59 @@ import { ComponentInstanceResolver, type ResolvedComponentInstance } from "../co
 import { ComponentTreeResolver } from "../component-tree/index.js";
 import { DataContext } from "../data-context/index.js";
 import { FunctionEvaluator, FunctionRegistry } from "../functions/index.js";
+import { catalogDocument, componentSchema, functionSchema, ref } from "../functions/catalogFixtures.test-helper.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import { SurfaceStore } from "../surfaces/index.js";
 import { ComponentPropertyResolver } from "./ComponentPropertyResolver.js";
 
-const ref = (name: string): JsonObject => ({ $ref: `common_types.json#/$defs/${name}` });
-function dynamic(literal: JsonObject): JsonObject {
-  return { oneOf: [literal, ref("PathBinding"), ref("FunctionCall")] };
-}
+/** Shorthand for a catalog function with every declared argument required. */
 function fn(name: string, returnType: string, args: JsonObject = {}, required = Object.keys(args)): JsonObject {
-  return {
-    type: "object",
-    properties: {
-      call: { const: name },
-      args: { type: "object", properties: args, required, additionalProperties: false },
-      returnType: { const: returnType },
-    },
-    required: ["call", "args"],
-    additionalProperties: false,
-  };
+  return functionSchema(name, { returnType, args, required });
 }
 function setup(data: JsonValue = {}, implementations: Record<string, (...args: any[]) => unknown> = {}) {
   const catalogId = "properties";
   const registry = new CatalogRegistry();
-  const component = (name: string, properties: JsonObject): JsonObject => ({
-    type: "object",
-    properties: { id: { type: "string" }, component: { const: name }, ...properties },
-    required: ["id", "component"], additionalProperties: false,
+  const component = (name: string, properties: JsonObject): JsonObject => componentSchema(name, properties);
+  const schema: JsonObject = catalogDocument(catalogId, {
+    Display: component("Display", {
+      title: ref("DynamicString"), amount: ref("DynamicNumber"), enabled: ref("DynamicBoolean"), tags: ref("DynamicStringList"),
+      variant: { type: "string" }, metadata: { type: "object" }, slot: ref("ComponentId"), sections: ref("ChildList"),
+    }),
+    Metric: component("Metric", { primaryValue: ref("DynamicNumber"), name: ref("DynamicString"), sections: ref("ChildList") }),
+    Leaf: component("Leaf", { name: ref("DynamicString") }),
+    Card: component("Card", { details: ref("DynamicValue") }),
+    Icon: component("Icon", { name: { oneOf: [
+      { enum: ["home", "search"] },
+      { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false },
+      ref("DataBinding"),
+    ] }, metadata: { type: "object" } }),
+    Nested: component("Nested", {
+      options: { type: "array", items: { type: "object", properties: {
+        label: ref("DynamicString"), value: { type: "string" }, metadata: { type: "object" },
+      } } },
+      min: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
+      max: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
+      tabs: { type: "array", items: { type: "object", properties: {
+        title: ref("DynamicString"), id: { type: "string" }, child: ref("ComponentId"), metadata: { type: "string" },
+      } } },
+    }),
+  }, {
+    echo: fn("echo", "string", { value: ref("DynamicString") }),
+    echoValue: fn("echoValue", "any", { value: ref("DynamicValue") }),
+    consumeValue: fn("consumeValue", "void", { value: ref("DynamicValue") }),
+    formatName: fn("formatName", "string", { value: ref("DynamicString") }),
+    displayName: fn("displayName", "string", { name: ref("DynamicString") }),
+    label: fn("label", "string", { value: ref("DynamicValue"), company: ref("DynamicString") }),
+    outer: fn("outer", "string", { value: ref("DynamicValue") }),
+    concat: fn("concat", "string", { left: ref("DynamicString"), right: ref("DynamicString") }),
+    numberResult: fn("numberResult", "number"),
+    wrongResult: fn("wrongResult", "boolean"),
+    thrower: fn("thrower", "string", { value: ref("DynamicString") }),
+    declaredButUnimplemented: fn("declaredButUnimplemented", "string"),
+    objectResult: fn("objectResult", "object"),
+    arrayResult: fn("arrayResult", "array"),
+    sum: fn("sum", "number", { values: { type: "array", items: ref("DynamicNumber") } }),
   });
-  const schema: JsonObject = {
-    $schema: "https://json-schema.org/draft/2020-12/schema", $id: "https://example.test/properties.json", catalogId,
-    components: {
-      Display: component("Display", {
-        title: ref("DynamicString"), amount: ref("DynamicNumber"), enabled: ref("DynamicBoolean"), tags: ref("DynamicStringList"),
-        variant: { type: "string" }, metadata: { type: "object" }, slot: ref("ComponentId"), sections: ref("ChildList"),
-      }),
-      Metric: component("Metric", { primaryValue: ref("DynamicNumber"), name: ref("DynamicString"), sections: ref("ChildList") }),
-      Leaf: component("Leaf", { name: ref("DynamicString") }),
-      Icon: component("Icon", { name: { oneOf: [
-        { enum: ["home", "search"] },
-        { type: "object", properties: { svgPath: { type: "string" } }, required: ["svgPath"], additionalProperties: false },
-        ref("DataBinding"),
-      ] }, metadata: { type: "object" } }),
-      Nested: component("Nested", {
-        options: { type: "array", items: { type: "object", properties: {
-          label: ref("DynamicString"), value: { type: "string" }, metadata: { type: "object" },
-        } } },
-        min: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
-        max: { allOf: [ref("DynamicString"), { if: {}, then: {} }] },
-        tabs: { type: "array", items: { type: "object", properties: {
-          title: ref("DynamicString"), id: { type: "string" }, child: ref("ComponentId"), metadata: { type: "string" },
-        } } },
-      }),
-    },
-    functions: {
-      echo: fn("echo", "string", { value: ref("DynamicString") }),
-      echoValue: fn("echoValue", "any", { value: ref("DynamicValue") }),
-      consumeValue: fn("consumeValue", "void", { value: ref("DynamicValue") }),
-      formatName: fn("formatName", "string", { value: ref("DynamicString") }),
-      displayName: fn("displayName", "string", { name: ref("DynamicString") }),
-      label: fn("label", "string", { value: ref("DynamicValue"), company: ref("DynamicString") }),
-      outer: fn("outer", "string", { value: ref("DynamicValue") }),
-      concat: fn("concat", "string", { left: ref("DynamicString"), right: ref("DynamicString") }),
-      numberResult: fn("numberResult", "number"),
-      wrongResult: fn("wrongResult", "boolean"),
-      thrower: fn("thrower", "string", { value: ref("DynamicString") }),
-      declaredButUnimplemented: fn("declaredButUnimplemented", "string"),
-      objectResult: fn("objectResult", "object"),
-      arrayResult: fn("arrayResult", "array"),
-      sum: fn("sum", "number", { values: { type: "array", items: ref("DynamicNumber") } }),
-    },
-    $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {
-      ComponentId: { type: "string" },
-      ChildList: { oneOf: [
-        { type: "array", items: ref("ComponentId") },
-        { type: "object", properties: { path: { type: "string" }, componentId: ref("ComponentId") }, required: ["path", "componentId"], additionalProperties: false },
-      ] },
-      PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-      DataBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-      FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
-      DynamicString: dynamic({ type: "string" }),
-      DynamicNumber: dynamic({ type: "number" }),
-      DynamicBoolean: dynamic({ type: "boolean" }),
-      DynamicStringList: dynamic({ type: "array", items: { type: "string" } }),
-      DynamicValue: { oneOf: [{ type: "string" }, { type: "number" }, { type: "boolean" }, { type: "array" }, { type: "object" }] },
-    } } },
-  };
   assert.equal(registry.register({ catalogId, schema }).ok, true);
   const store = new SurfaceStore();
   assert.equal(store.create({ surfaceId: "s", catalogId }).ok, true);
@@ -137,26 +104,26 @@ test("hydrates bindable unions as literals, absolute/relative bindings, missing 
   const data = { icon: "search", explicit: { svgPath: "M1 1" }, bad: 42, items: [{ icon: "home" }] };
   const { properties, catalogId } = setup(data);
   const literalObject = { svgPath: "M0 0" };
-  const literal = ok(properties.resolve(instance({ id: "literal", component: "Icon", name: literalObject, metadata: { path: "literal" } }), DataContext.root(data), catalogId));
-  assert.deepEqual(literal.properties, { name: literalObject, metadata: { path: "literal" } });
+  const literal = ok(properties.resolve(instance({ id: "literal", component: "Icon", name: literalObject, metadata: { "@path": "literal" } }), DataContext.root(data), catalogId));
+  assert.deepEqual(literal.properties, { name: literalObject, metadata: { "@path": "literal" } });
   assert.notEqual(literal.properties.name, literalObject);
-  assert.equal(ok(properties.resolve(instance({ id: "absolute", component: "Icon", name: { path: "/icon" } }), DataContext.root(data), catalogId)).properties.name, "search");
-  const boundObject = ok(properties.resolve(instance({ id: "object", component: "Icon", name: { path: "/explicit" } }), DataContext.root(data), catalogId));
+  assert.equal(ok(properties.resolve(instance({ id: "absolute", component: "Icon", name: { "@path": "/icon" } }), DataContext.root(data), catalogId)).properties.name, "search");
+  const boundObject = ok(properties.resolve(instance({ id: "object", component: "Icon", name: { "@path": "/explicit" } }), DataContext.root(data), catalogId));
   assert.deepEqual(boundObject.properties.name, { svgPath: "M1 1" });
   (boundObject.properties.name as { svgPath: string }).svgPath = "changed";
   assert.deepEqual(data.explicit, { svgPath: "M1 1" });
   const context = ok(DataContext.root(data).createCollectionItemContext("/items", 0));
-  assert.equal(ok(properties.resolve(instance({ id: "relative", component: "Icon", name: { path: "icon" } }, "/items/0", 0), context, catalogId)).properties.name, "home");
-  const missing = ok(properties.resolve(instance({ id: "missing", component: "Icon", name: { path: "/missing" } }), DataContext.root(data), catalogId));
+  assert.equal(ok(properties.resolve(instance({ id: "relative", component: "Icon", name: { "@path": "icon" } }, "/items/0", 0), context, catalogId)).properties.name, "home");
+  const missing = ok(properties.resolve(instance({ id: "missing", component: "Icon", name: { "@path": "/missing" } }), DataContext.root(data), catalogId));
   assert.equal(missing.properties.name, undefined); assert.deepEqual(missing.issues, []);
-  const invalid = ok(properties.resolve(instance({ id: "bad", component: "Icon", name: { path: "/bad" }, metadata: { keep: true } }), DataContext.root(data), catalogId));
+  const invalid = ok(properties.resolve(instance({ id: "bad", component: "Icon", name: { "@path": "/bad" }, metadata: { keep: true } }), DataContext.root(data), catalogId));
   assert.equal(invalid.properties.name, undefined); assert.deepEqual(invalid.properties.metadata, { keep: true });
   assert.equal(invalid.issues[0]?.code, "BINDABLE_VALUE_TYPE_MISMATCH"); assert.equal(invalid.issues[0]?.path, "/name");
 });
 
 test("reports bindable relative-scope resolution failure with its typed cause", () => {
   const { properties, catalogId } = setup();
-  const result = ok(properties.resolve(instance({ id: "root", component: "Icon", name: { path: "icon" } }), DataContext.root({}), catalogId));
+  const result = ok(properties.resolve(instance({ id: "root", component: "Icon", name: { "@path": "icon" } }), DataContext.root({}), catalogId));
   assert.equal(result.properties.name, undefined);
   const issue = result.issues[0]; assert.equal(issue?.code, "BINDABLE_VALUE_RESOLUTION_FAILED");
   if (issue?.code === "BINDABLE_VALUE_RESOLUTION_FAILED") assert.equal(issue.error.code, "RELATIVE_PATH_OUTSIDE_COLLECTION");
@@ -165,38 +132,39 @@ test("reports bindable relative-scope resolution failure with its typed cause", 
 test("resolves absolute, relative, and item-scope absolute bindings", () => {
   const data = { company: "Acme", user: { name: "Root" }, items: [{ name: "A" }, { name: "B" }] };
   const { properties, catalogId } = setup(data);
-  assert.equal(ok(properties.resolve(instance({ id: "a", component: "Display", title: { path: "/user/name" } }), DataContext.root(data), catalogId)).properties.title, "Root");
+  assert.equal(ok(properties.resolve(instance({ id: "a", component: "Display", title: { "@path": "/user/name" } }), DataContext.root(data), catalogId)).properties.title, "Root");
   const itemContext = ok(DataContext.root(data).createCollectionItemContext("/items", 1));
-  assert.equal(ok(properties.resolve(instance({ id: "b", component: "Display", title: { path: "name" } }, "/items/1", 1), itemContext, catalogId)).properties.title, "B");
-  assert.equal(ok(properties.resolve(instance({ id: "c", component: "Display", title: { path: "/company" } }, "/items/1", 1), itemContext, catalogId)).properties.title, "Acme");
+  assert.equal(ok(properties.resolve(instance({ id: "b", component: "Display", title: { "@path": "name" } }, "/items/1", 1), itemContext, catalogId)).properties.title, "B");
+  assert.equal(ok(properties.resolve(instance({ id: "c", component: "Display", title: { "@path": "/company" } }, "/items/1", 1), itemContext, catalogId)).properties.title, "Acme");
 });
 
 test("keeps missing undefined and explicit null distinct", () => {
   const data = { explicit: null };
   const { properties, catalogId } = setup(data);
-  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { path: "/missing" }, amount: { path: "/explicit" } }), DataContext.root(data), catalogId));
+  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { "@path": "/missing" }, amount: { "@path": "/explicit" } }), DataContext.root(data), catalogId));
   assert.equal(Object.hasOwn(result.properties, "title"), true);
   assert.equal(result.properties.title, undefined);
   assert.equal(result.properties.amount, null);
   assert.equal(result.issues.length, 1);
 });
 
-test("reports all bound dynamic type mismatches without coercion", () => {
+test("reports dynamic type mismatches, and coerces DynamicBoolean per the spec table", () => {
   const data = { string: 123, number: "42", boolean: {}, list: ["A", 2] };
   const { properties, catalogId } = setup(data);
   const result = ok(properties.resolve(instance({
-    id: "root", component: "Display", title: { path: "/string" }, amount: { path: "/number" },
-    enabled: { path: "/boolean" }, tags: { path: "/list" },
+    id: "root", component: "Display", title: { "@path": "/string" }, amount: { "@path": "/number" },
+    enabled: { "@path": "/boolean" }, tags: { "@path": "/list" },
   }), DataContext.root(data), catalogId));
-  assert.deepEqual(result.issues.map(({ property }) => property), ["title", "amount", "enabled", "tags"]);
-  assert.deepEqual(result.properties, { title: undefined, amount: undefined, enabled: undefined, tags: undefined });
+  // An object is not a boolean, so the DynamicBoolean table coerces it to false without a mismatch.
+  assert.deepEqual(result.issues.map(({ property }) => property), ["title", "amount", "tags"]);
+  assert.deepEqual(result.properties, { title: undefined, amount: undefined, enabled: false, tags: undefined });
 });
 
 test("evaluates a simple function call and uses its result as the property value", () => {
   const { properties, catalogId } = setup({}, {
     echo: (args: { value: string }) => args.value,
   });
-  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { call: "echo", args: { value: "Hello" } } }), DataContext.root({}), catalogId));
+  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { "@call": "echo", args: { value: "Hello" } } }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, "Hello");
   assert.deepEqual(result.unresolved, []);
   assert.deepEqual(result.issues, []);
@@ -207,9 +175,9 @@ test("evaluates functions with absolute and relative bindings", () => {
   const { properties, catalogId } = setup(data, {
     echo: (args: { value: string }) => args.value,
   });
-  assert.equal(ok(properties.resolve(instance({ id: "a", component: "Display", title: { call: "echo", args: { value: { path: "/user/name" } } } }), DataContext.root(data), catalogId)).properties.title, "Root");
+  assert.equal(ok(properties.resolve(instance({ id: "a", component: "Display", title: { "@call": "echo", args: { value: { "@path": "/user/name" } } } }), DataContext.root(data), catalogId)).properties.title, "Root");
   const itemContext = ok(DataContext.root(data).createCollectionItemContext("/items", 1));
-  assert.equal(ok(properties.resolve(instance({ id: "b", component: "Display", title: { call: "echo", args: { value: { path: "name" } } } }, "/items/1", 1), itemContext, catalogId)).properties.title, "B");
+  assert.equal(ok(properties.resolve(instance({ id: "b", component: "Display", title: { "@call": "echo", args: { value: { "@path": "name" } } } }, "/items/1", 1), itemContext, catalogId)).properties.title, "B");
 });
 
 test("evaluates nested functions through a single top-level evaluator call", () => {
@@ -234,8 +202,8 @@ test("evaluates nested functions through a single top-level evaluator call", () 
   const properties = new ComponentPropertyResolver(registry, counting);
   const result = ok(properties.resolve(instance({
     id: "root", component: "Display", title: {
-      call: "concat",
-      args: { left: { call: "echo", args: { value: "He" } }, right: { call: "outer", args: { value: { call: "echo", args: { value: "llo" } } } } },
+      "@call": "concat",
+      args: { left: { "@call": "echo", args: { value: "He" } }, right: { "@call": "outer", args: { value: { "@call": "echo", args: { value: "llo" } } } } },
     },
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, "Hello");
@@ -246,7 +214,7 @@ test("applies destination dynamic type rules after evaluation", () => {
   const { properties, catalogId } = setup({}, {
     numberResult: () => 42,
   });
-  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { call: "numberResult", args: {} } }), DataContext.root({}), catalogId));
+  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { "@call": "numberResult", args: {} } }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, undefined);
   assert.deepEqual(result.issues, [{ code: "DYNAMIC_VALUE_TYPE_MISMATCH", sourceComponentId: "root", property: "title", expected: "dynamicString" }]);
 });
@@ -255,11 +223,11 @@ test("withholds missing implementations as unresolved with an issue while other 
   const { properties, catalogId } = setup();
   const result = ok(properties.resolve(instance({
     id: "root", component: "Display",
-    title: { call: "declaredButUnimplemented", args: {} }, amount: 7,
+    title: { "@call": "declaredButUnimplemented", args: {} }, amount: 7,
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, undefined);
   assert.equal(result.properties.amount, 7);
-  assert.deepEqual(result.unresolved, [{ property: "title", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { call: "declaredButUnimplemented", args: {} } }]);
+  assert.deepEqual(result.unresolved, [{ property: "title", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { "@call": "declaredButUnimplemented", args: {} } }]);
   assert.deepEqual(result.issues.map(({ code }) => code), ["FUNCTION_EVALUATION_FAILED"]);
   const failed = result.issues[0];
   if (failed && failed.code === "FUNCTION_EVALUATION_FAILED") {
@@ -271,7 +239,7 @@ test("records implementation exceptions as issues without leaking them", () => {
   const { properties, catalogId } = setup({}, {
     thrower: () => { throw new Error("secret"); },
   });
-  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { call: "thrower", args: { value: "x" } } }), DataContext.root({}), catalogId));
+  const result = ok(properties.resolve(instance({ id: "root", component: "Display", title: { "@call": "thrower", args: { value: "x" } } }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, undefined);
   assert.equal(result.issues.length, 1);
   const issue = result.issues[0];
@@ -286,7 +254,7 @@ test("preserves function return contract violations without reaching hydrated pr
   const { properties, catalogId } = setup({}, {
     wrongResult: () => "not boolean",
   });
-  const result = ok(properties.resolve(instance({ id: "root", component: "Display", enabled: { call: "wrongResult", args: {} } }), DataContext.root({}), catalogId));
+  const result = ok(properties.resolve(instance({ id: "root", component: "Display", enabled: { "@call": "wrongResult", args: {} } }), DataContext.root({}), catalogId));
   assert.equal(result.properties.enabled, undefined);
   assert.equal(result.issues.length, 1);
   const issue = result.issues[0];
@@ -301,7 +269,7 @@ test("controls runaway nesting with a bounded evaluator and keeps hydration non-
   const functions = new FunctionRegistry(registry);
   assert.equal(functions.register({ catalogId, name: "outer", effect: "pure", implementation: (args) => String(args.value) }).ok, true);
   const bounded = new ComponentPropertyResolver(registry, new FunctionEvaluator(registry, functions, { maxDepth: 1 }));
-  const call: JsonObject = { call: "outer", args: { value: { call: "outer", args: { value: "x" } } } };
+  const call: JsonObject = { "@call": "outer", args: { value: { "@call": "outer", args: { value: "x" } } } };
   const result = ok(bounded.resolve(instance({ id: "root", component: "Display", title: call }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, undefined);
   assert.equal(result.issues.length, 1);
@@ -314,16 +282,16 @@ test("controls runaway nesting with a bounded evaluator and keeps hydration non-
 
 test("catalog metadata controls semantics and supports unusual dynamic names", () => {
   const { properties, catalogId } = setup({ value: 7 });
-  const staticResult = ok(properties.resolve(instance({ id: "root", component: "Display", metadata: { path: "literal-metadata" } }), DataContext.root({}), catalogId));
-  assert.deepEqual(staticResult.properties.metadata, { path: "literal-metadata" });
-  const metric = ok(properties.resolve(instance({ id: "metric", component: "Metric", primaryValue: { path: "/value" } }), DataContext.root({ value: 7 }), catalogId));
+  const staticResult = ok(properties.resolve(instance({ id: "root", component: "Display", metadata: { "@path": "literal-metadata" } }), DataContext.root({}), catalogId));
+  assert.deepEqual(staticResult.properties.metadata, { "@path": "literal-metadata" });
+  const metric = ok(properties.resolve(instance({ id: "metric", component: "Metric", primaryValue: { "@path": "/value" } }), DataContext.root({ value: 7 }), catalogId));
   assert.equal(metric.properties.primaryValue, 7);
 });
 
 test("keeps function-looking static properties literal and does not execute them", () => {
   const { properties, catalogId } = setup();
-  const result = ok(properties.resolve(instance({ id: "root", component: "Display", metadata: { call: "echo", args: {} } }), DataContext.root({}), catalogId));
-  assert.deepEqual(result.properties.metadata, { call: "echo", args: {} });
+  const result = ok(properties.resolve(instance({ id: "root", component: "Display", metadata: { "@call": "echo", args: {} } }), DataContext.root({}), catalogId));
+  assert.deepEqual(result.properties.metadata, { "@call": "echo", args: {} });
   assert.deepEqual(result.unresolved, []);
   assert.deepEqual(result.issues, []);
 });
@@ -347,7 +315,7 @@ test("hydrates nested template instances with their own relative scopes", () => 
   store.updateComponents("s", [
     { id: "root", component: "Metric", sections: { path: "/groups", componentId: "group" } },
     { id: "group", component: "Metric", sections: { path: "members", componentId: "member" } },
-    { id: "member", component: "Leaf", name: { path: "name" } },
+    { id: "member", component: "Leaf", name: { "@path": "name" } },
   ]);
   const surface = snapshot();
   const hydrated = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
@@ -367,7 +335,7 @@ test("evaluates functions per template instance with its own scope", () => {
   });
   store.updateComponents("s", [
     { id: "root", component: "Display", sections: { path: "/items", componentId: "item" } },
-    { id: "item", component: "Leaf", name: { call: "displayName", args: { name: { path: "name" } } } },
+    { id: "item", component: "Leaf", name: { "@call": "displayName", args: { name: { "@path": "name" } } } },
   ]);
   const surface = snapshot();
   const hydrated = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
@@ -388,7 +356,7 @@ test("evaluates functions in nested template scopes with absolute root bindings"
   store.updateComponents("s", [
     { id: "root", component: "Display", sections: { path: "/groups", componentId: "group" } },
     { id: "group", component: "Metric", sections: { path: "members", componentId: "member" } },
-    { id: "member", component: "Leaf", name: { call: "label", args: { value: { call: "formatName", args: { value: { path: "name" } } }, company: { path: "/company/name" } } } },
+    { id: "member", component: "Leaf", name: { "@call": "label", args: { value: { "@call": "formatName", args: { value: { "@path": "name" } } }, company: { "@path": "/company/name" } } } },
   ]);
   const surface = snapshot();
   const hydrated = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
@@ -409,7 +377,7 @@ test("a failed function in one template instance does not affect sibling instanc
   });
   store.updateComponents("s", [
     { id: "root", component: "Display", sections: { path: "/items", componentId: "item" } },
-    { id: "item", component: "Leaf", name: { call: "displayName", args: { name: { path: "name" } } } },
+    { id: "item", component: "Leaf", name: { "@call": "displayName", args: { name: { "@path": "name" } } } },
   ]);
   const surface = snapshot();
   const hydrated = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
@@ -425,15 +393,15 @@ test("rebuilds after data changes and owns hydrated output independently", () =>
   const { store, instances, properties, snapshot } = setup({ name: "Ada" }, {
     echo: (args: { value: string }) => args.value,
   });
-  store.updateComponents("s", [{ id: "root", component: "Leaf", name: { call: "echo", args: { value: { path: "/name" } } } }]);
+  store.updateComponents("s", [{ id: "root", component: "Leaf", name: { "@call": "echo", args: { value: { "@path": "/name" } } } }]);
   let surface = snapshot();
   const instanceTree = ok(instances.resolve(surface));
   const first = ok(properties.resolveTree(surface, instanceTree));
   assert.equal(first.root?.properties.name, "Ada");
   first.root!.properties.name = "mutated";
-  first.root!.unresolved.push({ property: "x", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { call: "x", args: {} } });
+  first.root!.unresolved.push({ property: "x", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { "@call": "x", args: {} } });
   first.root!.relationships.length = 0;
-  assert.equal(instanceTree.root?.definition.name && (instanceTree.root.definition.name as JsonObject).args && ((instanceTree.root.definition.name as JsonObject).args as JsonObject).value && (((instanceTree.root.definition.name as JsonObject).args as JsonObject).value as JsonObject).path, "/name");
+  assert.equal(((((instanceTree.root!.definition.name as JsonObject).args as JsonObject).value) as JsonObject)["@path"], "/name");
   assert.equal(snapshot().dataModel && (snapshot().dataModel as JsonObject).name, "Ada");
   store.setData("s", "/name", "Grace");
   surface = snapshot();
@@ -444,11 +412,11 @@ test("rebuilds after data changes and owns hydrated output independently", () =>
 
 test("rebuilds after function registration without caching failure state", () => {
   const { store, instances, properties, snapshot, functions, catalogId } = setup({ name: "Ada" });
-  store.updateComponents("s", [{ id: "root", component: "Leaf", name: { call: "echo", args: { value: { path: "/name" } } } }]);
+  store.updateComponents("s", [{ id: "root", component: "Leaf", name: { "@call": "echo", args: { value: { "@path": "/name" } } } }]);
   let surface = snapshot();
   let first = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
   assert.equal(first.root?.properties.name, undefined);
-  assert.deepEqual(first.root?.unresolved, [{ property: "name", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { call: "echo", args: { value: { path: "/name" } } } }]);
+  assert.deepEqual(first.root?.unresolved, [{ property: "name", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { "@call": "echo", args: { value: { "@path": "/name" } } } }]);
   assert.equal(functions.register({ catalogId, name: "echo", effect: "pure", implementation: (args) => String(args.value) }).ok, true);
   surface = snapshot();
   const second = ok(properties.resolveTree(surface, ok(instances.resolve(surface))));
@@ -467,7 +435,7 @@ test("keeps hydrated function results independent from implementation-owned obje
   });
   const result = ok(properties.resolve(instance({
     id: "root", component: "Display",
-    title: { call: "echo", args: { value: "fixed" } }, tags: { call: "arrayResult", args: {} },
+    title: { "@call": "echo", args: { value: "fixed" } }, tags: { "@call": "arrayResult", args: {} },
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, "fixed");
   const tags = result.properties.tags as string[];
@@ -475,7 +443,7 @@ test("keeps hydrated function results independent from implementation-owned obje
   assert.deepEqual(ownedArray, ["a", "b"]);
   const again = ok(properties.resolve(instance({
     id: "root", component: "Display",
-    tags: { call: "arrayResult", args: {} },
+    tags: { "@call": "arrayResult", args: {} },
   }), DataContext.root({}), catalogId));
   assert.deepEqual(again.properties.tags, ["a", "b"]);
 });
@@ -487,7 +455,7 @@ test("keeps allowed undefined results progressive and distinguishes null", () =>
   });
   const undefinedResult = ok(properties.resolve(instance({
     id: "root", component: "Display",
-    title: { call: "consumeValue", args: { value: { path: "/missing" } } },
+    title: { "@call": "consumeValue", args: { value: { "@path": "/missing" } } },
   }), DataContext.root({}), catalogId));
   assert.equal(Object.hasOwn(undefinedResult.properties, "title"), true);
   assert.equal(undefinedResult.properties.title, undefined);
@@ -495,7 +463,7 @@ test("keeps allowed undefined results progressive and distinguishes null", () =>
   assert.deepEqual(undefinedResult.unresolved, []);
   const nullResult = ok(properties.resolve(instance({
     id: "root", component: "Display",
-    title: { call: "echoValue", args: { value: "unused" } },
+    title: { "@call": "echoValue", args: { value: "unused" } },
   }), DataContext.root({}), catalogId));
   assert.equal(nullResult.properties.title, null);
   assert.deepEqual(nullResult.issues, [{ code: "DYNAMIC_VALUE_TYPE_MISMATCH", sourceComponentId: "root", property: "title", expected: "dynamicString" }]);
@@ -507,7 +475,7 @@ test("keeps null function results explicit with the destination mismatch recorde
   });
   const result = ok(properties.resolve(instance({
     id: "root", component: "Display",
-    title: { call: "echoValue", args: { value: "unused" } },
+    title: { "@call": "echoValue", args: { value: "unused" } },
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, null);
   assert.deepEqual(result.issues, [{ code: "DYNAMIC_VALUE_TYPE_MISMATCH", sourceComponentId: "root", property: "title", expected: "dynamicString" }]);
@@ -516,7 +484,7 @@ test("keeps null function results explicit with the destination mismatch recorde
 test("hydrates nested titles while removing only structural child leaves", () => {
   const { properties, catalogId } = setup({ titles: { first: "First" } });
   const definition: JsonObject = { id: "root", component: "Nested", tabs: [
-    { title: { path: "/titles/first" }, child: "panel-a", metadata: "keep" },
+    { title: { "@path": "/titles/first" }, child: "panel-a", metadata: "keep" },
     { title: "Second", child: "panel-b" },
   ] };
   const result = ok(properties.resolve(instance(definition), DataContext.root({ titles: { first: "First" } }), catalogId));
@@ -535,20 +503,20 @@ test("hydrates ChoicePicker-like labels, wrapped dates, and Tabs-like titles wit
   const definition: JsonObject = {
     id: "root", component: "Nested",
     options: [
-      { label: "Literal", value: "stable-0", metadata: { path: "literal" } },
-      { label: { path: "/labels/a" }, value: "stable-1", metadata: { call: "literal" } },
-      { label: { path: "displayName" }, value: "stable-2" },
-      { label: { call: "formatName", args: { value: "Name" } }, value: "stable-3" },
+      { label: "Literal", value: "stable-0", metadata: { "@path": "literal" } },
+      { label: { "@path": "/labels/a" }, value: "stable-1", metadata: { "@call": "literal" } },
+      { label: { "@path": "displayName" }, value: "stable-2" },
+      { label: { "@call": "formatName", args: { value: "Name" } }, value: "stable-3" },
     ],
-    min: { path: "/constraints/minDate" },
-    max: { call: "formatName", args: { value: "2026-09-01" } },
-    tabs: [{ id: "tab-a", title: { path: "/labels/a" } }],
+    min: { "@path": "/constraints/minDate" },
+    max: { "@call": "formatName", args: { value: "2026-09-01" } },
+    tabs: [{ id: "tab-a", title: { "@path": "/labels/a" } }],
   };
   const context = ok(DataContext.root({ ...data, items: [{ displayName: "Scoped" }] }).createCollectionItemContext("/items", 0));
   const result = ok(properties.resolve(instance(definition, "/items/0", 0), context, catalogId));
   assert.deepEqual(result.properties.options, [
-    { label: "Literal", value: "stable-0", metadata: { path: "literal" } },
-    { label: "First", value: "stable-1", metadata: { call: "literal" } },
+    { label: "Literal", value: "stable-0", metadata: { "@path": "literal" } },
+    { label: "First", value: "stable-1", metadata: { "@call": "literal" } },
     { label: "Scoped", value: "stable-2" },
     { label: "Formatted Name", value: "stable-3" },
   ]);
@@ -563,9 +531,9 @@ test("isolates nested missing, type mismatch, and function failures with precise
     thrower: () => { throw new Error("secret"); },
   });
   const definition: JsonObject = { id: "root", component: "Nested", options: [
-    { label: { path: "/missing" }, value: "a" },
-    { label: { path: "/wrong" }, value: "b" },
-    { label: { call: "thrower", args: { value: "x" } }, value: "c" },
+    { label: { "@path": "/missing" }, value: "a" },
+    { label: { "@path": "/wrong" }, value: "b" },
+    { label: { "@call": "thrower", args: { value: "x" } }, value: "c" },
     { label: "Safe", value: "d" },
   ] };
   const result = ok(properties.resolve(instance(definition), DataContext.root({ wrong: 42 }), catalogId));
@@ -589,13 +557,75 @@ test("preserves catalog-declared argument binding failure as a controlled issue"
   });
   // A relative binding at root scope is invalid for DataContext and cannot execute.
   const result = ok(properties.resolve(instance({
-    id: "root", component: "Display", title: { call: "echo", args: { value: { path: "name" } } },
+    id: "root", component: "Display", title: { "@call": "echo", args: { value: { "@path": "name" } } },
   }), DataContext.root({}), catalogId));
   assert.equal(result.properties.title, undefined);
-  assert.deepEqual(result.unresolved, [{ property: "title", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { call: "echo", args: { value: { path: "name" } } } }]);
+  assert.deepEqual(result.unresolved, [{ property: "title", reason: "FUNCTION_EVALUATION_FAILED", functionCall: { "@call": "echo", args: { value: { "@path": "name" } } } }]);
   const failed = result.issues[0];
   assert.equal(failed?.code, "FUNCTION_EVALUATION_FAILED");
   if (failed && failed.code === "FUNCTION_EVALUATION_FAILED") {
     assert.equal(failed.error.code, "FUNCTION_ARGUMENT_RESOLUTION_FAILED");
   }
+});
+
+test("resolves @accessibility dynamic values and strips every envelope key from properties", () => {
+  const data = { who: "Ada", hide: 0 };
+  const { properties, catalogId } = setup(data);
+  const result = ok(properties.resolve(instance({
+    id: "root", component: "Display", title: "x",
+    "@accessibility": { label: { "@path": "/who" }, description: "Greeting", live: "polite", hidden: { "@path": "/hide" } },
+    "@metadata": { extensions: {} }, "@catalogId": catalogId,
+  }), DataContext.root(data), catalogId));
+  assert.deepEqual(result.accessibility, { label: "Ada", description: "Greeting", live: "polite", hidden: false });
+  assert.deepEqual(result.properties, { title: "x" });
+});
+
+test("an @accessibility value that cannot resolve stays absent rather than failing the component", () => {
+  const { properties, catalogId } = setup({});
+  const result = ok(properties.resolve(instance({
+    id: "root", component: "Display", "@accessibility": { label: { "@path": "/missing" } },
+  }), DataContext.root({}), catalogId));
+  assert.deepEqual(result.accessibility, {});
+});
+
+test("a component carrying both the @-form and the bare envelope key is rejected", () => {
+  const { properties, catalogId } = setup({});
+  assert.equal(errorCode(properties.resolve(instance({
+    id: "root", component: "Display", "@accessibility": {}, accessibility: {},
+  }), DataContext.root({}), catalogId)), "INVALID_RESERVED_KEY");
+  assert.equal(errorCode(properties.resolve(instance({
+    id: "root", component: "Display", "@checks": [], checks: [],
+  }), DataContext.root({}), catalogId)), "INVALID_RESERVED_KEY");
+});
+
+test("a component @catalogId equal to the surface catalog is accepted and a different one is unsupported", () => {
+  const { properties, catalogId } = setup({});
+  assert.equal(ok(properties.resolve(instance({ id: "root", component: "Display", "@catalogId": catalogId }), DataContext.root({}), catalogId)).accessibility, undefined);
+  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display", "@catalogId": "other" }), DataContext.root({}), catalogId)), "UNSUPPORTED_FEATURE");
+});
+
+test("a DynamicValue property resolves bindings and calls, and unescapes literal objects", () => {
+  const data = { user: { name: "Ada" } };
+  const { properties, catalogId } = setup(data, { echo: (args: { value: string }) => args.value });
+  const bound = ok(properties.resolve(instance({ id: "root", component: "Card", details: { "@path": "/user/name" } }), DataContext.root(data), catalogId));
+  assert.equal(bound.properties.details, "Ada");
+  const called = ok(properties.resolve(instance({ id: "root", component: "Card", details: { "@call": "echo", args: { value: { "@path": "/user/name" } } } }), DataContext.root(data), catalogId));
+  assert.equal(called.properties.details, "Ada");
+  const literal = ok(properties.resolve(instance({ id: "root", component: "Card", details: { "@@path": "/static/file", "@@type": "Resource", plain: 1 } }), DataContext.root(data), catalogId));
+  assert.deepEqual(literal.properties.details, { "@path": "/static/file", "@type": "Resource", plain: 1 });
+  const invalid = ok(properties.resolve(instance({ id: "root", component: "Card", details: { "@if": true } }), DataContext.root(data), catalogId));
+  assert.deepEqual(invalid.issues.map((issue) => issue.code), ["INVALID_RESERVED_KEY"]);
+  assert.equal(invalid.properties.details, undefined);
+});
+
+test("bare envelope names coexist with their @ form only when the catalog declares them", () => {
+  const { properties, catalogId } = setup({});
+  // Display declares metadata, so the bare form is an ordinary property beside @metadata.
+  const declared = ok(properties.resolve(instance({ id: "root", component: "Display", "@metadata": { extensions: {} }, metadata: { owner: "x" } }), DataContext.root({}), catalogId));
+  assert.deepEqual(declared.properties, { metadata: { owner: "x" } });
+  // catalogId is not declared, so the bare form is rejected, alone or beside @catalogId.
+  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display", catalogId: "x" }), DataContext.root({}), catalogId)), "INVALID_RESERVED_KEY");
+  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display", "@catalogId": catalogId, catalogId: "x" }), DataContext.root({}), catalogId)), "INVALID_RESERVED_KEY");
+  // accessibility is not declared by Display, so the bare form alone is rejected.
+  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display", accessibility: {} }), DataContext.root({}), catalogId)), "INVALID_RESERVED_KEY");
 });

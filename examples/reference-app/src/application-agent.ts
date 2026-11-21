@@ -1,9 +1,9 @@
 import type {
   A2UIComponent,
-  A2UIServerMessage,
+  A2UIAgentMessage,
   JsonObject,
 } from "@cylayo/weaver-core";
-import { createA2UIV091Producer } from "@cylayo/weaver-core";
+import { createA2UIV10Producer } from "@cylayo/weaver-core";
 
 export const REFERENCE_SURFACE_ID = "reference-request";
 export const REFERENCE_CREATE_REQUEST = "reference.createRequest";
@@ -44,8 +44,8 @@ export interface ReferenceCreateRequest {
 export interface ReferenceAgent {
   readonly surfaceId: string;
   getState(): ReferenceAgentState;
-  start(): A2UIServerMessage[];
-  handleCreateRequest(request: ReferenceCreateRequest): A2UIServerMessage[];
+  start(): A2UIAgentMessage[];
+  handleCreateRequest(request: ReferenceCreateRequest): A2UIAgentMessage[];
 }
 
 const initialState = (): ReferenceAgentState => ({
@@ -61,7 +61,7 @@ const initialState = (): ReferenceAgentState => ({
 export function createReferenceAgent(
   config: ReferenceAgentConfig,
 ): ReferenceAgent {
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   let state = initialState();
 
   return {
@@ -135,8 +135,7 @@ function referenceComponents(): A2UIComponent[] {
     {
       id: "heading",
       component: "Text",
-      variant: "h1",
-      text: "Reference Request",
+      text: "# Reference Request",
     },
     {
       id: "intro",
@@ -147,7 +146,7 @@ function referenceComponents(): A2UIComponent[] {
       id: "title",
       component: "TextField",
       label: "Request title",
-      value: { path: "/draft/title" },
+      value: { "@path": "/draft/title" },
     },
     {
       id: "priority",
@@ -160,7 +159,7 @@ function referenceComponents(): A2UIComponent[] {
         { label: "High", value: "high" },
         { label: "Urgent", value: "urgent" },
       ],
-      value: { path: "/draft/priority" },
+      value: { "@path": "/draft/priority" },
     },
     {
       id: "submit",
@@ -171,15 +170,15 @@ function referenceComponents(): A2UIComponent[] {
         event: {
           name: REFERENCE_CREATE_REQUEST,
           context: {
-            title: { path: "/draft/title" },
-            priority: { path: "/draft/priority" },
+            title: { "@path": "/draft/title" },
+            priority: { "@path": "/draft/priority" },
           },
         },
       },
     },
     { id: "submitLabel", component: "Text", text: "Create request" },
-    { id: "statusLabel", component: "Text", variant: "h2", text: "Status" },
-    { id: "status", component: "Text", text: { path: "/result/status" } },
-    { id: "count", component: "Text", text: { path: "/result/countLabel" } },
+    { id: "statusLabel", component: "Text", text: "## Status" },
+    { id: "status", component: "Text", text: { "@path": "/result/status" } },
+    { id: "count", component: "Text", text: { "@path": "/result/countLabel" } },
   ];
 }

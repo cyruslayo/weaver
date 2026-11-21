@@ -1,5 +1,7 @@
 # Zynra V2 integration readiness
 
+> Historical document. It describes the A2UI v0.9.1 era (Weaver 0.3.x). Current behaviour is in the [README](../README.md) and the other documents in `docs/`.
+
 > Canonical Task 47 architecture decision. Review date: 2026-08-11.
 
 ## Decision
@@ -16,7 +18,7 @@ If that evidence correction confirms the task-supplied architecture, the expecte
 
 Weaver evidence reviewed:
 
-- [`PLAN.md`](./PLAN.md), [`architecture.md`](./architecture.md), and [`conformance-v0.9.1.md`](./conformance-v0.9.1.md)
+- [`PLAN.md`](./PLAN.md), [`architecture.md`](./architecture.md), and [`conformance-v1.0.md`](./conformance-v1.0.md)
 - [`http-sse-transport.md`](./http-sse-transport.md), [`mcp.md`](./mcp.md), and [`web-rendering.md`](./web-rendering.md)
 - the relevant public `@cylayo/weaver-mcp` package contract
 

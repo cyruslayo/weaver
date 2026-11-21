@@ -1,11 +1,12 @@
 import type { CatalogRegistry } from "../catalog/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
-import { DataContext, isDataPathBinding } from "../data-context/index.js";
-import { FunctionEvaluator, isFunctionCall } from "../functions/index.js";
+import { DataContext } from "../data-context/index.js";
+import { FunctionEvaluator, isDataBinding, isFunctionCall } from "../functions/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import type {
   CheckEvaluationIssue,
   CheckEvaluationResult,
+  CheckSeverity,
   CheckStatus,
   CheckTreeEvaluationResult,
   ComponentCheckSnapshot,
@@ -14,7 +15,13 @@ import type {
   EvaluatedCheck,
 } from "./types.js";
 
-interface CheckRule { condition: unknown; message: string }
+/** A CheckRule. The condition is a DataBinding or FunctionCall; the message is optional. */
+interface CheckRule {
+  condition: unknown;
+  message?: unknown;
+}
+
+const SEVERITIES: ReadonlySet<string> = new Set(["error", "warning", "info"]);
 
 function actualType(value: unknown): string {
   if (value === null) return "null";
@@ -30,9 +37,35 @@ function statusFor(checks: readonly EvaluatedCheck[]): ComponentCheckStatus {
 }
 
 function isCheckRule(value: unknown): value is CheckRule {
-  return value !== null && typeof value === "object" && !Array.isArray(value) &&
-    typeof (value as Record<string, unknown>).message === "string" &&
-    Object.hasOwn(value, "condition");
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  if (!Object.hasOwn(value, "condition")) return false;
+  const message = (value as CheckRule).message;
+  return message === undefined || typeof message === "string";
+}
+
+interface ValidationResultParts {
+  valid: boolean;
+  code?: string;
+  message?: string;
+  severity?: CheckSeverity;
+}
+
+/** A ValidationResult: a boolean `valid`, with optional well-typed code, message and severity. */
+function validationResultParts(value: unknown): ValidationResultParts | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  if (typeof record.valid !== "boolean") return undefined;
+  if (record.code !== undefined && typeof record.code !== "string") return undefined;
+  if (record.message !== undefined && typeof record.message !== "string") return undefined;
+  if (record.severity !== undefined && (typeof record.severity !== "string" || !SEVERITIES.has(record.severity))) {
+    return undefined;
+  }
+  return {
+    valid: record.valid,
+    ...(record.code === undefined ? {} : { code: record.code as string }),
+    ...(record.message === undefined ? {} : { message: record.message as string }),
+    ...(record.severity === undefined ? {} : { severity: record.severity as CheckSeverity }),
+  };
 }
 
 /** Computes current validation without storing, subscribing, or applying presentation policy. */
@@ -42,17 +75,13 @@ export class CheckEvaluator {
     private readonly functionEvaluator: FunctionEvaluator,
   ) {}
 
-  evaluate(
-    catalogId: string,
-    instance: ResolvedComponentInstance,
-    dataContext: DataContext,
-  ): CheckEvaluationResult {
+  evaluate(catalogId: string, instance: ResolvedComponentInstance, dataContext: DataContext): CheckEvaluationResult {
     const checkable = this.catalogs.isComponentCheckable(catalogId, instance.component);
     if (!checkable) return { ok: true, value: this.snapshot(instance, false, []) };
 
-    const definitions = Array.isArray(instance.definition.checks) ? instance.definition.checks : [];
-    const checks = definitions.map((definition, index) =>
-      this.evaluateCheck(catalogId, definition, index, dataContext));
+    const declared = instance.definition["@checks"];
+    const definitions = Array.isArray(declared) ? declared : [];
+    const checks = definitions.map((definition, index) => this.evaluateCheck(catalogId, definition, index, dataContext));
     return { ok: true, value: this.snapshot(instance, true, checks) };
   }
 
@@ -78,9 +107,10 @@ export class CheckEvaluator {
           }
         } else {
           for (const child of relationship.children) {
-            const childContext = child.collectionIndex === undefined
-              ? { ok: false as const, error: { code: "INVALID_COLLECTION_INDEX" as const, index: Number.NaN } }
-              : context.createCollectionItemContext(relationship.collectionPath, child.collectionIndex);
+            const childContext =
+              child.collectionIndex === undefined
+                ? { ok: false as const, error: { code: "INVALID_COLLECTION_INDEX" as const, index: Number.NaN } }
+                : context.createCollectionItemContext(relationship.collectionPath, child.collectionIndex);
             if (!childContext.ok) {
               return {
                 ok: false,
@@ -104,11 +134,7 @@ export class CheckEvaluator {
     return failed ?? { ok: true, value: { ready: true, components } };
   }
 
-  private snapshot(
-    instance: ResolvedComponentInstance,
-    checkable: boolean,
-    checks: EvaluatedCheck[],
-  ): ComponentCheckSnapshot {
+  private snapshot(instance: ResolvedComponentInstance, checkable: boolean, checks: EvaluatedCheck[]): ComponentCheckSnapshot {
     return {
       sourceComponentId: instance.sourceComponentId,
       scopePath: instance.scopePath,
@@ -119,53 +145,67 @@ export class CheckEvaluator {
     };
   }
 
-  private evaluateCheck(
-    catalogId: string,
-    definition: unknown,
-    index: number,
-    dataContext: DataContext,
-  ): EvaluatedCheck {
-    if (!isCheckRule(definition)) return this.typeError(index, "", definition);
-    const { condition, message } = definition;
-    if (typeof condition === "boolean") return this.booleanResult(index, message, condition);
-    if (isDataPathBinding(condition)) {
+  private evaluateCheck(catalogId: string, definition: unknown, index: number, dataContext: DataContext): EvaluatedCheck {
+    if (!isCheckRule(definition)) return this.typeError(index, undefined, definition);
+    const { condition } = definition;
+    const message = definition.message as string | undefined;
+    if (isDataBinding(condition)) {
       const resolved = dataContext.resolveBinding(condition);
       if (!resolved.ok) {
-        return this.issueResult(index, message, {
-          code: "CHECK_BINDING_RESOLUTION_FAILED", error: { ...resolved.error },
-        });
+        return this.issueResult(index, message, { code: "CHECK_BINDING_RESOLUTION_FAILED", error: { ...resolved.error } });
       }
-      return this.valueResult(index, message, resolved.value);
+      return this.conditionResult(index, message, resolved.value);
     }
     if (isFunctionCall(condition)) {
       const evaluated = this.functionEvaluator.evaluate(catalogId, condition, dataContext);
       if (!evaluated.ok) {
-        return this.issueResult(index, message, {
-          code: "CHECK_FUNCTION_EVALUATION_FAILED", error: { ...evaluated.error },
-        });
+        return this.issueResult(index, message, { code: "CHECK_FUNCTION_EVALUATION_FAILED", error: { ...evaluated.error } });
       }
-      return this.valueResult(index, message, evaluated.value);
+      return this.conditionResult(index, message, evaluated.value);
     }
     return this.typeError(index, message, condition);
   }
 
-  private valueResult(index: number, message: string, value: unknown): EvaluatedCheck {
-    if (value === undefined) return { index, status: "pending", message, issues: [] };
-    if (typeof value === "boolean") return this.booleanResult(index, message, value);
-    return this.typeError(index, message, value);
+  /**
+   * CheckRule coercion (a2ui_protocol.md, "DynamicBoolean and CheckRule Coercion"): a boolean
+   * becomes {valid}, with CheckRule.message on failure; a ValidationResult keeps its own
+   * message, code and severity. An absent value is pending, not failed.
+   */
+  private conditionResult(index: number, message: string | undefined, value: unknown): EvaluatedCheck {
+    if (value === undefined) return { index, status: "pending", severity: "error", issues: [] };
+    if (typeof value === "boolean") {
+      return {
+        index,
+        status: value ? "passed" : "failed",
+        ...(message === undefined ? {} : { message }),
+        severity: "error",
+        issues: [],
+      };
+    }
+    const parts = validationResultParts(value);
+    if (parts === undefined) return this.typeError(index, message, value);
+    const severity = parts.severity ?? "error";
+    const resolvedMessage = parts.message ?? message;
+    const status: CheckStatus = parts.valid ? "passed" : severity === "error" ? "failed" : "advisory";
+    return {
+      index,
+      status,
+      ...(resolvedMessage === undefined ? {} : { message: resolvedMessage }),
+      ...(parts.code === undefined ? {} : { code: parts.code }),
+      severity,
+      issues: [],
+    };
   }
 
-  private booleanResult(index: number, message: string, value: boolean): EvaluatedCheck {
-    return { index, status: value ? "passed" : "failed", message, issues: [] };
-  }
-
-  private typeError(index: number, message: string, value: unknown): EvaluatedCheck {
+  private typeError(index: number, message: string | undefined, value: unknown): EvaluatedCheck {
     return this.issueResult(index, message, {
-      code: "CHECK_CONDITION_TYPE_MISMATCH", expected: "boolean", actual: actualType(value),
+      code: "CHECK_CONDITION_TYPE_MISMATCH",
+      expected: "ValidationResult",
+      actual: actualType(value),
     });
   }
 
-  private issueResult(index: number, message: string, issue: CheckEvaluationIssue): EvaluatedCheck {
-    return { index, status: "error" as CheckStatus, message, issues: [issue] };
+  private issueResult(index: number, message: string | undefined, issue: CheckEvaluationIssue): EvaluatedCheck {
+    return { index, status: "error", ...(message === undefined ? {} : { message }), severity: "error", issues: [issue] };
   }
 }

@@ -29,7 +29,7 @@ function actionMessage(
 ): WebServerEventHandoff {
   return {
     message: {
-      version: "v0.9.1",
+      version: "1.0",
       action: {
         name,
         surfaceId,
@@ -117,7 +117,7 @@ test("invalid trusted context is rejected before any state or rendering changes"
     initialState: { title: "", status: "Ready" },
     components: (): A2UIComponent[] => [
       { id: "root", component: "Column", children: ["status"] },
-      { id: "status", component: "Text", text: { path: "/status" } },
+      { id: "status", component: "Text", text: { "@path": "/status" } },
     ],
     actions: {
       "cookbook.test.save": {

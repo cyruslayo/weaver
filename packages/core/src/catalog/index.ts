@@ -1,6 +1,6 @@
 export { defineCatalog } from "./definition.js";
 export type {
-  A2UIV091CatalogSchema,
+  A2UIV10CatalogSchema,
   CatalogDefinition,
 } from "./definition.js";
 export { CatalogRegistry } from "./CatalogRegistry.js";
@@ -14,6 +14,7 @@ export type {
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
   CatalogDynamicValueLocationsResult,
+  CatalogFunctionAllowedCallers,
   CatalogFunctionArgumentDefinition,
   CatalogFunctionArgumentKind,
   CatalogFunctionDefinition,
@@ -23,7 +24,6 @@ export type {
   CatalogRegistration,
   CatalogRegistryResult,
   CatalogSnapshot,
-  CatalogThemeValidationResult,
   CatalogValidationIssue,
   ComponentStructureDefinition,
   ComponentStructureLocation,

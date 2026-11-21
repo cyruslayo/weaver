@@ -66,7 +66,7 @@ test("the keyboard moves, assigns and dismisses a ticket", async ({ page }) => {
   );
   await page.keyboard.press("Enter");
   // Scope the check to the ticket's own card. The dialog's option list also shows the name.
-  await expect(page.locator("h3", { hasText: "Fix login redirect" }).locator("xpath=..")).toContainText("Grace Hopper");
+  await expect(page.locator("h3", { hasText: "Fix login redirect" }).locator('xpath=ancestor::*[@data-a2ui-component="Column"][1]')).toContainText("Grace Hopper");
 
   // Escape dismisses the dialog.
   await page.keyboard.press("Escape");

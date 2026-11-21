@@ -1,0 +1,8 @@
+A2UI repository: a2ui-project/a2ui (formerly google/A2UI)
+A2UI version: 1.0
+Commit: 5ff1b05f02d39f969b52a942e78e864ef3ac01fa
+Exact unmodified copies of these upstream sources:
+  specification/v1_0/json/renderer_to_agent.json      -> renderer_to_agent.json
+  specification/v1_0/json/renderer_capabilities.json  -> renderer_capabilities.json
+  specification/v1_0/json/agent_capabilities.json     -> agent_capabilities.json
+  specification/v1_0/json/renderer_data_model.json    -> renderer_data_model.json

@@ -5,7 +5,7 @@ const server = await startReferenceA2UIHttpSseServer({
   onStreamOpen(capabilities, lastEventId) {
     console.log(lastEventId === undefined ? "A2UI stream connected" : `A2UI stream resumed after event ${lastEventId}`, capabilities);
     if (lastEventId === undefined) setTimeout(async () => {
-      const result = await server.sendA2UI({ version: "v0.9.1", createSurface: { surfaceId: "example", catalogId: "basic" } });
+      const result = await server.sendA2UI({ version: "1.0", createSurface: { surfaceId: "example", catalogId: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json" } });
       if (result.ok) console.log(`A2UI event ${result.eventId} emitted`);
     }, 0);
   },

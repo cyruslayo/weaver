@@ -1,8 +1,10 @@
 # Weaver agent guide
 
-Weaver 0.3.1 is an independent, model-independent runtime for dynamic
-interfaces using A2UI v0.9.1. Agent or provider output is data. Weaver does
-not select or call a model and does not contain application business logic.
+Weaver is an independent, model-independent runtime for dynamic interfaces
+using A2UI v1.0. The released version is 0.3.1, which implements A2UI v0.9.1.
+This branch is the unreleased 0.4.0 line, which implements A2UI v1.0 as a hard
+cutover. Agent or provider output is data. Weaver does not select or call a
+model and does not contain application business logic.
 
 The packages have one-way boundaries:
 
@@ -22,16 +24,19 @@ export. Do not use internal paths or unsupported subpath imports.
 
 ## Installing the published packages
 
-The released version is `0.3.1`. The three packages release together at one
-synchronized version, so install them at the same 0.3.x version. Use npm
-packages in consumer applications:
+The released version is `0.3.1` (A2UI v0.9.1). The next version, `0.4.0`, is
+unreleased and implements A2UI v1.0 on this branch. Do not describe 0.4.0 as
+released. The three packages release together at one synchronized version, so
+install them at the same version. Until 0.4.0 is published, install the packed
+0.4.0 tarballs from the local artifact workflow in [docs/packaging.md](docs/packaging.md#local-artifact-workflow).
+Use npm packages in consumer applications once they are published:
 
 ```sh
 npm install @cylayo/weaver-core @cylayo/weaver-web
 ```
 
 This is the normal browser application installation. Core is mandatory and
-Web declares `@cylayo/weaver-core` as a `0.3.x` peer dependency.
+Web declares `@cylayo/weaver-core` as a `0.4.x` peer dependency on the 0.4.0 line (`0.3.x` on the released 0.3.1 line).
 
 For a Core-only application:
 
@@ -65,7 +70,7 @@ allowlisted server-event round trip.
 
 [`examples/playground/`](examples/playground/) is `@weaver/playground`, a private
 example, not a published package. Its main page, `index.html`, is the
-Playground: an editor for A2UI v0.9.1 JSONL with a live preview and inspector. It
+Playground: an editor for A2UI v1.0 JSONL with a live preview and inspector. It
 is hosted at https://cyruslayo.github.io/weaver/playground/. The Basic component
 bench that used to be the main page is now `components.html`, and
 `inspector.html` is the development-only trace inspector. Use these pages to
@@ -89,12 +94,12 @@ Follow this order for a normal browser application:
    install a default catalog. `createBasicWebRuntime` registers the canonical
    Basic Catalog and its trusted Basic renderer allowlist; custom catalogs and
    renderers are explicit additions.
-4. Produce A2UI v0.9.1 messages in application/provider code with
-   `createA2UIV091Producer` when constructing the supported lifecycle messages.
+4. Produce A2UI v1.0 messages in application/provider code with
+   `createA2UIV10Producer` when constructing the supported lifecycle messages.
    The producer does not call a model, validate a catalog, or authorize an
    action.
 5. Treat provider text as untrusted. Feed streamed JSONL text to
-   `createA2UIV091StreamIngestion`; do not parse around Weaver, strip Markdown
+   `createA2UIV10StreamIngestion`; do not parse around Weaver, strip Markdown
    fences, repair JSON, or retry malformed frames as if they were valid.
 6. Process messages through the runtime. Check each result object and decide
    how the application reports or handles failures.
@@ -122,25 +127,25 @@ schema must be trusted host configuration.
 
 ```ts
 import {
-  createA2UIV091Producer,
-  createBasicCatalogV091Registration,
+  createA2UIV10Producer,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
 } from "@cylayo/weaver-core";
 
 const created = createWeaverRuntime({
-  catalogs: [createBasicCatalogV091Registration()],
+  catalogs: [createBasicCatalogV10Registration()],
 });
 if (!created.ok) {
   throw new Error(`Runtime configuration failed: ${created.error.code}`);
 }
 
 const runtime = created.value;
-const producer = createA2UIV091Producer();
-const messages: A2UIServerMessage[] = [
+const producer = createA2UIV10Producer();
+const messages: A2UIAgentMessage[] = [
   producer.createSurface({
     surfaceId: "main",
-    catalogId: "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    catalogId: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
   }),
   producer.updateComponents({
     surfaceId: "main",
@@ -171,7 +176,7 @@ Core owns framing and runtime processing:
 
 ```ts
 import {
-  createA2UIV091StreamIngestion,
+  createA2UIV10StreamIngestion,
   type WeaverRuntime,
 } from "@cylayo/weaver-core";
 
@@ -179,7 +184,7 @@ function applyProviderDeltas(
   runtime: WeaverRuntime,
   deltas: Iterable<string>,
 ): void {
-  const ingestion = createA2UIV091StreamIngestion({ runtime });
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
   for (const delta of deltas) {
     for (const event of ingestion.push(delta)) {
       if (!event.ok) {
@@ -202,7 +207,7 @@ do not partially mutate runtime state.
 
 ### Generating the model prompt
 
-`generateA2UIV091Prompt()` compiles a trusted catalog into the A2UI v0.9.1
+`generateA2UIV10Prompt()` compiles a trusted catalog into the A2UI v1.0
 model instructions, so the prompt lists the components, functions and actions
 that the runtime enforces. It calls no model and sends nothing; the application
 passes `text` to its own provider call. `mode` is `"create"` (the default) or
@@ -210,12 +215,12 @@ passes `text` to its own provider call. `mode` is `"create"` (the default) or
 
 ```ts
 import {
-  createBasicCatalogV091Registration,
-  generateA2UIV091Prompt,
+  createBasicCatalogV10Registration,
+  generateA2UIV10Prompt,
 } from "@cylayo/weaver-core";
 
-const result = generateA2UIV091Prompt({
-  catalogs: [createBasicCatalogV091Registration()],
+const result = generateA2UIV10Prompt({
+  catalogs: [createBasicCatalogV10Registration()],
   actions: [
     { name: "submit_signup", description: "Submit the sign-up form.", context: { name: { path: "/form/name" } } },
   ],
@@ -226,7 +231,7 @@ const systemPrompt = result.value.text;
 ```
 
 The result is `{ ok: true, value: { text, sections } }` or a typed
-`A2UIV091PromptGenerationError`. It never returns a partial prompt. The default
+`A2UIV10PromptGenerationError`. It never returns a partial prompt. The default
 budget is 24,000 characters, and a larger prompt returns `PROMPT_TOO_LARGE`. See
 [docs/prompt-generation.md](docs/prompt-generation.md).
 
@@ -241,15 +246,15 @@ full recipe.
 
 ```ts
 import {
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
   defineCatalog,
-  type A2UIV091CatalogSchema,
+  type A2UIV10CatalogSchema,
 } from "@cylayo/weaver-core";
 
-export function createAppRuntime(appSchema: A2UIV091CatalogSchema) {
+export function createAppRuntime(appSchema: A2UIV10CatalogSchema) {
   const created = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration(), defineCatalog(appSchema)],
+    catalogs: [createBasicCatalogV10Registration(), defineCatalog(appSchema)],
   });
   if (!created.ok) throw new Error(`Runtime configuration failed: ${created.error.code}`);
   return created.value;
@@ -267,14 +272,14 @@ Use it for messages a user or a log reads. Web has the same helper,
 ```ts
 import {
   describeWeaverError,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type WeaverErrorDescription,
   type WeaverRuntime,
 } from "@cylayo/weaver-core";
 
 export function processOrDescribe(
   runtime: WeaverRuntime,
-  message: A2UIServerMessage,
+  message: A2UIAgentMessage,
 ): WeaverErrorDescription | undefined {
   const result = runtime.process(message);
   return result.ok ? undefined : describeWeaverError(result.error);
@@ -293,8 +298,8 @@ recorded too.
 
 ```ts
 import {
-  createA2UIV091StreamIngestion,
-  createBasicCatalogV091Registration,
+  createA2UIV10StreamIngestion,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
   createWeaverTraceRecorder,
   type WeaverTrace,
@@ -306,11 +311,11 @@ export function createTracedIngestion(): {
 } {
   const recorder = createWeaverTraceRecorder({ maxEntries: 5000 });
   const created = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
     observer: recorder.observer,
   });
   if (!created.ok) throw new Error(`Runtime configuration failed: ${created.error.code}`);
-  const ingestion = createA2UIV091StreamIngestion({ runtime: created.value });
+  const ingestion = createA2UIV10StreamIngestion({ runtime: created.value });
   return {
     push(chunk) {
       recorder.recordIngestion(ingestion.push(chunk), chunk);
@@ -330,7 +335,7 @@ recording.
 
 ```ts
 import {
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
   parseWeaverTrace,
   replayWeaverTrace,
@@ -339,7 +344,7 @@ import {
 export function traceReplaysCleanly(untrusted: unknown): boolean {
   const parsed = parseWeaverTrace(untrusted);
   if (!parsed.ok) return false;
-  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV10Registration()] });
   if (!created.ok) return false;
   const replay = replayWeaverTrace(parsed.value, { runtime: created.value });
   return replay.steps.every((step) => !step.diverged);
@@ -381,7 +386,7 @@ export function start(target: Element): void {
 
   const web = created.value;
   const processed = web.runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     createSurface: { surfaceId: "main", catalogId: web.catalogId },
   });
   if (!processed.ok) {
@@ -389,7 +394,7 @@ export function start(target: Element): void {
   }
 
   const updated = web.runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: {
       surfaceId: "main",
       components: [{ id: "root", component: "Text", text: "Hello" }],
@@ -535,8 +540,8 @@ Hosts must establish trust explicitly:
   default is deny-by-default.
 - Keep application actions host-controlled. Validate and allowlist action names
   and contexts before calling application code.
-- Treat theme attribution claims as untrusted; use a trusted attribution
-  provider for displayed identity.
+- Attribution comes only from a trusted attribution provider. A2UI v1.0 has no
+  agent theme data, so there is no agent-supplied display name or icon to trust.
 - Treat observer copies and traces as sensitive. They hold data-model values and
   typed input. Do not forward them to a remote service without a host decision.
 
@@ -557,7 +562,7 @@ and [MCP integration](docs/mcp.md) for the detailed trust-boundary rationale.
   Weaver packages.
 - Do not add executable agent content or weaken trusted catalog, renderer,
   function, media, or action boundaries.
-- Do not silently repair invalid A2UI. Preserve A2UI v0.9.1 conformance.
+- Do not silently repair invalid A2UI. Preserve A2UI v1.0 conformance.
 - Do not describe roadmap or experimental work as released functionality.
 - Keep public API additions deliberate and minimal; preserve the single root
   export boundary unless the package design explicitly changes.
@@ -575,7 +580,7 @@ pnpm install
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm conformance:v0.9.1
+pnpm conformance:v1.0
 pnpm check:docs
 pnpm check:generated
 pnpm verify:packages
@@ -620,6 +625,6 @@ them. It is a manual check after a release is published. It is not part of
 - [HTTP/SSE transport](docs/http-sse-transport.md)
 - [MCP integration](docs/mcp.md)
 - [Packaging](docs/packaging.md)
-- [A2UI v0.9.1 conformance](docs/conformance-v0.9.1.md)
+- [A2UI v1.0 conformance](docs/conformance-v1.0.md)
 - [Playground](examples/playground/README.md)
 - [Landing page (site)](site/README.md)

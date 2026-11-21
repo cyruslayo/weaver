@@ -1,14 +1,21 @@
 #!/usr/bin/env node
 
-// Deterministic generator for the canonical A2UI v0.9.1 Basic Catalog.
+// Deterministic generator for the canonical A2UI v1.0 Basic Catalog.
 //
-// It reads the pinned official fixtures (exact upstream copies) and produces the
+// It reads the pinned official fixtures (exact upstream copies at
+// a2ui-project/a2ui@5ff1b05f02d39f969b52a942e78e864ef3ac01fa) and produces the
 // Weaver-normalized production representation consumed by @cylayo/weaver-core:
 //
-//   packages/core/src/protocol/a2ui/v0_9_1/inbound/fixtures/catalog.json
-//   packages/core/src/protocol/a2ui/v0_9_1/inbound/fixtures/common_types.json
+//   packages/core/src/protocol/a2ui/v1_0/inbound/fixtures/catalog.json
+//   packages/core/src/protocol/a2ui/v1_0/inbound/fixtures/common_types.json
 //        -> this generator
 //        -> packages/core/src/basic-catalog/generated-basic-catalog.ts
+//
+// The v1.0 upstream catalog already uses relative `common_types.json#/$defs/...`
+// references and explicit component properties. The transformation therefore
+// only flattens each component's `allOf` (Checkable mixin) and drops the upstream
+// commonTypes. Core resolves common_types.json itself (see
+// scripts/generate-common-types.mjs). Every other reference is a hard error.
 //
 // Run with --check to fail when the committed output is stale relative to the
 // pinned inputs. The transformation is intentionally small and dependency-free.
@@ -18,12 +25,16 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const fixtures = path.join(root, "packages", "core", "src", "protocol", "a2ui", "v0_9_1", "inbound", "fixtures");
+const fixtures = path.join(root, "packages", "core", "src", "protocol", "a2ui", "v1_0", "inbound", "fixtures");
 const output = path.join(root, "packages", "core", "src", "basic-catalog", "generated-basic-catalog.ts");
 
-const CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
-const ABS_COMMON_PREFIX = "https://a2ui.org/specification/v0_9/common_types.json#/$defs/";
-const LOCAL_COMMON_PREFIX = "common_types.json#/$defs/";
+const CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
+const PROTOCOL_VERSION = "1.0";
+const UPSTREAM_COMMIT = "5ff1b05f02d39f969b52a942e78e864ef3ac01fa";
+const ABS_COMMON_PREFIX = "https://a2ui.org/specification/v1_0/common_types.json#";
+const COMMON_PREFIX = "common_types.json#/$defs/";
+const CHECKABLE_REF = `${COMMON_PREFIX}Checkable`;
+const CATALOG_METADATA_KEYS = ["$schema", "$id", "protocolVersion", "title", "description", "catalogId", "instructions", "metadata"];
 
 const isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
@@ -33,38 +44,54 @@ function clone(value) {
   return value;
 }
 
-function rewriteRef(value, localToCommon) {
-  if (typeof value !== "string") return value;
-  if (value.startsWith(ABS_COMMON_PREFIX)) return LOCAL_COMMON_PREFIX + value.slice(ABS_COMMON_PREFIX.length);
-  if (localToCommon && value.startsWith("#/$defs/")) return LOCAL_COMMON_PREFIX + value.slice("#/$defs/".length);
-  return value;
-}
-
-function rewriteCommonRefs(value, localToCommon = false) {
-  if (Array.isArray(value)) return value.map((entry) => rewriteCommonRefs(entry, localToCommon));
+/**
+ * Returns a copy whose `$ref` values are all in the supported form. Absolute v1.0
+ * common-types URIs become the relative form. The upstream anyFunction reference
+ * is redirected to the embedded basic_functions resource. Anything else is an error.
+ */
+function rewriteRefs(value) {
+  if (Array.isArray(value)) return value.map(rewriteRefs);
   if (!isPlainObject(value)) return value;
   const result = {};
   for (const [key, entry] of Object.entries(value)) {
-    result[key] = key === "$ref" ? rewriteRef(entry, localToCommon) : rewriteCommonRefs(entry, localToCommon);
+    result[key] = key === "$ref" ? rewriteRef(entry) : rewriteRefs(entry);
   }
   return result;
 }
 
-function resolveCommonDef(ref, commonDefs, catalogDefs) {
-  if (ref.startsWith(ABS_COMMON_PREFIX)) return commonDefs[ref.slice(ABS_COMMON_PREFIX.length)];
-  if (ref.startsWith(LOCAL_COMMON_PREFIX)) return commonDefs[ref.slice(LOCAL_COMMON_PREFIX.length)];
-  if (ref.startsWith("#/$defs/")) return catalogDefs[ref.slice("#/$defs/".length)];
-  return undefined;
+function rewriteRef(ref) {
+  if (typeof ref !== "string") throw new Error(`Unexpected $ref value: ${JSON.stringify(ref)}`);
+  if (ref.startsWith(ABS_COMMON_PREFIX)) return `common_types.json#${ref.slice(ABS_COMMON_PREFIX.length)}`;
+  if (ref.startsWith("#/") || ref.startsWith(COMMON_PREFIX)) return ref;
+  throw new Error(`Unsupported $ref in pinned Basic Catalog: ${ref}`);
 }
 
-function isCheckableRef(ref) {
-  return ref === `${LOCAL_COMMON_PREFIX}Checkable` || ref === `${ABS_COMMON_PREFIX}Checkable`;
+/**
+ * Rewrites a local `#/$defs/X` reference that belongs to the common-types
+ * resource into `common_types.json#/$defs/X`. Mixin members copied from that
+ * resource would otherwise resolve against the catalog root, where those names
+ * do not exist.
+ */
+function localCommonRefs(value) {
+  if (Array.isArray(value)) return value.map(localCommonRefs);
+  if (!isPlainObject(value)) return value;
+  const result = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (key === "$ref" && typeof entry === "string" && entry.startsWith("#/$defs/")) {
+      result[key] = `${COMMON_PREFIX}${entry.slice("#/$defs/".length)}`;
+    } else {
+      result[key] = localCommonRefs(entry);
+    }
+  }
+  return result;
 }
 
-function mergeInto(target, source, localToCommon) {
+/** Copies a component schema's properties and required names into the flattened target. */
+function mergeSchema(target, source, fromCommonTypes = false) {
   if (isPlainObject(source.properties)) {
     for (const [name, schema] of Object.entries(source.properties)) {
-      target.properties[name] = rewriteCommonRefs(clone(schema), localToCommon);
+      const copied = fromCommonTypes ? localCommonRefs(clone(schema)) : clone(schema);
+      target.properties[name] = rewriteRefs(copied);
     }
   }
   if (Array.isArray(source.required)) {
@@ -74,93 +101,70 @@ function mergeInto(target, source, localToCommon) {
   }
 }
 
-function flattenComponent(source, commonDefs, catalogDefs) {
+/**
+ * Flattens one upstream component into a single object schema. The component's
+ * own top-level properties are merged first, then each `allOf` member. The only
+ * supported `$ref` member is the Checkable mixin, which is also kept as a
+ * `$ref` so the registry can recognize checkable components.
+ */
+function flattenComponent(name, source, commonDefs) {
   const flattened = { type: "object", properties: {}, required: [] };
+  if (typeof source.description === "string") flattened.description = source.description;
+  mergeSchema(flattened, source);
+
   let checkable = false;
   const members = Array.isArray(source.allOf) ? source.allOf : [];
-
   for (const member of members) {
-    if (!isPlainObject(member)) continue;
-    if (typeof member.$ref === "string") {
-      const ref = member.$ref;
-      if (isCheckableRef(ref)) {
-        checkable = true;
-        const checkableDef = commonDefs.Checkable;
-        if (isPlainObject(checkableDef)) mergeInto(flattened, checkableDef, true);
-        continue;
-      }
-      const resolved = resolveCommonDef(ref, commonDefs, catalogDefs);
-      if (isPlainObject(resolved)) mergeInto(flattened, resolved, ref.startsWith("#/$defs/") ? false : true);
+    if (!isPlainObject(member)) throw new Error(`Component ${name} has a non-object allOf member`);
+    if (member.$ref === CHECKABLE_REF) {
+      checkable = true;
+      mergeSchema(flattened, commonDefs.Checkable, true);
       continue;
     }
-    mergeInto(flattened, member, true);
-  }
-
-  // The component's own `id` (from ComponentCommon) must stay non-structural;
-  // literalize only that property. Other ComponentId refs (child/trigger/content,
-  // nested list items) remain `$ref` so Weaver's structural discovery works.
-  if (isPlainObject(flattened.properties.id) && flattened.properties.id.$ref === `${LOCAL_COMMON_PREFIX}ComponentId`) {
-    flattened.properties.id = { type: "string" };
+    if (typeof member.$ref === "string") throw new Error(`Component ${name} has an unsupported allOf $ref: ${member.$ref}`);
+    mergeSchema(flattened, member);
   }
 
   flattened.additionalProperties = false;
-  if (checkable) flattened.allOf = [{ $ref: `${LOCAL_COMMON_PREFIX}Checkable` }];
-  return flattened;
+  if (checkable) flattened.allOf = [{ $ref: CHECKABLE_REF }];
+  return rewriteRefs(flattened);
 }
 
 function normalize(catalog, common) {
   if (catalog.catalogId !== CATALOG_ID) {
     throw new Error(`Unexpected canonical catalogId: ${catalog.catalogId}`);
   }
+  if (catalog.protocolVersion !== PROTOCOL_VERSION) {
+    throw new Error(`Unexpected canonical protocolVersion: ${catalog.protocolVersion}`);
+  }
 
   const commonDefs = common.$defs;
   const catalogDefs = catalog.$defs;
 
-  const merged = {
-    ...(catalog.$schema === undefined ? {} : { $schema: catalog.$schema }),
-    $id: catalog.$id,
-    ...(catalog.title === undefined ? {} : { title: catalog.title }),
-    ...(catalog.description === undefined ? {} : { description: catalog.description }),
-    catalogId: catalog.catalogId,
-    components: {},
-    functions: {},
-    $defs: {},
-  };
+  const merged = {};
+  for (const key of CATALOG_METADATA_KEYS) {
+    if (catalog[key] !== undefined) merged[key] = clone(catalog[key]);
+  }
+  merged.components = {};
+  merged.functions = {};
+  merged.$defs = {};
 
   for (const [name, component] of Object.entries(catalog.components)) {
-    merged.components[name] = flattenComponent(component, commonDefs, catalogDefs);
+    merged.components[name] = flattenComponent(name, component, commonDefs);
   }
 
   for (const [name, fn] of Object.entries(catalog.functions)) {
-    merged.functions[name] = rewriteCommonRefs(clone(fn));
+    merged.functions[name] = rewriteRefs(clone(fn));
   }
 
   for (const [name, def] of Object.entries(catalogDefs)) {
-    merged.$defs[name] = rewriteCommonRefs(clone(def));
+    merged.$defs[name] = rewriteRefs(clone(def));
   }
 
-  const inlinedCommonDefs = rewriteCommonRefs(clone(commonDefs), true);
-
-  // Preserve the canonical FunctionCall anyFunction restriction. The pinned
-  // FunctionCall references catalog.json#/$defs/anyFunction, which does not
-  // survive CatalogRegistry's per-component root $id replacement. Build a
-  // self-contained basic_functions resource instead.
-  const functionNames = Object.keys(merged.functions);
-  const basicFunctions = { $id: "basic_functions.json", $defs: {} };
-  for (const [name, fn] of Object.entries(merged.functions)) {
-    basicFunctions.$defs[name] = clone(fn);
-  }
-  basicFunctions.$defs.anyFunction = {
-    oneOf: functionNames.map((name) => ({ $ref: `#/$defs/${name}` })),
-  };
-
-  const functionCall = inlinedCommonDefs.FunctionCall;
-  if (isPlainObject(functionCall)) {
-    functionCall.oneOf = [{ $ref: "basic_functions.json#/$defs/anyFunction" }];
-  }
-
-  merged.$defs.commonTypes = { $id: "common_types.json", $defs: inlinedCommonDefs };
-  merged.$defs.basicFunctions = basicFunctions;
+  // The common types (including FunctionCall) are built into Core from the pinned
+  // common_types.json (catalog/generated-common-types.ts). The generated catalog
+  // therefore embeds no commonTypes resource; every reference it makes is local
+  // or to that built-in document.
   return merged;
 }
 
@@ -202,11 +206,11 @@ function generate() {
     "// @generated by scripts/generate-basic-catalog.mjs. Do not edit this file directly;",
     "// edit scripts/generate-basic-catalog.mjs and regenerate.",
     "//",
-    "// Portions are derived from the A2UI v0.9.1 schemas:",
+    "// Portions are derived from the A2UI v1.0 schemas:",
     "//   a2ui-project/a2ui",
-    "//   commit ec97cb0d7499932e67003ffe5b709a3db7e7033a",
-    "//   specification/v0_9_1/json/common_types.json",
-    "//   specification/v0_9_1/catalogs/basic/catalog.json",
+    `//   commit ${UPSTREAM_COMMIT}`,
+    "//   specification/v1_0/json/common_types.json",
+    "//   catalogs/basic/v1/catalog.json",
     "//",
     "// This representation has been normalized/modified for Weaver and is not an",
     "// exact copy. Redistribution terms for the upstream material are in",
@@ -214,9 +218,9 @@ function generate() {
     "",
     'import type { JsonObject } from "../protocol/index.js";',
     "",
-    `export const A2UI_V091_BASIC_CATALOG_ID = ${JSON.stringify(CATALOG_ID)};`,
+    `export const A2UI_V10_BASIC_CATALOG_ID = ${JSON.stringify(CATALOG_ID)};`,
     "",
-    "export const A2UI_V091_BASIC_CATALOG: JsonObject =",
+    "export const A2UI_V10_BASIC_CATALOG: JsonObject =",
     json,
     ";",
     "",

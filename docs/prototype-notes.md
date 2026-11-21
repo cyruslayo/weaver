@@ -1,5 +1,7 @@
 # Prototype Notes
 
+> Historical document. It describes the A2UI v0.9.1 era (Weaver 0.3.x). Current behaviour is in the [README](../README.md) and the other documents in `docs/`.
+
 The analysis in the sections before "Closure (Task 54)" documents the prototype
 as it existed before migration. Path references and future-tense statements
 there describe that historical state, not the current repository. Task 54

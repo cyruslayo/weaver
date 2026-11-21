@@ -14,7 +14,6 @@ import type {
 interface StoredSurface {
   surfaceId: string;
   catalogId: string;
-  theme?: SurfaceSnapshot["theme"];
   sendDataModel: boolean;
   components: Map<string, A2UIComponent>;
   dataModel: DataModel;
@@ -26,21 +25,51 @@ export class SurfaceStore {
   readonly #surfaces = new Map<string, StoredSurface>();
   readonly #subscribers = new Map<string, Set<SurfaceSubscriber>>();
 
+  /**
+   * Creates a surface atomically. The data model is applied first, then the
+   * components. Every step is built on local state, so a failure leaves no
+   * surface behind.
+   */
   create(input: CreateSurfaceInput): SurfaceStoreResult<SurfaceSnapshot> {
     if (this.#surfaces.has(input.surfaceId)) {
       return {
         ok: false,
-        error: { code: "SURFACE_ALREADY_EXISTS", surfaceId: input.surfaceId },
+        error: { code: "INTEGRITY_ERROR", surfaceId: input.surfaceId },
       };
+    }
+
+    const dataModel = new DataModel();
+    if (input.dataModel !== undefined) {
+      const applied = dataModel.replace(cloneJson(input.dataModel));
+      if (!applied.ok) {
+        return {
+          ok: false,
+          error: { code: "DATA_MODEL_ERROR", dataModelError: applied.error },
+        };
+      }
+    }
+
+    const components = new Map<string, A2UIComponent>();
+    for (const component of input.components ?? []) {
+      if (components.has(component.id)) {
+        return {
+          ok: false,
+          error: {
+            code: "DUPLICATE_COMPONENT_ID",
+            surfaceId: input.surfaceId,
+            componentId: component.id,
+          },
+        };
+      }
+      components.set(component.id, cloneJson(component));
     }
 
     const surface: StoredSurface = {
       surfaceId: input.surfaceId,
       catalogId: input.catalogId,
-      ...(input.theme === undefined ? {} : { theme: cloneJson(input.theme) }),
       sendDataModel: input.sendDataModel ?? false,
-      components: new Map(),
-      dataModel: new DataModel(),
+      components,
+      dataModel,
     };
     this.#surfaces.set(input.surfaceId, surface);
     const snapshot = this.#snapshot(surface);
@@ -177,9 +206,6 @@ export class SurfaceStore {
     return {
       surfaceId: surface.surfaceId,
       catalogId: surface.catalogId,
-      ...(surface.theme === undefined
-        ? {}
-        : { theme: cloneJson(surface.theme) }),
       sendDataModel: surface.sendDataModel,
       components,
       dataModel: this.#dataSnapshot(surface.dataModel),

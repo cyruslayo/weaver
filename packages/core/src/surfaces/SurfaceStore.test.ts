@@ -35,7 +35,7 @@ test("rejects duplicate active surfaces without overwriting them", () => {
   const result = store.create({ surfaceId: "main", catalogId: "other", sendDataModel: true });
   assert.deepEqual(result, {
     ok: false,
-    error: { code: "SURFACE_ALREADY_EXISTS", surfaceId: "main" },
+    error: { code: "INTEGRITY_ERROR", surfaceId: "main" },
   });
   assert.equal(store.get("main")?.catalogId, "catalog");
 });
@@ -64,18 +64,41 @@ test("lists active surfaces in insertion order as snapshots", () => {
 
 test("clones creation input and returned snapshots", () => {
   const store = new SurfaceStore();
-  const theme = { primaryColor: "blue", nested: { shades: ["navy"] } };
-  store.create({ surfaceId: "main", catalogId: "catalog", theme });
-  theme.primaryColor = "red";
-  theme.nested.shades[0] = "black";
+  const dataModel = { title: "blue", nested: { shades: ["navy"] } };
+  const component = text("root", "Hello");
+  store.create({ surfaceId: "main", catalogId: "catalog", dataModel, components: [component] });
+  dataModel.title = "red";
+  dataModel.nested.shades[0] = "black";
+  component.text = "changed";
   const snapshot = store.get("main");
-  assert.ok(snapshot?.theme);
-  snapshot.theme.primaryColor = "green";
-  (snapshot.theme.nested as { shades: string[] }).shades[0] = "white";
-  assert.deepEqual(store.get("main")?.theme, {
-    primaryColor: "blue",
+  assert.ok(snapshot);
+  (snapshot.dataModel as { title: string }).title = "green";
+  assert.deepEqual(store.get("main")?.dataModel, {
+    title: "blue",
     nested: { shades: ["navy"] },
   });
+  assert.deepEqual(store.get("main")?.components.root, text("root", "Hello"));
+});
+
+test("creates a surface with dataModel applied before components, or not at all", () => {
+  const store = new SurfaceStore();
+  const created = store.create({
+    surfaceId: "main",
+    catalogId: "catalog",
+    dataModel: { user: "Ada" },
+    components: [text("root", "Hello")],
+  });
+  assert.equal(created.ok, true);
+  assert.deepEqual(store.get("main")?.dataModel, { user: "Ada" });
+
+  const duplicate = store.create({
+    surfaceId: "other",
+    catalogId: "catalog",
+    dataModel: { leaked: true },
+    components: [text("root", "a"), text("root", "b")],
+  });
+  assert.equal(duplicate.ok, false);
+  assert.equal(store.has("other"), false);
 });
 
 test("adds components and clones inputs and snapshots", () => {

@@ -1,7 +1,7 @@
 import { cloneJson } from "../../data-model/clone.js";
 import type { MessageProcessorResult } from "../../message-processor/index.js";
-import type { A2UIServerMessage, JsonValue } from "../../protocol/index.js";
-import { validateA2UIServerMessage } from "../../protocol/index.js";
+import type { A2UIAgentMessage, JsonValue } from "../../protocol/index.js";
+import { validateA2UIAgentMessage } from "../../protocol/index.js";
 import type {
   A2UIActionDeliveryResult,
   A2UIRouteId,
@@ -34,9 +34,9 @@ export function createA2UITransportSession(
           error: { code: "INVALID_ROUTE_ID" as const },
         };
 
-      const validation = validateA2UIServerMessage(input);
-      if (validation.ok) {
-        const surfaceId = getSurfaceId(validation.value);
+      const validation = validateA2UIAgentMessage(input);
+      const surfaceId = validation.ok ? getSurfaceId(validation.value) : undefined;
+      if (surfaceId !== undefined) {
         const owner = routes.get(surfaceId);
         if (owner !== undefined && owner !== routeId) {
           return {
@@ -88,7 +88,7 @@ export function createA2UITransportSession(
           message: result.value.message,
           ...(result.value.metadata === undefined
             ? {}
-            : { clientDataModel: result.value.metadata.a2uiClientDataModel }),
+            : { rendererDataModel: result.value.metadata.a2uiRendererDataModel }),
         }),
       };
     },
@@ -115,8 +115,8 @@ export function createA2UITransportSession(
       };
     },
 
-    getClientCapabilities() {
-      return cloneTransportJson(runtime.getClientCapabilities());
+    getRendererCapabilities() {
+      return cloneTransportJson(runtime.getRendererCapabilities());
     },
   });
 }
@@ -125,9 +125,14 @@ function isRouteId(value: unknown): value is A2UIRouteId {
   return typeof value === "string" && value.length > 0;
 }
 
-function getSurfaceId(message: A2UIServerMessage): string {
+/**
+ * The surface a message routes to. Function messages are not surface-routed
+ * (or only optionally so) and are rejected by the runtime as unsupported.
+ */
+function getSurfaceId(message: A2UIAgentMessage): string | undefined {
   if ("createSurface" in message) return message.createSurface.surfaceId;
   if ("updateComponents" in message) return message.updateComponents.surfaceId;
   if ("updateDataModel" in message) return message.updateDataModel.surfaceId;
-  return message.deleteSurface.surfaceId;
+  if ("deleteSurface" in message) return message.deleteSurface.surfaceId;
+  return undefined;
 }

@@ -11,6 +11,7 @@ export type {
   HydratedValue,
   HydratedComponentTree,
   HydratedInstanceRelationship,
+  ResolvedAccessibility,
   ResolvedComponentProperties,
   ResolvedInstanceProperties,
   UnresolvedProperty,

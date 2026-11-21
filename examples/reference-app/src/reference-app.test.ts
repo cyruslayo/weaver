@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { A2UIClientActionMessage, JsonObject } from "@cylayo/weaver-core";
+import type { A2UIRendererActionMessage, JsonObject } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import {
   createReferenceAgent,
@@ -28,8 +28,8 @@ function actionMessage(
   name: string,
   context: JsonObject = {},
 ): WebServerEventHandoff {
-  const message: A2UIClientActionMessage = {
-    version: "v0.9.1",
+  const message: A2UIRendererActionMessage = {
+    version: "1.0",
     action: {
       name,
       surfaceId: REFERENCE_SURFACE_ID,
@@ -47,7 +47,7 @@ test("proves the reference application producer, JSONL, ingestion, Web, and acti
   const initial = application.agent.start();
 
   assert.equal(initial.length, 3);
-  assert.equal(initial[0]!.version, "v0.9.1");
+  assert.equal(initial[0]!.version, "1.0");
   assert.equal(
     encodeA2UIMessage(initial[0]!),
     `${JSON.stringify(initial[0])}\n`,

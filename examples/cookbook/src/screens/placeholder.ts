@@ -18,7 +18,7 @@ function placeholderComponents(): A2UIComponent[] {
       component: "Column",
       children: ["heading", "intro", "ping", "count"],
     },
-    { id: "heading", component: "Text", variant: "h1", text: "Cookbook placeholder" },
+    { id: "heading", component: "Text", text: "# Cookbook placeholder" },
     {
       id: "intro",
       component: "Text",
@@ -32,7 +32,7 @@ function placeholderComponents(): A2UIComponent[] {
       action: { event: { name: PLACEHOLDER_PING, context: {} } },
     },
     { id: "pingLabel", component: "Text", text: "Ping the agent" },
-    { id: "count", component: "Text", text: { path: "/countLabel" } },
+    { id: "count", component: "Text", text: { "@path": "/countLabel" } },
   ];
 }
 

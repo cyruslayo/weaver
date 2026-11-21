@@ -3,6 +3,7 @@ import type {
   HydratedComponentInstance,
   HydratedValue,
   JsonValue,
+  ResolvedAccessibility,
   WeaverResolvedSurface,
   WeaverRuntime,
 } from "@cylayo/weaver-core";
@@ -19,7 +20,6 @@ import type {
   WebSurfaceMountResult,
   WebSurfaceRendererConfig,
   WebSurfaceRenderResult,
-  WebSurfaceThemeAdapter,
 } from "./types.js";
 
 const identityKey = (sourceComponentId: string, scopePath: string): string =>
@@ -38,14 +38,12 @@ type SelectionSnapshot = {
 export class WebSurfaceRenderer {
   readonly #runtime: WeaverRuntime;
   readonly #renderers: RendererRegistry;
-  readonly #themeAdapter?: WebSurfaceThemeAdapter;
   readonly #attributionProvider?: WebSurfaceAttributionProvider;
   readonly #onServerEvent?: (event: WebServerEventHandoff) => void;
 
   constructor(config: WebSurfaceRendererConfig) {
     this.#runtime = config.runtime;
     this.#renderers = config.renderers;
-    this.#themeAdapter = config.themeAdapter;
     this.#attributionProvider = config.attributionProvider;
     this.#onServerEvent = config.onServerEvent;
   }
@@ -60,7 +58,6 @@ export class WebSurfaceRenderer {
     let controlMetadata = new WeakMap<Element, string>();
     let controls = new Map<string, Element>();
     const localState = new Map<string, Map<string, JsonValue>>();
-    const appliedThemeProperties = new Set<string>();
     const render = (): WebSurfaceRenderResult => {
       const focus = captureFocus(container, document, controlMetadata);
       const renderGeneration = ++generation;
@@ -78,7 +75,6 @@ export class WebSurfaceRenderer {
         renderedIdentities,
         nextControlMetadata,
         nextControls,
-        appliedThemeProperties,
       );
       if (result.ok) {
         controlMetadata = nextControlMetadata;
@@ -138,13 +134,10 @@ export class WebSurfaceRenderer {
     renderedIdentities: Set<string>,
     controlMetadata: WeakMap<Element, string>,
     controls: Map<string, Element>,
-    appliedThemeProperties: Set<string>,
   ): WebSurfaceRenderResult {
     const resolved = this.#runtime.resolveSurface(surfaceId);
     if (!resolved.ok) return { ok: false, error: { code: "SURFACE_RESOLUTION_FAILED", surfaceId, cause: resolved.error } };
 
-    const theme = this.#resolveTheme(resolved.value);
-    if (!theme.ok) return theme;
     const attribution = this.#resolveAttribution(resolved.value, document);
     if (!attribution.ok) return attribution;
 
@@ -156,7 +149,6 @@ export class WebSurfaceRenderer {
       renderedNode = rendered.value;
     }
 
-    applyThemeProperties(container as HTMLElement, appliedThemeProperties, theme.value);
     container.replaceChildren(...[
       attribution.value,
       renderedNode,
@@ -174,7 +166,6 @@ export class WebSurfaceRenderer {
       result = this.#attributionProvider(Object.freeze({
         surfaceId: surface.surfaceId,
         catalogId: surface.catalogId,
-        theme: surface.theme === undefined ? undefined : structuredClone(surface.theme),
       }));
     } catch {
       return { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } };
@@ -207,31 +198,6 @@ export class WebSurfaceRenderer {
     name.textContent = verified.displayName;
     chrome.append(name);
     return { ok: true, value: chrome };
-  }
-
-  #resolveTheme(surface: WeaverResolvedSurface):
-    | { ok: true; value: Readonly<Record<string, string>> }
-    | { ok: false; error: WebRenderError } {
-    if (this.#themeAdapter === undefined) return { ok: true, value: {} };
-    try {
-      const result = this.#themeAdapter(Object.freeze({
-        catalogId: surface.catalogId,
-        theme: surface.theme === undefined ? undefined : structuredClone(surface.theme),
-      }));
-      if (result === null || typeof result !== "object"
-        || result.customProperties === null || typeof result.customProperties !== "object"
-        || Array.isArray(result.customProperties)) return { ok: false, error: { code: "THEME_ADAPTER_FAILED" } };
-      const properties: Record<string, string> = {};
-      for (const [name, value] of Object.entries(result.customProperties)) {
-        if (!/^--[A-Za-z_][A-Za-z0-9_-]*$/.test(name) || typeof value !== "string") {
-          return { ok: false, error: { code: "THEME_ADAPTER_FAILED" } };
-        }
-        properties[name] = value;
-      }
-      return { ok: true, value: properties };
-    } catch {
-      return { ok: false, error: { code: "THEME_ADAPTER_FAILED" } };
-    }
   }
 
   #renderTree(
@@ -335,7 +301,8 @@ export class WebSurfaceRenderer {
       },
       dispatchAction: (actionProperty) => {
         if (!isCurrent()) return { ok: false, error: { code: "STALE_RENDER_INTERACTION" } };
-        const result = this.#runtime.dispatchAction({ surfaceId, sourceComponentId: instance.sourceComponentId, scopePath: instance.scopePath, actionProperty });
+        // Renderer interactions are reached only from user gesture handlers, so the dispatch is marked as user-activated.
+        const result = this.#runtime.dispatchAction({ surfaceId, sourceComponentId: instance.sourceComponentId, scopePath: instance.scopePath, actionProperty, userActivation: true });
         if (result.ok && result.value.kind === "serverEvent" && this.#onServerEvent !== undefined) {
           try {
             this.#onServerEvent(structuredClone({ message: result.value.message, ...(result.value.metadata === undefined ? {} : { metadata: result.value.metadata }) }));
@@ -350,19 +317,23 @@ export class WebSurfaceRenderer {
       node = renderer({ document, surfaceId, catalogId, instance, properties: Object.freeze({ ...instance.properties }), relationships: Object.freeze(relationships), checks: checks.get(instanceIdentity), interactions });
     } catch { return { ok: false, error: { code: "RENDERER_EXECUTION_FAILED", ...metadata } }; }
     if (!isNode(node, document)) return { ok: false, error: { code: "INVALID_RENDERER_RESULT", ...metadata } };
+    applyAccessibility(node, instance.accessibility);
     return { ok: true, value: node };
   }
 }
 
-function applyThemeProperties(
-  container: HTMLElement,
-  applied: Set<string>,
-  next: Readonly<Record<string, string>>,
-): void {
-  for (const name of applied) if (!(name in next)) container.style.removeProperty(name);
-  for (const [name, value] of Object.entries(next)) container.style.setProperty(name, value);
-  applied.clear();
-  for (const name of Object.keys(next)) applied.add(name);
+/**
+ * Applies the resolved @accessibility envelope to a rendered element. Explicit label
+ * overrides the renderer's inferred name; description uses aria-description so no
+ * extra DOM is inserted into the renderer's tree.
+ */
+function applyAccessibility(node: Node, accessibility: ResolvedAccessibility | undefined): void {
+  if (accessibility === undefined || node.nodeType !== 1) return;
+  const element = node as Element;
+  if (accessibility.label !== undefined) element.setAttribute("aria-label", accessibility.label);
+  if (accessibility.description !== undefined) element.setAttribute("aria-description", accessibility.description);
+  if (accessibility.live === "polite" || accessibility.live === "assertive") element.setAttribute("aria-live", accessibility.live);
+  if (accessibility.hidden === true) element.setAttribute("aria-hidden", "true");
 }
 
 function cloneHydratedProperties(
