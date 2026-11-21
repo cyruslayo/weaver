@@ -46,14 +46,14 @@ function errorDemoComponents(): A2UIComponent[] {
       component: "Column",
       children: ["heading", "intro", "status", "ticketList"],
     },
-    { id: "heading", component: "Text", variant: "h1", text: "Error demo" },
+    { id: "heading", component: "Text", text: "# Error demo" },
     {
       id: "intro",
       component: "Text",
       variant: "body",
       text: "Three bad updates arrive in order. Each one is rejected or fails to render, and the diagnostics panel lists it. The surface on the left keeps the last good render.",
     },
-    { id: "status", component: "Text", variant: "h2", text: { path: "/status" } },
+    { id: "status", component: "Text", text: { "@call": "formatString", args: { value: "## ${/status}" } } },
     {
       id: "ticketList",
       component: "List",
@@ -61,7 +61,7 @@ function errorDemoComponents(): A2UIComponent[] {
     } as unknown as A2UIComponent,
     // A template item binds relative to its own scope, so the path has no leading slash.
     // A leading slash reads the DataModel root and renders empty; see docs/debugging.md (WVR-066).
-    { id: "ticketName", component: "Text", text: { path: "name" } },
+    { id: "ticketName", component: "Text", text: { "@path": "name" } },
   ];
 }
 
@@ -89,7 +89,7 @@ export function errorDemoBadUpdates(): ErrorDemoBadUpdate[] {
     {
       label: "A truncated frame",
       // The line stops before its closing braces, as a dropped connection would leave it.
-      chunk: '{"version":"v0.9.1","updateDataModel":{"surfaceId":"' + ERROR_DEMO_SURFACE_ID + '","path":"/items"\n',
+      chunk: '{"version":"1.0","updateDataModel":{"surfaceId":"' + ERROR_DEMO_SURFACE_ID + '","path":"/items"\n',
     },
     {
       label: "A component the Basic catalog does not define",

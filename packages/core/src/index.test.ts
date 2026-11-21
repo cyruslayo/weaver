@@ -29,7 +29,7 @@ const V10_RUNTIME_EXPORTS = [
 ];
 
 test("exports the Weaver runtime facade", () => {
-  assert.equal(WEAVER_CORE_VERSION, "0.3.1");
+  assert.equal(WEAVER_CORE_VERSION, "0.4.0");
   assert.deepEqual(createWeaverRuntime({ catalogs: [] }).ok, true);
 });
 

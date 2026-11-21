@@ -2,43 +2,47 @@
 
 ## Recommended Basic Web facade
 
-For the canonical A2UI v0.9.1 Basic Catalog, browser hosts can use
+For the canonical A2UI v1.0 Basic Catalog, browser hosts can use
 `createBasicWebRuntime` instead of composing the catalog, runtime, renderer
-registry, theme adapter, and surface renderer themselves:
+registry, and surface renderer themselves:
 
 ```ts
 import { createBasicWebRuntime } from "@cylayo/weaver-web";
 
 const created = createBasicWebRuntime({
-  basic: { resourcePolicy, iconResolver, regexMatcher },
+  basic: { resourcePolicy, iconResolver, dateTimeInputLocalValueResolver },
   rendering: { attributionProvider, onServerEvent },
 });
 if (!created.ok) throw new Error("Web runtime configuration failed");
 
 const web = created.value;
 web.runtime.process({
-  version: "v0.9.1",
+  version: "1.0",
   createSurface: { surfaceId: "main", catalogId: web.catalogId },
 });
 const mounted = web.mount({ surfaceId: "main", target: document.querySelector("#app")! });
 ```
 
-The facade owns the canonical `A2UI_V091_BASIC_CATALOG_ID`, installs the
-canonical Basic catalog and renderer allowlist, and installs the existing
-allowlisted Basic theme adapter. `web.runtime` remains the authoritative Core
-processing and transport-integration seam. The facade does not expose its
-internal `RendererRegistry`, track mounts, or create transports.
+The facade owns the canonical `A2UI_V10_BASIC_CATALOG_ID`, installs the
+canonical Basic catalog and its 18 renderer registrations, and nothing more.
+`web.runtime` remains the authoritative Core processing and transport-integration
+seam. The facade does not expose its internal `RendererRegistry`, track mounts, or create
+transports.
 
-All security-sensitive policies remain explicit. Without a resource policy,
-agent media URLs remain denied; without an icon resolver, named icons have no
-host implementation; without a regex matcher, regex execution is unavailable;
-and without an attribution provider, raw theme identity claims remain inert.
+All security-sensitive policies remain explicit. Without a resource policy, agent
+media URLs remain denied. Without an icon resolver, named icons have no host
+implementation. Without an attribution provider, no attribution is displayed.
 No Basic functions or Web `openUrl` implementation are installed implicitly.
-Caller-supplied additional catalogs and renderer registrations are trusted
-pass-through configuration and retain the existing exact-identity and
-no-fallback rules. Low-level `createWeaverRuntime`, `RendererRegistry`,
-`WebSurfaceRenderer`, and Basic factories remain public for advanced or custom
+Caller-supplied additional catalogs and renderer registrations (`additionalCatalogs`,
+`additionalRenderers`) are trusted pass-through configuration and keep the exact-identity
+and no-fallback rules. Low-level `createWeaverRuntime`, `RendererRegistry`,
+`WebSurfaceRenderer`, and the Basic factories remain public for advanced or custom
 composition.
+
+Two options from the 0.3.x line no longer exist: `themeAdapter` (and `createBasicCatalogThemeAdapter`),
+because A2UI v1.0 removes `theme`, and `regexMatcher` on the Basic renderer registrations.
+Regex execution is a function, so the host supplies it through the function options
+(`createBasicCatalogFunctionImplementations({ regexMatcher })`) when it needs one.
 
 ## Pipeline
 
@@ -123,7 +127,7 @@ There is no automatic action after input and no batching or async scheduling.
 
 A server-event action remains transport-neutral. An optional `onServerEvent`
 host callback receives defensive copies of the Core message and optional
-transport metadata (including `a2uiClientDataModel` when requested):
+transport metadata (including `a2uiRendererDataModel` when requested):
 
 ```text
 ActionDispatcher → server event result → optional onServerEvent → host → future transport
@@ -171,7 +175,7 @@ A failed detached-tree render intentionally preserves the previous successful
 DOM, but that visible DOM is inert because Core may already represent newer
 state. Recovery creates a fresh generation. Mounts track generations
 independently; node connectivity and rendered-value equality are not freshness
-signals. Full rerendering reduces stale browser interaction risk, but v0.9.1
+signals. Full rerendering reduces stale browser interaction risk, but v1.0
 identity remains positional: array changes can make the same component ID and
 scope path refer to a different item because no stable item key exists.
 
@@ -181,7 +185,7 @@ Each mount appends one ordinary Weaver-owned container to its target. Host-owned
 siblings remain untouched. Unmounting unsubscribes and removes only that
 container. Multiple mounts have independent containers and subscriptions.
 
-Task 20 renderer strategy is a full derived DOM subtree rebuild per surface
+The renderer strategy is a full derived DOM subtree rebuild per surface
 mutation. Incremental DOM reconciliation is deferred until profiling proves a
 need.
 
@@ -252,59 +256,39 @@ mount generation, so an interaction from that DOM returns `STALE_RENDER_INTERACT
 never reaches Core, as described in [Generation safety](#generation-safety). The visible
 DOM therefore shows the previously rendered state, not the store. A host that keeps it on
 screen should say so, and should not read a visible value as the store's current value.
-See also [Debugging](debugging.md#render-failures-and-the-stale-dom).
+See also [Debugging](web-rendering.md#render-failures-and-the-last-good-render).
 
-## Basic theme bridge
+## Theme removal and trusted surface attribution
 
-`A2UI createSurface.theme` is catalog-defined surface data. Weaver Core validates it and retains it in the defensive `SurfaceSnapshot` and runtime resolution. Web styling is a separate, explicit host trust choice:
+A2UI v1.0 removes `theme` from `createSurface`. Weaver therefore has no agent-supplied
+styling data and no agent-supplied attribution. The Web package has no theme adapter, and
+no theme error code exists. Agent output cannot change colours, fonts, or identity.
 
-```text
-createSurface.theme
-      ↓
-CatalogRegistry validation
-      ↓
-SurfaceSnapshot
-      ↓
-optional WebSurfaceThemeAdapter
-      ↓
-allowlisted CSS custom properties
-      ↓
-Weaver-owned mount
-      ↓
-Basic renderers
-```
-
-Hosts opt in with `themeAdapter: createBasicCatalogThemeAdapter({ catalogId })`. The exact caller-supplied catalog ID isolates Basic interpretation from custom catalogs. The Task 32 adapter maps only `theme.primaryColor` in `#RRGGBB` form to `--a2ui-color-primary`. Additional catalog-valid theme properties are ignored rather than mapped automatically. Without an adapter, agent theme data has no Web styling effect.
-
-Hosts may independently provide inherited `--a2ui-color-primary` and `--a2ui-color-on-primary` values without enabling agent translation. Precedence is: an agent primary color translated onto the mount; otherwise an inherited host variable; otherwise the Basic renderer fallback. Adapter properties are applied only to the ordinary Weaver-owned mount container, never document-global styles. Each mount tracks and removes only its own stale adapter properties.
-
-`theme.agentDisplayName` and `theme.iconUrl` are untrusted attribution claims. Catalog validation establishes only their structural validity; it does not make them verified identity. The theme adapter does not render or load them.
-
-## Trusted surface attribution
-
-`WebSurfaceAttributionProvider` is the explicit trusted host boundary:
+`WebSurfaceAttributionProvider` is the only source of displayed attribution, and it is a
+trusted host boundary:
 
 ```text
-createSurface.theme claims
+surfaceId + catalogId
         ↓
-surfaceId + catalogId + defensive theme snapshot
-        ↓
-trusted host attribution provider
+trusted host attribution provider (host code, not agent data)
         ↓
 verified displayName + optional iconUrl
         ↓
 Weaver-owned surface chrome
-        ↓
-A2UI component root
 ```
 
-The host or orchestrator authenticates or validates the actual surface owner and may ignore the raw claims, compare them with trusted identity, or replace them from a registry. Weaver does not authenticate agents and does not prescribe the verification algorithm. The provider receives only ordinary `surfaceId`, `catalogId`, and a defensive theme copy—never runtime, stores, registries, data contexts, or evaluators. Provider mutation cannot affect Core, the theme adapter, or later renders.
+The host or orchestrator decides which agent or surface owner is shown. It may look the
+owner up in a registry, check it against its own identity system, or show no attribution at
+all. Weaver does not authenticate agents, and it does not prescribe a verification algorithm.
 
-Without a provider, no attribution DOM or attribution image is created. A provider returning `undefined` likewise removes attribution on the next successful atomic render. A successful result requires a non-whitespace `displayName`; an invalid result or provider exception is a typed Web rendering failure and leaves the previous successful DOM and theme intact. Exception text is not exposed.
+Without a provider, no attribution DOM and no attribution image is created. A provider that
+returns `undefined` removes attribution on the next successful atomic render. A successful
+result requires a non-whitespace `displayName`. An invalid result is rejected and no
+attribution is shown for it.
 
-Only the provider-returned `iconUrl` may become the chrome image `src`. Raw `theme.iconUrl` is inert. The returned URL is treated as a host-approved browser resource and may already be rewritten, proxied, signed, local, or CDN-hosted; this does not change the independent Basic media resource policy.
-
-Attribution is plain native DOM inside the existing Weaver-owned mount and outside the A2UI component tree: an optional static `data-weaver-surface-attribution` row, optional decorative 24×24 `img` with `alt=""` and `object-fit:contain`, and a `span` populated with `textContent`. It has inherited text color, uses `var(--a2ui-space, 8px)` for gap and bottom separation, exposes no surface/catalog/claim identity attributes, and adds no interaction or focus target. It is rebuilt and replaced atomically with the A2UI root. Each mount invokes the provider independently and owns its own chrome.
+Only the provider-returned `iconUrl` can become the chrome image `src`. The returned URL is
+treated as a host-approved browser resource. It may already be rewritten, proxied, signed,
+local, or CDN-hosted, and Weaver does not change it.
 
 ## Basic Catalog foundation coverage
 
@@ -350,7 +334,7 @@ Modal wraps its trigger in a neutral capture listener. Activation opens it local
 
 Opening maps registered trigger focus to the close control; every dismissal path maps focus through the close control and back to the trigger. Tab and Shift+Tab wrap inside the open dialog, while normal registered input focus and caret restoration continue across full rerenders. Nested Modals require no global stack: the closest active dialog consumes handled Tab/Escape events, so its keyboard containment, dismissal, and focus return do not affect its open parent. The Modal remains inside the Weaver mount: it uses no portal and mutates neither `document.body` nor host-owned siblings.
 
-All 18 Basic Catalog components have renderer coverage and a complete-surface smoke gate. Visual/functional hardening, trusted attribution, and the final v0.9.1 conformance audit are complete. Detached inactive/closed descendants remain eagerly constructed as the accepted R155 hardening limitation.
+All 18 Basic Catalog components have renderer coverage and a complete-surface smoke gate. Visual/functional hardening, trusted attribution, and the v1.0 conformance tracker is updated. Detached inactive/closed descendants remain eagerly constructed as an accepted renderer hardening limitation (see [the conformance tracker](conformance-v1.0.md)).
 
 ## Basic Icon policy
 
@@ -380,9 +364,9 @@ native browser element
 
 Image uses `<img>` with explicit schema-enum mappings for `object-fit`, safe variant hooks, and `alt=""` when no hydrated description exists. Video and AudioPlayer use native controls and do not autoplay. Audio description is rendered as plain figcaption text. Media loading and native load failures remain browser-local presentation behavior; Weaver adds no fetch, probing, retries, caching, or media events.
 
-Text uses native headings, paragraph, and `small` roots. Task 34 scans hydrated strings directly into allowlisted native DOM nodes: text nodes, `<strong>`, `<em>`, `<code>`, and `<br>`. It supports paired `**`/`__` strong, `*`/`_` emphasis, single-backtick inline code, recognized-marker backslash escapes, and maps every newline to `<br>` without creating paragraph blocks. Inline code does not interpret formatting markers. HTML, links, images, and block Markdown are not interpreted and remain literal text; no URL or resource-policy behavior is involved. The deliberately non-recursive scanner does not support nested formatting. Malformed or unsupported syntax remains readable literal text. Unexpected scanner failures fall back to the original raw text. Weaver generates and parses no HTML strings. Missing, mismatched, and explicit `null` values produce an empty semantic root; later hydrated strings and function-produced strings use the same scanner on rerender, with no Web function evaluation.
+Text uses native headings, paragraph, and `small` roots. The renderer scans hydrated strings directly into allowlisted native DOM nodes: text nodes, `<strong>`, `<em>`, `<code>`, and `<br>`. It supports paired `**`/`__` strong, `*`/`_` emphasis, single-backtick inline code, recognized-marker backslash escapes, and maps every newline to `<br>` without creating paragraph blocks. Inline code does not interpret formatting markers. HTML, links, images, and block Markdown are not interpreted and remain literal text; no URL or resource-policy behavior is involved. The deliberately non-recursive scanner does not support nested formatting. Malformed or unsupported syntax remains readable literal text. Unexpected scanner failures fall back to the original raw text. Weaver generates and parses no HTML strings. Missing, mismatched, and explicit `null` values produce an empty semantic root; later hydrated strings and function-produced strings use the same scanner on rerender, with no Web function evaluation.
 
-Task 22 provides native semantics, essential flex layout behavior, separator geometry, and stable `data-a2ui-component` / Button `data-a2ui-variant` host styling hooks. Task 32 adds only the optional primary accent bridge; it does not add broad brand styling, spacing, typography styling, or a theme engine.
+The Basic renderers provide native semantics, essential flex layout behavior, separator geometry, and stable `data-a2ui-component` / Button `data-a2ui-variant` host styling hooks. Weaver adds no brand styling, spacing, typography styling, or theme engine.
 
 Row and Column default to `justify = start` and `align = stretch`. For the schema's underdefined `justify=stretch`, Weaver Web uses start packing and gives every unweighted direct Element child `flex-grow: 1`; a valid explicit non-negative weight wins, including zero and fractional values. An ignored negative weight has no usable explicit meaning, so the stretch default applies. This is an explicit Weaver Web interpretation because Flexbox has no useful main-axis `justify-content: stretch` behavior for flex items. Cross-axis `align=stretch` remains ordinary Flexbox behavior.
 
@@ -402,7 +386,7 @@ Image is block-level and responsive with `max-width:100%`. Geometry is: icon 24�
 
 Cards use a transparent surface, outline, radius, 16px padding, and subtle shadow. Every Card applies the same treatment, so nested boundaries remain distinct without depth state. Buttons share spacing, padding, and radius: default uses a neutral control surface and outline, primary uses the primary/on-primary variables, and borderless stays transparent. ChoicePicker's `checkbox` display style is a native expanding vertical option list; `chips` is a wrapping chip-like group whose native radio/checkbox controls remain visible.
 
-Hosts may override the inherited `--a2ui-space`, `--a2ui-radius`, `--a2ui-color-outline`, `--a2ui-color-control`, and `--a2ui-card-shadow` properties. These optional visual hooks are not mapped from agent theme data; the Basic theme adapter continues to map only `theme.primaryColor` to `--a2ui-color-primary`.
+Hosts may override the inherited `--a2ui-space`, `--a2ui-radius`, `--a2ui-color-outline`, `--a2ui-color-control`, and `--a2ui-card-shadow` properties. These optional visual hooks are never set from agent data, because A2UI v1.0 has no theme.
 
 ## Basic input policy
 
@@ -432,7 +416,7 @@ createBasicCatalogRendererRegistrations({
 
 Weaver deliberately defines no timezone or DST policy. Resolver identity is the protocol surface plus source component and scope path; it is stable while that component instance exists on the mounted surface. Hosts can discard tracked validation state through their existing surface unmount/deletion lifecycle. Resolver output remains host-selected client data, not trusted server authority: servers must validate received values independently. This seam prevents destructive client-side ambiguity; it does not replace server validation.
 
-`validationRegexp` is an optional TextField-local validation hint. Execution requires the host to pass a trusted `BasicRegexMatcher` explicitly to `createBasicCatalogRendererRegistrations`; hosts may share the same matcher with `createBasicCatalogFunctionImplementations`, but the factories are not linked. Weaver never executes agent patterns with JavaScript `RegExp`, never sets the native input `pattern` attribute, and does not write validation results to the model. Missing dynamic values are pending and are not matched; the empty string is matched. A missing matcher is exposed only as `data-a2ui-regexp-state="unavailable"` and does not alter ordinary Core presentation. Matcher exceptions and non-boolean results are errors, fail soft, and expose no host error text.
+A2UI v1.0 removes `validationRegexp` from `TextField`. Its validation comes from catalog `@checks`, which Core evaluates. The `regex` function is the only pattern check. Core runs it with the A2UI regex dialect (`checkA2UIRegexPattern`), so Weaver never executes an agent pattern with JavaScript `RegExp`. The Web renderers do not set the native input `pattern` attribute. Check results are not written back to the model.
 
 Combined Web presentation uses `invalid > error > pending > valid`. A confirmed invalid control receives `aria-invalid=true`, visible validation text, and an `aria-describedby` association to every applicable opaque message ID; existing unrelated description tokens are preserved and deduplicated. Error, pending, and unavailable states do not claim confirmed invalidity. Failed Core messages remain visible in deterministic check order. A confirmed regexp mismatch additionally renders the renderer-owned text `Value does not match the required format.` and associates it with the TextField. This generic Weaver UI text is not an agent-authored `CheckRule` message. `validationRegexp` is Web presentation/input validation only. `CheckRule` remains Core validation and the authoritative action gate; business or security correctness that must block an action requires a real check or application/domain validation. A regexp mismatch alone does not produce `ACTION_BLOCKED_BY_CHECKS`.
 

@@ -41,7 +41,7 @@ harness owns everything else:
 ### Positional template identity (ticket board)
 
 The ticket board renders each column as a List template over `/board/<status>`.
-In A2UI v0.9.1, template items are identified by their position in the
+In A2UI v1.0, template items are identified by their position in the
 collection. The scope path is `/board/<status>/<index>`, so:
 
 - Moving an item re-indexes every item after it in both columns. Weaver does
@@ -64,7 +64,7 @@ root, not from the current item. The item's own field is written without a slash
   `name`, so the text renders empty. The render succeeds and no error is raised.
 
 Use the bare form for item fields and a slash only for root values. The
-[debugging guide](../../docs/debugging.md#symptom-template-text-is-empty-with-no-error)
+[debugging guide](../../docs/debugging.md)
 has the symptom and fix, and the
 [architecture scope rules](../../docs/architecture.md#derived-data-scopes)
 state the rule. The error demo (`src/screens/error-demo.ts`) uses the bare form.

@@ -1,5 +1,7 @@
 # Weaver Development Plan
 
+> Historical document. It describes the A2UI v0.9.1 era (Weaver 0.3.x). Current behaviour is in the [README](../README.md) and the other documents in `docs/`.
+
 ## 1. Project Goal
 
 Build Weaver as a reusable framework for dynamic web applications.

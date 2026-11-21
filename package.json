@@ -8,7 +8,7 @@
     "build": "pnpm -r --workspace-concurrency=1 run build",
     "test": "pnpm -r --workspace-concurrency=1 --if-present run test && node --test integration/package-consumer/doc-snippets.test.mjs",
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
-    "conformance:v0.9.1": "pnpm --filter @cylayo/weaver-core test && pnpm --filter @cylayo/weaver-web test && pnpm typecheck",
+    "conformance:v1.0": "pnpm --filter @cylayo/weaver-core test && pnpm --filter @cylayo/weaver-web test && pnpm typecheck",
     "check:generated": "node scripts/generate-common-types.mjs --check && node scripts/generate-basic-catalog.mjs --check && node scripts/generate-prompt-fixtures.mjs --check",
     "check:docs": "node scripts/check-doc-links.mjs",
     "pack:packages": "node scripts/pack-packages.mjs",

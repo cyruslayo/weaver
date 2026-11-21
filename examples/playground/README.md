@@ -10,7 +10,7 @@
 
 ## Playground
 
-The Playground edits A2UI v0.9.1 JSONL, one message per line, and shows what Weaver does
+The Playground edits A2UI v1.0 JSONL, one message per line, and shows what Weaver does
 with it. It uses only the Basic Catalog. Its layout is an examples list, an editor, a live
 preview, and an inspector with four tabs: Events, Data model, Prompt and Errors.
 
@@ -23,7 +23,7 @@ pnpm --filter @weaver/playground dev
   cuts frame 3 off mid-JSON, so the Errors tab shows one `INVALID_JSON` at line 3. Selecting an
   example replaces the text. If you edited it, an in-page bar asks first.
 - **Editing.** Each pause in typing (about 300 ms) builds a fresh runtime from the whole text.
-  Every frame goes through `createA2UIV091StreamIngestion`. Nothing is repaired or skipped.
+  Every frame goes through `createA2UIV10StreamIngestion`. Nothing is repaired or skipped.
   A rejected frame is listed in Errors and marked in the line gutter. The preview keeps every
   frame that was accepted.
 - **Stream it.** Replays the text one line at a time into a fresh runtime, at 0.5x, 1x or 2x
@@ -31,8 +31,8 @@ pnpm --filter @weaver/playground dev
 - **Events** lists input writes and actions from the preview, newest first (up to 50). A server
   event is only shown. It is never sent.
 - **Copy as code** copies a short TypeScript snippet with `createBasicWebRuntime` and
-  `createA2UIV091StreamIngestion`, with the JSONL in a template literal. **Copy prompt** copies
-  the Basic Catalog prompt from `generateA2UIV091Prompt()`.
+  `createA2UIV10StreamIngestion`, with the JSONL in a template literal. **Copy prompt** copies
+  the Basic Catalog prompt from `generateA2UIV10Prompt()`.
 
 ### Media policy
 
@@ -81,7 +81,7 @@ A failed entry shows its error in a diagnostics panel. The panel is the shared
 `renderDiagnosticsPanel()` from the private `@weaver/shared` package in `examples/shared`,
 and it is also used by the cookbook. It lists each error under its frame, surface and
 component, with the cause chain and the fix hint. It stays in `examples/`, and the
-promotion rule is in [docs/debugging.md](../../docs/debugging.md#diagnostics-panel).
+promotion rule is in [docs/debugging.md](../../docs/debugging.md#the-trace-inspector).
 
 ### Bundled sample
 

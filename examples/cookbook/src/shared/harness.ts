@@ -238,7 +238,10 @@ export function mountCookbookScreen<TState>(
       safety: COOKBOOK_SAFETY_BUDGETS,
       // Basic functions (formatNumber, formatCurrency, ...) are opt-in. The harness registers them once by default.
       // A screen that supplies its own list replaces the default, so no name is registered twice.
-      functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({ catalogId: A2UI_V10_BASIC_CATALOG_ID }),
+      functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({
+        catalogId: A2UI_V10_BASIC_CATALOG_ID,
+        ...(definition.web?.regexMatcher === undefined ? {} : { regexMatcher: definition.web.regexMatcher }),
+      }),
     },
     ...(definition.catalog === undefined
       ? {}
@@ -246,9 +249,6 @@ export function mountCookbookScreen<TState>(
           additionalCatalogs: [definition.catalog.catalog],
           additionalRenderers: definition.catalog.renderers,
         }),
-    ...(definition.web?.regexMatcher === undefined
-      ? {}
-      : { basic: { regexMatcher: definition.web.regexMatcher } }),
     rendering: {
       attributionProvider: () => ({ displayName: definition.attributionName }),
       onServerEvent: (event) => handoff(event),

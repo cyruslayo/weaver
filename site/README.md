@@ -24,11 +24,11 @@ For the GitHub Pages base, build with `SITE_BASE=/weaver/`. In PowerShell set th
 ## How the demo works
 
 Each scenario has its own runtime. The demo creates one `createBasicWebRuntime` per scenario, on
-first use, and feeds it A2UI v0.9.1 JSONL through `createA2UIV091StreamIngestion`:
+first use, and feeds it A2UI v1.0 JSONL through `createA2UIV10StreamIngestion`:
 
 - `src/demo/agent/*.ts` is a deterministic stand-in for a model. It makes no model call and sends
   no code. Given the app state, it describes each view with Basic Catalog components and the data
-  those components read. Every message is built with `createA2UIV091Producer`.
+  those components read. Every message is built with `createA2UIV10Producer`.
 - `src/demo/app/*.ts` is the host, "your app". It holds the state, the only writable inputs and the
   only actions it accepts, each with its own validation, and it computes totals and summaries with
   the pure functions in `src/demo/model.ts`.

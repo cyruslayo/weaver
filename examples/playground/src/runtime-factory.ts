@@ -1,4 +1,8 @@
-import type { WeaverRuntimeObserver } from "@cylayo/weaver-core";
+import {
+  A2UI_V10_BASIC_CATALOG_ID,
+  createBasicCatalogFunctionImplementations,
+  type WeaverRuntimeObserver,
+} from "@cylayo/weaver-core";
 import { createBasicWebRuntime, type WebServerEventHandoff } from "@cylayo/weaver-web";
 
 const iconPaths: Readonly<Record<string, string>> = {
@@ -14,6 +18,8 @@ export interface InspectorRuntimeOptions {
   now?: () => Date;
   /** Receives server events raised by a live surface. The inspector only logs them. */
   onServerEvent?: (event: WebServerEventHandoff) => void;
+  /** The attribution shown for the surface. Defaults to the inspector's name. */
+  attributionName?: string;
 }
 
 /**
@@ -26,13 +32,17 @@ export function createInspectorWebRuntime(options: InspectorRuntimeOptions = {})
     runtime: {
       ...(options.observer === undefined ? {} : { observer: options.observer }),
       ...(options.now === undefined ? {} : { now: options.now }),
+      // Basic functions are opt-in. The regex matcher runs only on patterns that Core's A2UI regex dialect check accepts first.
+      functions: createBasicCatalogFunctionImplementations({
+        catalogId: A2UI_V10_BASIC_CATALOG_ID,
+        regexMatcher: ({ value, pattern }) => new RegExp(pattern, "u").test(value),
+      }),
     },
     basic: {
       iconResolver: ({ name }) => iconPaths[name],
-      regexMatcher: ({ value, pattern }) => new RegExp(pattern, "u").test(value),
     },
     rendering: {
-      attributionProvider: () => ({ displayName: "Traced Agent" }),
+      attributionProvider: () => ({ displayName: options.attributionName ?? "Traced Agent" }),
       onServerEvent: options.onServerEvent ?? (() => undefined),
     },
   });

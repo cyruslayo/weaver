@@ -51,7 +51,7 @@ function bars(target: Element): Element[] {
 }
 
 function barChartComponent(overrides: Partial<JsonObject> = {}): A2UIComponent {
-  return { id: "root", component: "BarChart", title: "By status", values: { path: "/stats/byStatus" }, maxBars: 10, ...overrides } as A2UIComponent;
+  return { id: "root", component: "BarChart", title: "By status", values: { "@path": "/stats/byStatus" }, maxBars: 10, ...overrides } as A2UIComponent;
 }
 
 test("the BarChart renders one bar per item and updates when the values change", () => {
@@ -71,16 +71,16 @@ test("the BarChart renders bound data through the runtime and updates when the d
   assert.equal(created.ok, true);
   if (!created.ok) return;
   const web = created.value;
-  assert.equal(web.runtime.process({ version: "v0.9.1", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: SURFACE_ID, components: [barChartComponent()] } }).ok, true);
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateDataModel: { surfaceId: SURFACE_ID, value: { stats: { byStatus: [{ label: "Open", value: 3 }] } } } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateComponents: { surfaceId: SURFACE_ID, components: [barChartComponent()] } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateDataModel: { surfaceId: SURFACE_ID, value: { stats: { byStatus: [{ label: "Open", value: 3 }] } } } }).ok, true);
   const window = new Window();
   const target = window.document.createElement("main") as unknown as Element;
   assert.equal(web.mount({ surfaceId: SURFACE_ID, target }).ok, true);
   assert.deepEqual(bars(target).map((bar) => bar.getAttribute("data-chart-label")), ["Open"]);
   assert.deepEqual(bars(target).map((bar) => bar.getAttribute("data-chart-value")), ["3"]);
 
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateDataModel: { surfaceId: SURFACE_ID, value: { stats: { byStatus: [{ label: "Open", value: 1 }, { label: "Done", value: 4 }] } } } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateDataModel: { surfaceId: SURFACE_ID, value: { stats: { byStatus: [{ label: "Open", value: 1 }, { label: "Done", value: 4 }] } } } }).ok, true);
   assert.deepEqual(bars(target).map((bar) => bar.getAttribute("data-chart-label")), ["Open", "Done"]);
   assert.deepEqual(bars(target).map((bar) => bar.getAttribute("data-chart-value")), ["1", "4"]);
 });
@@ -90,8 +90,8 @@ test("the BarChart also accepts a literal array of {label, value} through the ru
   assert.ok(created.ok);
   if (!created.ok) return;
   const web = created.value;
-  assert.equal(web.runtime.process({ version: "v0.9.1", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: SURFACE_ID, components: [barChartComponent({ values: [{ label: "Open", value: 2 }] })] } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateComponents: { surfaceId: SURFACE_ID, components: [barChartComponent({ values: [{ label: "Open", value: 2 }] })] } }).ok, true);
   const window = new Window();
   const target = window.document.createElement("main") as unknown as Element;
   assert.equal(web.mount({ surfaceId: SURFACE_ID, target }).ok, true);
@@ -165,8 +165,8 @@ test("maxBars is capped at the catalog bound by the renderer, and the schema rej
   const created = createBasicWebRuntime({ additionalCatalogs: [cookbookCatalog], additionalRenderers: cookbookCatalogRendererRegistrations });
   assert.ok(created.ok);
   if (!created.ok) return;
-  assert.equal(created.value.runtime.process({ version: "v0.9.1", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
-  const tooMany = created.value.runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: SURFACE_ID, components: [barChartComponent({ maxBars: COOKBOOK_MAX_BARS + 1 })] } });
+  assert.equal(created.value.runtime.process({ version: "1.0", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
+  const tooMany = created.value.runtime.process({ version: "1.0", updateComponents: { surfaceId: SURFACE_ID, components: [barChartComponent({ maxBars: COOKBOOK_MAX_BARS + 1 })] } });
   assert.equal(tooMany.ok, false, "the catalog schema must reject maxBars above COOKBOOK_MAX_BARS");
 });
 
@@ -175,7 +175,7 @@ test("the Column, Text and Card layout primitives render under the cookbook cata
   assert.ok(created.ok);
   if (!created.ok) return;
   const web = created.value;
-  assert.equal(web.runtime.process({ version: "v0.9.1", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", createSurface: { surfaceId: SURFACE_ID, catalogId: COOKBOOK_CATALOG_ID } }).ok, true);
   const components: A2UIComponent[] = [
     { id: "root", component: "Column", children: ["card"] },
     { id: "card", component: "Card", child: "content" },
@@ -183,8 +183,8 @@ test("the Column, Text and Card layout primitives render under the cookbook cata
     { id: "title", component: "Text", text: "Orders" },
     barChartComponent({ id: "chart", maxBars: 5 }),
   ];
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: SURFACE_ID, components } }).ok, true);
-  assert.equal(web.runtime.process({ version: "v0.9.1", updateDataModel: { surfaceId: SURFACE_ID, value: { stats: { byStatus: [] } } } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateComponents: { surfaceId: SURFACE_ID, components } }).ok, true);
+  assert.equal(web.runtime.process({ version: "1.0", updateDataModel: { surfaceId: SURFACE_ID, value: { stats: { byStatus: [] } } } }).ok, true);
   const window = new Window();
   const target = window.document.createElement("main") as unknown as Element;
   assert.equal(web.mount({ surfaceId: SURFACE_ID, target }).ok, true);

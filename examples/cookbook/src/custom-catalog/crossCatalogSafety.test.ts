@@ -23,7 +23,7 @@ import { cookbookCatalogRendererRegistrations } from "./renderers.js";
  */
 
 const SURFACE_ID = "cookbook-cross-catalog";
-const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
+const BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 const LAST_GOOD_TEXT = "Last good screen";
 
 function createWeb(renderers: readonly RendererRegistration[] = cookbookCatalogRendererRegistrations) {
@@ -48,11 +48,11 @@ function rejectionCode(result: { ok: boolean; error?: unknown }): string | undef
 }
 
 function createSurface(catalogId: string, surfaceId: string = SURFACE_ID) {
-  return { version: "v0.9.1" as const, createSurface: { surfaceId, catalogId } };
+  return { version: "1.0" as const, createSurface: { surfaceId, catalogId } };
 }
 
 function update(components: A2UIComponent[], surfaceId: string = SURFACE_ID) {
-  return { version: "v0.9.1" as const, updateComponents: { surfaceId, components } };
+  return { version: "1.0" as const, updateComponents: { surfaceId, components } };
 }
 
 /** A screen that uses only components every catalog in these tests declares: Column and Text. */

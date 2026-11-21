@@ -20,8 +20,8 @@ const BASE_TIME_MS = Date.UTC(2026, 9, 10, 9, 0, 0);
 function requestComponents(): A2UIComponent[] {
   return [
     { id: "root", component: "Column", children: ["heading", "title", "priority", "submit", "status"] },
-    { id: "heading", component: "Text", variant: "h1", text: "Model Draft Request" },
-    { id: "title", component: "TextField", label: "Request title", value: { path: "/draft/title" } },
+    { id: "heading", component: "Text", text: "# Model Draft Request" },
+    { id: "title", component: "TextField", label: "Request title", value: { "@path": "/draft/title" } },
     {
       id: "priority",
       component: "ChoicePicker",
@@ -33,22 +33,22 @@ function requestComponents(): A2UIComponent[] {
         { label: "High", value: "high" },
         { label: "Urgent", value: "urgent" },
       ],
-      value: { path: "/draft/priority" },
+      value: { "@path": "/draft/priority" },
     },
     {
       id: "submit",
       component: "Button",
       variant: "primary",
-      child: "submit-label",
+      child: "submit_label",
       action: {
         event: {
           name: "reference.createRequest",
-          context: { title: { path: "/draft/title" }, priority: { path: "/draft/priority" } },
+          context: { title: { "@path": "/draft/title" }, priority: { "@path": "/draft/priority" } },
         },
       },
     },
-    { id: "submit-label", component: "Text", text: "Create request" },
-    { id: "status", component: "Text", text: { path: "/result/status" } },
+    { id: "submit_label", component: "Text", text: "Create request" },
+    { id: "status", component: "Text", text: { "@path": "/result/status" } },
   ];
 }
 
@@ -102,12 +102,12 @@ export function createInspectorSampleTrace(): WeaverTrace {
   ]);
 
   // A torn frame. It never reaches the runtime, so the surface must not change.
-  pushFrame('{"version":"v0.9.1","updateDataModel":{"surfaceId":"reference-request"\n');
+  pushFrame('{"version":"1.0","updateDataModel":{"surfaceId":"reference-request"\n');
 
   // A well-formed message that the runtime rejects: its catalog is not registered.
   pushFrame(
     `${JSON.stringify({
-      version: "v0.9.1",
+      version: "1.0",
       createSurface: {
         surfaceId: "preview",
         catalogId: "https://example.test/catalogs/unregistered.json",
@@ -165,6 +165,69 @@ export function createInspectorSampleTrace(): WeaverTrace {
     actionProperty: "action",
   });
 
+  return recorder.getTrace();
+}
+
+/** The second committed sample: a long unbroken label in a Row, to check layout in the stage. */
+export const ROW_LAYOUT_SAMPLE_PATH = "samples/row-layout.weaver-trace.json";
+export const ROW_LAYOUT_SURFACE_ID = "row-layout";
+const ROW_BASE_TIME_MS = Date.UTC(2026, 9, 11, 9, 0, 0);
+const UNBROKEN_TEXT =
+  "Unbroken012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+
+function rowLayoutComponents(): A2UIComponent[] {
+  return [
+    { id: "root", component: "Column", children: ["heading", "row", "status"] },
+    { id: "heading", component: "Text", text: "# Row layout check" },
+    { id: "row", component: "Row", children: ["card", "field"] },
+    { id: "card", component: "Card", child: "card_text" },
+    { id: "card_text", component: "Text", text: UNBROKEN_TEXT },
+    { id: "field", component: "TextField", label: "Long value", value: { "@path": "/draft/title" } },
+    { id: "status", component: "Text", text: { "@path": "/result/status" } },
+  ];
+}
+
+/** Records the row-layout sample with the same runtime configuration and clock scheme as the request sample. */
+export function createRowLayoutSampleTrace(): WeaverTrace {
+  let ticks = 0;
+  const recorder = createWeaverTraceRecorder({
+    now: () => {
+      ticks += 1;
+      return new Date(ROW_BASE_TIME_MS + ticks * 1000);
+    },
+  });
+  const created = createInspectorWebRuntime({
+    observer: recorder.observer,
+    now: () => new Date(ROW_BASE_TIME_MS),
+  });
+  if (!created.ok) throw new Error(`Sample runtime configuration failed: ${created.error.code}`);
+  const { runtime, catalogId } = created.value;
+  const ingestion = createA2UIV10StreamIngestion({ runtime });
+  const producer = createA2UIV10Producer();
+
+  const pushFrame = (frame: string): void => {
+    recorder.recordIngestion(ingestion.push(frame), frame);
+  };
+  for (const message of [
+    producer.createSurface({ surfaceId: ROW_LAYOUT_SURFACE_ID, catalogId, sendDataModel: true }),
+    producer.updateDataModel({
+      surfaceId: ROW_LAYOUT_SURFACE_ID,
+      value: { draft: { title: "" }, result: { status: "Ready" } },
+    }),
+    producer.updateComponents({ surfaceId: ROW_LAYOUT_SURFACE_ID, components: rowLayoutComponents() }),
+  ] satisfies A2UIAgentMessage[]) {
+    pushFrame(`${JSON.stringify(message)}\n`);
+  }
+
+  mustApply(
+    runtime.writeInput({
+      surfaceId: ROW_LAYOUT_SURFACE_ID,
+      sourceComponentId: "field",
+      scopePath: "/",
+      property: "value",
+      value: UNBROKEN_TEXT,
+    }),
+  );
   return recorder.getTrace();
 }
 

@@ -90,12 +90,20 @@ const FILTER_OPTIONS = [
   { label: "Ops", value: "ops" },
 ];
 
+/**
+ * A KPI value as a Markdown heading, interpolated by formatString from the data model.
+ * Nested calls use the spec's `${fn(arg:${/path})}` form, so the number is formatted in place.
+ */
+function kpiValue(expression: string): A2UIComponent["text"] {
+  return { "@call": "formatString", args: { value: `### ${expression}` } } as unknown as A2UIComponent["text"];
+}
+
 function kpiTile(id: string, label: string, valueText: A2UIComponent["text"]): A2UIComponent[] {
   return [
     { id, component: "Card", weight: 1, child: `${id}Body` },
     { id: `${id}Body`, component: "Column", children: [`${id}Label`, `${id}Value`] },
     { id: `${id}Label`, component: "Text", variant: "caption", text: label },
-    { id: `${id}Value`, component: "Text", variant: "h3", text: valueText },
+    { id: `${id}Value`, component: "Text", text: valueText },
   ];
 }
 
@@ -106,23 +114,11 @@ function dashboardComponents(): A2UIComponent[] {
       component: "Column",
       children: ["heading", "kpis", "controls", "items"],
     },
-    { id: "heading", component: "Text", variant: "h1", text: "Team dashboard" },
+    { id: "heading", component: "Text", text: "# Team dashboard" },
     { id: "kpis", component: "Row", children: ["kpiRevenue", "kpiOrders", "kpiAverage"] },
-    ...kpiTile("kpiRevenue", "Revenue", {
-      call: "formatCurrency",
-      args: { value: { path: "/kpi/revenue" }, currency: "USD", decimals: 0 },
-      returnType: "string",
-    }),
-    ...kpiTile("kpiOrders", "Orders", {
-      call: "formatNumber",
-      args: { value: { path: "/kpi/orders" } },
-      returnType: "string",
-    }),
-    ...kpiTile("kpiAverage", "Average order", {
-      call: "formatCurrency",
-      args: { value: { path: "/kpi/averageOrder" }, currency: "USD", decimals: 2 },
-      returnType: "string",
-    }),
+    ...kpiTile("kpiRevenue", "Revenue", kpiValue("${formatCurrency(value:${/kpi/revenue}, currency:'USD', decimals:0)}")),
+    ...kpiTile("kpiOrders", "Orders", kpiValue("${formatNumber(value:${/kpi/orders})}")),
+    ...kpiTile("kpiAverage", "Average order", kpiValue("${formatCurrency(value:${/kpi/averageOrder}, currency:'USD', decimals:2)}")),
     {
       id: "controls",
       component: "Row",
@@ -135,7 +131,7 @@ function dashboardComponents(): A2UIComponent[] {
       label: "Team",
       variant: "mutuallyExclusive",
       options: FILTER_OPTIONS,
-      value: { path: "/filter" },
+      value: { "@path": "/filter" },
     },
     {
       id: "applyButton",
@@ -144,7 +140,7 @@ function dashboardComponents(): A2UIComponent[] {
       action: {
         event: {
           name: DASHBOARD_APPLY_FILTER,
-          context: { filter: { path: "/filter" } },
+          context: { filter: { "@path": "/filter" } },
         },
       },
     },
@@ -157,7 +153,7 @@ function dashboardComponents(): A2UIComponent[] {
       action: {
         event: {
           name: DASHBOARD_REFRESH,
-          context: { filter: { path: "/filter" } },
+          context: { filter: { "@path": "/filter" } },
         },
       },
     },
@@ -172,23 +168,21 @@ function dashboardComponents(): A2UIComponent[] {
       component: "Row",
       children: ["itemName", "itemAmount", "itemUnits"],
     },
-    { id: "itemName", component: "Text", text: { path: "name" } },
+    { id: "itemName", component: "Text", text: { "@path": "name" } },
     {
       id: "itemAmount",
       component: "Text",
       text: {
-        call: "formatCurrency",
-        args: { value: { path: "amount" }, currency: "USD", decimals: 0 },
-        returnType: "string",
+        "@call": "formatCurrency",
+        args: { value: { "@path": "amount" }, currency: "USD", decimals: 0 },
       },
     },
     {
       id: "itemUnits",
       component: "Text",
       text: {
-        call: "formatNumber",
-        args: { value: { path: "units" } },
-        returnType: "string",
+        "@call": "formatNumber",
+        args: { value: { "@path": "units" } },
       },
     },
   ];

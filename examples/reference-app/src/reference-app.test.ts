@@ -29,7 +29,7 @@ function actionMessage(
   context: JsonObject = {},
 ): WebServerEventHandoff {
   const message: A2UIRendererActionMessage = {
-    version: "v0.9.1",
+    version: "1.0",
     action: {
       name,
       surfaceId: REFERENCE_SURFACE_ID,
@@ -47,7 +47,7 @@ test("proves the reference application producer, JSONL, ingestion, Web, and acti
   const initial = application.agent.start();
 
   assert.equal(initial.length, 3);
-  assert.equal(initial[0]!.version, "v0.9.1");
+  assert.equal(initial[0]!.version, "1.0");
   assert.equal(
     encodeA2UIMessage(initial[0]!),
     `${JSON.stringify(initial[0])}\n`,

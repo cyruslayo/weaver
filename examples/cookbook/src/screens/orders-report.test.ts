@@ -30,7 +30,7 @@ function mount() {
 function event(name: string, context: unknown, surfaceId = ORDERS_SURFACE_ID): WebServerEventHandoff {
   return {
     message: {
-      version: "v0.9.1",
+      version: "1.0",
       action: {
         name,
         surfaceId,

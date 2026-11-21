@@ -90,7 +90,7 @@ function locate(
  * inside the template scope of the item.
  */
 function cardComponents(status: TicketStatus): A2UIComponent[] {
-  const id = (suffix: string): string => `${status}-${suffix}`;
+  const id = (suffix: string): string => `${status}_${suffix.replace(/-/g, "_")}`;
   const move = MOVE_TARGET[status]!;
   const hasClose = status !== "done";
   const components: A2UIComponent[] = [
@@ -106,8 +106,12 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
         id("assign"),
       ],
     },
-    { id: id("title"), component: "Text", variant: "h3", text: { path: "title" } },
-    { id: id("assignee"), component: "Text", text: { path: "assignee" } },
+    {
+      id: id("title"),
+      component: "Text",
+      text: { "@call": "formatString", args: { value: "### ${title}" } },
+    },
+    { id: id("assignee"), component: "Text", text: { "@path": "assignee" } },
     {
       id: id("move"),
       component: "Button",
@@ -115,7 +119,7 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
       action: {
         event: {
           name: TICKET_MOVE,
-          context: { ticketId: { path: "id" }, from: status, to: move.to },
+          context: { ticketId: { "@path": "id" }, from: status, to: move.to },
         },
       },
     },
@@ -128,7 +132,7 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
         id: id("close"),
         component: "Button",
         child: id("close-label"),
-        action: { event: { name: TICKET_CLOSE, context: { ticketId: { path: "id" } } } },
+        action: { event: { name: TICKET_CLOSE, context: { ticketId: { "@path": "id" } } } },
       },
       { id: id("close-label"), component: "Text", text: "Close" },
     );
@@ -141,7 +145,7 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
       child: id("assign-trigger-label"),
       // The Basic Modal intercepts this click and opens locally. The action is required by the catalog
       // and is deliberately not allowlisted, so it could never reach the agent.
-      action: { event: { name: TICKET_OPEN_ASSIGN, context: { ticketId: { path: "id" } } } },
+      action: { event: { name: TICKET_OPEN_ASSIGN, context: { ticketId: { "@path": "id" } } } },
     },
     { id: id("assign-trigger-label"), component: "Text", text: "Assign" },
     {
@@ -155,7 +159,7 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
       label: "Assignee",
       // The catalog requires static options, so the list is the same constant the transition validates against.
       options: PEOPLE,
-      value: { path: "/draft/assignee" },
+      value: { "@path": "/draft/assignee" },
     },
     {
       id: id("assign-confirm"),
@@ -165,7 +169,7 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
       action: {
         event: {
           name: TICKET_ASSIGN,
-          context: { ticketId: { path: "id" }, assignee: { path: "/draft/assignee" } },
+          context: { ticketId: { "@path": "id" }, assignee: { "@path": "/draft/assignee" } },
         },
       },
     },
@@ -176,24 +180,23 @@ function cardComponents(status: TicketStatus): A2UIComponent[] {
 
 function ticketBoardComponents(): A2UIComponent[] {
   const columns = TICKET_STATUSES.map((status) => ({
-    id: `col-${status}`,
+    id: `col_${status}`,
     component: "Column",
-    children: [`${status}-heading`, `${status}-list`],
+    children: [`${status}_heading`, `${status}_list`],
   }));
   const headings = TICKET_STATUSES.map((status) => ({
-    id: `${status}-heading`,
+    id: `${status}_heading`,
     component: "Text",
-    variant: "h2",
-    text: COLUMN_TITLE[status],
+    text: `## ${COLUMN_TITLE[status]}`,
   }));
   const lists = TICKET_STATUSES.map((status) => ({
-    id: `${status}-list`,
+    id: `${status}_list`,
     component: "List",
-    children: { path: `/board/${status}`, componentId: `${status}-card` },
+    children: { path: `/board/${status}`, componentId: `${status}_card` },
   }));
   return [
     { id: "root", component: "Column", children: ["heading", "board"] },
-    { id: "heading", component: "Text", variant: "h1", text: "Ticket board" },
+    { id: "heading", component: "Text", text: "# Ticket board" },
     { id: "board", component: "Row", children: columns.map((column) => column.id) },
     ...columns,
     ...headings,

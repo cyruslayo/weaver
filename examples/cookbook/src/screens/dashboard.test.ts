@@ -29,7 +29,7 @@ function mount() {
 function clickEvent(name: string, filter: unknown): WebServerEventHandoff {
   return {
     message: {
-      version: "v0.9.1",
+      version: "1.0",
       action: {
         name,
         surfaceId: DASHBOARD_SURFACE_ID,

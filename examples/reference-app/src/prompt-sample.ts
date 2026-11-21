@@ -16,8 +16,8 @@ export const REFERENCE_PROMPT_ACTION: A2UIV10PromptAction = {
   name: REFERENCE_CREATE_REQUEST,
   description: `Create a reference request. title is the request title text. priority is a one-element list holding one of ${REFERENCE_PRIORITIES.join(", ")}.`,
   context: {
-    title: { path: "/draft/title" },
-    priority: { path: "/draft/priority" },
+    title: { "@path": "/draft/title" },
+    priority: { "@path": "/draft/priority" },
   },
 };
 
@@ -44,7 +44,7 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV10PromptExample = {
           id: "title",
           component: "TextField",
           label: "Request title",
-          value: { path: "/draft/title" },
+          value: { "@path": "/draft/title" },
         },
         {
           id: "priority",
@@ -57,24 +57,24 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV10PromptExample = {
             { label: "High", value: "high" },
             { label: "Urgent", value: "urgent" },
           ],
-          value: { path: "/draft/priority" },
+          value: { "@path": "/draft/priority" },
         },
         {
           id: "submit",
           component: "Button",
           variant: "primary",
-          child: "submit-label",
+          child: "submitLabel",
           action: {
             event: {
               name: REFERENCE_CREATE_REQUEST,
               context: {
-                title: { path: "/draft/title" },
-                priority: { path: "/draft/priority" },
+                title: { "@path": "/draft/title" },
+                priority: { "@path": "/draft/priority" },
               },
             },
           },
         },
-        { id: "submit-label", component: "Text", text: "Create request" },
+        { id: "submitLabel", component: "Text", text: "Create request" },
       ],
     }),
   ],

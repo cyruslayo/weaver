@@ -82,7 +82,7 @@ function ordersComponents(): A2UIComponent[] {
       component: "Column",
       children: ["heading", "intro", "refreshButton", "ordersCard", "chartCard"],
     },
-    { id: "heading", component: "Text", variant: "h1", text: "Orders report" },
+    { id: "heading", component: "Text", text: "# Orders report" },
     {
       id: "intro",
       component: "Text",
@@ -97,7 +97,7 @@ function ordersComponents(): A2UIComponent[] {
       action: {
         event: {
           name: ORDERS_REFRESH,
-          context: { refreshes: { path: "/refreshes" } },
+          context: { refreshes: { "@path": "/refreshes" } },
         },
       },
     },
@@ -108,14 +108,14 @@ function ordersComponents(): A2UIComponent[] {
       component: "DataTable",
       caption: "Orders",
       columns: COLUMNS.map((column) => ({ ...column })),
-      rows: { path: "/orders" },
+      rows: { "@path": "/orders" },
     } as unknown as A2UIComponent,
     { id: "chartCard", component: "Card", child: "chart" },
     {
       id: "chart",
       component: "BarChart",
       title: "Order value by status (USD)",
-      values: { path: "/summary/byStatus" },
+      values: { "@path": "/summary/byStatus" },
       maxBars: 10,
     } as unknown as A2UIComponent,
   ];

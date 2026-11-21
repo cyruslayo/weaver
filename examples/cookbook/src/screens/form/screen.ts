@@ -50,7 +50,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * Trusted matcher for `validationRegexp`. It never runs the agent's text as a
+ * Trusted matcher for the `regex` function. It never runs the agent's text as a
  * JavaScript RegExp. It accepts only the screen's own pattern, which is checked
  * by hand, and fails for anything else.
  */
@@ -73,12 +73,12 @@ export const formFunctions = createBasicCatalogFunctionImplementations({
 });
 
 const check = (call: string, args: JsonObject, message: string): JsonObject => ({
-  condition: { call, args, returnType: "boolean" },
+  condition: { "@call": call, args },
   message,
 });
 
 const requiredCheck = (path: string, message: string): JsonObject =>
-  check("required", { value: { path } }, message);
+  check("required", { value: { "@path": path } }, message);
 
 const CHOICE_OPTIONS = FORM_CATEGORIES.map((value) => ({
   label: value[0]!.toUpperCase() + value.slice(1),
@@ -88,11 +88,11 @@ const CHOICE_OPTIONS = FORM_CATEGORIES.map((value) => ({
 function formComponents(): A2UIComponent[] {
   const submitChecks: JsonObject[] = [
     requiredCheck("/name", "Fix the fields above to submit."),
-    check("email", { value: { path: "/email" } }, "Fix the fields above to submit."),
+    check("email", { value: { "@path": "/email" } }, "Fix the fields above to submit."),
     requiredCheck("/summary", "Fix the fields above to submit."),
-    check("length", { value: { path: "/summary" }, max: FORM_SUMMARY_MAX }, "Fix the fields above to submit."),
+    check("length", { value: { "@path": "/summary" }, max: FORM_SUMMARY_MAX }, "Fix the fields above to submit."),
     requiredCheck("/orderRef", "Fix the fields above to submit."),
-    check("regex", { value: { path: "/orderRef" }, pattern: FORM_ORDER_REF_PATTERN }, "Fix the fields above to submit."),
+    check("regex", { value: { "@path": "/orderRef" }, pattern: FORM_ORDER_REF_PATTERN }, "Fix the fields above to submit."),
     requiredCheck("/category", "Fix the fields above to submit."),
   ];
   return [
@@ -103,74 +103,74 @@ function formComponents(): A2UIComponent[] {
       component: "Column",
       children: ["heading", "intro", "name", "email", "summary", "orderRef", "urgent", "category", "dueDate", "submit", "result", "errors"],
     },
-    { id: "heading", component: "Text", variant: "h1", text: "Support request" },
+    { id: "heading", component: "Text", text: "# Support request" },
     { id: "intro", component: "Text", text: "Describe the problem. The agent checks the request and returns a ticket number or the errors." },
     {
       id: "name",
       component: "TextField",
       label: "Name",
-      value: { path: "/name" },
-      checks: [requiredCheck("/name", "Enter your name.")],
+      value: { "@path": "/name" },
+      "@checks": [requiredCheck("/name", "Enter your name.")],
     },
     {
       id: "email",
       component: "TextField",
       label: "Email",
-      value: { path: "/email" },
-      checks: [check("email", { value: { path: "/email" } }, "Enter a valid email address.")],
+      value: { "@path": "/email" },
+      "@checks": [check("email", { value: { "@path": "/email" } }, "Enter a valid email address.")],
     },
     {
       id: "summary",
       component: "TextField",
       label: "Summary",
-      value: { path: "/summary" },
-      checks: [
+      value: { "@path": "/summary" },
+      "@checks": [
         requiredCheck("/summary", "Summarise the problem."),
-        check("length", { value: { path: "/summary" }, max: FORM_SUMMARY_MAX }, `Summary must be ${FORM_SUMMARY_MAX} characters or fewer.`),
+        check("length", { value: { "@path": "/summary" }, max: FORM_SUMMARY_MAX }, `Summary must be ${FORM_SUMMARY_MAX} characters or fewer.`),
       ],
     },
     {
       id: "orderRef",
       component: "TextField",
       label: "Order reference",
-      value: { path: "/orderRef" },
-      validationRegexp: FORM_ORDER_REF_PATTERN,
+      value: { "@path": "/orderRef" },
+      "@checks": [check("regex", { value: { "@path": "/orderRef" }, pattern: FORM_ORDER_REF_PATTERN }, "Order reference must look like AB-1234.")],
     },
-    { id: "urgent", component: "CheckBox", label: "Urgent", value: { path: "/urgent" } },
+    { id: "urgent", component: "CheckBox", label: "Urgent", value: { "@path": "/urgent" } },
     {
       id: "category",
       component: "ChoicePicker",
       label: "Category",
       variant: "mutuallyExclusive",
       options: CHOICE_OPTIONS,
-      value: { path: "/category" },
-      checks: [requiredCheck("/category", "Choose a category.")],
+      value: { "@path": "/category" },
+      "@checks": [requiredCheck("/category", "Choose a category.")],
     },
-    { id: "dueDate", component: "DateTimeInput", label: "Due date", value: { path: "/dueDate" }, enableDate: true },
+    { id: "dueDate", component: "DateTimeInput", label: "Due date", value: { "@path": "/dueDate" }, enableDate: true },
     {
       id: "submit",
       component: "Button",
       variant: "primary",
       child: "submitLabel",
-      checks: submitChecks,
+      "@checks": submitChecks,
       action: {
         event: {
           name: FORM_SUBMIT,
           context: {
-            name: { path: "/name" },
-            email: { path: "/email" },
-            summary: { path: "/summary" },
-            orderRef: { path: "/orderRef" },
-            urgent: { path: "/urgent" },
-            category: { path: "/category" },
-            dueDate: { path: "/dueDate" },
+            name: { "@path": "/name" },
+            email: { "@path": "/email" },
+            summary: { "@path": "/summary" },
+            orderRef: { "@path": "/orderRef" },
+            urgent: { "@path": "/urgent" },
+            category: { "@path": "/category" },
+            dueDate: { "@path": "/dueDate" },
           },
         },
       },
     },
     { id: "submitLabel", component: "Text", text: "Submit request" },
-    { id: "result", component: "Text", text: { path: "/resultText" } },
-    { id: "errors", component: "Text", text: { path: "/errorText" } },
+    { id: "result", component: "Text", text: { "@path": "/resultText" } },
+    { id: "errors", component: "Text", text: { "@path": "/errorText" } },
   ];
 }
 
@@ -270,7 +270,7 @@ export const formScreen: CookbookScreenDefinition<FormState> = {
   },
   components: formComponents,
   actions: { [FORM_SUBMIT]: { transition: submit } },
-  web: { functions: formFunctions, regexMatcher: formRegexMatcher },
+  web: { functions: formFunctions },
 };
 
 /** The generated prompt for this screen. The test pins prompt.txt to this output. */

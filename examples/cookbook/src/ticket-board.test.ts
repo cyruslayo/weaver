@@ -30,7 +30,7 @@ function actionMessage(
 ): WebServerEventHandoff {
   return {
     message: {
-      version: "v0.9.1",
+      version: "1.0",
       action: {
         name,
         surfaceId: TICKET_BOARD_SURFACE_ID,
@@ -64,9 +64,9 @@ function columnFor(target: Element, heading: string): Element {
   const title = [...target.querySelectorAll("h2")].find(
     (candidate) => candidate.textContent === heading,
   );
-  if (title?.parentElement === undefined || title.parentElement === null)
-    throw new Error(`Column "${heading}" was not rendered`);
-  return title.parentElement;
+  const column = title?.closest('[data-a2ui-component="Column"]');
+  if (column === undefined || column === null) throw new Error(`Column "${heading}" was not rendered`);
+  return column;
 }
 
 function titlesIn(column: Element): string[] {
@@ -301,7 +301,7 @@ test("the board rejects foreign surfaces and unknown event names", () => {
   assert.deepEqual(
     screen.handleServerEvent({
       message: {
-        version: "v0.9.1",
+        version: "1.0",
         action: {
           name: TICKET_MOVE,
           surfaceId: "other-surface",

@@ -1,12 +1,12 @@
 # Weaver browser HTTP/SSE transport binding
 
-> **This is a Weaver transport binding. It is not a normative A2UI v0.9.1 HTTP/SSE binding.**
+> **This is a Weaver transport binding. It is not a normative A2UI HTTP/SSE binding.**
 
 `@cylayo/weaver-web` provides `createBrowserA2UIHttpSseTransport`. One adapter represents one trusted host-assigned `routeId`, one stream endpoint, and one send endpoint. Routes never appear in a body, query, or Weaver-created remote header. An SSE event ID is only a replay cursor: it is not a route, surface, authentication, or session identity.
 
 ## Stream and resume
 
-The adapter opens `POST <streamUrl>` with `Accept: text/event-stream`, JSON content, and `{ "metadata": { "a2uiClientCapabilities": ... } }`. A successful response must be `text/event-stream` and have a body. UTF-8 SSE events are decoded incrementally and processed sequentially. Default, `message`, and `a2ui` events carry one A2UI JSON envelope; other event types are ignored. LF, CRLF, CR, comments, split boundaries, multiple `data` fields, and a bounded event size are supported. An incomplete event at EOF is discarded.
+The adapter opens `POST <streamUrl>` with `Accept: text/event-stream`, JSON content, and `{ "metadata": { "a2uiRendererCapabilities": ... } }`. A successful response must be `text/event-stream` and have a body. UTF-8 SSE events are decoded incrementally and processed sequentially. Default, `message`, and `a2ui` events carry one A2UI JSON envelope; other event types are ignored. LF, CRLF, CR, comments, split boundaries, multiple `data` fields, and a bounded event size are supported. An incomplete event at EOF is discarded.
 
 The private decoder implements `id:`. NUL-containing ID fields are ignored, an empty ID resets the cursor, and an omitted ID preserves it. The adapter advances its cursor when the complete SSE event ends, before payload handling. Thus malformed JSON, ignored event types, empty-data events, A2UI validation failures, routing rejection, and failed automatic validation POSTs do not cause endless replay. An interrupted incomplete event does not advance it. `retry:` remains deliberately ignored, unlike native `EventSource`; reconnect pacing is client/host policy.
 
@@ -29,11 +29,11 @@ adapter.run({
 
 Clean established EOF, fetch/network failure, and stream-body read failure consume the bounded reconnect policy. Caller abort is final. HTTP 4xx/5xx, wrong MIME, and missing body are fatal and are not retried. Exhaustion returns `RECONNECT_EXHAUSTED` with the number of reconnect attempts and a safe last failure code. Abort during an active stream, delay, or reconnect request returns `aborted`. A reconnect remains part of the same active run, preserving the one-active-run rule.
 
-The same host-supplied `fetch` wrapper handles initial stream, reconnect stream, and client POST requests. It remains the authentication, credentials, CORS, and instrumentation boundary; Weaver neither inspects nor configures authorization.
+The same host-supplied `fetch` wrapper handles initial stream, reconnect stream, and renderer POST requests. It remains the authentication, credentials, CORS, and instrumentation boundary; Weaver neither inspects nor configures authorization.
 
-## Client messages
+## Renderer messages
 
-Actions and automatic standard validation responses use serialized `POST <sendUrl>` requests with exact `{ message, metadata }` wrappers. Capabilities are included every time; optional owner-routed `a2uiClientDataModel` is included only when supplied by the session. Failed sends do not stop later sends. Local function actions remain local. Disconnect/resume never mutates Core surface ownership or adds replay state to `A2UITransportSession`, `SurfaceStore`, or `DataModel`.
+Actions and automatic standard validation responses use serialized `POST <sendUrl>` requests with exact `{ message, metadata }` wrappers. Capabilities are included every time; optional owner-routed `a2uiRendererDataModel` is included only when supplied by the session. Failed sends do not stop later sends. Local function actions remain local. Disconnect/resume never mutates Core surface ownership or adds replay state to `A2UITransportSession`, `SurfaceStore`, or `DataModel`.
 
 ## Reference server
 

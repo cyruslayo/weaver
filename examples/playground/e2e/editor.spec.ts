@@ -29,7 +29,7 @@ test.describe("playground", () => {
   test("switching to Order summary replaces the editor text and renders its heading", async ({ page }) => {
     await openPlayground(page);
     await page.getByRole("button", { name: /Order summary/ }).click();
-    await expect(page.locator("#source")).toHaveValue(/"Order summary"/);
+    await expect(page.locator("#source")).toHaveValue(/## Order summary/);
     await expect(page.getByRole("heading", { name: "Order summary" })).toBeVisible();
     await expectNoHorizontalOverflow(page, "order summary");
   });

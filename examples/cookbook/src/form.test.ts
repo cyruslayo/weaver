@@ -94,7 +94,7 @@ function fillValid(window: Window, target: Element, overrides: Partial<Record<st
 function actionMessage(context: JsonObject): WebServerEventHandoff {
   return {
     message: {
-      version: "v0.9.1",
+      version: "1.0",
       action: {
         name: FORM_SUBMIT,
         surfaceId: FORM_SURFACE_ID,

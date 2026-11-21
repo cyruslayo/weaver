@@ -71,6 +71,6 @@ const promptOutcome: A2UIV10PromptResult = promptGenerator({ catalogs: [createBa
 const parsedTrace: WeaverTraceParseResult = traceParser({});
 const recorder: WeaverTraceRecorder = traceRecorderFactory({ maxEntries: 10 });
 const describedCoreError: WeaverErrorDescription = coreErrorDescriber({ code: "INVALID_JSON", frame: 1 });
-const describedWebError: WeaverErrorDescription = webErrorDescriber({ code: "THEME_ADAPTER_FAILED" });
+const describedWebError: WeaverErrorDescription = webErrorDescriber({ code: "ATTRIBUTION_PROVIDER_FAILED" });
 
 void [promptCodeType, promptErrorType, exampleInvalidType, promptResultType, catalogSchemaType, catalogDefinitionType, observerType, runtimeEventType, traceType, traceEntryType, traceRecorderType, traceRecorderOptionsType, traceParseResultType, traceReplayOptionsType, traceReplayResultType, traceReplayStepType, weaverErrorDescriptionType, describableCoreErrorType, describableWebErrorType, webRenderErrorType, traceFormat, replayInvalidInputCode, basicCatalogId, defineCatalogFactory, traceReplayer, promptOutcome, parsedTrace, recorder, describedCoreError, describedWebError];

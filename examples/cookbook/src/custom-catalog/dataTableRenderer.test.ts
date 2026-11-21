@@ -18,7 +18,7 @@ import { DATA_TABLE_COMPONENT } from "./dataTableRenderer.js";
 import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 
 const SURFACE_ID = "cookbook-data-table";
-const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
+const BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
 const ORDERS: JsonObject[] = [
   { id: "A-1", status: "Paid", total: 1250 },
@@ -41,7 +41,7 @@ function screenComponents(): A2UIComponent[] {
         { key: "status", header: "Status" },
         { key: "total", header: "Total" },
       ],
-      rows: { path: "/orders" },
+      rows: { "@path": "/orders" },
     } as unknown as A2UIComponent,
   ];
 }

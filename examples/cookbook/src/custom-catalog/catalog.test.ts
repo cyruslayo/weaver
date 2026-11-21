@@ -18,7 +18,7 @@ import {
 } from "./catalog.js";
 
 const SURFACE_ID = "cookbook-custom-catalog";
-const BASIC_CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
+const BASIC_CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
 /** A screen that uses every cookbook component and the three layout primitives. */
 function screenComponents(overrides: {
@@ -39,13 +39,13 @@ function screenComponents(overrides: {
           { key: "id", header: "Order" },
           { key: "total", header: "Total", align: "end" },
         ],
-      rows: { path: "/orders" },
+      rows: { "@path": "/orders" },
     },
     {
       id: "chart",
       component: "BarChart",
       title: "By status",
-      values: { path: "/stats/byStatus" },
+      values: { "@path": "/stats/byStatus" },
       maxBars: 10,
       ...overrides.barChart,
     } as A2UIComponent,
@@ -81,7 +81,7 @@ function processComponents(components: JsonValue[]) {
   );
   assert.equal(created.ok, true, "createSurface with the cookbook catalogId must succeed");
   return runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: SURFACE_ID, components },
   });
 }
@@ -103,12 +103,12 @@ test("the cookbook catalog declares its own catalogId and leaves the Basic catal
   assert.equal("DataTable" in basic, false, "Basic must not gain DataTable");
   assert.equal("BarChart" in basic, false, "Basic must not gain BarChart");
   assert.deepEqual(
-    cookbookCatalog.schema.components.Column,
+    cookbookCatalogSchema.components.Column,
     basic.Column,
     "layout primitives are reused from Basic, not redefined",
   );
-  assert.deepEqual(cookbookCatalog.schema.components.Text, basic.Text);
-  assert.deepEqual(cookbookCatalog.schema.components.Card, basic.Card);
+  assert.deepEqual(cookbookCatalogSchema.components.Text, basic.Text);
+  assert.deepEqual(cookbookCatalogSchema.components.Card, basic.Card);
 });
 
 test("a valid screen using every cookbook component passes message validation", () => {
@@ -165,8 +165,8 @@ test("the generated prompt presents the binding as preferred and names the liter
   const result = generateA2UIV10Prompt({ catalogs: [cookbookCatalog] });
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.match(result.value.text, /data binding such as \{"path": "\/orders"\} \(preferred\) or a literal array/);
-  assert.match(result.value.text, /data binding such as \{"path": "\/stats\/byStatus"\} \(preferred\) or a literal array/);
+  assert.match(result.value.text, /data binding such as \{"@path": "\/orders"\} \(preferred\) or a literal array/);
+  assert.match(result.value.text, /data binding such as \{"@path": "\/stats\/byStatus"\} \(preferred\) or a literal array/);
 });
 
 test("the generated prompt says DataTable is read-only and points row actions to a List template of Cards", () => {

@@ -5,7 +5,7 @@ const [{ Window }, core, web, mcp] = await Promise.all([
   import("@cylayo/weaver-mcp"),
 ]);
 
-if (core.WEAVER_CORE_VERSION !== "0.3.1") throw new Error("Unexpected Core version");
+if (core.WEAVER_CORE_VERSION !== "0.4.0") throw new Error("Unexpected Core version");
 if (typeof web.RendererRegistry !== "function") throw new Error("Web root export unavailable");
 if (typeof mcp.createA2UIMcpClientBridge !== "function") throw new Error("MCP root export unavailable");
 
@@ -39,12 +39,13 @@ console.log("tarball runtime imports and packed DateTimeInput resolver proof: co
 // Value exports added in 0.3.0 (and the long-standing ones they build on). A missing name fails here, by name.
 const requiredExports = {
   core: [
-    "A2UI_V10_BASIC_PROMPT_EXAMPLES", "createBasicCatalogV10Registration", "createWeaverRuntime",
+    "A2UI_V10_BASIC_CATALOG_ID", "A2UI_V10_BASIC_PROMPT_EXAMPLES", "buildA2UIRendererCapabilities", "createA2UIV10Producer",
+    "createA2UIV10StreamIngestion", "createBasicCatalogV10Registration", "createWeaverRuntime", "validateA2UIAgentMessage",
     "createWeaverTraceRecorder", "defineCatalog", "describeWeaverError", "generateA2UIV10Prompt",
     "parseWeaverTrace", "replayWeaverTrace", "WEAVER_TRACE_FORMAT", "WEAVER_TRACE_REPLAY_INVALID_INPUT",
   ],
-  web: ["describeWebRenderError", "RendererRegistry"],
-  mcp: ["createA2UIMcpClientBridge"],
+  web: ["createBasicCatalogRendererRegistrations", "createBasicWebRuntime", "createBrowserA2UIHttpSseTransport", "describeWebRenderError", "RendererRegistry"],
+  mcp: ["createA2UIMcpClientBridge", "registerMcpApplicationCapability", "registerMcpApplicationCapabilities"],
 };
 for (const [label, mod] of [["core", core], ["web", web], ["mcp", mcp]]) {
   for (const name of requiredExports[label]) {
@@ -84,4 +85,4 @@ if (coreDescription.code !== "INVALID_JSON" || coreDescription.frame !== 7 || co
 const webDescription = web.describeWebRenderError({ code: "STALE_RENDER_INTERACTION" });
 if (webDescription.code !== "STALE_RENDER_INTERACTION" || webDescription.severity !== "error") throw new Error("Packed describeWebRenderError output is wrong");
 
-console.log("packed 0.3.1 exports: prompt generation, observer trace record and replay, error descriptions OK");
+console.log("packed 0.4.0 exports: prompt generation, observer trace record and replay, error descriptions OK");

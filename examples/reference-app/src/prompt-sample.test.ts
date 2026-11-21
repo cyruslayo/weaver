@@ -31,7 +31,7 @@ function listedActionNames(prompt: string): string[] {
 test("the prompt lists reference.createRequest as the only action", () => {
   const prompt = buildReferencePrompt();
   assert.deepEqual(listedActionNames(prompt), [REFERENCE_CREATE_REQUEST]);
-  assert.match(prompt, /Context: \{"priority":\{"path":"\/draft\/priority"\},"title":\{"path":"\/draft\/title"\}\}\./);
+  assert.match(prompt, /Context: \{"priority":\{"@path":"\/draft\/priority"\},"title":\{"@path":"\/draft\/title"\}\}\./);
 
   const eventNames = [...prompt.matchAll(/"name":"([^"]*)"/g)].map((match) => match[1]);
   assert.ok(eventNames.length > 0, "the validated example carries an event");
@@ -88,8 +88,8 @@ test("a broken model response is rejected and the prior surface stays", () => {
   // Frame 0 names a component the catalog does not declare, and would replace the
   // root. Frame 1 is truncated JSON. Neither may change the surface.
   const broken = [
-    '{"version":"v0.9.1","updateComponents":{"surfaceId":"reference-request","components":[{"id":"root","component":"Hologram","text":"Broken"}]}}',
-    '{"version":"v0.9.1","updateDataModel":{"surfaceId":"reference-request","value":{"draft":{"title":"x"}',
+    '{"version":"1.0","updateComponents":{"surfaceId":"reference-request","components":[{"id":"root","component":"Hologram","text":"Broken"}]}}',
+    '{"version":"1.0","updateDataModel":{"surfaceId":"reference-request","value":{"draft":{"title":"x"}',
   ];
   const events = broken.flatMap((frame) => ingestion.push(`${frame}\n`));
   assert.equal(events.length, 2);

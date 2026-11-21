@@ -19,7 +19,7 @@ All intended APIs are reachable from each package's root export. Internal direct
 @cylayo/weaver-web  -X-> mcp
 ```
 
-Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.3.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
+Web and MCP accept and expose Core runtime/session types. They therefore use a strict `0.4.x` Core peer so an application supplies one compatible Core instance. MCP additionally installs its official client and server SDK runtime dependencies.
 
 A frontend application normally installs:
 
@@ -80,7 +80,7 @@ Run these visible checks:
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm conformance:v0.9.1
+pnpm conformance:v1.0
 pnpm verify:packages
 pnpm verify:worker-core
 ```
@@ -91,8 +91,8 @@ Core, Web, and MCP release together at one synchronized version. During `0.x`, v
 
 Semver policy while Weaver is `0.x`:
 
-- A MINOR bump (`0.3.0` to `0.4.0`) may contain breaking changes. Each one is called out in `CHANGELOG.md` with an upgrade note.
-- A PATCH bump (`0.3.0` to `0.3.1`) is for bug fixes. It is also used for documentation or package-metadata changes that need a new published version, such as a package README that the npm page shows. A patch release makes no API or behaviour change.
+- A MINOR bump (`0.3.1` to `0.4.0`) may contain breaking changes. Each one is called out in `CHANGELOG.md` with an upgrade note.
+- A PATCH bump (`0.4.0` to `0.4.1`) is for bug fixes. It is also used for documentation or package-metadata changes that need a new published version, such as a package README that the npm page shows. A patch release makes no API or behaviour change.
 - The three packages always share one version. Web and MCP peer on Core with the range `0.N.x`, where `0.N` is the current minor, so a MINOR release also moves both peer ranges.
 - `WEAVER_CORE_VERSION` is updated in every release.
 - A deprecation is noted in the `CHANGELOG.md` entry of the release that introduces it, with its replacement when one exists.
@@ -105,7 +105,7 @@ The release gates above remain the readiness checks for any release:
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm conformance:v0.9.1
+pnpm conformance:v1.0
 pnpm verify:packages
 pnpm verify:worker-core
 ```
@@ -113,7 +113,7 @@ pnpm verify:worker-core
 After a release is on the npm registry, run the registry check by hand:
 
 ```sh
-pnpm verify:registry 0.3.1
+pnpm verify:registry 0.4.0
 ```
 
 `pnpm verify:packages` also checks each package README (`packages/*/README.md`): it compiles and runs the README example, and it requires absolute links that point to files in the repository.

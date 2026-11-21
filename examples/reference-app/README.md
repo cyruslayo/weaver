@@ -11,14 +11,14 @@ application agent -> A2UI producer -> JSONL -> validated ingestion
 
 The local `createReferenceAgent()` is deliberately deterministic. It owns only a
 request draft and result count, and creates every A2UI lifecycle message with
-`createA2UIV091Producer()`. It is not an LLM, makes no network calls, and needs
+`createA2UIV10Producer()`. It is not an LLM, makes no network calls, and needs
 no API key. A real application would replace its transition with its own agent,
 model, or orchestrator outside Weaver; no provider SDK belongs in this runtime
 example.
 
 `agent-stream.ts` is the in-process JSONL adapter. It serializes one producer
 message per line and sends it to one long-lived
-`createA2UIV091StreamIngestion({ runtime: web.runtime })`. `finish()` validates
+`createA2UIV10StreamIngestion({ runtime: web.runtime })`. `finish()` validates
 an unterminated final frame and `reset()` clears decoder state without changing
 runtime state; normal button updates keep the logical stream open.
 
@@ -27,7 +27,7 @@ trusted `onServerEvent` bridge accepts only `reference.createRequest`, validates
 its context, and invokes the deterministic agent. Unknown names are rejected;
 they are never used for dynamic dispatch. The handler does not scrape DOM
 controls. Attribution is also host-provided (`Reference Agent`), not read from
-generated theme or agent data.
+generated agent data.
 
 The app configures finite runtime budgets (`maxResolutionDepth: 16` and
 `maxResolvedInstances: 64`). The normal flow is asserted to resolve inside
@@ -42,15 +42,15 @@ trusted catalog + one trusted action -> buildReferencePrompt()
   -> model (canned here) -> JSONL -> validated ingestion -> Weaver runtime -> UI
 ```
 
-`buildReferencePrompt()` calls `generateA2UIV091Prompt()` with the Basic
+`buildReferencePrompt()` calls `generateA2UIV10Prompt()` with the Basic
 catalog and the single trusted action, `reference.createRequest`, whose context
 matches the Submit button. It also passes one worked example. The generator
 validates that example through a scratch runtime before it reaches the prompt.
 The output is deterministic, and nothing calls a network or a model.
 
 `src/canned-model-response.jsonl` holds a hand-written model output: three valid
-v0.9.1 frames that create the `reference-request` surface. The test feeds it
-through `createA2UIV091StreamIngestion()`, asserts that every frame is accepted,
+v1.0 frames that create the `reference-request` surface. The test feeds it
+through `createA2UIV10StreamIngestion()`, asserts that every frame is accepted,
 and checks the surface in happy-dom. A second, broken response (an undeclared
 component and truncated JSON) is rejected frame by frame, and the prior surface
 keeps its tree, data model, and text.
