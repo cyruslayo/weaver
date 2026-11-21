@@ -768,7 +768,7 @@ test("a response that arrives on another route than the call's surface is refuse
   const session = createA2UITransportSession({ runtime });
   assert.equal(session.processInbound("route-a", { version: "1.0", createSurface: { surfaceId: "main", catalogId: CATALOG } }).ok, true);
   assert.equal(session.processInbound("route-a", { version: "1.0", updateComponents: { surfaceId: "main", components: [textComponent({ "@call": "fetchFxRate", args: { base: "EUR" } })] } }).ok, true);
-  const deliveries = session.drainOutbound();
+  const deliveries = session.drainOutbound("route-a");
   assert.deepEqual(deliveries.map((delivery) => delivery.routeId), ["route-a"]);
   const refused = session.processInbound("route-b", { version: "1.0", agentFunctionResponse: { functionCallId: "agent-call-1", value: "1.08" } });
   assert.deepEqual(refused, { ok: false, error: { code: "SURFACE_ROUTE_MISMATCH", surfaceId: "main" } });
@@ -778,15 +778,30 @@ test("a response that arrives on another route than the call's surface is refuse
   assert.equal(textValue(runtime), "1.08");
 });
 
-test("drainOutbound cancels a call whose surface has no route, so it is never left pending", () => {
+test("drainOutbound leaves a call whose surface has no route queued until the host cancels it", () => {
   const runtime = routed();
   const session = createA2UITransportSession({ runtime });
   // The surface is created directly on the runtime, so no route owns it.
   createSurface(runtime);
   runtime.process({ version: "1.0", updateComponents: { surfaceId: "main", components: [textComponent({ "@call": "fetchFxRate", args: { base: "EUR" } })] } });
-  assert.deepEqual(session.drainOutbound(), []);
+  assert.deepEqual(session.drainOutbound("route-a"), []);
+  assert.deepEqual(session.drainOutbound("route-b"), []);
+  // Still queued, so the host's cancellation is what settles it.
+  assert.equal(runtime.cancelAgentFunctionCall("agent-call-1", "TRANSPORT_FAILED").ok, true);
   const late = respond(runtime, "agent-call-1", { value: "1.08" });
   assert.equal(late.ok && late.value.operation, "agentFunctionIgnored");
+});
+
+test("drainOutbound takes only the calls of the asking route, and leaves the others queued in order", () => {
+  const runtime = routed();
+  const session = createA2UITransportSession({ runtime });
+  assert.equal(session.processInbound("route-a", { version: "1.0", createSurface: { surfaceId: "main", catalogId: CATALOG } }).ok, true);
+  assert.equal(session.processInbound("route-b", { version: "1.0", createSurface: { surfaceId: "other", catalogId: CATALOG } }).ok, true);
+  assert.equal(session.processInbound("route-a", { version: "1.0", updateComponents: { surfaceId: "main", components: [textComponent({ "@call": "fetchFxRate", args: { base: "EUR" } })] } }).ok, true);
+  assert.equal(session.processInbound("route-b", { version: "1.0", updateComponents: { surfaceId: "other", components: [textComponent({ "@call": "fetchFxRate", args: { base: "USD" } })] } }).ok, true);
+  assert.deepEqual(session.drainOutbound("route-b").map((delivery) => [delivery.routeId, (delivery.message as { callAgentFunction: { surfaceId: string } }).callAgentFunction.surfaceId]), [["route-b", "other"]]);
+  assert.deepEqual(session.drainOutbound("route-a").map((delivery) => [delivery.routeId, (delivery.message as { callAgentFunction: { surfaceId: string } }).callAgentFunction.surfaceId]), [["route-a", "main"]]);
+  assert.deepEqual(session.drainOutbound("route-a"), []);
 });
 
 test("prepareActionCallDelivery routes each action call on its surface's route", () => {

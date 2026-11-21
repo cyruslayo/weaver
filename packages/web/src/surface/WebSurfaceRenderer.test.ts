@@ -775,6 +775,54 @@ test("custom input properties and nested template scopes delegate unchanged", ()
   assert.equal(((rt.getSurface("s")!.dataModel as JsonObject).groups as JsonObject[])[0]!.members instanceof Array && (((rt.getSurface("s")!.dataModel as JsonObject).groups as JsonObject[])[0]!.members as JsonObject[])[1]!.rating, 4);
 });
 
+const fetchRateFunction: JsonObject = {
+  type: "object", returnType: "string", allowedCallers: "rendererOnly",
+  properties: { "@call": { const: "fetchRate" }, args: { type: "object", properties: { id: {} }, required: ["id"] } },
+  required: ["@call"],
+};
+
+test("agentFunctionSettled re-renders the bound text in the DOM, which is empty while the call waits", () => {
+  const made = createWeaverRuntime({
+    catalogs: [{ catalogId: "test", schema: { ...catalog("test"), functions: { fetchRate: fetchRateFunction } } }],
+    agentFunctions: {},
+  });
+  assert.ok(made.ok);
+  const rt = made.value;
+  rt.process(create("test"));
+  rt.process(data({ id: "A-1" }));
+  rt.process(components([{ id: "root", component: "Text", text: { "@call": "fetchRate", args: { id: { "@path": "/id" } } } }]));
+  const { target, result } = mount(rt);
+  assert.ok(result.ok);
+  assert.equal(target.textContent, "");
+  const [call] = rt.takeAgentFunctionCalls();
+  assert.ok(call !== undefined);
+  const settled = rt.process({ version: "1.0", agentFunctionResponse: { functionCallId: call.callAgentFunction.functionCallId, value: "1.10" } });
+  assert.equal(settled.ok, true, JSON.stringify(settled));
+  assert.equal(target.textContent, "1.10");
+});
+
+test("a user action that waits on agent calls is handed to onAgentFunctionCalls once, and the result stays with the renderer", () => {
+  const schema = interactionCatalog();
+  (schema.functions as Record<string, unknown>).fetchRate = fetchRateFunction;
+  const made = createWeaverRuntime({ catalogs: [{ catalogId: "interactive", schema }], agentFunctions: {}, now: () => new Date("2025-01-02T03:04:05.000Z") });
+  assert.ok(made.ok);
+  const rt = made.value;
+  rt.process({ version: "1.0", createSurface: { surfaceId: "s", catalogId: "interactive", sendDataModel: true } });
+  rt.process(interactiveComponents([
+    { id: "root", component: "Stack", sections: ["button"] },
+    { id: "button", component: "Button", action: { functionCall: { "@call": "fetchRate", args: { id: "Z" } } } },
+  ]));
+  const { target } = dom(); const handoffs: unknown[] = []; const results: unknown[] = [];
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)), onAgentFunctionCalls: (result) => { handoffs.push(result); } }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  dispatch(target.querySelector("button")!, "click");
+  assert.equal(handoffs.length, 1);
+  const handoff = handoffs[0] as { ok: true; value: { kind: string; messages: Array<{ callAgentFunction: { functionCallId: string; surfaceId: string } }> } };
+  assert.equal(handoff.value.kind, "agentFunctionCalls");
+  assert.equal(handoff.value.messages[0]?.callAgentFunction.surfaceId, "s");
+  assert.equal((results.at(-1) as { ok: boolean }).ok, true);
+});
+
 test("local actions execute once, blocked actions do not hand off, and handoff failures are typed", () => {
   let calls = 0; const rt = interactiveRuntime(() => { calls++; });
   rt.process(interactiveComponents([{ id: "root", component: "Button", action: { functionCall: { "@call": "local", args: {} } } }]));

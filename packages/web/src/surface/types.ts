@@ -1,4 +1,4 @@
-import type { ActionTransportMetadata, A2UIRendererActionMessage, WeaverRuntime } from "@cylayo/weaver-core";
+import type { ActionTransportMetadata, A2UIRendererActionMessage, WeaverActionResult, WeaverRuntime } from "@cylayo/weaver-core";
 import type { RendererRegistry } from "../renderers/index.js";
 import type { WebRenderError } from "./errors.js";
 
@@ -6,6 +6,9 @@ export interface WebServerEventHandoff {
   message: A2UIRendererActionMessage;
   metadata?: ActionTransportMetadata;
 }
+
+/** A successful action result whose kind is agentFunctionCalls. Pass it to `transport.sendActionCalls`. */
+export type WebAgentFunctionCallsHandoff = Extract<WeaverActionResult, { ok: true }>;
 
 export interface WebSurfaceAttributionInput {
   surfaceId: string;
@@ -29,6 +32,12 @@ export interface WebSurfaceRendererConfig {
   attributionProvider?: WebSurfaceAttributionProvider;
   /** Optional transport-neutral notification. Missing handlers do not fail dispatch. */
   onServerEvent?: (event: WebServerEventHandoff) => void;
+  /**
+   * Optional handoff for a user action that waits on agent calls. The host sends
+   * them with transport.sendActionCalls. Without this handler the calls stay
+   * pending until the host cancels them.
+   */
+  onAgentFunctionCalls?: (result: WebAgentFunctionCallsHandoff) => void;
 }
 
 export interface WebSurfaceMountOptions {

@@ -1,4 +1,4 @@
-import type { A2UIRoutedDelivery, MessageProcessorResult } from "@cylayo/weaver-core";
+import type { A2UIRoutedDelivery, MessageProcessorResult, WeaverActionResult, WeaverRuntime } from "@cylayo/weaver-core";
 import { SseDecoder } from "./SseDecoder.js";
 import type { BrowserA2UIHttpSseDiagnostic, BrowserA2UIHttpSseRunOptions, BrowserA2UIHttpSseRunResult, BrowserA2UIHttpSseSendResult, BrowserA2UIHttpSseTransport, BrowserA2UIHttpSseTransportOptions } from "./types.js";
 
@@ -10,8 +10,10 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
   const limit = options.maxEventBytes ?? DEFAULT_MAX_EVENT_BYTES;
   if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError("maxEventBytes must be a positive safe integer");
   if (typeof options.routeId !== "string" || options.routeId.length === 0) throw new TypeError("routeId must be a non-empty string");
+  if (typeof options.runtime !== "object" || options.runtime === null) throw new TypeError("runtime must be the WeaverRuntime that the session wraps");
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (typeof fetchImpl !== "function") throw new TypeError("fetch is unavailable");
+  const runtime: WeaverRuntime = options.runtime;
   let running = false;
   let sendTail: Promise<void> = Promise.resolve();
   let lastEventId = "";
@@ -38,12 +40,82 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
     return result;
   }
 
+  /**
+   * Sends one callAgentFunction. When it cannot be sent, the pending call is
+   * cancelled with TRANSPORT_FAILED, and an action that the cancellation resumes
+   * is delivered too.
+   */
+  async function sendAgentCall(delivery: A2UIRoutedDelivery): Promise<void> {
+    const sent = await sendDelivery(delivery);
+    if (sent.ok) return;
+    diagnostic({ code: "AGENT_CALL_DELIVERY_FAILED", message: `Agent call delivery failed: ${sent.error.code}` });
+    await cancelCall(delivery);
+  }
+
+  /** Cancels the call that a delivery carries with TRANSPORT_FAILED, and delivers the action that cancellation resumes. */
+  async function cancelCall(delivery: A2UIRoutedDelivery): Promise<void> {
+    if (!("callAgentFunction" in delivery.message)) return;
+    const cancelled = runtime.cancelAgentFunctionCall(delivery.message.callAgentFunction.functionCallId, "TRANSPORT_FAILED");
+    if (cancelled.ok && cancelled.value.action !== undefined) await deliverContinuation(cancelled.value.action);
+  }
+
+  /**
+   * Sends the callAgentFunction messages of an action result. A message for another route
+   * fails the route check in sendDelivery, so it is cancelled rather than sent elsewhere.
+   * Other kinds are not handled here.
+   */
+  async function sendActionCallMessages(action: WeaverActionResult): Promise<void> {
+    const prepared = options.session.prepareActionCallDelivery(action);
+    if (!prepared.ok) return;
+    await Promise.all(prepared.value.map(sendAgentCall));
+  }
+
+  /**
+   * An action that a settled call resumed. A server event goes to the route that
+   * owns its surface, and agent calls go through sendAgentCall. The host must not
+   * send a resumed action again.
+   */
+  async function deliverContinuation(action: WeaverActionResult): Promise<void> {
+    if (action.ok && action.value.kind === "serverEvent") {
+      const prepared = options.session.prepareActionDelivery(action);
+      if (!prepared.ok) return;
+      const sent = await sendDelivery(prepared.value);
+      if (!sent.ok) diagnostic({ code: "CONTINUATION_DELIVERY_FAILED", message: `Resumed action delivery failed: ${sent.error.code}` });
+      return;
+    }
+    await sendActionCallMessages(action);
+  }
+
+  /** Takes the queued callAgentFunction messages now and sends each one. The drain itself is synchronous. */
+  async function flushAgentCalls(): Promise<void> {
+    // Deferred to a microtask: a createSurface that carries calls queues them while processing, before its route is recorded.
+    await Promise.resolve();
+    // Only this route's calls are taken. Calls for other routes stay queued for their own adapter.
+    const deliveries = options.session.drainOutbound(options.routeId);
+    await Promise.all(deliveries.map(sendAgentCall));
+  }
+
+  async function sendFunctionResponse(delivery: A2UIRoutedDelivery): Promise<void> {
+    const sent = await sendDelivery(delivery);
+    if (!sent.ok) diagnostic({ code: "FUNCTION_RESPONSE_DELIVERY_FAILED", message: `Function response delivery failed: ${sent.error.code}` });
+  }
+
   async function processEvent(data: string): Promise<void> {
     let input: unknown;
     try { input = JSON.parse(data); }
     catch { diagnostic({ code: "SSE_INVALID_JSON", message: "SSE A2UI event contains invalid JSON" }); return; }
     const result = options.session.processInbound(options.routeId, input);
-    if (result.ok) return;
+    if (result.ok) {
+      const response = options.session.prepareFunctionResponseDelivery(options.routeId, result);
+      if (response.ok) await sendFunctionResponse(response.value);
+      // A settled call can resume an action. Core attaches that action to the runtime result.
+      const continuation = "action" in result.value ? result.value.action : undefined;
+      if (continuation !== undefined) await deliverContinuation(continuation);
+      await flushAgentCalls();
+      return;
+    }
+    // A routing refusal of a callRendererFunction carries its error response, which goes back on the inbound route.
+    if ("functionResponse" in result && result.functionResponse !== undefined) await sendFunctionResponse(result.functionResponse);
     if (result.error.code === "INVALID_ROUTE_ID" || result.error.code === "SURFACE_ROUTE_MISMATCH" || result.error.code === "SURFACE_ROUTE_UNKNOWN") {
       diagnostic({ code: "INBOUND_PROCESS_FAILED", message: `Inbound processing failed: ${result.error.code}` }); return;
     }
@@ -106,7 +178,12 @@ export function createBrowserA2UIHttpSseTransport(options: BrowserA2UIHttpSseTra
       }
     } finally { running = false; }
   }
-  return Object.freeze({ run, sendDelivery });
+  return Object.freeze({
+    run,
+    sendDelivery,
+    flushAgentCalls,
+    sendActionCalls: (action: WeaverActionResult) => sendActionCallMessages(action),
+  });
 }
 
 function validateReconnect(value: BrowserA2UIHttpSseRunOptions["reconnect"]): { maxAttempts: number; delayMs: number } | undefined {

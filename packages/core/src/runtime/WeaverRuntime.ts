@@ -224,9 +224,13 @@ export class WeaverRuntime {
     return processed;
   }
 
-  /** Queued callAgentFunction messages for the host to send, in order. Each is returned once. */
-  takeAgentFunctionCalls(): A2UIRendererCallAgentFunctionMessage[] {
-    return this.#services.agentCalls.drain();
+  /**
+   * Queued callAgentFunction messages for the host to send, in order. Each is returned once.
+   * With `surfaceFilter`, only the calls of surfaces it accepts are taken. A transport passes
+   * "my route owns this surface", so the other routes' calls stay queued for their own drain.
+   */
+  takeAgentFunctionCalls(surfaceFilter?: (surfaceId: string) => boolean): A2UIRendererCallAgentFunctionMessage[] {
+    return this.#services.agentCalls.drain(surfaceFilter);
   }
 
   /**

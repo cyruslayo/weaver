@@ -1,5 +1,6 @@
 import { cloneJson } from "../../data-model/clone.js";
 import type { MessageProcessorResult } from "../../message-processor/index.js";
+import type { WeaverProcessResult } from "../../runtime/index.js";
 import type { A2UIAgentMessage, A2UIRendererCallAgentFunctionMessage, JsonValue } from "../../protocol/index.js";
 import { buildA2UIGenericRendererErrorMessage, validateA2UIAgentMessage } from "../../protocol/index.js";
 import type {
@@ -124,18 +125,12 @@ export function createA2UITransportSession(
       return { ok: true, value: deliveries };
     },
 
-    drainOutbound(): A2UIRoutedDelivery[] {
-      const deliveries: A2UIRoutedDelivery[] = [];
-      for (const message of runtime.takeAgentFunctionCalls()) {
-        const routeId = routes.get(message.callAgentFunction.surfaceId);
-        if (routeId === undefined) {
-          // No route owns the surface, so the call cannot be delivered. It is cancelled rather than left pending.
-          runtime.cancelAgentFunctionCall(message.callAgentFunction.functionCallId, "TRANSPORT_FAILED");
-          continue;
-        }
-        deliveries.push({ routeId, message: cloneTransportJson(message) });
-      }
-      return deliveries;
+    drainOutbound(routeId: A2UIRouteId): A2UIRoutedDelivery[] {
+      if (!isRouteId(routeId)) return [];
+      // Only the calls of surfaces this route owns are taken. Other routes' calls, and calls
+      // whose surface has no route, stay queued.
+      const messages = runtime.takeAgentFunctionCalls((surfaceId) => routes.get(surfaceId) === routeId);
+      return messages.map((message) => ({ routeId, message: cloneTransportJson(message) }));
     },
 
     prepareValidationErrorDelivery(
@@ -177,7 +172,7 @@ export function createA2UITransportSession(
 
     prepareFunctionResponseDelivery(
       routeId: A2UIRouteId,
-      result: MessageProcessorResult,
+      result: WeaverProcessResult,
     ): A2UIFunctionResponseDeliveryResult {
       if (!isRouteId(routeId))
         return { ok: false, error: { code: "INVALID_ROUTE_ID" } };

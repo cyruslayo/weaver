@@ -1,4 +1,4 @@
-import type { WeaverActionResult, WeaverRuntime } from "../../runtime/index.js";
+import type { WeaverActionResult, WeaverProcessResult, WeaverRuntime } from "../../runtime/index.js";
 import type {
   A2UIRendererActionMessage,
   A2UIRendererCallAgentFunctionMessage,
@@ -30,12 +30,14 @@ export interface A2UIFunctionResponseDelivery {
 }
 
 /**
- * A routing refusal. When the refused message is a callRendererFunction with a
- * string functionCallId, `functionResponse` is the error response the host must
- * send back on the inbound route. The routing error stays available for logging.
+ * The result of an inbound message. A success is the runtime result, so a settled agent
+ * call that resumed an action carries that action as `value.action`. A routing refusal
+ * has no runtime state change. When the refused message is a callRendererFunction with a
+ * string functionCallId, `functionResponse` is the error response the host must send back
+ * on the inbound route. The routing error stays available for logging.
  */
 export type A2UIRoutedProcessResult =
-  | MessageProcessorResult
+  | WeaverProcessResult
   | { ok: false; error: A2UIRoutingError; functionResponse?: A2UIFunctionResponseDelivery };
 
 export type A2UIActionDeliveryResult =
@@ -85,11 +87,14 @@ export interface A2UITransportSession {
    */
   prepareActionCallDelivery(result: WeaverActionResult): A2UIActionCallDeliveryResult;
   /**
-   * Takes every queued callAgentFunction, each with the route that owns its
-   * surface. The host sends each one. If a send fails, it reports that with
+   * Takes the queued callAgentFunction messages whose surface `routeId` owns, in order.
+   * Calls for other routes stay queued for their own drain. A call whose surface has no
+   * route also stays queued, and the host cancels it with
+   * runtime.cancelAgentFunctionCall(functionCallId, ...). The host sends each taken message.
+   * If a send fails, it reports that with
    * runtime.cancelAgentFunctionCall(functionCallId, "TRANSPORT_FAILED").
    */
-  drainOutbound(): A2UIRoutedDelivery[];
+  drainOutbound(routeId: A2UIRouteId): A2UIRoutedDelivery[];
   /**
    * Prepares the reply for a failed inbound message. A callRendererFunction
    * envelope that failed schema validation with a functionCallId becomes a
@@ -108,7 +113,7 @@ export interface A2UITransportSession {
    */
   prepareFunctionResponseDelivery(
     routeId: A2UIRouteId,
-    result: MessageProcessorResult,
+    result: WeaverProcessResult,
   ): A2UIFunctionResponseDeliveryResult;
   getRendererCapabilities(): A2UIRendererCapabilities;
 }

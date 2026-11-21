@@ -325,11 +325,58 @@ keys. Legacy bare `accessibility`, `checks` and `metadata` keys are rejected unl
 the catalog declares them. Component ids follow the UAX #31 identifier pattern.
 
 These v1.0 features are accepted in the wire format but return a typed
-`UNSUPPORTED_FEATURE` error in this release, and they change no state: remote function
-calls (`callRendererFunction`, `agentFunctionResponse`); `createSurface` without
-`catalogId`; a component `@catalogId`, or a function-call `catalogId`, that differs from
-its surface. Composition constraints (`allowedParents`, `allowedChildren`) are not
-enforced yet. See [conformance-v1.0.md](conformance-v1.0.md).
+`UNSUPPORTED_FEATURE` error in this release, and they change no state: `createSurface`
+without `catalogId`; a component `@catalogId`, or a function-call `catalogId`, that
+differs from its surface. Composition constraints (`allowedParents`, `allowedChildren`)
+are not enforced yet. Remote function calls are supported, as described in
+[Remote function calls](#remote-function-calls). See
+[conformance-v1.0.md](conformance-v1.0.md).
+
+## Remote function calls
+
+Two directions use the same trust model, and each has its own message pair.
+
+**Agent to renderer.** The agent sends `callRendererFunction` for a function the
+renderer can run locally. Core runs it through the trusted function registry and returns
+a `rendererFunctionResponse` for the host to send on the route that delivered the call.
+Core checks the caller and activation rules before it runs the function. A missing
+implementation, a disallowed caller, or invalid arguments answer the call with an error
+response. A refused call (for example, a surface owned by another route) is answered on the
+inbound route with the same error shape. A malformed envelope with a `functionCallId`
+becomes a generic renderer error.
+
+**Renderer to agent.** A binding, check, or action that calls a function with no local
+implementation routes the call to the agent. Core queues one `callAgentFunction` for each
+reactive call, and identical reactive calls share one request. An action always sends a
+new call. The host drains the queue through the transport, and the answer comes back as an
+`agentFunctionResponse`. A binding that waits on a call resolves to `null` until the
+answer or cancellation. The surface then notifies its subscribers with an
+`agentFunctionSettled` change, so the renderer re-renders.
+
+Trust rules:
+
+- Only functions whose `allowedCallers` admit the caller are callable. An `agentOnly`
+  function is never called by a binding or action. A `rendererOnly` function is never
+  called by the agent. A `rendererOrAgent` function is callable from both sides.
+- Functions that require user activation are never called by the agent. The renderer
+  may call one only from a user gesture.
+- The host owns every timeout. Core has no clock, so the host cancels a stale call with
+  `cancelAgentFunctionCall(id, "TIMEOUT")`. A send that fails cancels its call with
+  `TRANSPORT_FAILED`.
+- An answer must arrive on the route that owns the call's surface.
+- Implementations are synchronous. An implementation that needs I/O must be an agent
+  function, not a local one.
+- A settled call that a failed action waited on re-runs the action from its memo. The
+  memo keeps earlier answers, so no call is sent twice.
+
+Deviations from the v1.0 specification in this release:
+
+- A failed call is not sent again. A failure stays cached for its surface, so a later
+  identical reactive call returns that failure rather than a fresh request.
+- The `rendererOrAgent` conformance fixtures that combine it with `requiresUserActivation`
+  are adapted to the activation rule above.
+- Nested calls to functions in a different catalog are deferred until multi-catalog
+  surfaces are supported.
 
 ## Trusted catalog boundary
 

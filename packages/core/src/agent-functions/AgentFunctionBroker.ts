@@ -241,14 +241,22 @@ export class AgentFunctionBroker implements AgentFunctionRouter {
     return this.#pending.get(functionCallId)?.surfaceId;
   }
 
-  /** Returns the queued reactive callAgentFunction messages in order and clears the queue. */
-  drain(): A2UIRendererCallAgentFunctionMessage[] {
+  /**
+   * Returns the queued reactive callAgentFunction messages in order and removes them from the
+   * queue. With `takes`, only calls whose surface it accepts are taken; the others stay queued,
+   * in order, for a later drain.
+   */
+  drain(takes?: (surfaceId: string) => boolean): A2UIRendererCallAgentFunctionMessage[] {
     const messages: A2UIRendererCallAgentFunctionMessage[] = [];
+    const kept: string[] = [];
     for (const id of this.#queue) {
       const entry = this.#pending.get(id);
-      if (entry !== undefined) messages.push(copyCallMessage(entry.message));
+      if (entry === undefined) continue;
+      if (takes === undefined || takes(entry.surfaceId)) messages.push(copyCallMessage(entry.message));
+      else kept.push(id);
     }
     this.#queue.length = 0;
+    this.#queue.push(...kept);
     return messages;
   }
 

@@ -39,8 +39,8 @@ Each pinned corpus file is listed with the Weaver area that covers it.
 | `data_model.yaml` | Data model paths and updates | Implemented, corpus not run | `data-model/`, `data-context/` tests |
 | `expressions.yaml` | Bindings, `@call`, literal escaping | Implemented, corpus not run | `functions/`, `component-properties/` tests |
 | `accessibility.yaml` | `@accessibility` envelope key | Implemented, corpus not run | `component-properties/` tests |
-| `rpc_functions.yaml` | `callRendererFunction`, `agentFunctionResponse` | Planned | Returns `UNSUPPORTED_FEATURE` (see R-P1) |
-| `agent_function_routing.yaml` | Remote function routing | Planned | Depends on R-P1 |
+| `rpc_functions.yaml` | `callRendererFunction`, `agentFunctionResponse` | Implemented, corpus not run | Cases ported by hand in `message-processor/remoteFunctions.test.ts` and `transport/session/remoteFunctions.test.ts`; see R-F1 to R-F6 |
+| `agent_function_routing.yaml` | Remote function routing | Implemented, corpus not run | Cases ported by hand in `agent-functions/agentFunctionRouting.test.ts`; deviations listed under Known gaps |
 | `multi_catalog.yaml` | Multi-catalog surfaces, `@catalogId` | Planned | Returns `UNSUPPORTED_FEATURE` (see R-P2, R-P3) |
 | `composition_constraints.yaml` | `allowedParents`, `allowedChildren` | Planned | Accepted in catalogs, not enforced (see R-P4) |
 | `catalog.yaml` | Catalog schema and registration | Implemented, corpus not run | `catalog/` tests; schema-level cases that need embedded `common_types` are rejected by design |
@@ -65,7 +65,7 @@ Each pinned corpus file is listed with the Weaver area that covers it.
 | R-L8 | `deleteSurface` removes all surface state | Implemented | `surfaces/`, `runtime/` tests |
 | R-L9 | Root component id is `root`; updates before the root are buffered | Implemented | `component-tree/` tests |
 | R-L10 | A failed message changes no state | Implemented | `message-processor/A2UIMessageProcessor.test.ts` |
-| R-L11 | Inbound `callRendererFunction` and `agentFunctionResponse` | Planned | Returns `UNSUPPORTED_FEATURE` (R-P1) |
+| R-L11 | Inbound `callRendererFunction` and `agentFunctionResponse` | Implemented | `message-processor/remoteFunctions.test.ts`; see R-F1 and R-F3 |
 
 ### Bindings, escaping and reserved keys
 
@@ -125,11 +125,23 @@ Each pinned corpus file is listed with the Weaver area that covers it.
 | R-W7 | Deny-by-default media and attribution | Implemented | `web/src/basic-web-runtime/` tests |
 | R-W8 | Eager construction of detached inactive or closed descendants | Accepted limitation | Constructed off-DOM. No action is dispatched and no DataModel is written during construction. |
 
+### Remote function calls
+
+| ID | Requirement | Status | Evidence / note |
+|---|---|---|---|
+| R-F1 | Agent `callRendererFunction` runs a trusted local function and gets a `rendererFunctionResponse` on the inbound route, including for a refused call | Implemented | `message-processor/remoteFunctions.test.ts`, `transport/session/remoteFunctions.test.ts`, `web/src/transport/http-sse/http-sse.test.ts`, `mcp/src/index.test.ts` |
+| R-F2 | A renderer call with no local implementation becomes a `callAgentFunction` on the route that owns its surface, and the host drains and sends it | Implemented | `agent-functions/agentFunctionRouting.test.ts`, `web/src/transport/http-sse/http-sse.test.ts`, `mcp/src/index.test.ts` |
+| R-F3 | `agentFunctionResponse` settles the call, notifies subscribers with `agentFunctionSettled`, and resumes a waiting action; an unknown id is ignored | Implemented | `agent-functions/agentFunctionRouting.test.ts`, `web/src/surface/WebSurfaceRenderer.test.ts` |
+| R-F4 | The host cancels a call with `TIMEOUT` or `TRANSPORT_FAILED`; a binding waiting on it resolves to `null` and an action that waits fails with `EXPRESSION_ERROR` | Implemented | `agent-functions/agentFunctionRouting.test.ts`, `web/src/transport/http-sse/http-sse.test.ts` |
+| R-F5 | `allowedCallers` and `requiresUserActivation` are enforced on both sides; an `agentOnly` function is not callable from a binding or action | Implemented | `agent-functions/agentFunctionRouting.test.ts`, `functions/` tests |
+| R-F6 | A call that fails is answered once; a later identical reactive call returns the failure from the surface cache rather than sending again | Accepted limitation | See Known gaps |
+| R-F7 | Local implementations are synchronous | Accepted limitation | See Known gaps |
+| R-F8 | A nested call into a different catalog | Planned | Deferred until multi-catalog surfaces (R-P2, R-P3) |
+
 ### Planned
 
 | ID | Requirement | Status | Typed result |
 |---|---|---|---|
-| R-P1 | Remote function calls (`callRendererFunction`, `agentFunctionResponse`) | Planned | `UNSUPPORTED_FEATURE` with feature `callRendererFunction` or `agentFunctionResponse` |
 | R-P2 | `createSurface` without `catalogId` (multi-catalog surfaces) | Planned | `UNSUPPORTED_FEATURE` with feature `createSurface.catalogId` |
 | R-P3 | Per-component `@catalogId` or function `catalogId` that differs from the surface | Planned | `UNSUPPORTED_FEATURE` with feature `@catalogId` |
 | R-P4 | Composition constraints (`allowedParents`, `allowedChildren`) | Planned | Accepted in catalogs; not enforced |
@@ -137,6 +149,18 @@ Each pinned corpus file is listed with the Weaver area that covers it.
 ## Known gaps and decisions
 
 - No corpus runner. The pinned corpus is test data, and no test executes it in this release.
+- Remote function calls (R-F1 to R-F8) deviate from the pinned corpus in these ways:
+  - **Failure cache, no resend.** A failed call is not sent again. The failure is cached per
+    surface, so an identical later reactive call receives that failure. The corpus expects a
+    fresh request after a failure.
+  - **Activation fixtures adapted.** The `rendererOrAgent` cases that combine it with
+    `requiresUserActivation` follow the activation rule in
+    [architecture.md](architecture.md#remote-function-calls): the agent never calls such a
+    function, and the renderer calls it only from a user gesture.
+  - **Synchronous implementations.** Local function implementations run synchronously. A function
+    that needs I/O is an agent function.
+  - **Nested calls across catalogs deferred.** A nested call into a different catalog waits for
+    multi-catalog surfaces (R-P2, R-P3).
 - Strict bare-key rejection is deliberate. Catalogs that still use legacy bare `accessibility`,
   `checks` or `metadata` keys must rename them to the `@`-prefixed form.
 - The Basic Catalog's `Text` Markdown support is limited. Links, images and HTML are not interpreted.

@@ -46,16 +46,22 @@ import {
 export async function receiveAgentUi(
   client: A2UIMcpClientBridgeOptions["client"],
   session: A2UIMcpClientBridgeOptions["session"],
+  runtime: A2UIMcpClientBridgeOptions["runtime"],
 ): Promise<void> {
   const bridge = createA2UIMcpClientBridge({
     client,
     session,
+    runtime,
     routeId: "host-assigned-route",
   });
   const received = await bridge.callTool({ name: "agent_ui" });
   if (!received.ok) console.error("MCP request failed", received.error.code);
 }
 ```
+
+Remote function calls need a host `reply` callback, because a tool result cannot carry
+a response. Without it, responses are unsupported and drained calls are cancelled. See
+[docs/mcp.md](../../docs/mcp.md#remote-function-calls).
 
 ## Which package do I need?
 

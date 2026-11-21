@@ -461,6 +461,7 @@ import { createBrowserA2UIHttpSseTransport } from "@cylayo/weaver-web";
 function connect(runtime: WeaverRuntime): void {
   const session = createA2UITransportSession({ runtime });
   const transport = createBrowserA2UIHttpSseTransport({
+    runtime, // the runtime that the session wraps
     session,
     routeId: "host-assigned-route",
     streamUrl: "/a2ui/stream",
@@ -490,10 +491,12 @@ import {
 async function receiveMcpA2UI(
   client: A2UIMcpClientBridgeOptions["client"],
   session: A2UIMcpClientBridgeOptions["session"],
+  runtime: A2UIMcpClientBridgeOptions["runtime"],
 ): Promise<void> {
   const bridge = createA2UIMcpClientBridge({
     client, // an already-connected official MCP Client
     session,
+    runtime,
     routeId: "host-assigned-route",
   });
   const received = await bridge.callTool({ name: "agent_ui" });
@@ -507,6 +510,46 @@ authenticate, close the client, or make MCP results trusted. Use
 `registerMcpApplicationCapabilities` only for trusted application handlers;
 the application remains responsible for authorization, schemas, and business
 rules.
+
+### Remote function calls
+
+Calls run in both directions. The agent's `callRendererFunction` is answered
+with a `rendererFunctionResponse` on the route that delivered it. A renderer
+call with no local implementation becomes a `callAgentFunction`, which the
+host sends and answers with `agentFunctionResponse`. Core only queues and
+settles calls. The host owns the drain, the reply channel, and every timeout.
+
+- Wire the drain from `agentFunctions.onCallQueued`. Browser transports send
+  queued calls with `transport.flushAgentCalls()`, and user actions go through
+  `transport.sendActionCalls(result)`. The MCP bridge has the same methods, and
+  it needs a `reply` callback because a tool result cannot carry a response.
+- Only `agentOnly` and `rendererOrAgent` functions are callable by the agent.
+  A user-activation function is never called by the agent.
+- Cancel a stale call with `cancelAgentFunctionCall(id, "TIMEOUT")` from a host
+  timer. A send that fails cancels its call with `TRANSPORT_FAILED`.
+
+```ts
+import {
+  createA2UITransportSession,
+  createBasicCatalogV10Registration,
+  createWeaverRuntime,
+} from "@cylayo/weaver-core";
+import { createBrowserA2UIHttpSseTransport, type BrowserA2UIHttpSseTransport } from "@cylayo/weaver-web";
+
+let transport: BrowserA2UIHttpSseTransport | undefined;
+const created = createWeaverRuntime({
+  catalogs: [createBasicCatalogV10Registration()],
+  agentFunctions: { onCallQueued: () => { void transport?.flushAgentCalls(); } },
+});
+if (!created.ok) throw new Error(created.error.code);
+transport = createBrowserA2UIHttpSseTransport({
+  runtime: created.value,
+  session: createA2UITransportSession({ runtime: created.value }),
+  routeId: "host-assigned-route",
+  streamUrl: "/a2ui/stream",
+  sendUrl: "/a2ui/send",
+});
+```
 
 ## Decision guide
 

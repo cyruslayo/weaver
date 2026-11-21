@@ -89,10 +89,15 @@ Weaver is pre-1.0. The public API is evolving and should not be assumed stable.
   adapter and the MCP bridge. The included reference server
   (`examples/http-sse-server/`) is a single-peer loopback test peer, not a
   production server.
+- **Remote function calls** are supported in both directions: the agent may call a
+  renderer function (`callRendererFunction`), and the renderer may call an agent
+  function (`callAgentFunction`, answered by `agentFunctionResponse`). The browser
+  HTTP/SSE adapter and the MCP bridge carry them. The host owns timeouts and the
+  reply channel. See [docs/architecture.md](docs/architecture.md#remote-function-calls).
 - **Not yet supported in 0.4.0.** The runtime returns a typed `UNSUPPORTED_FEATURE`
-  error for remote function calls (`callRendererFunction`, `agentFunctionResponse`),
-  for `createSurface` without a `catalogId`, and for a component or function call that
-  names a catalog other than its surface's. Composition constraints (`allowedParents`,
+  error for `createSurface` without a `catalogId`, and for a component or function call
+  that names a catalog other than its surface's. Nested calls into another catalog are
+  deferred with multi-catalog surfaces. Composition constraints (`allowedParents`,
   `allowedChildren`) are accepted in catalogs but are not enforced yet. See
   [docs/conformance-v1.0.md](docs/conformance-v1.0.md).
 

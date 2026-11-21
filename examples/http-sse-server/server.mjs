@@ -9,7 +9,15 @@ const server = await startReferenceA2UIHttpSseServer({
       if (result.ok) console.log(`A2UI event ${result.eventId} emitted`);
     }, 0);
   },
-  onClientMessage(received) { console.log("A2UI client message", received.message); },
+  onClientMessage(received) {
+    console.log("A2UI client message", received.message);
+    // Demo only: a callAgentFunction is answered with its own arguments. A real host runs its own authorized function here.
+    const call = received.message.callAgentFunction;
+    if (call !== undefined) setTimeout(async () => {
+      const result = await server.sendA2UI({ version: "1.0", agentFunctionResponse: { functionCallId: call.functionCallId, value: call.callFunction?.args ?? null } });
+      if (result.ok) console.log(`Answered call ${call.functionCallId} with event ${result.eventId}`);
+    }, 0);
+  },
 });
 console.log(`Reference server: ${server.url}`);
 for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, async () => { await server.close(); process.exitCode = 0; });

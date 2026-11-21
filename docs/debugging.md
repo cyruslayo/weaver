@@ -79,6 +79,14 @@ an `outcome` that records `ok` with a summary, or the error. `seq` restarts at 1
 cleared. Record a stream in order: a `push()` chunk's frame errors are appended after that chunk's
 message entries.
 
+Remote function calls leave two kinds of entry. An inbound `callRendererFunction` or
+`agentFunctionResponse` is a `message` entry. A settled call that resumes an action records
+that action in the same entry. A `callAgentFunction` that the host sends is not an observer event,
+because the runtime only queues it. A `dispatchAction()` result that waits on calls is an `action`
+entry. Keep the host's send log beside the trace when you debug a call. A replay re-creates the
+pending calls from the recorded entries, so a replayed answer diverges when its call was not
+re-created.
+
 ## Validate and replay a trace
 
 A trace is untrusted when it comes from a file or another machine. `parseWeaverTrace()` checks its

@@ -37,6 +37,41 @@ A2UI validation failure → a2ui_error MCP tool
 
 Action business arguments are exactly `{ name, context }`. Validation arguments are exactly `{ code, surfaceId, path, message }`, the fields of the v1.0 validation-failed renderer message `error`. Defaults may be replaced with non-empty `actionToolName` and `errorToolName` options.
 
+## Remote function calls
+
+A tool result cannot carry a reply, so the messages that answer or start a remote function call travel through a host-supplied `reply` callback instead of an MCP tool:
+
+```text
+rendererFunctionResponse             → reply(delivery)
+generic renderer error with a functionCallId → reply(delivery)
+callAgentFunction                    → reply(delivery)
+```
+
+```ts
+import { createA2UIMcpClientBridge } from "@cylayo/weaver-mcp";
+
+const bridge = createA2UIMcpClientBridge({
+  client,            // an already-connected official Client
+  session,
+  runtime,           // the WeaverRuntime that the session wraps
+  routeId: "host-assigned-route",
+  reply: async (delivery) => {
+    // The host sends delivery.message on its own channel, for example a separate
+    // authenticated request to the agent. Throwing marks the send as failed.
+    await sendToAgent(delivery);
+  },
+  onDiagnostic: (diagnostic) => log(diagnostic),
+});
+// Wire the drain from the runtime. Core calls this after it queues a call.
+// agentFunctions: { onCallQueued: () => { void bridge.flushAgentCalls(); } }
+```
+
+The bridge drains the queued calls after each received payload, and `flushAgentCalls()` drains them at any other time. Several bridges may share one session, one per route. Each bridge's flush drains only its own route, so the hook must flush every bridge on the session. Calls for a route with no bridge stay queued until the host cancels them. A Web adapter and an MCP bridge can share one session. `sendActionCalls(result)` sends the calls of a `dispatchAction` result. A response that a received payload produces is replied while that payload is processed. A payload's settled action that resumes is delivered the same way.
+
+Without `reply`, these deliveries return `MCP_DELIVERY_UNSUPPORTED`. A response the bridge cannot send is reported as `A2UI_MCP_FUNCTION_RESPONSE_UNDELIVERED`. A drained call the bridge cannot send is cancelled with `TRANSPORT_FAILED` and reported as `A2UI_MCP_AGENT_CALL_CANCELLED`, so its dependents resolve to an error state instead of waiting forever. A failed `reply` call is handled the same way.
+
+The reply channel is host-owned. The bridge does not authenticate the agent, decide who may receive a call, or set timeouts. Cancel a stale call with `cancelAgentFunctionCall(id, "TIMEOUT")` from the host's own timer.
+
 ## Weaver/A2UI MCP metadata mapping
 
 These are Weaver/A2UI mapping fields, not MCP core fields:

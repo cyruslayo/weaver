@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createA2UITransportSession, createWeaverRuntime, type A2UIRoutedDelivery, type A2UITransportSession, type JsonObject } from "@cylayo/weaver-core";
+import { createA2UITransportSession, createBasicCatalogV10Registration, createWeaverRuntime, type A2UIRoutedDelivery, type A2UITransportSession, type CatalogRegistration, type JsonObject, type WeaverRuntime } from "@cylayo/weaver-core";
 import { createBrowserA2UIHttpSseTransport } from "./createBrowserA2UIHttpSseTransport.js";
 import { startReferenceServer, type ReceivedClientMessage } from "./reference-server.test-helper.js";
 
@@ -26,7 +26,7 @@ async function decode(text: string, split?: number[]): Promise<{ inputs: unknown
   const chunks = (split ?? [bytes.length]).map(size => { const value = bytes.slice(at, at + size); at += size; return value; });
   if (at < bytes.length) chunks.push(bytes.slice(at));
   const inputs: unknown[] = []; const diagnostics: string[] = [];
-  const adapter = createBrowserA2UIHttpSseTransport({ session: session(inputs), routeId: "trusted", streamUrl: "/stream", sendUrl: "/send", fetch: async () => response(chunks), onDiagnostic: value => diagnostics.push(value.code) });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session(inputs), routeId: "trusted", streamUrl: "/stream", sendUrl: "/send", fetch: async () => response(chunks), onDiagnostic: value => diagnostics.push(value.code) });
   assert.deepEqual(await adapter.run(), { ok: true, status: "closed" });
   return { inputs, diagnostics };
 }
@@ -52,26 +52,26 @@ test("processes multiple/chunked events in order and recovers after malformed JS
 
 test("discards oversized event and recovers at blank line", async () => {
   const inputs: unknown[] = []; const diagnostics: string[] = [];
-  const adapter = createBrowserA2UIHttpSseTransport({ session: session(inputs), routeId: "A", streamUrl: "/s", sendUrl: "/p", maxEventBytes: 8, fetch: async () => response([encoder.encode('data: 123456789\n\ndata: {"x":1}\n\n')]), onDiagnostic: d => diagnostics.push(d.code) });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session(inputs), routeId: "A", streamUrl: "/s", sendUrl: "/p", maxEventBytes: 8, fetch: async () => response([encoder.encode('data: 123456789\n\ndata: {"x":1}\n\n')]), onDiagnostic: d => diagnostics.push(d.code) });
   await adapter.run(); assert.deepEqual(inputs, [{ x: 1 }]); assert.deepEqual(diagnostics, ["SSE_EVENT_TOO_LARGE"]);
 });
 
 test("opens POST event stream with capabilities and validates response", async () => {
   let request: { input: RequestInfo | URL; init?: RequestInit } | undefined;
-  const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "local", streamUrl: "/stream", sendUrl: "/send", fetch: async (input, init) => { request = { input, init }; return response([]); } });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "local", streamUrl: "/stream", sendUrl: "/send", fetch: async (input, init) => { request = { input, init }; return response([]); } });
   assert.deepEqual(await adapter.run(), { ok: true, status: "closed" });
   assert.equal(request?.init?.method, "POST"); assert.equal((request?.init?.headers as Record<string,string>).Accept, "text/event-stream");
   assert.deepEqual(JSON.parse(String(request?.init?.body)), { metadata: { a2uiRendererCapabilities: { "1.0": { supportedCatalogIds: ["basic"] } } } });
   assert.equal(JSON.stringify(request).includes("routeId"), false);
-  const bad = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => new Response("", { status: 500 }) });
+  const bad = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => new Response("", { status: 500 }) });
   assert.equal((await bad.run()).ok, false);
-  const mime = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => response([], "text/html") });
+  const mime = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => response([], "text/html") });
   assert.equal((await mime.run()).ok, false);
 });
 
 test("serializes exact outbound wrappers, omits optional model, and recovers after failure", async () => {
   const calls: string[] = []; let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; }); let first = true;
-  const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/s", sendUrl: "/send", fetch: async (_input, init) => { const body = String(init?.body); calls.push(body); if (first) { first = false; await gate; return new Response("", { status: 500 }); } return new Response(null, { status: 204 }); } });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/s", sendUrl: "/send", fetch: async (_input, init) => { const body = String(init?.body); calls.push(body); if (first) { first = false; await gate; return new Response("", { status: 500 }); } return new Response(null, { status: 204 }); } });
   const message = { version: "1.0", action: { name: "go", surfaceId: "X", sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } } as const;
   const a = adapter.sendDelivery({ routeId: "A", message }); const b = adapter.sendDelivery({ routeId: "A", message, rendererDataModel: { version: "1.0", surfaces: { X: { n: 1 } } } });
   await Promise.resolve(); assert.equal(calls.length, 1); release(); assert.equal((await a).ok, false); assert.equal((await b).ok, true); assert.equal(calls.length, 2);
@@ -82,8 +82,8 @@ test("serializes exact outbound wrappers, omits optional model, and recovers aft
 test("targets two routed surfaces and their data models through only the matching adapter", async () => {
   const urls: string[] = [];
   const fetch = async (input: RequestInfo | URL) => { urls.push(String(input)); return new Response(null, { status: 204 }); };
-  const a = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/stream-a", sendUrl: "/send-a", fetch });
-  const b = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "B", streamUrl: "/stream-b", sendUrl: "/send-b", fetch });
+  const a = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/stream-a", sendUrl: "/send-a", fetch });
+  const b = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "B", streamUrl: "/stream-b", sendUrl: "/send-b", fetch });
   const make = (routeId: string, surfaceId: string): A2UIRoutedDelivery => ({ routeId, message: { version: "1.0", action: { name: "go", surfaceId, sourceComponentId: "root", timestamp: "2026-01-01T00:00:00.000Z", context: {} } }, rendererDataModel: { version: "1.0", surfaces: { [surfaceId]: { owner: routeId } } } });
   const x = make("A", "X"); const y = make("B", "Y");
   assert.equal((await a.sendDelivery(x)).ok, true); assert.equal((await b.sendDelivery(x)).ok, false);
@@ -96,14 +96,14 @@ test("automatically posts a session-prepared validation failure", async () => {
   const fake = session(inputs);
   fake.processInbound = () => ({ ok: false, error: { code: "PROTOCOL_VALIDATION_FAILED", issues: [{ code: "VALIDATION_FAILED", path: "/", message: "invalid" }] } });
   fake.prepareValidationErrorDelivery = routeId => ({ ok: true, value: { routeId, message: { version: "1.0", error: { code: "VALIDATION_FAILED", surfaceId: "X", path: "/", message: "invalid" } } } });
-  const adapter = createBrowserA2UIHttpSseTransport({ session: fake, routeId: "A", streamUrl: "/stream", sendUrl: "/send", fetch: async (input, init) => { if (String(input) === "/stream") return response([encoder.encode('data: {"version":"bad"}\n\n')]); requests.push(init ?? {}); return new Response(null, { status: 204 }); } });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: fake, routeId: "A", streamUrl: "/stream", sendUrl: "/send", fetch: async (input, init) => { if (String(input) === "/stream") return response([encoder.encode('data: {"version":"bad"}\n\n')]); requests.push(init ?? {}); return new Response(null, { status: 204 }); } });
   assert.equal((await adapter.run()).ok, true); assert.equal(requests.length, 1);
   assert.equal(JSON.parse(String(requests[0]?.body)).message.error.code, "VALIDATION_FAILED");
 });
 
 test("rejects concurrent run, permits rerun, and reports pre-abort deterministically", async () => {
   let close!: () => void; const stream = new ReadableStream<Uint8Array>({ start(controller) { close = () => controller.close(); } });
-  let count = 0; const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => { count++; return count === 1 ? new Response(stream, { headers: { "Content-Type": "text/event-stream" } }) : response([]); } });
+  let count = 0; const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => { count++; return count === 1 ? new Response(stream, { headers: { "Content-Type": "text/event-stream" } }) : response([]); } });
   const active = adapter.run(); assert.equal((await adapter.run()).ok, false); close(); assert.equal((await active).ok, true); assert.deepEqual(await adapter.run(), { ok: true, status: "closed" });
   const controller = new AbortController(); controller.abort(); assert.deepEqual(await adapter.run({ signal: controller.signal }), { ok: true, status: "aborted" });
 });
@@ -124,7 +124,7 @@ test("real loopback stream updates runtime, posts action/model and validation fa
   const opened: Record<string, unknown>[] = []; const received: ReceivedClientMessage[] = [];
   const server = await startReferenceServer({ onStreamOpen: value => { opened.push(value); }, onClientMessage: value => { received.push(value); } });
   const { runtime, session: transportSession } = integration(); const diagnostics: string[] = [];
-  const adapter = createBrowserA2UIHttpSseTransport({ session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl, onDiagnostic: d => diagnostics.push(d.message) });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime, session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl, onDiagnostic: d => diagnostics.push(d.message) });
   let run = adapter.run();
   try {
     await waitFor(() => opened.length === 1); assert.deepEqual(opened[0], { "1.0": { supportedCatalogIds: ["basic"] } });
@@ -149,7 +149,7 @@ test("two real loopback peers target only their owned route and reject cross-rou
   const aReceived: ReceivedClientMessage[] = []; const bReceived: ReceivedClientMessage[] = []; let aOpen = false; let bOpen = false;
   const aServer = await startReferenceServer({ onStreamOpen: () => { aOpen = true; }, onClientMessage: m => { aReceived.push(m); } }); const bServer = await startReferenceServer({ onStreamOpen: () => { bOpen = true; }, onClientMessage: m => { bReceived.push(m); } });
   const { runtime, session: shared } = integration(); const bDiagnostics: string[] = [];
-  const a = createBrowserA2UIHttpSseTransport({ session: shared, routeId: "A", streamUrl: aServer.streamUrl, sendUrl: aServer.sendUrl }); const b = createBrowserA2UIHttpSseTransport({ session: shared, routeId: "B", streamUrl: bServer.streamUrl, sendUrl: bServer.sendUrl, onDiagnostic: d => bDiagnostics.push(d.message) });
+  const a = createBrowserA2UIHttpSseTransport({ runtime, session: shared, routeId: "A", streamUrl: aServer.streamUrl, sendUrl: aServer.sendUrl }); const b = createBrowserA2UIHttpSseTransport({ runtime, session: shared, routeId: "B", streamUrl: bServer.streamUrl, sendUrl: bServer.sendUrl, onDiagnostic: d => bDiagnostics.push(d.message) });
   const arun = a.run(); const brun = b.run();
   try {
     await waitFor(() => aOpen && bOpen); for (const [server, id, owner] of [[aServer, "X", "A"], [bServer, "Y", "B"]] as const) { await server.sendA2UI(createMessage(id, true)); await server.sendA2UI(componentsMessage(id)); await server.sendA2UI(dataMessage(id, owner)); }
@@ -167,7 +167,7 @@ test("SSE IDs persist, reset, ignore NUL, advance on ignored/malformed/empty eve
     'data: {"n":2}\n\nid:\ndata: {"reset":true}\n\nid: bad\0value\ndata: {"n":3}\n\n',
     "",
   ];
-  const adapter = createBrowserA2UIHttpSseTransport({ session: session(inputs), routeId: "A", streamUrl: "/stream", sendUrl: "/send", fetch: async (_input, init) => { headers.push(init?.headers as Record<string, string>); return response([encoder.encode(streams[call++]!)]); }, onDiagnostic: d => diagnostics.push(d.code) });
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session(inputs), routeId: "A", streamUrl: "/stream", sendUrl: "/send", fetch: async (_input, init) => { headers.push(init?.headers as Record<string, string>); return response([encoder.encode(streams[call++]!)]); }, onDiagnostic: d => diagnostics.push(d.code) });
   await adapter.run(); await adapter.run(); await adapter.run();
   assert.equal(headers[0]?.["Last-Event-ID"], undefined); assert.equal(headers[1]?.["Last-Event-ID"], "3"); assert.equal(headers[2]?.["Last-Event-ID"], undefined);
   assert.deepEqual(inputs, [{ n: 1 }, { n: 2 }, { reset: true }, { n: 3 }]); assert.deepEqual(diagnostics, ["SSE_INVALID_JSON"]);
@@ -175,7 +175,7 @@ test("SSE IDs persist, reset, ignore NUL, advance on ignored/malformed/empty eve
 
 test("bounded reconnect retries clean EOF/fetch/read failures, preserves one run, and exhausts exactly", async () => {
   let calls = 0; let reads = 0;
-  const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => {
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => {
     calls++; if (calls === 1) return response([]); if (calls === 2) throw new Error("network");
     return new Response(new ReadableStream<Uint8Array>({ pull(controller) { reads++; if (reads === 1) controller.error(new Error("read")); } }), { headers: { "Content-Type": "text/event-stream" } });
   } });
@@ -187,7 +187,7 @@ test("bounded reconnect retries clean EOF/fetch/read failures, preserves one run
 test("reconnect delay and active/reconnect fetch abort immediately without another request", async () => {
   for (const mode of ["delay", "fetch"] as const) {
     let calls = 0; const controller = new AbortController();
-    const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async (_input, init) => {
+    const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async (_input, init) => {
       calls++; if (calls === 1) return response([]);
       return await new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true }));
     } });
@@ -198,10 +198,10 @@ test("reconnect delay and active/reconnect fetch abort immediately without anoth
 
 test("fatal reconnect responses stop and resumed 410 is distinct without clearing cursor", async () => {
   for (const fatal of [new Response("", { status: 500 }), response([], "text/html"), new Response(null, { headers: { "Content-Type": "text/event-stream" } })]) {
-    let calls = 0; const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => ++calls === 1 ? response([]) : fatal });
+    let calls = 0; const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async () => ++calls === 1 ? response([]) : fatal });
     assert.equal((await adapter.run({ reconnect: { maxAttempts: 3, delayMs: 0 } })).ok, false); assert.equal(calls, 2);
   }
-  const seen: Array<Record<string,string>> = []; let calls = 0; const adapter = createBrowserA2UIHttpSseTransport({ session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async (_i, init) => { seen.push(init?.headers as Record<string,string>); return ++calls === 1 ? response([encoder.encode('id: 8\ndata: {}\n\n')]) : new Response("", { status: 410 }); } });
+  const seen: Array<Record<string,string>> = []; let calls = 0; const adapter = createBrowserA2UIHttpSseTransport({ runtime: integration().runtime, session: session([]), routeId: "A", streamUrl: "/", sendUrl: "/", fetch: async (_i, init) => { seen.push(init?.headers as Record<string,string>); return ++calls === 1 ? response([encoder.encode('id: 8\ndata: {}\n\n')]) : new Response("", { status: 410 }); } });
   await adapter.run(); const unavailable = await adapter.run({ reconnect: { maxAttempts: 2, delayMs: 0 } }); assert.deepEqual(unavailable, { ok: false, error: { code: "RESUME_UNAVAILABLE", status: 410, message: "Server cannot resume from the stored SSE event ID" } }); assert.equal(seen[1]?.["Last-Event-ID"], "8");
 });
 
@@ -219,7 +219,7 @@ test("reference server assigns bounded sequential IDs and replays known gaps in 
 
 test("automatic loopback resume replays a disconnected gap once and preserves ownership", async () => {
   const cursors: Array<string | undefined> = []; const server = await startReferenceServer({ onStreamOpen: (_c, id) => { cursors.push(id); } }); const { runtime, session: transportSession } = integration();
-  const controller = new AbortController(); const adapter = createBrowserA2UIHttpSseTransport({ session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl }); const run = adapter.run({ signal: controller.signal, reconnect: { maxAttempts: 2, delayMs: 30 } });
+  const controller = new AbortController(); const adapter = createBrowserA2UIHttpSseTransport({ runtime, session: transportSession, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl }); const run = adapter.run({ signal: controller.signal, reconnect: { maxAttempts: 2, delayMs: 30 } });
   try {
     await waitFor(() => cursors.length === 1); await server.sendA2UI(createMessage("X")); await server.sendA2UI(componentsMessage("X")); await waitFor(() => runtime.getSurface("X")?.components.root !== undefined);
     server.closeStream(); await new Promise(resolve => setTimeout(resolve, 5)); const gap = await server.sendA2UI(dataMessage("X", "resumed")); assert.ok(gap.ok); await waitFor(() => cursors.length === 2 && (runtime.getSurface("X")?.dataModel as JsonObject | undefined)?.["owner"] === "resumed");
@@ -240,4 +240,197 @@ test("reference server enforces endpoint methods, exact wrappers, limits, and on
     assert.equal((await post("/a2ui/stream", JSON.stringify({ metadata: { a2uiRendererCapabilities: {} } }), { Accept: "text/event-stream" })).status, 409);
     assert.equal((await server.sendA2UI(undefined)).ok, false); server.closeStream(); await stream;
   } finally { await server.close(); }
+});
+
+// --- Remote function calls ----------------------------------------------------------------
+
+const REMOTE_CATALOG = "https://example.test/remote/catalog.json";
+
+/** The Basic catalog under a test id, with one schema-only function the renderer may call and the agent answers. */
+function remoteCatalog(): CatalogRegistration {
+  const registration = createBasicCatalogV10Registration();
+  const schema = registration.schema as unknown as { catalogId: string; $id?: string; functions: Record<string, JsonObject> };
+  schema.catalogId = REMOTE_CATALOG;
+  schema.$id = REMOTE_CATALOG;
+  schema.functions.fetchRate = {
+    type: "object", description: "Looks up a rate.", returnType: "string", allowedCallers: "rendererOnly",
+    properties: { "@call": { const: "fetchRate" }, args: { type: "object", properties: { id: {} }, required: ["id"] } },
+    required: ["@call"],
+  } as unknown as JsonObject;
+  return { catalogId: REMOTE_CATALOG, schema: registration.schema };
+}
+
+type CallEnvelope = { callAgentFunction: { functionCallId: string; surfaceId: string; callFunction: { args: JsonObject } } };
+const callOf = (entry: ReceivedClientMessage | undefined) => (entry?.message as unknown as CallEnvelope | undefined)?.callAgentFunction;
+const remoteComponents = (surfaceId: string) => ({
+  version: "1.0",
+  updateComponents: {
+    surfaceId,
+    components: [
+      { id: "root", component: "Column", children: ["field", "rate"] },
+      { id: "field", component: "TextField", label: "SKU", value: { "@path": "/sku" } },
+      { id: "rate", component: "Text", text: { "@call": "fetchRate", args: { id: { "@path": "/sku" } } } },
+    ],
+  },
+});
+/** The rate Text's resolved text, or undefined while it is not resolved yet. */
+function rateText(runtime: WeaverRuntime, surfaceId: string): unknown {
+  const resolved = runtime.resolveSurface(surfaceId);
+  if (!resolved.ok) return undefined;
+  const relationship = resolved.value.tree.root?.relationships[0];
+  return relationship?.kind !== "single" ? relationship?.children[1]?.properties.text : undefined;
+}
+
+async function remoteHarness(failSend: () => boolean = () => false) {
+  const received: ReceivedClientMessage[] = []; const opened: unknown[] = []; const diagnostics: string[] = [];
+  const server = await startReferenceServer({ onStreamOpen: value => { opened.push(value); }, onClientMessage: value => { received.push(value); } });
+  let flush: () => void = () => undefined;
+  const created = createWeaverRuntime({ catalogs: [remoteCatalog()], agentFunctions: { onCallQueued: () => flush() }, now: () => new Date("2026-01-01T00:00:00.000Z") });
+  if (!created.ok) throw new Error(JSON.stringify(created.error));
+  const runtime = created.value;
+  const session = createA2UITransportSession({ runtime });
+  const sendAware: typeof fetch = (input, init) => (String(input) === server.sendUrl && failSend() ? Promise.reject(new TypeError("send is down")) : fetch(input, init));
+  const adapter = createBrowserA2UIHttpSseTransport({ runtime, session, routeId: "A", streamUrl: server.streamUrl, sendUrl: server.sendUrl, fetch: sendAware, onDiagnostic: value => diagnostics.push(value.code) });
+  // The host wires the drain: every queued call is sent as soon as the runtime queues it.
+  flush = () => { void adapter.flushAgentCalls(); };
+  const run = adapter.run();
+  await waitFor(() => opened.length === 1);
+  return { runtime, session, server, adapter, received, diagnostics, close: async () => { server.closeStream(); await run; await server.close(); } };
+}
+
+test("renderer-to-agent call: a bound call is sent once queued, writeInput sends the next call with no inbound message, and the answer resolves the binding", async () => {
+  const h = await remoteHarness();
+  try {
+    await h.server.sendA2UI({ version: "1.0", createSurface: { surfaceId: "X", catalogId: REMOTE_CATALOG } });
+    await h.server.sendA2UI({ version: "1.0", updateDataModel: { surfaceId: "X", value: { sku: "A-1" } } });
+    await h.server.sendA2UI(remoteComponents("X"));
+    await waitFor(() => h.received.length === 1);
+    assert.equal(callOf(h.received[0])?.functionCallId, "agent-call-1");
+    assert.deepEqual(callOf(h.received[0])?.callFunction.args, { id: "A-1" });
+    assert.equal(rateText(h.runtime, "X"), null);
+
+    await h.server.sendA2UI({ version: "1.0", agentFunctionResponse: { functionCallId: "agent-call-1", value: "1.10" } });
+    await waitFor(() => rateText(h.runtime, "X") === "1.10");
+
+    const written = h.runtime.writeInput({ surfaceId: "X", sourceComponentId: "field", scopePath: "/", property: "value", value: "B-2" });
+    assert.equal(written.ok, true, JSON.stringify(written));
+    await waitFor(() => h.received.length === 2);
+    assert.equal(callOf(h.received[1])?.functionCallId, "agent-call-2");
+    assert.deepEqual(callOf(h.received[1])?.callFunction.args, { id: "B-2" });
+    await h.server.sendA2UI({ version: "1.0", agentFunctionResponse: { functionCallId: "agent-call-2", value: "2.20" } });
+    await waitFor(() => rateText(h.runtime, "X") === "2.20");
+    assert.deepEqual(h.diagnostics, []);
+  } finally { await h.close(); }
+});
+
+test("a callRendererFunction refused by routing is answered on the inbound route with its error", async () => {
+  const h = await remoteHarness();
+  try {
+    // The surface exists in the runtime but no route owns it, so the call is refused as SURFACE_ROUTE_UNKNOWN.
+    assert.equal(h.runtime.process({ version: "1.0", createSurface: { surfaceId: "orphan", catalogId: REMOTE_CATALOG } }).ok, true);
+    await h.server.sendA2UI({ version: "1.0", callRendererFunction: { functionCallId: "r1", surfaceId: "orphan", callFunction: { "@call": "formatDate", catalogId: REMOTE_CATALOG, args: {} } } });
+    await waitFor(() => h.received.length === 1);
+    const response = (h.received[0]!.message as { rendererFunctionResponse: { functionCallId: string; error?: { code: string; message: string } } }).rendererFunctionResponse;
+    assert.equal(response.functionCallId, "r1");
+    assert.equal(response.error?.code, "INVALID_FUNCTION_CALL");
+    assert.ok(response.error?.message.includes("orphan"));
+    await waitFor(() => h.diagnostics.length === 1);
+    assert.deepEqual(h.diagnostics, ["INBOUND_PROCESS_FAILED"]);
+  } finally { await h.close(); }
+});
+
+test("an agent callRendererFunction on the owning route is answered on that route", async () => {
+  const h = await remoteHarness();
+  try {
+    await h.server.sendA2UI({ version: "1.0", createSurface: { surfaceId: "X", catalogId: REMOTE_CATALOG } });
+    await h.server.sendA2UI({ version: "1.0", callRendererFunction: { functionCallId: "r2", surfaceId: "X", callFunction: { "@call": "formatDate", catalogId: REMOTE_CATALOG, args: {} } } });
+    await waitFor(() => h.received.length === 1);
+    const response = (h.received[0]!.message as { rendererFunctionResponse: { functionCallId: string; error?: { code: string } } }).rendererFunctionResponse;
+    assert.equal(response.functionCallId, "r2");
+    assert.equal(response.error?.code, "INVALID_FUNCTION_CALL");
+    assert.deepEqual(h.diagnostics, []);
+  } finally { await h.close(); }
+});
+
+test("a callAgentFunction whose send fails is cancelled with TRANSPORT_FAILED", async () => {
+  let down = false;
+  const h = await remoteHarness(() => down);
+  try {
+    await h.server.sendA2UI({ version: "1.0", createSurface: { surfaceId: "X", catalogId: REMOTE_CATALOG } });
+    await h.server.sendA2UI({ version: "1.0", updateDataModel: { surfaceId: "X", value: { sku: "A-1" } } });
+    await h.server.sendA2UI(remoteComponents("X"));
+    await waitFor(() => h.received.length === 1);
+    down = true;
+    assert.equal(h.runtime.writeInput({ surfaceId: "X", sourceComponentId: "field", scopePath: "/", property: "value", value: "C-3" }).ok, true);
+    await waitFor(() => h.diagnostics.includes("AGENT_CALL_DELIVERY_FAILED"));
+    // The send failure already cancelled the call, so a second cancellation finds nothing pending.
+    const again = h.runtime.cancelAgentFunctionCall("agent-call-2", "TIMEOUT");
+    assert.deepEqual(again.ok ? undefined : again.error, { code: "AGENT_FUNCTION_CALL_NOT_PENDING", functionCallId: "agent-call-2" });
+  } finally { await h.close(); }
+});
+
+test("a createSurface that carries its own calls inline sends them, and cancels nothing", async () => {
+  const h = await remoteHarness();
+  try {
+    // Core queues the calls while it processes the createSurface, before the route is recorded.
+    await h.server.sendA2UI({ version: "1.0", createSurface: { surfaceId: "X", catalogId: REMOTE_CATALOG, dataModel: { sku: "A-1" }, components: remoteComponents("X").updateComponents.components } });
+    await waitFor(() => h.received.length === 1);
+    assert.equal(callOf(h.received[0])?.functionCallId, "agent-call-1");
+    assert.equal(callOf(h.received[0])?.surfaceId, "X");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(h.received.length, 1);
+    assert.deepEqual(h.diagnostics, []);
+  } finally { await h.close(); }
+});
+
+test("adapters that share one session each send only the calls of their own route", async () => {
+  const aReceived: ReceivedClientMessage[] = []; const bReceived: ReceivedClientMessage[] = [];
+  const opened = { a: false, b: false }; const aDiagnostics: string[] = []; const bDiagnostics: string[] = [];
+  const aServer = await startReferenceServer({ onStreamOpen: () => { opened.a = true; }, onClientMessage: m => { aReceived.push(m); } });
+  const bServer = await startReferenceServer({ onStreamOpen: () => { opened.b = true; }, onClientMessage: m => { bReceived.push(m); } });
+  let flush: () => void = () => undefined;
+  const created = createWeaverRuntime({ catalogs: [remoteCatalog()], agentFunctions: { onCallQueued: () => flush() }, now: () => new Date("2026-01-01T00:00:00.000Z") });
+  if (!created.ok) throw new Error(JSON.stringify(created.error));
+  const runtime = created.value; const session = createA2UITransportSession({ runtime });
+  const a = createBrowserA2UIHttpSseTransport({ runtime, session, routeId: "A", streamUrl: aServer.streamUrl, sendUrl: aServer.sendUrl, onDiagnostic: d => aDiagnostics.push(d.code) });
+  const b = createBrowserA2UIHttpSseTransport({ runtime, session, routeId: "B", streamUrl: bServer.streamUrl, sendUrl: bServer.sendUrl, onDiagnostic: d => bDiagnostics.push(d.code) });
+  // Each adapter drains only its own route, so the hook flushes both.
+  flush = () => { void a.flushAgentCalls(); void b.flushAgentCalls(); };
+  const arun = a.run(); const brun = b.run();
+  try {
+    await waitFor(() => opened.a && opened.b);
+    for (const [server, id, owner] of [[aServer, "X", "A"], [bServer, "Y", "B"]] as const) {
+      await server.sendA2UI({ version: "1.0", createSurface: { surfaceId: id, catalogId: REMOTE_CATALOG } });
+      await server.sendA2UI({ version: "1.0", updateDataModel: { surfaceId: id, value: { sku: owner === "A" ? "A-1" : "B-2" } } });
+      await server.sendA2UI(remoteComponents(id));
+    }
+    await waitFor(() => aReceived.length === 1 && bReceived.length === 1);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(aReceived.length, 1); assert.equal(bReceived.length, 1);
+    assert.equal(callOf(aReceived[0])?.surfaceId, "X"); assert.equal(callOf(bReceived[0])?.surfaceId, "Y");
+    assert.deepEqual(callOf(bReceived[0])?.callFunction.args, { id: "B-2" });
+    assert.deepEqual(aDiagnostics, []); assert.deepEqual(bDiagnostics, []);
+  } finally { aServer.closeStream(); bServer.closeStream(); await Promise.all([arun, brun]); await Promise.all([aServer.close(), bServer.close()]); }
+});
+
+test("sendActionCalls sends the calls of a dispatched action, and the resumed action's server event goes back on the route", async () => {
+  const h = await remoteHarness();
+  try {
+    await h.server.sendA2UI({ version: "1.0", createSurface: { surfaceId: "X", catalogId: REMOTE_CATALOG } });
+    await h.server.sendA2UI({ version: "1.0", updateComponents: { surfaceId: "X", components: [
+      { id: "root", component: "Button", child: "label", action: { event: { name: "go", context: { rate: { "@call": "fetchRate", args: { id: "Z" } } } } } },
+      { id: "label", component: "Text", text: "Go" },
+    ] } });
+    await waitFor(() => h.runtime.getSurface("X")?.components.root !== undefined);
+    const action = h.runtime.dispatchAction({ surfaceId: "X", sourceComponentId: "root", scopePath: "/", actionProperty: "action" });
+    assert.equal(action.ok && action.value.kind, "agentFunctionCalls");
+    await h.adapter.sendActionCalls(action as Parameters<typeof h.adapter.sendActionCalls>[0]);
+    await waitFor(() => h.received.length === 1);
+    const call = callOf(h.received[0]);
+    assert.deepEqual(call?.callFunction.args, { id: "Z" });
+    await h.server.sendA2UI({ version: "1.0", agentFunctionResponse: { functionCallId: call!.functionCallId, value: "9.99" } });
+    await waitFor(() => h.received.length === 2);
+    assert.equal((h.received[1]!.message as { action: { context: { rate: unknown } } }).action.context.rate, "9.99");
+    assert.deepEqual(h.diagnostics, []);
+  } finally { await h.close(); }
 });

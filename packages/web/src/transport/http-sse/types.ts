@@ -1,7 +1,17 @@
-import type { A2UIRouteId, A2UIRoutedDelivery, A2UITransportSession } from "@cylayo/weaver-core";
+import type { A2UIRouteId, A2UIRoutedDelivery, A2UITransportSession, WeaverActionResult, WeaverRuntime } from "@cylayo/weaver-core";
 
 export type BrowserA2UIHttpSseDiagnostic = Readonly<{
-  code: "SSE_EVENT_TOO_LARGE" | "SSE_INVALID_JSON" | "INBOUND_PROCESS_FAILED" | "VALIDATION_DELIVERY_FAILED" | "VALIDATION_DELIVERY_ROUTE_MISMATCH" | "RECONNECT_SCHEDULED" | "RESUME_UNAVAILABLE";
+  code:
+    | "SSE_EVENT_TOO_LARGE"
+    | "SSE_INVALID_JSON"
+    | "INBOUND_PROCESS_FAILED"
+    | "VALIDATION_DELIVERY_FAILED"
+    | "VALIDATION_DELIVERY_ROUTE_MISMATCH"
+    | "FUNCTION_RESPONSE_DELIVERY_FAILED"
+    | "AGENT_CALL_DELIVERY_FAILED"
+    | "CONTINUATION_DELIVERY_FAILED"
+    | "RECONNECT_SCHEDULED"
+    | "RESUME_UNAVAILABLE";
   message: string;
 }>;
 
@@ -31,10 +41,23 @@ export type BrowserA2UIHttpSseSendResult =
 export interface BrowserA2UIHttpSseTransport {
   run(options?: BrowserA2UIHttpSseRunOptions): Promise<BrowserA2UIHttpSseRunResult>;
   sendDelivery(delivery: A2UIRoutedDelivery): Promise<BrowserA2UIHttpSseSendResult>;
+  /**
+   * Takes every queued callAgentFunction and sends it on this route. Each send
+   * that fails cancels its call with TRANSPORT_FAILED. Wire it from
+   * `agentFunctions.onCallQueued`, for example `() => { void transport.flushAgentCalls(); }`.
+   */
+  flushAgentCalls(): Promise<void>;
+  /**
+   * Sends the callAgentFunction messages of an action result from
+   * `runtime.dispatchAction`. A result of another kind sends nothing.
+   */
+  sendActionCalls(result: WeaverActionResult): Promise<void>;
 }
 
 export interface BrowserA2UIHttpSseTransportOptions {
   session: A2UITransportSession;
+  /** The same runtime the session wraps. A failed call send cancels its call on this runtime. */
+  runtime: WeaverRuntime;
   routeId: A2UIRouteId;
   streamUrl: string | URL;
   sendUrl: string | URL;
