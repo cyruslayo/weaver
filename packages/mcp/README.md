@@ -61,7 +61,7 @@ export async function receiveAgentUi(
 
 Remote function calls need a host `reply` callback, because a tool result cannot carry
 a response. Without it, responses are unsupported and drained calls are cancelled. See
-[docs/mcp.md](../../docs/mcp.md#remote-function-calls).
+[docs/mcp.md](https://github.com/cyruslayo/weaver/blob/main/docs/mcp.md#remote-function-calls).
 
 ## Which package do I need?
 
