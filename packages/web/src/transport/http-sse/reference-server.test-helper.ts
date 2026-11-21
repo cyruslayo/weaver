@@ -5,7 +5,7 @@ const BODY_LIMIT = 1_048_576;
 const DEFAULT_REPLAY_CAPACITY = 128;
 type JsonObject = Record<string, unknown>;
 type HistoryEntry = { id: string; payload: string };
-export interface ReceivedClientMessage { message: JsonObject; capabilities: JsonObject; clientDataModel?: unknown }
+export interface ReceivedClientMessage { message: JsonObject; capabilities: JsonObject; rendererDataModel?: unknown }
 export interface ReferenceServerOptions {
   replayCapacity?: number;
   onStreamOpen?(capabilities: JsonObject, resumeEventId?: string): void | Promise<void>;
@@ -29,7 +29,7 @@ async function jsonBody(request: IncomingMessage): Promise<{ ok: true; value: un
   catch { return { ok: false, status: 400 }; }
 }
 function fail(response: ServerResponse, status: number): void { response.writeHead(status).end(); }
-function validMetadata(value: unknown, send: boolean): value is JsonObject { return object(value) && exact(value, send ? ["a2uiClientCapabilities", "a2uiClientDataModel"] : ["a2uiClientCapabilities"]) && object(value.a2uiClientCapabilities); }
+function validMetadata(value: unknown, send: boolean): value is JsonObject { return object(value) && exact(value, send ? ["a2uiRendererCapabilities", "a2uiRendererDataModel"] : ["a2uiRendererCapabilities"]) && object(value.a2uiRendererCapabilities); }
 function frame(entry: HistoryEntry): string { return `event: a2ui\nid: ${entry.id}\ndata: ${entry.payload}\n\n`; }
 async function write(response: ServerResponse, value: string): Promise<void> { if (!response.write(value)) await once(response, "drain"); }
 
@@ -56,7 +56,7 @@ export async function startReferenceServer(options: ReferenceServerOptions = {})
         if (!Number.isSafeInteger(cursor) || cursor > latest || cursor < oldest - 1) { fail(response, 410); return; }
         replay = history.filter(entry => Number(entry.id) > cursor);
       }
-      try { await options.onStreamOpen?.(structuredClone(body.value.metadata.a2uiClientCapabilities as JsonObject), rawCursor); }
+      try { await options.onStreamOpen?.(structuredClone(body.value.metadata.a2uiRendererCapabilities as JsonObject), rawCursor); }
       catch { fail(response, 500); return; }
       active = response; connected = true;
       response.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache" }); response.flushHeaders(); response.write(": connected\n\n");
@@ -65,8 +65,8 @@ export async function startReferenceServer(options: ReferenceServerOptions = {})
       const release = () => { if (active === response) active = undefined; }; response.once("close", release); response.once("finish", release); return;
     }
     if (!exact(body.value, ["message", "metadata"]) || !object(body.value.message) || !validMetadata(body.value.metadata, true)) { fail(response, 400); return; }
-    const received: ReceivedClientMessage = { message: structuredClone(body.value.message), capabilities: structuredClone(body.value.metadata.a2uiClientCapabilities as JsonObject) };
-    if ("a2uiClientDataModel" in body.value.metadata) received.clientDataModel = structuredClone(body.value.metadata.a2uiClientDataModel);
+    const received: ReceivedClientMessage = { message: structuredClone(body.value.message), capabilities: structuredClone(body.value.metadata.a2uiRendererCapabilities as JsonObject) };
+    if ("a2uiRendererDataModel" in body.value.metadata) received.rendererDataModel = structuredClone(body.value.metadata.a2uiRendererDataModel);
     try { await options.onClientMessage?.(received); } catch { fail(response, 500); return; }
     response.writeHead(204).end();
   });

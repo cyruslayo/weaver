@@ -1,9 +1,9 @@
 import type {
   A2UIComponent,
-  A2UIServerMessage,
+  A2UIAgentMessage,
   JsonObject,
 } from "@cylayo/weaver-core";
-import { createA2UIV091Producer } from "@cylayo/weaver-core";
+import { createA2UIV10Producer } from "@cylayo/weaver-core";
 
 export const REFERENCE_SURFACE_ID = "reference-request";
 export const REFERENCE_CREATE_REQUEST = "reference.createRequest";
@@ -44,8 +44,8 @@ export interface ReferenceCreateRequest {
 export interface ReferenceAgent {
   readonly surfaceId: string;
   getState(): ReferenceAgentState;
-  start(): A2UIServerMessage[];
-  handleCreateRequest(request: ReferenceCreateRequest): A2UIServerMessage[];
+  start(): A2UIAgentMessage[];
+  handleCreateRequest(request: ReferenceCreateRequest): A2UIAgentMessage[];
 }
 
 const initialState = (): ReferenceAgentState => ({
@@ -61,7 +61,7 @@ const initialState = (): ReferenceAgentState => ({
 export function createReferenceAgent(
   config: ReferenceAgentConfig,
 ): ReferenceAgent {
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   let state = initialState();
 
   return {

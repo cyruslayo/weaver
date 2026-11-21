@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  createA2UIV091Producer,
+  createA2UIV10Producer,
   type A2UIComponent,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type JsonObject,
 } from "@cylayo/weaver-core";
 import {
@@ -65,9 +65,9 @@ function mountTable(): MountedTable {
   assert.equal(created.ok, true, "the cookbook renderers must register next to Basic");
   if (!created.ok) throw new Error("unreachable");
 
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   const runtime = created.value.runtime;
-  const send = (message: A2UIServerMessage): void => {
+  const send = (message: A2UIAgentMessage): void => {
     const result = runtime.process(message);
     assert.equal(result.ok, true, JSON.stringify(result));
   };

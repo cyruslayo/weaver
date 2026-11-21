@@ -54,9 +54,9 @@ test("openUrl resolves HTTP(S), applies policy, and opens a secured new tab", ()
   const restore = installWindow((...args) => { calls.push(args); return null; });
   try {
     const { evaluator } = setup({ baseUrl: "https://example.com/app/page", openUrlPolicy: ({ url }) => url.replace("example.com/help", "approved.example/proxy/x") });
-    const pure = evaluator.evaluate("basic", { call: "openUrl", args: { url: "../help" } }, DataContext.root({}));
+    const pure = evaluator.evaluate("basic", { "@call": "openUrl", args: { url: "../help" } }, DataContext.root({}));
     assert.equal(!pure.ok && pure.error.code, "FUNCTION_EFFECT_NOT_ALLOWED");
-    const result = evaluator.evaluateAction("basic", { call: "openUrl", args: { url: "../help" } }, DataContext.root({}));
+    const result = evaluator.evaluateAction("basic", { "@call": "openUrl", args: { url: "../help" } }, DataContext.root({}));
     assert.equal(result.ok, true);
     assert.deepEqual(calls, [["https://approved.example/proxy/x", "_blank", "noopener,noreferrer"]]);
   } finally { restore(); }
@@ -72,7 +72,7 @@ test("openUrl blocks unsafe schemes, policy denial, and unsafe rewrites before o
     const restore = installWindow(() => { opens++; return null; });
     try {
       const { evaluator } = setup({ baseUrl: "https://example.com/", ...(policy === undefined ? {} : { openUrlPolicy: policy }) });
-      const result = evaluator.evaluateAction("basic", { call: "openUrl", args: { url } }, DataContext.root({}));
+      const result = evaluator.evaluateAction("basic", { "@call": "openUrl", args: { url } }, DataContext.root({}));
       assert.equal(!result.ok && result.error.code, "FUNCTION_EXECUTION_FAILED");
       assert.equal(opens, 0);
     } finally { restore(); }
@@ -84,13 +84,13 @@ test("openUrl allows absolute HTTP and HTTPS and wraps browser exceptions", () =
   let restore = installWindow((...args) => { calls.push(args); return null; });
   try {
     const { evaluator } = setup();
-    for (const url of ["http://example.com/x", "https://example.com/y"]) assert.equal(evaluator.evaluateAction("basic", { call: "openUrl", args: { url } }, DataContext.root({})).ok, true);
+    for (const url of ["http://example.com/x", "https://example.com/y"]) assert.equal(evaluator.evaluateAction("basic", { "@call": "openUrl", args: { url } }, DataContext.root({})).ok, true);
     assert.equal(calls.length, 2);
   } finally { restore(); }
   restore = installWindow(() => { throw new Error("browser failure"); });
   try {
     const { evaluator } = setup();
-    const result = evaluator.evaluateAction("basic", { call: "openUrl", args: { url: "https://example.com" } }, DataContext.root({}));
+    const result = evaluator.evaluateAction("basic", { "@call": "openUrl", args: { url: "https://example.com" } }, DataContext.root({}));
     assert.equal(!result.ok && result.error.code, "FUNCTION_EXECUTION_FAILED");
   } finally { restore(); }
 });

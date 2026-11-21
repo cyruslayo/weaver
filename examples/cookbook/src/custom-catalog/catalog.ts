@@ -1,7 +1,7 @@
 import {
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   defineCatalog,
-  type A2UIV091CatalogSchema,
+  type A2UIV10CatalogSchema,
   type JsonObject,
 } from "@cylayo/weaver-core";
 
@@ -22,7 +22,7 @@ export const COOKBOOK_CATALOG_ID = "https://weaver.dev/examples/cookbook/v1";
 /** The largest number of bars a BarChart may request. The schema enforces it. */
 export const COOKBOOK_MAX_BARS = 50;
 
-const basic = createBasicCatalogV091Registration().schema;
+const basic = createBasicCatalogV10Registration().schema;
 
 function basicComponent(name: string): JsonObject {
   const components = basic.components as Record<string, JsonObject> | undefined;
@@ -182,7 +182,7 @@ export const cookbookCatalogSchema = {
   // Basic's shared $defs refer to Basic's functions, so the functions travel with them.
   functions: basicFunctions ?? {},
   $defs: basicDefs,
-} satisfies A2UIV091CatalogSchema;
+} satisfies A2UIV10CatalogSchema;
 
 /** The typed catalog definition. Pass it to `createWeaverRuntime` or `createBasicWebRuntime({ additionalCatalogs })`. */
 export const cookbookCatalog = defineCatalog(cookbookCatalogSchema);

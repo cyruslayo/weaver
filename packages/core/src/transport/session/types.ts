@@ -1,9 +1,9 @@
 import type { WeaverActionResult, WeaverRuntime } from "../../runtime/index.js";
 import type {
-  A2UIClientActionMessage,
-  A2UIClientCapabilities,
-  A2UIClientDataModel,
-  A2UIValidationFailedClientMessage,
+  A2UIRendererActionMessage,
+  A2UIRendererCapabilities,
+  A2UIRendererDataModel,
+  A2UIValidationFailedRendererMessage,
   A2UIValidationFailureMappingError,
 } from "../../protocol/index.js";
 import type { MessageProcessorResult } from "../../message-processor/index.js";
@@ -23,15 +23,15 @@ export type A2UIRoutedProcessResult =
   | { ok: false; error: A2UIRoutingError };
 
 export type A2UIActionDeliveryResult =
-  | { ok: true; value: { routeId: A2UIRouteId; message: A2UIClientActionMessage; clientDataModel?: A2UIClientDataModel } }
+  | { ok: true; value: { routeId: A2UIRouteId; message: A2UIRendererActionMessage; rendererDataModel?: A2UIRendererDataModel } }
   | { ok: false; error: A2UIRoutingError };
 
 export type A2UIRoutedDelivery =
-  | { routeId: A2UIRouteId; message: A2UIClientActionMessage; clientDataModel?: A2UIClientDataModel }
-  | { routeId: A2UIRouteId; message: A2UIValidationFailedClientMessage };
+  | { routeId: A2UIRouteId; message: A2UIRendererActionMessage; rendererDataModel?: A2UIRendererDataModel }
+  | { routeId: A2UIRouteId; message: A2UIValidationFailedRendererMessage };
 
 export type A2UIValidationErrorDeliveryResult =
-  | { ok: true; value: { routeId: A2UIRouteId; message: A2UIValidationFailedClientMessage } }
+  | { ok: true; value: { routeId: A2UIRouteId; message: A2UIValidationFailedRendererMessage } }
   | { ok: false; error: A2UIRoutingError };
 
 export interface A2UITransportSession {
@@ -44,7 +44,7 @@ export interface A2UITransportSession {
     result: MessageProcessorResult,
     trustedSurfaceId?: string,
   ): A2UIValidationErrorDeliveryResult;
-  getClientCapabilities(): A2UIClientCapabilities;
+  getRendererCapabilities(): A2UIRendererCapabilities;
 }
 
 export interface A2UITransportSessionOptions {

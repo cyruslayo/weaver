@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { A2UIClientActionMessage, JsonObject } from "@cylayo/weaver-core";
+import type { A2UIRendererActionMessage, JsonObject } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import {
   createReferenceAgent,
@@ -28,7 +28,7 @@ function actionMessage(
   name: string,
   context: JsonObject = {},
 ): WebServerEventHandoff {
-  const message: A2UIClientActionMessage = {
+  const message: A2UIRendererActionMessage = {
     version: "v0.9.1",
     action: {
       name,

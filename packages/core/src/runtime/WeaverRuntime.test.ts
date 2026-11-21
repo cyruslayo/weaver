@@ -49,9 +49,9 @@ function catalog(catalogId: string): JsonObject {
     } } },
   };
 }
-const create = (surfaceId = "s", catalogId = "test", sendDataModel = false) => ({ version: "v0.9.1", createSurface: { surfaceId, catalogId, sendDataModel } });
-const components = (values: JsonObject[], surfaceId = "s") => ({ version: "v0.9.1", updateComponents: { surfaceId, components: values } });
-const data = (value: unknown, surfaceId = "s") => ({ version: "v0.9.1", updateDataModel: { surfaceId, value } });
+const create = (surfaceId = "s", catalogId = "test", sendDataModel = false) => ({ version: "1.0", createSurface: { surfaceId, catalogId, sendDataModel } });
+const components = (values: JsonObject[], surfaceId = "s") => ({ version: "1.0", updateComponents: { surfaceId, components: values } });
+const data = (value: unknown, surfaceId = "s") => ({ version: "1.0", updateDataModel: { surfaceId, value } });
 function runtime(options: { capture?: (value: unknown) => unknown; now?: () => Date; observer?: WeaverRuntimeObserver } = {}) {
   return createWeaverRuntime({
     catalogs: [{ catalogId: "test", schema: catalog("test") }],
@@ -110,7 +110,7 @@ test("preserves progressive missing-root state", () => {
 
 test("processMany preserves order, mutation units, and later processing", () => {
   const made = runtime(); assert.ok(made.ok); const rt = made.value;
-  const results = rt.processMany([create(), { version: "v0.9.1", updateComponents: { surfaceId: "s", components: [] } }, data({ name: "later" })]);
+  const results = rt.processMany([create(), { version: "1.0", updateComponents: { surfaceId: "s", components: [] } }, data({ name: "later" })]);
   assert.deepEqual(results.map((entry) => entry.ok), [true, false, true]);
   assert.deepEqual(rt.getSurface("s")?.dataModel, { name: "later" });
 });
@@ -148,7 +148,7 @@ test("writes current input and dispatches an event with latest data and sync met
   synced.value.process(components([{ id: "root", component: "Button", action: { event: { name: "go", context: {} } } }], "sync"));
   synced.value.process(data({ updated: true }, "sync"));
   const event = synced.value.dispatchAction({ surfaceId: "sync", sourceComponentId: "root", scopePath: "/", actionProperty: "action" });
-  assert.deepEqual(event.ok && event.value.kind === "serverEvent" ? event.value.metadata?.a2uiClientDataModel.surfaces.sync : undefined, { updated: true });
+  assert.deepEqual(event.ok && event.value.kind === "serverEvent" ? event.value.metadata?.a2uiRendererDataModel.surfaces.sync : undefined, { updated: true });
 });
 
 test("subscriptions derive future mutations, report deletion, isolate throws, and skip failures", () => {
@@ -161,18 +161,18 @@ test("subscriptions derive future mutations, report deletion, isolate throws, an
   rt.writeInput({ surfaceId: "s", sourceComponentId: "root", scopePath: "/", property: "value", value: "Grace" });
   rt.writeInput({ surfaceId: "s", sourceComponentId: "root", scopePath: "/", property: "value", value: 2 });
   rt.process({ version: "bad" });
-  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
   assert.deepEqual(received, ["resolved", "resolved", "resolved", "SURFACE_NOT_FOUND"]);
 });
 
 test("capabilities are ordered and defensive, resolved state is defensive, and runtimes are isolated", () => {
   const made = createWeaverRuntime({ catalogs: [{ catalogId: "catalog-a", schema: catalog("catalog-a") }, { catalogId: "catalog-b", schema: catalog("catalog-b") }] });
   assert.ok(made.ok);
-  const capabilities = made.value.getClientCapabilities();
-  assert.deepEqual(capabilities, { "v0.9": { supportedCatalogIds: ["catalog-a", "catalog-b"] } });
-  assert.equal("inlineCatalogs" in capabilities["v0.9"], false);
-  capabilities["v0.9"].supportedCatalogIds.push("bad");
-  assert.deepEqual(made.value.getClientCapabilities()["v0.9"].supportedCatalogIds, ["catalog-a", "catalog-b"]);
+  const capabilities = made.value.getRendererCapabilities();
+  assert.deepEqual(capabilities, { "1.0": { supportedCatalogIds: ["catalog-a", "catalog-b"] } });
+  assert.equal("inlineCatalogs" in capabilities["1.0"], false);
+  capabilities["1.0"].supportedCatalogIds.push("bad");
+  assert.deepEqual(made.value.getRendererCapabilities()["1.0"].supportedCatalogIds, ["catalog-a", "catalog-b"]);
 
   const a = runtime(); const b = runtime(); assert.ok(a.ok && b.ok);
   a.value.process(create("only-a"));
@@ -182,11 +182,9 @@ test("capabilities are ordered and defensive, resolved state is defensive, and r
   const again = rt.resolveSurface("s");
   assert.equal(again.ok && again.value.tree.root?.properties.mutated, undefined);
 
-  rt.process({ version: "v0.9.1", createSurface: { surfaceId: "themed", catalogId: "test", theme: { primaryColor: "#112233" } } });
-  const themed = rt.resolveSurface("themed"); assert.ok(themed.ok && themed.value.theme);
-  themed.value.theme.primaryColor = "#ffffff";
-  const themedAgain = rt.resolveSurface("themed");
-  assert.equal(themedAgain.ok && themedAgain.value.theme?.primaryColor, "#112233");
+  // v1.0 has no theme: a createSurface that carries one is rejected, not stored.
+  assert.equal(rt.process({ version: "1.0", createSurface: { surfaceId: "themed", catalogId: "test", theme: { primaryColor: "#112233" } } }).ok, false);
+  assert.equal(rt.getSurface("themed"), undefined);
 });
 
 test("observer receives message, input, and action events in order for success and failure", () => {

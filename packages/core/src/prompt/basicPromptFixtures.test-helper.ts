@@ -1,4 +1,4 @@
-import { A2UI_V091_BASIC_CATALOG_ID, createBasicCatalogV091Registration } from "../basic-catalog/index.js";
+import { A2UI_V10_BASIC_CATALOG_ID, createBasicCatalogV10Registration } from "../basic-catalog/index.js";
 import { createBasicCatalogFunctionImplementations } from "../basic-functions/index.js";
 import type { FunctionRegistration } from "../functions/index.js";
 import { A2UI_V091_BASIC_PROMPT_EXAMPLES } from "./basicExamples.js";
@@ -28,7 +28,7 @@ export type BasicPromptFixtureMode = keyof typeof BASIC_PROMPT_FIXTURE_FILES;
 export function basicPromptFixtureConfigs(
   openUrl: readonly FunctionRegistration[],
 ): Readonly<Record<BasicPromptFixtureMode, A2UIV091PromptConfig>> {
-  const catalogId = A2UI_V091_BASIC_CATALOG_ID;
+  const catalogId = A2UI_V10_BASIC_CATALOG_ID;
   const functions: FunctionRegistration[] = [
     ...createBasicCatalogFunctionImplementations({
       catalogId,
@@ -39,7 +39,7 @@ export function basicPromptFixtureConfigs(
     ...openUrl,
   ];
   const shared: Omit<A2UIV091PromptConfig, "mode"> = {
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
     functions,
     actions: [
       {

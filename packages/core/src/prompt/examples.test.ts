@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { A2UI_V091_BASIC_CATALOG_ID, createBasicCatalogV091Registration } from "../basic-catalog/index.js";
+import { A2UI_V10_BASIC_CATALOG_ID, createBasicCatalogV10Registration } from "../basic-catalog/index.js";
 import type { CatalogRegistration } from "../catalog/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { FunctionRegistration } from "../functions/index.js";
@@ -16,10 +16,10 @@ import {
   type A2UIV091PromptResult,
 } from "./index.js";
 
-const BASIC = A2UI_V091_BASIC_CATALOG_ID;
+const BASIC = A2UI_V10_BASIC_CATALOG_ID;
 
 function basicCatalog(): CatalogRegistration {
-  return createBasicCatalogV091Registration();
+  return createBasicCatalogV10Registration();
 }
 
 function create(surfaceId: string, catalogId = BASIC): JsonObject {

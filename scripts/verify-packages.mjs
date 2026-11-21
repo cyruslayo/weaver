@@ -106,7 +106,7 @@ for (const spec of specs) {
   if (!(await readFile(path.join(packageDir, "README.md"))).equals(await readFile(path.join(root, "packages", spec.dir, "README.md")))) fail(`${spec.file}: package/README.md differs from packages/${spec.dir}/README.md`);
   if (spec.dir === "core") {
     const thirdParty = await readFile(path.join(packageDir, "THIRD_PARTY_LICENSES.txt"), "utf8");
-    if (thirdParty === rootLicense.toString("utf8") || !thirdParty.includes("A2UI v0.9.1 Basic Catalog")) fail(`${spec.file}: third-party provenance material is missing or conflated`);
+    if (thirdParty === rootLicense.toString("utf8") || !thirdParty.includes("A2UI v1.0 Basic Catalog")) fail(`${spec.file}: third-party provenance material is missing or conflated`);
   }
   if (spec.dir !== "core" && manifest.peerDependencies?.["@cylayo/weaver-core"] !== "0.3.x") fail(`${spec.file}: Core peer range is not 0.3.x`);
   for (const value of dependencyValues(manifest)) {

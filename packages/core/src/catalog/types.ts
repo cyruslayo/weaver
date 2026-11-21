@@ -11,9 +11,16 @@ export interface CatalogSnapshot {
   schema: JsonObject;
 }
 
+/**
+ * Structural metadata for a component. `allowedParents` and `allowedChildren`
+ * are present only when the catalog declares them; when absent, every parent
+ * and every child component type is allowed.
+ */
 export interface ComponentStructureDefinition {
   singleChildFields: string[];
   childListFields: string[];
+  allowedParents?: string[];
+  allowedChildren?: string[];
 }
 
 export type DynamicPropertyKind =
@@ -28,8 +35,12 @@ export type CatalogFunctionReturnType =
   | "boolean"
   | "array"
   | "object"
+  | "validationResult"
   | "any"
   | "void";
+
+/** Which roles may invoke a catalog function; the catalog default is rendererOnly. */
+export type CatalogFunctionAllowedCallers = "rendererOnly" | "agentOnly" | "rendererOrAgent";
 
 export type CatalogFunctionArgumentKind =
   | "dynamicValue"
@@ -47,6 +58,8 @@ export interface CatalogFunctionDefinition {
   catalogId: string;
   name: string;
   returnType: CatalogFunctionReturnType;
+  allowedCallers: CatalogFunctionAllowedCallers;
+  requiresUserActivation: boolean;
   arguments: Readonly<Record<string, CatalogFunctionArgumentDefinition>>;
 }
 
@@ -87,7 +100,6 @@ export type CatalogRegistryResult<T> =
   | { ok: false; error: CatalogRegistryError };
 
 export type CatalogComponentValidationResult = CatalogRegistryResult<A2UIComponent>;
-export type CatalogThemeValidationResult = CatalogRegistryResult<JsonObject>;
 export type CatalogComponentStructureResult = CatalogRegistryResult<ComponentStructureDefinition>;
 export type CatalogComponentStructureLocationsResult = CatalogRegistryResult<ComponentStructureLocation[]>;
 export type CatalogDynamicPropertiesResult = CatalogRegistryResult<DynamicPropertyDefinition[]>;

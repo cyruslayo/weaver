@@ -1,7 +1,7 @@
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
+  A2UI_V10_BASIC_CATALOG_ID,
   createBasicCatalogFunctionImplementations,
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   generateA2UIV091Prompt,
   type A2UIComponent,
   type BasicRegexMatcher,
@@ -68,7 +68,7 @@ function isOrderRef(value: string): boolean {
 
 /** Client checks use the Basic opt-in functions. The UI only disables and explains. The agent re-checks. */
 export const formFunctions = createBasicCatalogFunctionImplementations({
-  catalogId: A2UI_V091_BASIC_CATALOG_ID,
+  catalogId: A2UI_V10_BASIC_CATALOG_ID,
   regexMatcher: formRegexMatcher,
 });
 
@@ -276,7 +276,7 @@ export const formScreen: CookbookScreenDefinition<FormState> = {
 /** The generated prompt for this screen. The test pins prompt.txt to this output. */
 export function formPrompt(): string {
   const result = generateA2UIV091Prompt({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
     functions: formFunctions,
     actions: [
       {

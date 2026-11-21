@@ -68,10 +68,10 @@ test("builds exact v0.9.1 event identity, timestamp, scoped context, and optiona
   const result = dispatcher.dispatch({ surface: surface(model, true), instance: instance(event({ item: { path: "id" }, company: { path: "/company/id" }, literals: ["path", { path: "not-resolved" }] }), undefined, "/items/1", 1), actionProperty: "primaryAction" });
   assert.equal(result.ok, true);
   if (!result.ok || result.value.kind !== "serverEvent") return;
-  assert.deepEqual(result.value.message, { version: "v0.9.1", action: { name: "submit", surfaceId: "surface-1", sourceComponentId: "item-button", timestamp: "2025-01-02T03:04:05.000Z", context: { item: "two", company: "co", literals: ["path", { path: "not-resolved" }] } } });
-  assert.deepEqual(result.value.metadata, { a2uiClientDataModel: { version: "v0.9.1", surfaces: { "surface-1": model } } });
+  assert.deepEqual(result.value.message, { version: "1.0", action: { name: "submit", surfaceId: "surface-1", sourceComponentId: "item-button", timestamp: "2025-01-02T03:04:05.000Z", context: { item: "two", company: "co", literals: ["path", { path: "not-resolved" }] } } });
+  assert.deepEqual(result.value.metadata, { a2uiRendererDataModel: { version: "1.0", surfaces: { "surface-1": model } } });
   (result.value.message.action.context.literals as JsonValue[]).push("mutated");
-  (result.value.metadata!.a2uiClientDataModel.surfaces["surface-1"]!.items as JsonValue[]).push(null);
+  (result.value.metadata!.a2uiRendererDataModel.surfaces["surface-1"]!.items as JsonValue[]).push(null);
   assert.equal(model.items.length, 2);
 });
 

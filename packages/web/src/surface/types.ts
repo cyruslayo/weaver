@@ -1,9 +1,9 @@
-import type { ActionTransportMetadata, A2UIClientActionMessage, JsonObject, WeaverRuntime } from "@cylayo/weaver-core";
+import type { ActionTransportMetadata, A2UIRendererActionMessage, JsonObject, WeaverRuntime } from "@cylayo/weaver-core";
 import type { RendererRegistry } from "../renderers/index.js";
 import type { WebRenderError } from "./errors.js";
 
 export interface WebServerEventHandoff {
-  message: A2UIClientActionMessage;
+  message: A2UIRendererActionMessage;
   metadata?: ActionTransportMetadata;
 }
 

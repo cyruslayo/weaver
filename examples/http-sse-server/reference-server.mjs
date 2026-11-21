@@ -7,7 +7,7 @@ const exact = (value, keys) => Object.keys(value).every(key => keys.includes(key
 const mediaTypes = value => (value ?? "").split(",").map(part => part.trim().split(";", 1)[0].trim().toLowerCase()).filter(Boolean);
 const fail = (response, status) => response.writeHead(status).end();
 async function readJson(request) { const chunks = []; let size = 0; try { for await (const chunk of request) { size += chunk.length; if (size > BODY_LIMIT) { request.resume(); return { status: 413 }; } chunks.push(chunk); } return { value: JSON.parse(Buffer.concat(chunks).toString("utf8")) }; } catch { return { status: 400 }; } }
-const metadata = (value, send) => object(value) && exact(value, send ? ["a2uiClientCapabilities", "a2uiClientDataModel"] : ["a2uiClientCapabilities"]) && object(value.a2uiClientCapabilities);
+const metadata = (value, send) => object(value) && exact(value, send ? ["a2uiRendererCapabilities", "a2uiRendererDataModel"] : ["a2uiRendererCapabilities"]) && object(value.a2uiRendererCapabilities);
 const frame = entry => `event: a2ui\nid: ${entry.id}\ndata: ${entry.payload}\n\n`;
 const write = async (response, value) => { if (!response.write(value)) await once(response, "drain"); };
 
@@ -27,13 +27,13 @@ export async function startReferenceA2UIHttpSseServer(options = {}) {
       if (!exact(body, ["metadata"]) || !metadata(body.metadata, false)) return fail(response, 400);
       const cursor = request.headers["last-event-id"]; if (Array.isArray(cursor) || (cursor !== undefined && !/^(0|[1-9]\d*)$/.test(cursor))) return fail(response, 400);
       let replay = []; if (cursor !== undefined) { const number = Number(cursor), latest = nextId - 1, oldest = history.length ? Number(history[0].id) : nextId; if (!Number.isSafeInteger(number) || number > latest || number < oldest - 1) return fail(response, 410); replay = history.filter(entry => Number(entry.id) > number); }
-      try { await options.onStreamOpen?.(structuredClone(body.metadata.a2uiClientCapabilities), cursor); } catch { return fail(response, 500); }
+      try { await options.onStreamOpen?.(structuredClone(body.metadata.a2uiRendererCapabilities), cursor); } catch { return fail(response, 500); }
       active = response; connected = true; response.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache" }); response.flushHeaders(); response.write(": connected\n\n");
       writeTail = writeTail.then(async () => { for (const entry of replay) await write(response, frame(entry)); }); writeTail.catch(() => {});
       const release = () => { if (active === response) active = undefined; }; response.once("close", release); response.once("finish", release); return;
     }
     if (!exact(body, ["message", "metadata"]) || !object(body.message) || !metadata(body.metadata, true)) return fail(response, 400);
-    const received = { message: structuredClone(body.message), capabilities: structuredClone(body.metadata.a2uiClientCapabilities) }; if ("a2uiClientDataModel" in body.metadata) received.clientDataModel = structuredClone(body.metadata.a2uiClientDataModel);
+    const received = { message: structuredClone(body.message), capabilities: structuredClone(body.metadata.a2uiRendererCapabilities) }; if ("a2uiRendererDataModel" in body.metadata) received.rendererDataModel = structuredClone(body.metadata.a2uiRendererDataModel);
     try { await options.onClientMessage?.(received); } catch { return fail(response, 500); } response.writeHead(204).end();
   });
   const host = options.host ?? "127.0.0.1", port = options.port ?? 0; server.listen(port, host); await once(server, "listening"); const address = server.address(); if (!address || typeof address === "string") throw new Error("TCP bind failed"); const url = `http://${host}:${address.port}`;

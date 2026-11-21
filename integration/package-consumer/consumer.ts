@@ -1,11 +1,11 @@
-import { createA2UIV091Producer, createA2UIV091StreamIngestion, WEAVER_CORE_VERSION, createWeaverRuntime, type A2UIV091StreamIngestionEvent, type WeaverRuntime, type WeaverRuntimeSafetyConfig, type ResolutionBudgetExceededError } from "@cylayo/weaver-core";
+import { createA2UIV10Producer, createA2UIV091StreamIngestion, WEAVER_CORE_VERSION, createWeaverRuntime, type A2UIV091StreamIngestionEvent, type WeaverRuntime, type WeaverRuntimeSafetyConfig, type ResolutionBudgetExceededError } from "@cylayo/weaver-core";
 import { RendererRegistry, createBasicWebRuntime, createBrowserA2UIHttpSseTransport, createBasicCatalogRendererRegistrations, type BasicWebRuntime, type BasicWebRuntimeConfig, type DateTimeInputLocalValueRequest, type DateTimeInputLocalValueResult } from "@cylayo/weaver-web";
 import { createA2UIMcpClientBridge, registerMcpApplicationCapabilities } from "@cylayo/weaver-mcp";
-import { A2UI_V091_BASIC_CATALOG_ID, A2UI_V091_BASIC_PROMPT_EXAMPLES, WEAVER_TRACE_FORMAT, WEAVER_TRACE_REPLAY_INVALID_INPUT, createBasicCatalogV091Registration, createWeaverTraceRecorder, defineCatalog, describeWeaverError, generateA2UIV091Prompt, parseWeaverTrace, replayWeaverTrace, type A2UIV091PromptExampleInvalidError, type A2UIV091PromptGenerationError, type A2UIV091PromptGenerationErrorCode, type A2UIV091CatalogSchema, type A2UIV091PromptResult, type CatalogDefinition, type DescribableWeaverError, type WeaverErrorDescription, type WeaverRuntimeEvent, type WeaverRuntimeObserver, type WeaverTrace, type WeaverTraceEntry, type WeaverTraceParseResult, type WeaverTraceRecorder, type WeaverTraceRecorderOptions, type WeaverTraceReplayOptions, type WeaverTraceReplayResult, type WeaverTraceReplayStep } from "@cylayo/weaver-core";
+import { A2UI_V10_BASIC_CATALOG_ID, A2UI_V091_BASIC_PROMPT_EXAMPLES, WEAVER_TRACE_FORMAT, WEAVER_TRACE_REPLAY_INVALID_INPUT, createBasicCatalogV10Registration, createWeaverTraceRecorder, defineCatalog, describeWeaverError, generateA2UIV091Prompt, parseWeaverTrace, replayWeaverTrace, type A2UIV091PromptExampleInvalidError, type A2UIV091PromptGenerationError, type A2UIV091PromptGenerationErrorCode, type A2UIV10CatalogSchema, type A2UIV091PromptResult, type CatalogDefinition, type DescribableWeaverError, type WeaverErrorDescription, type WeaverRuntimeEvent, type WeaverRuntimeObserver, type WeaverTrace, type WeaverTraceEntry, type WeaverTraceParseResult, type WeaverTraceRecorder, type WeaverTraceRecorderOptions, type WeaverTraceReplayOptions, type WeaverTraceReplayResult, type WeaverTraceReplayStep } from "@cylayo/weaver-core";
 import { describeWebRenderError, type DescribableWebError, type WebRenderError } from "@cylayo/weaver-web";
 
 const version: string = WEAVER_CORE_VERSION;
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 const producerMessages = [
   producer.createSurface({ surfaceId: "consumer", catalogId: "catalog" }),
   producer.updateComponents({ surfaceId: "consumer", components: [{ id: "root", component: "Text", text: "consumer" }] }),
@@ -40,7 +40,7 @@ const promptCodeType: A2UIV091PromptGenerationErrorCode = "CATALOG_INVALID";
 const promptErrorType = null as A2UIV091PromptGenerationError | null;
 const exampleInvalidType = null as A2UIV091PromptExampleInvalidError | null;
 const promptResultType = null as A2UIV091PromptResult | null;
-const catalogSchemaType = null as A2UIV091CatalogSchema | null;
+const catalogSchemaType = null as A2UIV10CatalogSchema | null;
 const catalogDefinitionType = null as CatalogDefinition | null;
 const observerType = null as WeaverRuntimeObserver | null;
 const runtimeEventType = null as WeaverRuntimeEvent | null;
@@ -60,14 +60,14 @@ const traceFormat: "weaver-trace" = WEAVER_TRACE_FORMAT;
 const replayInvalidInputCode: typeof WEAVER_TRACE_REPLAY_INVALID_INPUT = WEAVER_TRACE_REPLAY_INVALID_INPUT;
 const promptGenerator: typeof generateA2UIV091Prompt = generateA2UIV091Prompt;
 const basicPromptExamples: typeof A2UI_V091_BASIC_PROMPT_EXAMPLES = A2UI_V091_BASIC_PROMPT_EXAMPLES;
-const basicCatalogId: typeof A2UI_V091_BASIC_CATALOG_ID = A2UI_V091_BASIC_CATALOG_ID;
+const basicCatalogId: typeof A2UI_V10_BASIC_CATALOG_ID = A2UI_V10_BASIC_CATALOG_ID;
 const defineCatalogFactory: typeof defineCatalog = defineCatalog;
 const traceRecorderFactory: typeof createWeaverTraceRecorder = createWeaverTraceRecorder;
 const traceParser: typeof parseWeaverTrace = parseWeaverTrace;
 const traceReplayer: typeof replayWeaverTrace = replayWeaverTrace;
 const coreErrorDescriber: typeof describeWeaverError = describeWeaverError;
 const webErrorDescriber: typeof describeWebRenderError = describeWebRenderError;
-const promptOutcome: A2UIV091PromptResult = promptGenerator({ catalogs: [createBasicCatalogV091Registration()], examples: basicPromptExamples, mode: "edit" });
+const promptOutcome: A2UIV091PromptResult = promptGenerator({ catalogs: [createBasicCatalogV10Registration()], examples: basicPromptExamples, mode: "edit" });
 const parsedTrace: WeaverTraceParseResult = traceParser({});
 const recorder: WeaverTraceRecorder = traceRecorderFactory({ maxEntries: 10 });
 const describedCoreError: WeaverErrorDescription = coreErrorDescriber({ code: "INVALID_JSON", frame: 1 });

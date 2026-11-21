@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createBasicCatalogV091Registration,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createBasicCatalogV10Registration,
 } from "../basic-catalog/index.js";
 import { CatalogRegistry } from "../catalog/index.js";
 import { ComponentTreeResolver } from "../component-tree/index.js";
@@ -108,7 +108,7 @@ function readyRuntime(safety?: WeaverRuntimeSafetyConfig) {
   const runtime = made.value;
   assert.equal(
     runtime.process({
-      version: "v0.9.1",
+      version: "1.0",
       createSurface: { surfaceId: "s", catalogId: "budget" },
     }).ok,
     true,
@@ -121,7 +121,7 @@ function update(
   components: JsonObject[],
 ) {
   const result = runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "s", components },
   });
   assert.equal(
@@ -133,7 +133,7 @@ function update(
 
 function data(runtime: ReturnType<typeof readyRuntime>, value: unknown) {
   const result = runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateDataModel: { surfaceId: "s", value },
   });
   assert.equal(
@@ -181,23 +181,23 @@ function nestedDepth(value: unknown): number {
 
 test("finite defaults resolve an ordinary canonical Basic Catalog surface", () => {
   const made = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
   });
   assert.equal(made.ok, true);
   if (!made.ok) return;
   assert.equal(
     made.value.process({
-      version: "v0.9.1",
+      version: "1.0",
       createSurface: {
         surfaceId: "basic",
-        catalogId: A2UI_V091_BASIC_CATALOG_ID,
+        catalogId: A2UI_V10_BASIC_CATALOG_ID,
       },
     }).ok,
     true,
   );
   assert.equal(
     made.value.process({
-      version: "v0.9.1",
+      version: "1.0",
       updateComponents: {
         surfaceId: "basic",
         components: [{ id: "root", component: "Text", text: "ordinary" }],
@@ -588,17 +588,17 @@ test("keeps deeply nested non-structural component and data JSON stack-safe", ()
   });
   assert.equal(themed.ok, true);
   if (!themed.ok) return;
-  const theme = deeplyNestedObject(5000);
+  const dataModel = deeplyNestedObject(5000);
   assert.equal(
     themed.value.process({
-      version: "v0.9.1",
-      createSurface: { surfaceId: "themed", catalogId: "budget", theme },
+      version: "1.0",
+      createSurface: { surfaceId: "themed", catalogId: "budget", dataModel },
     }).ok,
     true,
   );
   assert.equal(
     themed.value.process({
-      version: "v0.9.1",
+      version: "1.0",
       updateComponents: {
         surfaceId: "themed",
         components: [{ id: "root", component: "Payload", payload: {} }],
@@ -608,6 +608,5 @@ test("keeps deeply nested non-structural component and data JSON stack-safe", ()
   );
   const themedResolution = themed.value.resolveSurface("themed");
   assert.equal(themedResolution.ok, true);
-  if (themedResolution.ok)
-    assert.equal(nestedDepth(themedResolution.value.theme), 5000);
+  assert.equal(nestedDepth(themed.value.getSurface("themed")?.dataModel), 5000);
 });

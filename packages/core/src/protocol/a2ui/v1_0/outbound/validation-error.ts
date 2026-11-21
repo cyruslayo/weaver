@@ -1,26 +1,57 @@
 import type { CatalogRegistryError } from "../../../../catalog/index.js";
 import type {
-  A2UIValidationFailedClientMessage,
+  A2UIRendererErrorMessage,
+  A2UIValidationErrorCode,
+  A2UIValidationFailedRendererMessage,
   A2UIValidationFailureMappingInput,
   A2UIValidationFailureMappingResult,
 } from "./types.js";
 
-export function buildA2UIValidationFailedClientMessage(input: {
+const VALIDATION_ERROR_CODES: readonly string[] = ["VALIDATION_FAILED", "UNALLOWED_PARENT", "UNALLOWED_CHILD"];
+
+export function buildA2UIValidationFailedRendererMessage(input: {
   surfaceId: string;
   path: string;
   message: string;
-  version?: "v0.9" | "v0.9.1";
-}): A2UIValidationFailedClientMessage {
+  code?: A2UIValidationErrorCode;
+  version?: "1.0";
+}): A2UIValidationFailedRendererMessage {
   if (input.surfaceId.length === 0) throw new TypeError("surfaceId must not be empty");
   return {
-    version: input.version ?? "v0.9.1",
+    version: input.version ?? "1.0",
     error: {
-      code: "VALIDATION_FAILED",
+      code: input.code ?? "VALIDATION_FAILED",
       surfaceId: input.surfaceId,
       path: input.path,
       message: input.message,
     },
   };
+}
+
+/**
+ * Builds a generic renderer-to-agent error. The code must not be a validation
+ * code, and exactly one of surfaceId or functionCallId must be provided.
+ */
+export function buildA2UIGenericRendererErrorMessage(input: {
+  code: string;
+  message: string;
+  surfaceId?: string;
+  functionCallId?: string;
+  version?: "1.0";
+}): A2UIRendererErrorMessage {
+  if (input.code.length === 0) throw new TypeError("code must not be empty");
+  if (VALIDATION_ERROR_CODES.includes(input.code)) {
+    throw new TypeError(`code ${input.code} is reserved for validation errors`);
+  }
+  const hasSurface = input.surfaceId !== undefined;
+  const hasCall = input.functionCallId !== undefined;
+  if (hasSurface === hasCall) {
+    throw new TypeError("exactly one of surfaceId or functionCallId is required");
+  }
+  const error = hasSurface
+    ? { code: input.code, message: input.message, surfaceId: input.surfaceId as string }
+    : { code: input.code, message: input.message, functionCallId: input.functionCallId as string };
+  return { version: input.version ?? "1.0", error } as A2UIRendererErrorMessage;
 }
 
 /** Maps only inbound schema/catalog validation failures. Root validation uses `/`. */
@@ -45,7 +76,7 @@ export function mapA2UIValidationFailure(
 
   return {
     ok: true,
-    value: buildA2UIValidationFailedClientMessage({
+    value: buildA2UIValidationFailedRendererMessage({
       surfaceId,
       path: issue.path,
       message: issue.message,
@@ -58,13 +89,6 @@ function mapCatalogFailure(
   error: CatalogRegistryError,
   input: unknown,
 ): { path: string; message: string } | undefined {
-  if (error.code === "THEME_VALIDATION_FAILED") {
-    const issue = error.issues?.[0];
-    return {
-      path: prefixPath("/createSurface/theme", issue?.path),
-      message: issue?.message ?? "Theme does not satisfy the catalog schema",
-    };
-  }
   if (error.code !== "COMPONENT_VALIDATION_FAILED" && error.code !== "COMPONENT_NOT_ALLOWED") return undefined;
 
   const componentIndex = findComponentIndex(input, error.componentId);

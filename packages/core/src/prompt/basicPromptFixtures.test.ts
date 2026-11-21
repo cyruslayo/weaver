@@ -4,7 +4,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { A2UI_V091_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
+import { A2UI_V10_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
 import type { FunctionRegistration } from "../functions/index.js";
 import {
   BASIC_PROMPT_FIXTURE_FILES,
@@ -18,7 +18,7 @@ const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 /** Stand-in for the web openUrl registration. Core cannot import @cylayo/weaver-web. */
 const openUrlStandIn: FunctionRegistration = {
-  catalogId: A2UI_V091_BASIC_CATALOG_ID,
+  catalogId: A2UI_V10_BASIC_CATALOG_ID,
   name: "openUrl",
   effect: "action",
   implementation: () => undefined,

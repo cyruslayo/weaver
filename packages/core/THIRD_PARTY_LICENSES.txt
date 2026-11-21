@@ -1,11 +1,11 @@
 SECTION 1 — Weaver explanatory/provenance notice (not part of the upstream license)
 
-A2UI v0.9.1 Basic Catalog (a2ui-project/a2ui)
+A2UI v1.0 Basic Catalog (a2ui-project/a2ui)
 
-Source revision: commit ec97cb0d7499932e67003ffe5b709a3db7e7033a
+Source revision: commit 5ff1b05f02d39f969b52a942e78e864ef3ac01fa
 Source files:
-- specification/v0_9_1/json/common_types.json
-- specification/v0_9_1/catalogs/basic/catalog.json
+- specification/v1_0/json/common_types.json
+- catalogs/basic/v1/catalog.json
 
 This file applies only to the A2UI-derived catalog data redistributed by
 @cylayo/weaver-core. Weaver's generated representation of that data is modified and

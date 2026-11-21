@@ -1,17 +1,17 @@
 import {
   createA2UIV091StreamIngestion,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type WeaverRuntime,
 } from "@cylayo/weaver-core";
 
 export interface AgentStream {
-  send(messages: readonly A2UIServerMessage[]): void;
+  send(messages: readonly A2UIAgentMessage[]): void;
   finish(): void;
   reset(): void;
 }
 
 /** Serializes one producer message as one JSONL frame. */
-export function encodeA2UIMessage(message: A2UIServerMessage): string {
+export function encodeA2UIMessage(message: A2UIAgentMessage): string {
   return `${JSON.stringify(message)}\n`;
 }
 

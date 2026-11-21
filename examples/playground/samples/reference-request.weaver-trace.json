@@ -265,7 +265,7 @@
             }
           },
           "metadata": {
-            "a2uiClientDataModel": {
+            "a2uiRendererDataModel": {
               "version": "v0.9.1",
               "surfaces": {
                 "reference-request": {

@@ -1,9 +1,9 @@
 import {
-  createA2UIV091Producer,
+  createA2UIV10Producer,
   createA2UIV091StreamIngestion,
   createWeaverTraceRecorder,
   type A2UIComponent,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type WeaverTrace,
   type WeaverActionResult,
   type WeaverInputResult,
@@ -79,13 +79,13 @@ export function createInspectorSampleTrace(): WeaverTrace {
   if (!created.ok) throw new Error(`Sample runtime configuration failed: ${created.error.code}`);
   const { runtime, catalogId } = created.value;
   const ingestion = createA2UIV091StreamIngestion({ runtime });
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
 
   // Frames pass through the same ingestion path as a real stream.
   const pushFrame = (frame: string): void => {
     recorder.recordIngestion(ingestion.push(frame), frame);
   };
-  const send = (messages: readonly A2UIServerMessage[]): void => {
+  const send = (messages: readonly A2UIAgentMessage[]): void => {
     for (const message of messages) pushFrame(`${JSON.stringify(message)}\n`);
   };
 

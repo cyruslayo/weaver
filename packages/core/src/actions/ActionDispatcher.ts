@@ -5,7 +5,7 @@ import type { ResolvedComponentInstance } from "../component-instances/index.js"
 import { DataContext } from "../data-context/index.js";
 import { FunctionEvaluator, isFunctionCall } from "../functions/index.js";
 import type {
-  A2UIClientActionMessage,
+  A2UIRendererActionMessage,
   JsonObject,
   JsonValue,
 } from "../protocol/index.js";
@@ -230,8 +230,8 @@ export class ActionDispatcher {
         },
       };
     }
-    const message: A2UIClientActionMessage = {
-      version: "v0.9.1",
+    const message: A2UIRendererActionMessage = {
+      version: "1.0",
       action: {
         name: event.name,
         surfaceId: surface.surfaceId,
@@ -243,8 +243,8 @@ export class ActionDispatcher {
     let transportMetadata: ActionTransportMetadata | undefined;
     if (surface.sendDataModel) {
       transportMetadata = {
-        a2uiClientDataModel: {
-          version: "v0.9.1",
+        a2uiRendererDataModel: {
+          version: "1.0",
           surfaces: {
             [surface.surfaceId]: cloneJson(surface.dataModel as JsonObject),
           },

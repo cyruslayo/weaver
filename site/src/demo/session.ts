@@ -7,7 +7,7 @@
 import {
   createA2UIV091StreamIngestion,
   describeWeaverError,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type JsonValue,
   type WeaverRuntime,
   type WeaverRuntimeEvent,
@@ -100,7 +100,7 @@ export function createScenarioSession<S, V extends string>(
   }
 
   /** Feeds the host's messages through the ingestion as JSONL, one frame per message. */
-  function send(messages: readonly A2UIServerMessage[]): void {
+  function send(messages: readonly A2UIAgentMessage[]): void {
     for (const message of messages) {
       const line = JSON.stringify(message);
       sentLines.push(line);
@@ -117,9 +117,9 @@ export function createScenarioSession<S, V extends string>(
    * The messages that bring the surface in line with the app state. The data comes first, so a
    * view switch never renders stale numbers. Components are sent only when the view changes.
    */
-  function replyFor(): A2UIServerMessage[] {
+  function replyFor(): A2UIAgentMessage[] {
     const view = definition.view(state);
-    const messages: A2UIServerMessage[] = [
+    const messages: A2UIAgentMessage[] = [
       producer.updateDataModel({ surfaceId, value: definition.data(state) }),
     ];
     if (view !== shownView) {

@@ -123,6 +123,8 @@ function validReturnValue(
       return Array.isArray(value);
     case "object":
       return isPlainObject(value);
+    case "validationResult":
+      return isPlainObject(value) && typeof value.valid === "boolean";
     case "any":
       return true;
   }

@@ -1,24 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createA2UIV091Producer,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createA2UIV10Producer,
   describeWeaverError,
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
 } from "../index.js";
 import { createA2UIV091StreamIngestion, type A2UIV091StreamIngestionEvent } from "./index.js";
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 
 function basicRuntime() {
-  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV10Registration()] });
   assert.ok(created.ok, created.ok ? undefined : JSON.stringify(created.error));
   return created.value;
 }
 
-function frame(message: A2UIServerMessage): string {
+function frame(message: A2UIAgentMessage): string {
   return `${JSON.stringify(message)}\n`;
 }
 
@@ -34,9 +34,9 @@ function failure(event: A2UIV091StreamIngestionEvent, code: string) {
   return event;
 }
 
-function lifecycleMessages(surfaceId = "main"): A2UIServerMessage[] {
+function lifecycleMessages(surfaceId = "main"): A2UIAgentMessage[] {
   return [
-    producer.createSurface({ surfaceId, catalogId: A2UI_V091_BASIC_CATALOG_ID }),
+    producer.createSurface({ surfaceId, catalogId: A2UI_V10_BASIC_CATALOG_ID }),
     producer.updateComponents({
       surfaceId,
       components: [{ id: "root", component: "Text", text: "Hello" }],
@@ -99,7 +99,7 @@ test("supports CRLF framing and multiple inconvenient boundaries", () => {
 test("reports malformed JSON and recovers for a later valid frame", () => {
   const runtime = basicRuntime();
   const ingestion = createA2UIV091StreamIngestion({ runtime });
-  const events = ingestion.push(`{"version":"v0.9.1",}\n${frame(lifecycleMessages("recover")[0]!)}`);
+  const events = ingestion.push(`{"version":"1.0",}\n${frame(lifecycleMessages("recover")[0]!)}`);
   assert.equal(failure(events[0]!, "INVALID_JSON").frame, 1);
   assert.equal(success(events[1]!).operation, "surfaceCreated");
   assert.ok(runtime.getSurface("recover"));
@@ -117,7 +117,7 @@ test("rejects Markdown fences and trailing commas without repair", () => {
 
   const trailingRuntime = basicRuntime();
   const trailing = createA2UIV091StreamIngestion({ runtime: trailingRuntime });
-  const trailingEvents = trailing.push('{"version":"v0.9.1","createSurface":{},}\n');
+  const trailingEvents = trailing.push('{"version":"1.0","createSurface":{},}\n');
   failure(trailingEvents[0]!, "INVALID_JSON");
   assert.equal(trailingRuntime.getSurface("fenced"), undefined);
 });
@@ -137,17 +137,17 @@ test("uses the configured decoder frame limit and recovers after an oversized fr
 test("distinguishes protocol, catalog, and runtime lifecycle failures", () => {
   const runtime = basicRuntime();
   const ingestion = createA2UIV091StreamIngestion({ runtime });
-  const protocol = ingestion.push('{"version":"v0.9.1","unknown":{}}\n')[0]!;
+  const protocol = ingestion.push('{"version":"1.0","unknown":{}}\n')[0]!;
   failure(protocol, "PROTOCOL_VALIDATION_FAILED");
 
   const catalog = ingestion.push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     createSurface: { surfaceId: "untrusted-catalog", catalogId: "missing" },
   }))[0]!;
   failure(catalog, "CATALOG_REGISTRY_ERROR");
 
   const lifecycle = ingestion.push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "missing-surface", components: [{ id: "root", component: "Text", text: "x" }] },
   }))[0]!;
   failure(lifecycle, "SURFACE_STORE_ERROR");
@@ -159,7 +159,7 @@ test("rejects invalid Basic components without mutating the active surface", () 
   assert.equal(success(ingestion.push(frame(lifecycleMessages("catalog")[0]!))[0]!).operation, "surfaceCreated");
   const before = runtime.getSurface("catalog");
   const invalid = ingestion.push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "catalog", components: [{ id: "bad", component: "Text", text: 42 as never }] },
   }))[0]!;
   failure(invalid, "CATALOG_REGISTRY_ERROR");
@@ -176,7 +176,7 @@ test("finish processes a valid unterminated frame and reports an invalid final f
 
   const invalidRuntime = basicRuntime();
   const invalid = createA2UIV091StreamIngestion({ runtime: invalidRuntime });
-  invalid.push('{"version":"v0.9.1",');
+  invalid.push('{"version":"1.0",');
   const invalidEvent = invalid.finish()[0]!;
   failure(invalidEvent, "INVALID_JSON");
   assert.equal(invalidRuntime.getSurface("final"), undefined);
@@ -185,7 +185,7 @@ test("finish processes a valid unterminated frame and reports an invalid final f
 test("reset clears decoder state without changing runtime state", () => {
   const runtime = basicRuntime();
   const ingestion = createA2UIV091StreamIngestion({ runtime });
-  ingestion.push('{"version":"v0.9.1","createSurface":');
+  ingestion.push('{"version":"1.0","createSurface":');
   ingestion.reset();
   assert.deepEqual(ingestion.finish(), []);
   assert.equal(runtime.getSurface("reset"), undefined);
@@ -202,7 +202,7 @@ test("independent ingestion instances do not share framing state", () => {
   const secondRuntime = basicRuntime();
   const first = createA2UIV091StreamIngestion({ runtime: firstRuntime });
   const second = createA2UIV091StreamIngestion({ runtime: secondRuntime });
-  first.push('{"version":"v0.9.1","createSurface":');
+  first.push('{"version":"1.0","createSurface":');
   const secondEvent = second.push(frame(lifecycleMessages("second")[0]!))[0]!;
   assert.equal(secondEvent.frame, 1);
   assert.equal(success(secondEvent).operation, "surfaceCreated");
@@ -227,7 +227,7 @@ test("snapshots the supplied runtime reference at creation", () => {
 test("malformed and protocol-invalid frames never mutate runtime state", () => {
   const runtime = basicRuntime();
   const ingestion = createA2UIV091StreamIngestion({ runtime });
-  const events = ingestion.push('{"version":"v0.9.1",}\n{"version":"v0.9.1","bad":true}\n');
+  const events = ingestion.push('{"version":"1.0",}\n{"version":"1.0","bad":true}\n');
   assert.deepEqual(events.map((event) => event.ok ? event.value.operation : event.error.code), [
     "INVALID_JSON",
     "PROTOCOL_VALIDATION_FAILED",
@@ -247,7 +247,7 @@ test("malformed and catalog-invalid frames keep the last good surface, describe 
   assert.deepEqual(before.dataModel, { name: "Ada" });
 
   // Frame 4: malformed JSON. The surface must not change.
-  const malformed = ingestion.push('{"version":"v0.9.1",}\n')[0]!;
+  const malformed = ingestion.push('{"version":"1.0",}\n')[0]!;
   assert.equal(malformed.frame, 4);
   assert.equal(malformed.ok, false);
   if (malformed.ok) throw new Error("expected decode failure");
@@ -260,7 +260,7 @@ test("malformed and catalog-invalid frames keep the last good surface, describe 
 
   // Frame 5: well-formed JSON that fails the Basic catalog. The component is named "bad".
   const invalid = ingestion.push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: { surfaceId: "lkg", components: [{ id: "bad", component: "Text", text: 42 as never }] },
   }))[0]!;
   assert.equal(invalid.frame, 5);
@@ -275,7 +275,7 @@ test("malformed and catalog-invalid frames keep the last good surface, describe 
 
   // Frame 6: ingestion has continued past both bad frames and applies a valid update.
   const recovered = ingestion.push(frame({
-    version: "v0.9.1",
+    version: "1.0",
     updateDataModel: { surfaceId: "lkg", path: "/name", value: "Grace" },
   }))[0]!;
   assert.equal(recovered.frame, 6);

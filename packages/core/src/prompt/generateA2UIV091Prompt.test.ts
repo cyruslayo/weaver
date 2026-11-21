@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { createBasicCatalogV091Registration } from "../basic-catalog/index.js";
+import { createBasicCatalogV10Registration } from "../basic-catalog/index.js";
 import type { CatalogRegistration } from "../catalog/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { FunctionRegistration } from "../functions/index.js";
@@ -127,7 +127,7 @@ function labelCatalog(options: LabelOptions = {}): CatalogRegistration {
 }
 
 function basicCatalog(): CatalogRegistration {
-  return createBasicCatalogV091Registration();
+  return createBasicCatalogV10Registration();
 }
 
 function fn(

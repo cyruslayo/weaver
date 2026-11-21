@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createA2UIV091Producer,
-  createBasicCatalogV091Registration,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createA2UIV10Producer,
+  createBasicCatalogV10Registration,
   createA2UIV091StreamIngestion,
   createWeaverRuntime,
   type A2UIV091StreamIngestionEvent,
@@ -14,7 +14,7 @@ import { createWeaverTraceRecorder } from "./createWeaverTraceRecorder.js";
 import { parseWeaverTrace } from "./parseWeaverTrace.js";
 import type { WeaverTraceRecorder } from "./types.js";
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 const frame = (message: unknown): string => `${JSON.stringify(message)}\n`;
 
 function steppingClock(): () => Date {
@@ -24,7 +24,7 @@ function steppingClock(): () => Date {
 
 function basicRuntime(observer?: (event: WeaverRuntimeEvent) => void): WeaverRuntime {
   const created = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
     observer,
   });
   assert.ok(created.ok, created.ok ? undefined : JSON.stringify(created.error));
@@ -47,7 +47,7 @@ function mixedSession(options: { now?: () => Date; maxEntries?: number } = {}) {
   };
 
   // 1. A valid frame: createSurface.
-  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID })));
+  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID })));
   // 2. One malformed JSONL frame. It never reaches the runtime.
   push('{"version":"v0.9.1",}\n');
   // 3. One catalog-invalid message: Text.text must be a string.
@@ -210,7 +210,7 @@ test("getTrace is a JSON round trip that parseWeaverTrace accepts", () => {
 test("getTrace returns a defensive copy, and later host mutations do not change recorded entries", () => {
   const recorder = createWeaverTraceRecorder();
   const runtime = basicRuntime(recorder.observer);
-  const value = producer.createSurface({ surfaceId: "copy", catalogId: A2UI_V091_BASIC_CATALOG_ID });
+  const value = producer.createSurface({ surfaceId: "copy", catalogId: A2UI_V10_BASIC_CATALOG_ID });
   runtime.process(value);
   (value as unknown as { createSurface: { surfaceId: string } }).createSurface.surfaceId = "mutated";
 

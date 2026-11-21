@@ -11,13 +11,13 @@ import { before, test } from "node:test";
 
 const CHILD = `
 const core = await import(process.argv[1]);
-const CAT = core.A2UI_V091_BASIC_CATALOG_ID;
+const CAT = core.A2UI_V10_BASIC_CATALOG_ID;
 const now = () => new Date("2026-01-01T00:00:00.000Z");
 
 function run(withObserver) {
   const events = [];
   const created = core.createWeaverRuntime({
-    catalogs: [core.createBasicCatalogV091Registration()],
+    catalogs: [core.createBasicCatalogV10Registration()],
     now,
     ...(withObserver ? { observer: (event) => events.push(event) } : {}),
   });

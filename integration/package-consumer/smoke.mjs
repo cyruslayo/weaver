@@ -39,7 +39,7 @@ console.log("tarball runtime imports and packed DateTimeInput resolver proof: co
 // Value exports added in 0.3.0 (and the long-standing ones they build on). A missing name fails here, by name.
 const requiredExports = {
   core: [
-    "A2UI_V091_BASIC_PROMPT_EXAMPLES", "createBasicCatalogV091Registration", "createWeaverRuntime",
+    "A2UI_V091_BASIC_PROMPT_EXAMPLES", "createBasicCatalogV10Registration", "createWeaverRuntime",
     "createWeaverTraceRecorder", "defineCatalog", "describeWeaverError", "generateA2UIV091Prompt",
     "parseWeaverTrace", "replayWeaverTrace", "WEAVER_TRACE_FORMAT", "WEAVER_TRACE_REPLAY_INVALID_INPUT",
   ],
@@ -53,7 +53,7 @@ for (const [label, mod] of [["core", core], ["web", web], ["mcp", mcp]]) {
 }
 
 // Prompt generation: a Basic prompt is produced, is deterministic, and an empty catalog list is rejected by code.
-const promptOptions = { catalogs: [core.createBasicCatalogV091Registration()], examples: core.A2UI_V091_BASIC_PROMPT_EXAMPLES };
+const promptOptions = { catalogs: [core.createBasicCatalogV10Registration()], examples: core.A2UI_V091_BASIC_PROMPT_EXAMPLES };
 const prompt = core.generateA2UIV091Prompt(promptOptions);
 if (!prompt.ok) throw new Error(`Packed prompt generation failed: ${prompt.error.code}`);
 if (!prompt.value.text.includes("## Components")) throw new Error("Packed prompt has no Components section");
@@ -64,14 +64,14 @@ if (noCatalogs.ok || noCatalogs.error.code !== "CATALOG_INVALID") throw new Erro
 
 // Trace: record a Basic example through the observer, parse the JSON round trip, and replay it with no divergence.
 const recorder = core.createWeaverTraceRecorder({ maxEntries: 100 });
-const recordedRuntime = core.createWeaverRuntime({ catalogs: [core.createBasicCatalogV091Registration()], observer: recorder.observer });
+const recordedRuntime = core.createWeaverRuntime({ catalogs: [core.createBasicCatalogV10Registration()], observer: recorder.observer });
 if (!recordedRuntime.ok) throw new Error("Packed recording runtime was not created");
 const exampleMessages = core.A2UI_V091_BASIC_PROMPT_EXAMPLES[0].messages;
 recordedRuntime.value.processMany(exampleMessages);
 const trace = core.parseWeaverTrace(JSON.parse(JSON.stringify(recorder.getTrace())));
 if (!trace.ok) throw new Error(`Packed trace did not parse: ${trace.error.code}`);
 if (trace.value.format !== core.WEAVER_TRACE_FORMAT || trace.value.entries.length !== exampleMessages.length) throw new Error("Packed trace has the wrong shape");
-const replayRuntime = core.createWeaverRuntime({ catalogs: [core.createBasicCatalogV091Registration()] });
+const replayRuntime = core.createWeaverRuntime({ catalogs: [core.createBasicCatalogV10Registration()] });
 if (!replayRuntime.ok) throw new Error("Packed replay runtime was not created");
 const replay = core.replayWeaverTrace(trace.value, { runtime: replayRuntime.value });
 if (replay.steps.length !== exampleMessages.length || replay.steps.some((step) => step.diverged)) throw new Error("Packed trace replay diverged");

@@ -93,8 +93,8 @@ function build(withObserver) {
   });
   if (!created.ok) throw new Error("runtime was not created");
   const runtime = created.value;
-  runtime.process({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId: "test" } });
-  runtime.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [
+  runtime.process({ version: "1.0", createSurface: { surfaceId: "s", catalogId: "test" } });
+  runtime.process({ version: "1.0", updateComponents: { surfaceId: "s", components: [
     { id: "root", component: "Column", children: Object.keys(SCENARIOS).map((name) => "btn-" + name) },
     ...Object.keys(SCENARIOS).map((name) => ({ id: "btn-" + name, component: "Button", action: { functionCall: { call: name, args: {} } } })),
   ] } });

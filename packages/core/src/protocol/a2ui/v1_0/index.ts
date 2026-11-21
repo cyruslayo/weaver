@@ -1,7 +1,12 @@
 export type {
+  A2UIAgentMessage,
   A2UIComponent,
-  A2UIServerMessage,
-  A2UIV091WireVersion,
+  A2UIFunctionCall,
+  A2UIFunctionResponse,
+  A2UISurfaceMetadata,
+  A2UIV10WireVersion,
+  AgentFunctionResponseMessage,
+  CallRendererFunctionMessage,
   CreateSurfaceMessage,
   DeleteSurfaceMessage,
   JsonObject,
@@ -11,19 +16,23 @@ export type {
   UpdateDataModelMessage,
 } from "./types.js";
 export type {
-  A2UIClientActionMessage,
-  A2UIClientDataModel,
-} from "./client-types.js";
+  A2UIRendererActionMessage,
+  A2UIRendererCallAgentFunctionMessage,
+  A2UIRendererDataModel,
+  A2UIRendererFunctionCall,
+  A2UIRendererFunctionResponseMessage,
+  A2UIRendererToAgentMessage,
+} from "./renderer-types.js";
 export {
-  createA2UIV091Producer,
+  createA2UIV10Producer,
 } from "./producer.js";
 export type {
-  A2UIV091CreateSurfaceInput,
-  A2UIV091DeleteSurfaceInput,
-  A2UIV091Producer,
-  A2UIV091UpdateComponentsInput,
-  A2UIV091UpdateDataModelInput,
+  A2UIV10CreateSurfaceInput,
+  A2UIV10DeleteSurfaceInput,
+  A2UIV10Producer,
+  A2UIV10UpdateComponentsInput,
+  A2UIV10UpdateDataModelInput,
 } from "./producer.js";
 export * from "./outbound/index.js";
 export type { ValidationIssue, ValidationResult } from "./errors.js";
-export { validateA2UIServerMessage } from "./validation.js";
+export { validateA2UIAgentMessage } from "./validation.js";

@@ -1,5 +1,6 @@
 import type {
   A2UIComponent,
+  A2UISurfaceMetadata,
   CreateSurfaceMessage,
   DeleteSurfaceMessage,
   JsonObject,
@@ -7,54 +8,56 @@ import type {
   UpdateComponentsMessage,
   UpdateDataModelMessage,
 } from "./types.js";
-import { validateA2UIServerMessage } from "./validation.js";
+import { validateA2UIAgentMessage } from "./validation.js";
 
-/** Inputs accepted by the A2UI v0.9.1 createSurface producer. */
-export interface A2UIV091CreateSurfaceInput {
+/** Inputs accepted by the A2UI v1.0 createSurface producer. */
+export interface A2UIV10CreateSurfaceInput {
   surfaceId: string;
-  catalogId: string;
-  theme?: JsonObject;
+  catalogId?: string;
   sendDataModel?: boolean;
+  components?: readonly A2UIComponent[];
+  dataModel?: JsonObject;
+  metadata?: A2UISurfaceMetadata;
 }
 
-/** Inputs accepted by the A2UI v0.9.1 updateComponents producer. */
-export interface A2UIV091UpdateComponentsInput {
+/** Inputs accepted by the A2UI v1.0 updateComponents producer. */
+export interface A2UIV10UpdateComponentsInput {
   surfaceId: string;
   components: readonly A2UIComponent[];
 }
 
-/** Inputs accepted by the A2UI v0.9.1 updateDataModel producer. */
-export interface A2UIV091UpdateDataModelInput {
+/** Inputs accepted by the A2UI v1.0 updateDataModel producer. `value` is required; null deletes. */
+export interface A2UIV10UpdateDataModelInput {
   surfaceId: string;
   path?: string;
-  value?: JsonValue;
+  value: JsonValue;
 }
 
-/** Inputs accepted by the A2UI v0.9.1 deleteSurface producer. */
-export interface A2UIV091DeleteSurfaceInput {
+/** Inputs accepted by the A2UI v1.0 deleteSurface producer. */
+export interface A2UIV10DeleteSurfaceInput {
   surfaceId: string;
 }
 
 /**
- * Stateless construction helpers for the server-to-client A2UI v0.9.1
+ * Stateless construction helpers for the server-to-client A2UI v1.0
  * lifecycle messages supported by Weaver.
  *
  * Construction owns the returned JSON and performs protocol-envelope
  * validation. It does not validate catalog component schemas or runtime
  * lifecycle state; those remain the runtime's responsibilities.
  */
-export interface A2UIV091Producer {
-  createSurface(input: A2UIV091CreateSurfaceInput): CreateSurfaceMessage;
+export interface A2UIV10Producer {
+  createSurface(input: A2UIV10CreateSurfaceInput): CreateSurfaceMessage;
   updateComponents(
-    input: A2UIV091UpdateComponentsInput,
+    input: A2UIV10UpdateComponentsInput,
   ): UpdateComponentsMessage;
-  updateDataModel(input: A2UIV091UpdateDataModelInput): UpdateDataModelMessage;
-  deleteSurface(input: A2UIV091DeleteSurfaceInput): DeleteSurfaceMessage;
+  updateDataModel(input: A2UIV10UpdateDataModelInput): UpdateDataModelMessage;
+  deleteSurface(input: A2UIV10DeleteSurfaceInput): DeleteSurfaceMessage;
 }
 
-const VERSION = "v0.9.1" as const;
+const VERSION = "1.0" as const;
 
-export function createA2UIV091Producer(): A2UIV091Producer {
+export function createA2UIV10Producer(): A2UIV10Producer {
   return {
     createSurface: buildCreateSurface,
     updateComponents: buildUpdateComponents,
@@ -64,16 +67,16 @@ export function createA2UIV091Producer(): A2UIV091Producer {
 }
 
 function buildCreateSurface(
-  input: A2UIV091CreateSurfaceInput,
+  input: A2UIV10CreateSurfaceInput,
 ): CreateSurfaceMessage {
   assertInputObject(input, "createSurface");
-  const payload: Record<string, unknown> = {
-    surfaceId: input.surfaceId,
-    catalogId: input.catalogId,
-  };
-  if (hasOwn(input, "theme")) payload.theme = input.theme;
+  const payload: Record<string, unknown> = { surfaceId: input.surfaceId };
+  if (hasOwn(input, "catalogId")) payload.catalogId = input.catalogId;
   if (hasOwn(input, "sendDataModel"))
     payload.sendDataModel = input.sendDataModel;
+  if (hasOwn(input, "components")) payload.components = input.components;
+  if (hasOwn(input, "dataModel")) payload.dataModel = input.dataModel;
+  if (hasOwn(input, "metadata")) payload.metadata = input.metadata;
   // SAFETY: validateAndOwn validates and owns the exact CreateSurface message shape.
   return validateAndOwn({
     version: VERSION,
@@ -82,7 +85,7 @@ function buildCreateSurface(
 }
 
 function buildUpdateComponents(
-  input: A2UIV091UpdateComponentsInput,
+  input: A2UIV10UpdateComponentsInput,
 ): UpdateComponentsMessage {
   assertInputObject(input, "updateComponents");
   // SAFETY: validateAndOwn validates and owns the exact UpdateComponents message shape.
@@ -96,12 +99,13 @@ function buildUpdateComponents(
 }
 
 function buildUpdateDataModel(
-  input: A2UIV091UpdateDataModelInput,
+  input: A2UIV10UpdateDataModelInput,
 ): UpdateDataModelMessage {
   assertInputObject(input, "updateDataModel");
   const payload: Record<string, unknown> = { surfaceId: input.surfaceId };
   if (hasOwn(input, "path")) payload.path = input.path;
-  if (hasOwn(input, "value")) payload.value = input.value;
+  // value is required on the wire; null is the deletion sentinel and is kept.
+  payload.value = input.value;
   // SAFETY: validateAndOwn validates and owns the exact UpdateDataModel message shape.
   return validateAndOwn({
     version: VERSION,
@@ -110,7 +114,7 @@ function buildUpdateDataModel(
 }
 
 function buildDeleteSurface(
-  input: A2UIV091DeleteSurfaceInput,
+  input: A2UIV10DeleteSurfaceInput,
 ): DeleteSurfaceMessage {
   assertInputObject(input, "deleteSurface");
   // SAFETY: validateAndOwn validates and owns the exact DeleteSurface message shape.
@@ -122,11 +126,11 @@ function buildDeleteSurface(
 
 function validateAndOwn(input: unknown): JsonObject {
   const owned = cloneJsonValue(input);
-  const validation = validateA2UIServerMessage(owned);
+  const validation = validateA2UIAgentMessage(owned);
   if (!validation.ok) {
     const firstIssue = validation.issues[0];
     throw new TypeError(
-      `Invalid A2UI v0.9.1 producer input at ${firstIssue.path}: ${firstIssue.message}`,
+      `Invalid A2UI v1.0 producer input at ${firstIssue.path}: ${firstIssue.message}`,
     );
   }
   return owned as JsonObject;

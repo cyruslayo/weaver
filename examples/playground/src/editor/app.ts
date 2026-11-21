@@ -4,7 +4,7 @@ import "@weaver/shared/diagnostics-panel.css";
 import { renderDiagnosticsPanel } from "@weaver/shared";
 import {
   WEAVER_CORE_VERSION,
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   generateA2UIV091Prompt,
   type WeaverErrorDescription,
   type WeaverRuntimeEvent,
@@ -331,7 +331,7 @@ function renderErrors(errors: readonly WeaverErrorDescription[]): void {
 
 function renderPrompt(): void {
   const prompt = generateA2UIV091Prompt({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
     mode: "create",
   });
   ui.promptText.textContent = prompt.ok ? prompt.value.text : `Prompt generation failed: ${prompt.error.code}`;

@@ -9,10 +9,10 @@ import {
   registerMcpApplicationCapability,
 } from "./index.js";
 
-const capabilities = { "v0.9": { supportedCatalogIds: ["catalog.test"] } };
+const capabilities = { "1.0": { supportedCatalogIds: ["catalog.test"] } };
 const validMessages = [
-  { version: "v0.9.1", createSurface: { surfaceId: "surface", catalogId: "catalog.test" } },
-  { version: "v0.9.1", updateComponents: { surfaceId: "surface", components: [{ id: "root", component: "Text", text: "Hello" }] } },
+  { version: "1.0", createSurface: { surfaceId: "surface", catalogId: "catalog.test" } },
+  { version: "1.0", updateComponents: { surfaceId: "surface", components: [{ id: "root", component: "Text", text: "Hello" }] } },
 ];
 
 function recordingSession(route = "route-a") {
@@ -22,7 +22,7 @@ function recordingSession(route = "route-a") {
     getSurfaceRoute() { return route; },
     prepareActionDelivery() { return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } }; },
     prepareValidationErrorDelivery() { return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } }; },
-    getClientCapabilities() { return structuredClone(capabilities); },
+    getRendererCapabilities() { return structuredClone(capabilities); },
   };
   return { session, received };
 }
@@ -64,18 +64,18 @@ test("modern 2026-07-28 resource, tool, and action flows use official HTTP SDK",
     const resource = await bridge.readResource({ uri: "a2ui://test-form" });
     assert.equal(resource.ok, true);
     assert.deepEqual(received.map(({ input }) => input), validMessages);
-    assert.deepEqual((harness.observations[0]!.meta as any).a2ui.clientCapabilities, capabilities);
+    assert.deepEqual((harness.observations[0]!.meta as any).a2ui.rendererCapabilities, capabilities);
 
     const tool = await bridge.callTool({ name: "get_test_a2ui", arguments: { requested: true } });
     assert.equal(tool.ok, true);
     if (tool.ok) assert.deepEqual(tool.fallbackText, ["host fallback"]);
     assert.equal(received.length, 3);
 
-    const sent = await bridge.sendDelivery({ routeId: "route-a", message: { version: "v0.9.1", action: { name: "submit", surfaceId: "surface", sourceComponentId: "root", timestamp: "2026-08-11T00:00:00.000Z", context: { value: 1 } } }, clientDataModel: { version: "v0.9.1", surfaces: { surface: { value: 1 } } } });
+    const sent = await bridge.sendDelivery({ routeId: "route-a", message: { version: "1.0", action: { name: "submit", surfaceId: "surface", sourceComponentId: "root", timestamp: "2026-08-11T00:00:00.000Z", context: { value: 1 } } }, rendererDataModel: { version: "1.0", surfaces: { surface: { value: 1 } } } });
     assert.deepEqual(sent, { ok: true });
     const action = harness.observations.find((item) => item.method === "a2ui_action")!;
     assert.deepEqual((action.meta as any).a2ui.action, { surfaceId: "surface", sourceComponentId: "root", timestamp: "2026-08-11T00:00:00.000Z" });
-    assert.deepEqual((action.meta as any).a2ui.clientDataModel.surfaces.surface, { value: 1 });
+    assert.deepEqual((action.meta as any).a2ui.rendererDataModel.surfaces.surface, { value: 1 });
   } finally { await harness.close(); }
 });
 
@@ -101,7 +101,7 @@ test("MIME, audience, payload, error, and route security rules", async () => {
   await bridge.callTool({ name: "dynamic" });
   assert.equal(received.length, 0);
   assert.equal(calls.length, 1);
-  const wrong = await bridge.sendDelivery({ routeId: "route-b", message: { version: "v0.9.1", error: { code: "VALIDATION_FAILED", surfaceId: "surface", path: "/", message: "bad" } } });
+  const wrong = await bridge.sendDelivery({ routeId: "route-b", message: { version: "1.0", error: { code: "VALIDATION_FAILED", surfaceId: "surface", path: "/", message: "bad" } } });
   assert.deepEqual(wrong, { ok: false, error: { code: "MCP_DELIVERY_ROUTE_MISMATCH" } });
   assert.equal(calls.length, 1);
 });

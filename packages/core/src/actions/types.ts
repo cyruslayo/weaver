@@ -1,17 +1,17 @@
 import type { ComponentCheckSnapshot } from "../checks/index.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import type { FunctionEvaluationError } from "../functions/index.js";
-import type { A2UIClientActionMessage, A2UIClientDataModel, JsonValue } from "../protocol/index.js";
+import type { A2UIRendererActionMessage, A2UIRendererDataModel, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import type { ActionDispatchError } from "./errors.js";
 
 export interface ActionTransportMetadata {
-  a2uiClientDataModel: A2UIClientDataModel;
+  a2uiRendererDataModel: A2UIRendererDataModel;
 }
 
 export type ActionDispatchResult =
   | { ok: true; value: { kind: "localFunction"; value: JsonValue | undefined } }
-  | { ok: true; value: { kind: "serverEvent"; message: A2UIClientActionMessage; metadata?: ActionTransportMetadata } }
+  | { ok: true; value: { kind: "serverEvent"; message: A2UIRendererActionMessage; metadata?: ActionTransportMetadata } }
   | { ok: false; error: ActionDispatchError };
 
 export interface ActionDispatchInput {

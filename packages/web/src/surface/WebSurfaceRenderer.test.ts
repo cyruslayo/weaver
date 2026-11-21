@@ -67,9 +67,9 @@ function catalog(catalogId: string): JsonObject {
     } } },
   };
 }
-const create = (catalogId = "test", theme?: JsonObject) => ({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId, ...(theme === undefined ? {} : { theme }) } });
-const components = (values: JsonObject[]) => ({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: values } });
-const data = (value: unknown) => ({ version: "v0.9.1", updateDataModel: { surfaceId: "s", value } });
+const create = (catalogId = "test", theme?: JsonObject) => ({ version: "1.0", createSurface: { surfaceId: "s", catalogId, ...(theme === undefined ? {} : { theme }) } });
+const components = (values: JsonObject[]) => ({ version: "1.0", updateComponents: { surfaceId: "s", components: values } });
+const data = (value: unknown) => ({ version: "1.0", updateDataModel: { surfaceId: "s", value } });
 function runtime(catalogIds = ["test"]): WeaverRuntime {
   const made = createWeaverRuntime({ catalogs: catalogIds.map((catalogId) => ({ catalogId, schema: catalog(catalogId) })) });
   assert.ok(made.ok);
@@ -119,7 +119,7 @@ test("surface theme translation is opt-in, catalog-isolated, allowlisted, and mo
   assert.equal(container.style.length, 1);
 
   const mismatch = runtime(["test", "custom"]); mismatch.process(create("custom", { primaryColor: "#abcdef" }));
-  mismatch.process({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: [{ id: "root", component: "Text", text: "custom" }] } });
+  mismatch.process({ version: "1.0", updateComponents: { surfaceId: "s", components: [{ id: "root", component: "Text", text: "custom" }] } });
   const mismatchTarget = dom().target;
   const mismatchMount = new WebSurfaceRenderer({ runtime: mismatch, renderers: new RendererRegistry([{ catalogId: "custom", component: "Text", render: ({ document }) => document.createElement("span") }]), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) }).mount({ surfaceId: "s", target: mismatchTarget });
   assert.ok(mismatchMount.ok); assert.equal((mismatchTarget.firstElementChild as HTMLElement).style.length, 0);
@@ -163,7 +163,7 @@ test("trusted attribution overrides raw claims and uses safe accessible chrome",
   assert.equal(chrome.querySelector("button,a,[tabindex]") === null, true, "chrome has no controls");
   assert.equal(chrome.attributes.length, 2, "only the static hook and style are serialized");
   assert.equal(target.textContent, "<img src=x onerror=attack>tree");
-  assert.deepEqual(rt.getSurface("s")?.theme, { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/a.png" });
+  assert.equal(rt.getSurface("s")?.catalogId, "test"); // v1.0 surfaces carry no theme
   assert.equal((seen[0] as { surfaceId: string; catalogId: string }).surfaceId, "s");
   assert.equal((seen[0] as { surfaceId: string; catalogId: string }).catalogId, "test");
 });
@@ -188,7 +188,7 @@ test("attribution supports name-only, undefined, independent mounts, updates, an
   assert.equal(oneTarget.querySelector("[data-weaver-surface-attribution]") === null, true, "no attribution element");
   one.value.unmount(); assert.equal(oneTarget.childNodes.length, 0); assert.equal(twoTarget.textContent, "two");
 
-  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
   rt.process(create("test", { agentDisplayName: "new raw" }));
   rt.process(components([{ id: "root", component: "Text", text: "new tree" }]));
   verified = "Recreated"; const refreshed = two.value.refresh(); assert.ok(refreshed.ok);
@@ -241,11 +241,11 @@ test("theme updates clean only mount-owned properties and delete/recreate does n
   const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) }).mount({ surfaceId: "s", target });
   assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement;
   container.style.setProperty("--host-owned", "keep");
-  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
   rt.process(create("test")); rt.process(components([{ id: "root", component: "Text", text: "plain" }]));
   assert.ok(mounted.value.refresh().ok);
   assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), ""); assert.equal(container.style.getPropertyValue("--host-owned"), "keep");
-  rt.process({ version: "v0.9.1", deleteSurface: { surfaceId: "s" } });
+  rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
   rt.process(create("test", { primaryColor: "#0000ff" })); rt.process(components([{ id: "root", component: "Text", text: "blue" }]));
   mounted.value.refresh(); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#0000ff");
 });
@@ -279,7 +279,7 @@ test("renders repeated nested child relationships by location without exposing c
   const rt = runtime(); rt.process(create());
   rt.process(components([
     { id: "root", component: "TabsLike", tabs: [
-      { title: { path: "/first" }, child: "a" }, { title: "Second", child: "b" },
+      { title: { "@path": "/first" }, child: "a" }, { title: "Second", child: "b" },
     ] },
     { id: "a", component: "Text", text: "Panel A" }, { id: "b", component: "Text", text: "Panel B" },
   ]));
@@ -303,7 +303,7 @@ test("relationships expose defensively owned target-child hydrated metadata", ()
   const rt = runtime(); rt.process(create());
   rt.process(components([
     { id: "root", component: "Stack", sections: ["item", "item"] },
-    { id: "item", component: "Text", text: { path: "/label" }, weight: 2 },
+    { id: "item", component: "Text", text: { "@path": "/label" }, weight: 2 },
   ]));
   rt.process(data({ label: "Hydrated" }));
   const observed: unknown[] = [];
@@ -343,20 +343,20 @@ test("Row applies hydrated weight across templates and runtime updates without s
   const rt = runtime(); rt.process(create());
   rt.process(components([
     { id: "root", component: "Row", children: { path: "/items", componentId: "item" } },
-    { id: "item", component: "Text", text: { path: "label" }, weight: 1.5 },
+    { id: "item", component: "Text", text: { "@path": "label" }, weight: 1.5 },
   ]));
   rt.process(data({ items: [{ label: "A" }, { label: "B" }] }));
   const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test" })); assert.ok(result.ok);
   assert.deepEqual([...target.querySelectorAll("p")].map((node) => node.style.flexGrow), ["1.5", "1.5"]);
-  rt.process(components([{ id: "item", component: "Text", text: { path: "label" }, weight: 3 }]));
+  rt.process(components([{ id: "item", component: "Text", text: { "@path": "label" }, weight: 3 }]));
   assert.deepEqual([...target.querySelectorAll("p")].map((node) => node.style.flexGrow), ["3", "3"]);
-  rt.process(components([{ id: "item", component: "Text", text: { path: "label" } }]));
+  rt.process(components([{ id: "item", component: "Text", text: { "@path": "label" } }]));
   assert.deepEqual([...target.querySelectorAll("p")].map((node) => node.style.flexGrow), ["", ""]);
 });
 
 test("mount renders hydrated nested values immediately and preserves host siblings", () => {
   const rt = runtime(); rt.process(create());
-  rt.process(components([{ id: "root", component: "Stack", sections: ["name"] }, { id: "name", component: "Text", text: { path: "/name" } }]));
+  rt.process(components([{ id: "root", component: "Stack", sections: ["name"] }, { id: "name", component: "Text", text: { "@path": "/name" } }]));
   rt.process(data({ name: "Ada" }));
   const { target, result } = mount(rt); assert.ok(result.ok);
   assert.equal(target.textContent, "Ada");
@@ -379,11 +379,11 @@ test("progressive root stays mounted, reacts, refreshes, and unmount removes onl
 
 test("subscriptions rebuild properties, component definitions, and dynamic templates", () => {
   const rt = runtime(); rt.process(create());
-  rt.process(components([{ id: "root", component: "Text", text: { path: "/name" } }])); rt.process(data({ name: "Ada" }));
+  rt.process(components([{ id: "root", component: "Text", text: { "@path": "/name" } }])); rt.process(data({ name: "Ada" }));
   const { target, result } = mount(rt); assert.ok(result.ok); assert.equal(target.textContent, "Ada");
   rt.process(data({ name: "Grace" })); assert.equal(target.textContent, "Grace");
   rt.process(components([{ id: "root", component: "Text", text: "replacement" }])); assert.equal(target.textContent, "replacement");
-  rt.process(components([{ id: "root", component: "Stack", sections: { path: "/items", componentId: "item" } }, { id: "item", component: "Text", text: { path: "name" } }]));
+  rt.process(components([{ id: "root", component: "Stack", sections: { path: "/items", componentId: "item" } }, { id: "item", component: "Text", text: { "@path": "name" } }]));
   rt.process(data({ items: [{ name: "A" }, { name: "B" }] })); assert.equal(target.querySelectorAll("span").length, 2);
   rt.process(data({ items: [{ name: "A" }, { name: "B" }, { name: "C" }] })); assert.equal(target.querySelectorAll("span").length, 3);
 });
@@ -445,7 +445,7 @@ test("unregistered renderer on a later update keeps the last DOM, calls onError,
 
 test("Basic media policy receives bound hydrated URLs and policy exceptions preserve prior DOM", () => {
   const rt = runtime(); rt.process(create());
-  rt.process(components([{ id: "root", component: "Image", url: { path: "/url" }, description: "cover" }]));
+  rt.process(components([{ id: "root", component: "Image", url: { "@path": "/url" }, description: "cover" }]));
   const seen: string[] = [];
   const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({
     catalogId: "test",
@@ -466,7 +466,7 @@ test("Basic media policy receives trusted function-backed URL results", () => {
     functions: [{ catalogId: "test", name: "mediaUrl", effect: "pure", implementation: () => "/function.png" }],
   });
   assert.ok(made.ok); const rt = made.value; rt.process(create());
-  rt.process(components([{ id: "root", component: "Image", url: { call: "mediaUrl", args: {} } }]));
+  rt.process(components([{ id: "root", component: "Image", url: { "@call": "mediaUrl", args: {} } }]));
   const seen: string[] = [];
   const mounted = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test", resourcePolicy: ({ url }) => { seen.push(url); return url; } }));
   assert.ok(mounted.result.ok); assert.deepEqual(seen, ["/function.png"]); assert.equal(mounted.target.querySelector("img")?.getAttribute("src"), "/function.png");
@@ -474,7 +474,7 @@ test("Basic media policy receives trusted function-backed URL results", () => {
 
 test("checks are matched by full template instance identity and mounts are independent", () => {
   const rt = runtime(); rt.process(create());
-  rt.process(components([{ id: "root", component: "Stack", sections: { path: "/items", componentId: "item" } }, { id: "item", component: "CheckText", text: { path: "name" }, checks: [{ condition: { path: "valid" }, message: "required" }] }]));
+  rt.process(components([{ id: "root", component: "Stack", sections: { path: "/items", componentId: "item" } }, { id: "item", component: "CheckText", text: { "@path": "name" }, checks: [{ condition: { "@path": "valid" }, message: "required" }] }]));
   rt.process(data({ items: [{ name: "A", valid: true }, { name: "B", valid: false }] }));
   const one = mount(rt); const two = mount(rt); assert.ok(one.result.ok && two.result.ok);
   assert.equal(one.target.textContent, "A:validB:invalid"); assert.equal(two.target.textContent, "A:validB:invalid");
@@ -531,8 +531,8 @@ test("local state prunes only after a successful presentation removes an instanc
 test("Basic Tabs selects by structural location, persists locally, restores keyboard focus, and isolates mounts", () => {
   const rt = runtime(); rt.process(create());
   rt.process(components([
-    { id: "root", component: "Tabs", tabs: [{ title: { path: "/titles/0" }, child: "a" }, { title: { path: "/titles/1" }, child: "b" }, { title: "History", child: "missing" }] },
-    { id: "a", component: "Text", text: { path: "/content" } }, { id: "b", component: "Text", text: "Details" },
+    { id: "root", component: "Tabs", tabs: [{ title: { "@path": "/titles/0" }, child: "a" }, { title: { "@path": "/titles/1" }, child: "b" }, { title: "History", child: "missing" }] },
+    { id: "a", component: "Text", text: { "@path": "/content" } }, { id: "b", component: "Text", text: "Details" },
   ]));
   rt.process(data({ titles: ["Overview", "Account"], content: "Welcome", unrelated: 0 }));
   const regs = createBasicCatalogRendererRegistrations({ catalogId: "test" });
@@ -565,7 +565,7 @@ test("Basic Tabs selects by structural location, persists locally, restores keyb
 test("official Basic all-18-component surface validates, resolves, and mounts", () => {
   const catalogId = "test";
   const rt = runtime();
-  assert.ok(rt.process({ version: "v0.9.1", createSurface: { surfaceId: "all", catalogId, theme: { primaryColor: "#123456" } } }).ok);
+  assert.ok(rt.process({ version: "1.0", createSurface: { surfaceId: "all", catalogId, theme: { primaryColor: "#123456" } } }).ok);
   const all = [
     { id: "root", component: "Column", children: ["text", "image", "icon", "video", "audio", "row", "list", "card", "tabs", "modal", "divider", "button", "field", "checkbox", "slider", "choice", "date"] },
     { id: "text", component: "Text", text: "All components" }, { id: "image", component: "Image", url: "/image.png" },
@@ -576,12 +576,12 @@ test("official Basic all-18-component surface validates, resolves, and mounts", 
     { id: "tabs", component: "Tabs", tabs: [{ title: "One", child: "tab-one" }, { title: "Two", child: "tab-two" }] }, { id: "tab-one", component: "Text", text: "Tab one" }, { id: "tab-two", component: "Text", text: "Tab two" },
     { id: "modal", component: "Modal", trigger: "modal-trigger", content: "modal-content" }, { id: "modal-trigger", component: "Text", text: "Open modal" }, { id: "modal-content", component: "Text", text: "Modal content" },
     { id: "divider", component: "Divider" }, { id: "button", component: "Button", child: "button-text", action: { event: { name: "submit", context: {} } } }, { id: "button-text", component: "Text", text: "Submit" },
-    { id: "field", component: "TextField", label: "Field", value: { path: "/field" } }, { id: "checkbox", component: "CheckBox", label: "Check", value: { path: "/checked" } },
-    { id: "slider", component: "Slider", max: 10, value: { path: "/slider" } }, { id: "choice", component: "ChoicePicker", options: [{ label: "A", value: "a" }], value: { path: "/choice" } },
-    { id: "date", component: "DateTimeInput", value: { path: "/date" }, enableDate: true },
+    { id: "field", component: "TextField", label: "Field", value: { "@path": "/field" } }, { id: "checkbox", component: "CheckBox", label: "Check", value: { "@path": "/checked" } },
+    { id: "slider", component: "Slider", max: 10, value: { "@path": "/slider" } }, { id: "choice", component: "ChoicePicker", options: [{ label: "A", value: "a" }], value: { "@path": "/choice" } },
+    { id: "date", component: "DateTimeInput", value: { "@path": "/date" }, enableDate: true },
   ];
-  const update = rt.process({ version: "v0.9.1", updateComponents: { surfaceId: "all", components: all } }); assert.ok(update.ok);
-  assert.ok(rt.process({ version: "v0.9.1", updateDataModel: { surfaceId: "all", value: { field: "x", checked: true, slider: 2, choice: ["a"], date: "2026-08-10" } } }).ok);
+  const update = rt.process({ version: "1.0", updateComponents: { surfaceId: "all", components: all } }); assert.ok(update.ok);
+  assert.ok(rt.process({ version: "1.0", updateDataModel: { surfaceId: "all", value: { field: "x", checked: true, slider: 2, choice: ["a"], date: "2026-08-10" } } }).ok);
   const resolved = rt.resolveSurface("all"); assert.ok(resolved.ok); assert.equal(resolved.value.tree.ready, true); assert.deepEqual(resolved.value.issues, { tree: [], instances: [], properties: [] });
   const registrations = createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy: () => undefined, iconResolver: () => "M0 0", regexMatcher: () => true });
   assert.equal(registrations.length, 18); assert.equal(new Set(registrations.map(({ component }) => component)).size, 18);
@@ -630,7 +630,7 @@ test("a focused Basic Button survives a data-model rerender, and sibling buttons
   rt.process(components([
     { id: "root", component: "Column", children: ["first", "second"] },
     { id: "first", component: "Button", child: "firstLabel", action: { event: { name: "first", context: {} } } },
-    { id: "firstLabel", component: "Text", text: { path: "/label" } },
+    { id: "firstLabel", component: "Text", text: { "@path": "/label" } },
     { id: "second", component: "Button", child: "secondLabel", action: { event: { name: "second", context: {} } } },
     { id: "secondLabel", component: "Text", text: "Second" },
   ]));
@@ -756,7 +756,7 @@ function interactiveRuntime(local?: () => void): WeaverRuntime {
     now: () => new Date("2025-01-02T03:04:05.000Z"),
   });
   assert.ok(made.ok);
-  made.value.process({ version: "v0.9.1", createSurface: { surfaceId: "s", catalogId: "interactive", sendDataModel: true } });
+  made.value.process({ version: "1.0", createSurface: { surfaceId: "s", catalogId: "interactive", sendDataModel: true } });
   return made.value;
 }
 
@@ -765,8 +765,8 @@ test("DateTimeInput default datetime and date-only writes remain backward compat
   rt.process(create());
   rt.process(components([
     { id: "root", component: "Row", children: ["datetime", "date"] },
-    { id: "datetime", component: "DateTimeInput", value: { path: "/datetime" }, enableDate: true, enableTime: true },
-    { id: "date", component: "DateTimeInput", value: { path: "/date" }, enableDate: true, enableTime: false },
+    { id: "datetime", component: "DateTimeInput", value: { "@path": "/datetime" }, enableDate: true, enableTime: true },
+    { id: "date", component: "DateTimeInput", value: { "@path": "/date" }, enableDate: true, enableTime: false },
   ]));
   rt.process(data({ datetime: "2032-08-16T19:00:00.000Z", date: "2032-08-15" }));
   const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test" })); assert.ok(result.ok);
@@ -783,8 +783,8 @@ test("DateTimeInput resolver exposes raw stable identity, rejects safely, and ac
   rt.process(create());
   rt.process(components([
     { id: "root", component: "Row", children: ["first", "second"] },
-    { id: "first", component: "DateTimeInput", value: { path: "/first" }, enableDate: true, enableTime: true },
-    { id: "second", component: "DateTimeInput", value: { path: "/second" }, enableDate: true, enableTime: true },
+    { id: "first", component: "DateTimeInput", value: { "@path": "/first" }, enableDate: true, enableTime: true },
+    { id: "second", component: "DateTimeInput", value: { "@path": "/second" }, enableDate: true, enableTime: true },
   ]));
   rt.process(data({ first: "2032-01-01T00:00:00.000Z", second: "2032-01-02T00:00:00.000Z" }));
   const seen: Array<{ surfaceId: string; sourceComponentId: string; scopePath: string; rawValue: string; currentValue: string }> = [];
@@ -816,7 +816,7 @@ test("DateTimeInput resolver exposes raw stable identity, rejects safely, and ac
 
 test("DateTimeInput resolver exceptions fail closed without default conversion", () => {
   const rt = runtime(); rt.process(create());
-  rt.process(components([{ id: "root", component: "DateTimeInput", value: { path: "/value" }, enableDate: true, enableTime: true }]));
+  rt.process(components([{ id: "root", component: "DateTimeInput", value: { "@path": "/value" }, enableDate: true, enableTime: true }]));
   rt.process(data({ value: "2032-01-01T00:00:00.000Z" }));
   const { target, result } = mount(rt, createBasicCatalogRendererRegistrations({ catalogId: "test", dateTimeInputLocalValueResolver: () => { throw new Error("host failure"); } })); assert.ok(result.ok);
   const control = target.querySelector("input")!; control.value = "2032-03-14T02:30"; dispatch(control, "change");
@@ -834,8 +834,8 @@ function interactionRegistrations(results: unknown[] = []): RendererRegistration
   ];
 }
 
-const interactiveComponents = (values: JsonObject[]) => ({ version: "v0.9.1", updateComponents: { surfaceId: "s", components: values } });
-const interactiveData = (value: unknown) => ({ version: "v0.9.1", updateDataModel: { surfaceId: "s", value } });
+const interactiveComponents = (values: JsonObject[]) => ({ version: "1.0", updateComponents: { surfaceId: "s", components: values } });
+const interactiveData = (value: unknown) => ({ version: "1.0", updateDataModel: { surfaceId: "s", value } });
 
 function dispatch(node: Element, type: string): void {
   const EventConstructor = node.ownerDocument.defaultView!.Event;
@@ -846,9 +846,9 @@ test("input writes synchronously, rerenders, and a later action uses current mod
   const rt = interactiveRuntime();
   rt.process(interactiveComponents([
     { id: "root", component: "Stack", sections: ["input", "display", "button"] },
-    { id: "input", component: "Input", value: { path: "/name" } },
-    { id: "display", component: "Display", text: { path: "/name" } },
-    { id: "button", component: "Button", primaryAction: { event: { name: "submit", context: { name: { path: "/name" } } } } },
+    { id: "input", component: "Input", value: { "@path": "/name" } },
+    { id: "display", component: "Display", text: { "@path": "/name" } },
+    { id: "button", component: "Button", primaryAction: { event: { name: "submit", context: { name: { "@path": "/name" } } } } },
   ]));
   rt.process(interactiveData({ name: "Ada" }));
   const { target } = dom(); const handoffs: unknown[] = []; const results: unknown[] = [];
@@ -858,9 +858,9 @@ test("input writes synchronously, rerenders, and a later action uses current mod
   assert.equal(rt.getSurface("s")?.dataModel && (rt.getSurface("s")!.dataModel as JsonObject).name, "Grace");
   assert.equal(target.querySelector("output")?.textContent, "Grace");
   dispatch(target.querySelector("button")!, "click");
-  const handoff = handoffs[0] as { message: { action: { context: JsonObject } }; metadata: { a2uiClientDataModel: { surfaces: Record<string, JsonObject> } } };
+  const handoff = handoffs[0] as { message: { action: { context: JsonObject } }; metadata: { a2uiRendererDataModel: { surfaces: Record<string, JsonObject> } } };
   assert.equal(handoff.message.action.context.name, "Grace");
-  assert.equal(handoff.metadata.a2uiClientDataModel.surfaces.s?.name, "Grace");
+  assert.equal(handoff.metadata.a2uiRendererDataModel.surfaces.s?.name, "Grace");
   assert.equal(results.length, 2);
 });
 
@@ -869,7 +869,7 @@ test("custom input properties and nested template scopes delegate unchanged", ()
   rt.process(interactiveComponents([
     { id: "root", component: "Stack", sections: { path: "/groups", componentId: "group" } },
     { id: "group", component: "Stack", sections: { path: "members", componentId: "rating" } },
-    { id: "rating", component: "Rating", rating: { path: "rating" } },
+    { id: "rating", component: "Rating", rating: { "@path": "rating" } },
   ]));
   rt.process(interactiveData({ groups: [{ members: [{ rating: 1 }, { rating: 2 }] }] }));
   const { target } = dom();
@@ -880,7 +880,7 @@ test("custom input properties and nested template scopes delegate unchanged", ()
 
 test("local actions execute once, blocked actions do not hand off, and handoff failures are typed", () => {
   let calls = 0; const rt = interactiveRuntime(() => { calls++; });
-  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { functionCall: { call: "local", args: {} } } }]));
+  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { functionCall: { "@call": "local", args: {} } } }]));
   const { target } = dom(); let handoffs = 0; const results: unknown[] = [];
   const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)), onServerEvent: () => { handoffs++; } });
   const mounted = web.mount({ surfaceId: "s", target }); assert.ok(mounted.ok); dispatch(target.querySelector("button")!, "click");
@@ -898,13 +898,13 @@ test("local actions execute once, blocked actions do not hand off, and handoff f
 
 test("successful, failed, refresh, and unmount render attempts invalidate retained DOM interactions", () => {
   const rt = interactiveRuntime(); const results: unknown[] = [];
-  rt.process(interactiveComponents([{ id: "root", component: "Input", value: { path: "/name" } }])); rt.process(interactiveData({ name: "Ada" }));
+  rt.process(interactiveComponents([{ id: "root", component: "Input", value: { "@path": "/name" } }])); rt.process(interactiveData({ name: "Ada" }));
   const { target } = dom(); const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)) }).mount({ surfaceId: "s", target }); assert.ok(mounted.ok);
   const first = target.querySelector("input")!; rt.process(interactiveData({ name: "Grace" })); first.value = "stale-success"; dispatch(first, "input");
   assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
   const visible = target.querySelector("input")!; rt.process(interactiveComponents([{ id: "root", component: "Missing" }])); visible.value = "stale-failure"; dispatch(visible, "input");
   assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
-  rt.process(interactiveComponents([{ id: "root", component: "Input", value: { path: "/name" } }]));
+  rt.process(interactiveComponents([{ id: "root", component: "Input", value: { "@path": "/name" } }]));
   const beforeRefresh = target.querySelector("input")!; assert.equal(mounted.value.refresh().ok, true); dispatch(beforeRefresh, "input");
   assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
   const beforeUnmount = target.querySelector("input")!; mounted.value.unmount(); dispatch(beforeUnmount, "input");

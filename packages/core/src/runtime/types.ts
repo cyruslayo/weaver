@@ -101,7 +101,6 @@ export type WeaverRuntimeCreationResult =
 export interface WeaverResolvedSurface {
   surfaceId: string;
   catalogId: string;
-  theme?: import("../protocol/index.js").JsonObject;
   sendDataModel: boolean;
   tree: HydratedComponentTree;
   checks: ComponentCheckTreeSnapshot;

@@ -36,7 +36,7 @@ import type { DescribableWeaverError, DescribeWeaverErrorContext, WeaverErrorDes
 
 const ALL_CODES = [
   // MessageProcessorError
-  "PROTOCOL_VALIDATION_FAILED", "SURFACE_STORE_ERROR", "CATALOG_REGISTRY_ERROR",
+  "PROTOCOL_VALIDATION_FAILED", "SURFACE_STORE_ERROR", "CATALOG_REGISTRY_ERROR", "UNSUPPORTED_FEATURE",
   // ValidationIssue
   "VALIDATION_FAILED",
   // JsonlDecodeError
@@ -77,7 +77,7 @@ const ALL_CODES = [
   "INVALID_POINTER", "TYPE_MISMATCH", "INVALID_ARRAY_INDEX", "ARRAY_INDEX_TOO_LARGE",
   "ARRAY_INDEX_DELETE_UNSUPPORTED",
   // SurfaceStoreError
-  "SURFACE_ALREADY_EXISTS", "DUPLICATE_COMPONENT_ID", "DATA_MODEL_ERROR",
+  "INTEGRITY_ERROR", "DUPLICATE_COMPONENT_ID", "DATA_MODEL_ERROR",
   // InputBindingWriteError
   "SOURCE_COMPONENT_NOT_FOUND", "INPUT_PROPERTY_NOT_FOUND", "INPUT_PROPERTY_NOT_DYNAMIC",
   "INPUT_PROPERTY_NOT_BOUND", "INPUT_VALUE_TYPE_MISMATCH", "BINDING_PATH_RESOLUTION_FAILED",
@@ -198,7 +198,7 @@ const dataModelCodes: DataModelError[] = [
 ];
 
 const surfaceStoreCodes: SurfaceStoreError[] = [
-  { code: "SURFACE_ALREADY_EXISTS", surfaceId: "main" },
+  { code: "INTEGRITY_ERROR", surfaceId: "main" },
   { code: "SURFACE_NOT_FOUND", surfaceId: "main" },
   { code: "DUPLICATE_COMPONENT_ID", surfaceId: "main", componentId: "title" },
   { code: "DATA_MODEL_ERROR", dataModelError: dataModelCodes[0]! },
@@ -266,6 +266,10 @@ const fixtures: Fixture[] = [
   },
   { code: "SURFACE_STORE_ERROR", error: { code: "SURFACE_STORE_ERROR", storeError: surfaceStoreCodes[0]! } },
   { code: "CATALOG_REGISTRY_ERROR", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[2]! } },
+  {
+    code: "UNSUPPORTED_FEATURE",
+    error: { code: "UNSUPPORTED_FEATURE", feature: "callRendererFunction", message: "remote function calls are not supported yet" },
+  },
 
   // JsonlDecodeError (top level)
   { code: "INVALID_JSON", error: { code: "INVALID_JSON", frame: 3 } },

@@ -235,18 +235,18 @@ function mountOverBudget(childCount: number) {
   });
   assert.ok(made.ok, "the budget test runtime must be created");
   const runtime = made.value;
-  runtime.process({ version: "v0.9.1", createSurface: { surfaceId: BUDGET_SURFACE_ID, catalogId: BUDGET_CATALOG_ID } });
+  runtime.process({ version: "1.0", createSurface: { surfaceId: BUDGET_SURFACE_ID, catalogId: BUDGET_CATALOG_ID } });
   // A templated child list expands one instance per data item. That is the instance-phase
   // budget (COMPONENT_INSTANCE_RESOLUTION_FAILED), the same path as the cookbook's 70-row list.
   runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateDataModel: {
       surfaceId: BUDGET_SURFACE_ID,
       value: { items: Array.from({ length: childCount }, (_, index) => ({ name: `Row ${index}` })) },
     },
   });
   runtime.process({
-    version: "v0.9.1",
+    version: "1.0",
     updateComponents: {
       surfaceId: BUDGET_SURFACE_ID,
       components: [

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  createA2UIV091Producer,
-  createBasicCatalogV091Registration,
+  createA2UIV10Producer,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
   generateA2UIV091Prompt,
   type A2UIComponent,
@@ -61,7 +61,7 @@ function validationIssues(error: unknown): Array<{ path: string; keyword: string
 
 function runtimeWithCookbook() {
   const created = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration(), cookbookCatalog],
+    catalogs: [createBasicCatalogV10Registration(), cookbookCatalog],
   });
   assert.equal(created.ok, true, "cookbook catalog must register next to Basic");
   if (!created.ok) throw new Error("unreachable");
@@ -71,7 +71,7 @@ function runtimeWithCookbook() {
 /** Creates the surface with the cookbook catalog, then sends the given components. */
 function processComponents(components: JsonValue[]) {
   const runtime = runtimeWithCookbook();
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   const created = runtime.process(
     producer.createSurface({
       surfaceId: SURFACE_ID,
@@ -99,7 +99,7 @@ test("the cookbook catalog declares its own catalogId and leaves the Basic catal
   assert.equal(cookbookCatalog.catalogId, COOKBOOK_CATALOG_ID);
   assert.notEqual(COOKBOOK_CATALOG_ID, BASIC_CATALOG_ID);
 
-  const basic = createBasicCatalogV091Registration().schema.components as Record<string, unknown>;
+  const basic = createBasicCatalogV10Registration().schema.components as Record<string, unknown>;
   assert.equal("DataTable" in basic, false, "Basic must not gain DataTable");
   assert.equal("BarChart" in basic, false, "Basic must not gain BarChart");
   assert.deepEqual(
@@ -343,7 +343,7 @@ test("a DataTable message that still sends rowAction is rejected at message vali
 
 test("registering the cookbook catalog twice is rejected rather than silently replaced", () => {
   const result = createWeaverRuntime({
-    catalogs: [createBasicCatalogV091Registration(), cookbookCatalog, cookbookCatalog],
+    catalogs: [createBasicCatalogV10Registration(), cookbookCatalog, cookbookCatalog],
   });
   assert.equal(result.ok, false, "a duplicate catalogId must not register silently");
 });

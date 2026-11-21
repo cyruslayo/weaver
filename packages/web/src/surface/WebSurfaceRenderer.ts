@@ -174,7 +174,7 @@ export class WebSurfaceRenderer {
       result = this.#attributionProvider(Object.freeze({
         surfaceId: surface.surfaceId,
         catalogId: surface.catalogId,
-        theme: surface.theme === undefined ? undefined : structuredClone(surface.theme),
+        theme: undefined,
       }));
     } catch {
       return { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } };
@@ -216,7 +216,7 @@ export class WebSurfaceRenderer {
     try {
       const result = this.#themeAdapter(Object.freeze({
         catalogId: surface.catalogId,
-        theme: surface.theme === undefined ? undefined : structuredClone(surface.theme),
+        theme: undefined,
       }));
       if (result === null || typeof result !== "object"
         || result.customProperties === null || typeof result.customProperties !== "object"

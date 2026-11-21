@@ -40,7 +40,7 @@ for (const dir of [coreDir, webDir]) {
   execFileSync(process.execPath, [tsc, "-p", path.join(dir, "tsconfig.json")], { stdio: "inherit" });
 }
 
-const { generateA2UIV091Prompt, A2UI_V091_BASIC_CATALOG_ID } = await import(
+const { generateA2UIV091Prompt, A2UI_V10_BASIC_CATALOG_ID } = await import(
   pathToFileURL(path.join(coreDir, "dist", "index.js")).href
 );
 const { createBasicCatalogBrowserFunctionImplementations } = await import(
@@ -51,7 +51,7 @@ const { basicPromptFixtureConfigs, BASIC_PROMPT_FIXTURE_FILES } = await import(
 );
 
 const configs = basicPromptFixtureConfigs(
-  createBasicCatalogBrowserFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
+  createBasicCatalogBrowserFunctionImplementations({ catalogId: A2UI_V10_BASIC_CATALOG_ID }),
 );
 
 /** Each fixture is the generated text plus one trailing newline. */

@@ -1,8 +1,8 @@
-import { A2UI_V091_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
-import { createA2UIV091Producer } from "../protocol/index.js";
+import { A2UI_V10_BASIC_CATALOG_ID } from "../basic-catalog/index.js";
+import { createA2UIV10Producer } from "../protocol/index.js";
 import type { A2UIV091PromptExample } from "./types.js";
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 
 /**
  * Canonical examples for the Basic catalog. They are built with the v0.9.1
@@ -28,7 +28,7 @@ export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
       messages: [
         producer.createSurface({
           surfaceId: "notice",
-          catalogId: A2UI_V091_BASIC_CATALOG_ID,
+          catalogId: A2UI_V10_BASIC_CATALOG_ID,
         }),
         producer.updateComponents({
           surfaceId: "notice",
@@ -49,7 +49,7 @@ export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
       messages: [
         producer.createSurface({
           surfaceId: "signup",
-          catalogId: A2UI_V091_BASIC_CATALOG_ID,
+          catalogId: A2UI_V10_BASIC_CATALOG_ID,
         }),
         producer.updateDataModel({
           surfaceId: "signup",
@@ -59,26 +59,26 @@ export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
         producer.updateComponents({
           surfaceId: "signup",
           components: [
-            { id: "root", component: "Column", children: ["name-field", "submit"] },
+            { id: "root", component: "Column", children: ["name_field", "submit"] },
             {
-              id: "name-field",
+              id: "name_field",
               component: "TextField",
               label: "Name",
-              value: { path: "/form/name" },
+              value: { "@path": "/form/name" },
             },
             {
               id: "submit",
               component: "Button",
               variant: "primary",
-              child: "submit-label",
+              child: "submit_label",
               action: {
                 event: {
                   name: "submit_signup",
-                  context: { name: { path: "/form/name" } },
+                  context: { name: { "@path": "/form/name" } },
                 },
               },
             },
-            { id: "submit-label", component: "Text", text: "Sign up" },
+            { id: "submit_label", component: "Text", text: "Sign up" },
           ],
         }),
       ],
@@ -88,12 +88,12 @@ export const A2UI_V091_BASIC_PROMPT_EXAMPLES: readonly A2UIV091PromptExample[] =
       messages: [
         producer.createSurface({
           surfaceId: "order",
-          catalogId: A2UI_V091_BASIC_CATALOG_ID,
+          catalogId: A2UI_V10_BASIC_CATALOG_ID,
         }),
         producer.updateComponents({
           surfaceId: "order",
           components: [
-            { id: "root", component: "Text", text: { path: "/status" } },
+            { id: "root", component: "Text", text: { "@path": "/status" } },
           ],
         }),
         producer.updateDataModel({

@@ -1,6 +1,6 @@
 import {
-  createBasicCatalogV091Registration,
-  createA2UIV091Producer,
+  createBasicCatalogV10Registration,
+  createA2UIV10Producer,
   generateA2UIV091Prompt,
   type A2UIV091PromptAction,
   type A2UIV091PromptExample,
@@ -21,7 +21,7 @@ export const REFERENCE_PROMPT_ACTION: A2UIV091PromptAction = {
   },
 };
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 
 /** A worked example that the generator validates through a scratch runtime before it reaches the prompt. */
 const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
@@ -29,7 +29,7 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
   messages: [
     producer.createSurface({
       surfaceId: REFERENCE_SURFACE_ID,
-      catalogId: createBasicCatalogV091Registration().catalogId,
+      catalogId: createBasicCatalogV10Registration().catalogId,
       sendDataModel: true,
     }),
     producer.updateDataModel({
@@ -87,7 +87,7 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV091PromptExample = {
  */
 export function buildReferencePrompt(): string {
   const result = generateA2UIV091Prompt({
-    catalogs: [createBasicCatalogV091Registration()],
+    catalogs: [createBasicCatalogV10Registration()],
     actions: [REFERENCE_PROMPT_ACTION],
     examples: [REFERENCE_PROMPT_EXAMPLE],
   });

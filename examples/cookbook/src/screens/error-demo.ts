@@ -1,5 +1,5 @@
 import {
-  createA2UIV091Producer,
+  createA2UIV10Producer,
   describeWeaverError,
   type A2UIComponent,
   type WeaverErrorDescription,
@@ -37,7 +37,7 @@ const TOO_MANY_ROWS: readonly ErrorDemoItem[] = Array.from({ length: 70 }, (_, i
   name: `Ticket ${index + 1}`,
 }));
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 
 function errorDemoComponents(): A2UIComponent[] {
   return [

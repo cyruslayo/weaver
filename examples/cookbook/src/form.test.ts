@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import type {
-  A2UIServerMessage,
+  A2UIAgentMessage,
   JsonObject,
 } from "@cylayo/weaver-core";
 import type { WebServerEventHandoff } from "@cylayo/weaver-web";
@@ -29,7 +29,7 @@ function mountForm() {
   const { window, target } = dom();
   const screen = mountCookbookScreen(target, formScreen);
   // Record every message the agent sends to the stream, in order.
-  const sent: A2UIServerMessage[] = [];
+  const sent: A2UIAgentMessage[] = [];
   const send = screen.stream.send.bind(screen.stream);
   screen.stream.send = (messages) => {
     sent.push(...messages);
@@ -106,7 +106,7 @@ function actionMessage(context: JsonObject): WebServerEventHandoff {
   };
 }
 
-function onlyDataModelUpdates(messages: readonly A2UIServerMessage[]): boolean {
+function onlyDataModelUpdates(messages: readonly A2UIAgentMessage[]): boolean {
   return messages.every(
     (message) =>
       "updateDataModel" in message &&

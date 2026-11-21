@@ -468,8 +468,8 @@ function functionEvaluationError(error: FunctionEvaluationError): ErrorNode {
 
 function surfaceStoreError(error: SurfaceStoreError): ErrorNode {
   switch (error.code) {
-    case "SURFACE_ALREADY_EXISTS":
-      return node("SURFACE_ALREADY_EXISTS", `Surface "${error.surfaceId}" already exists.`, {
+    case "INTEGRITY_ERROR":
+      return node("INTEGRITY_ERROR", `Surface "${error.surfaceId}" already exists.`, {
         surfaceId: error.surfaceId,
         hint: "Update the existing surface instead of creating it again.",
       });
@@ -522,6 +522,10 @@ function messageProcessorError(error: MessageProcessorError): ErrorNode {
     case "CATALOG_REGISTRY_ERROR":
       return node("CATALOG_REGISTRY_ERROR", "The message does not satisfy its catalog.", {
         children: [catalogRegistryError(error.catalogError)],
+      });
+    case "UNSUPPORTED_FEATURE":
+      return node("UNSUPPORTED_FEATURE", error.message, {
+        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
       });
     default:
       return unknownError(error);
@@ -972,6 +976,7 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "PROTOCOL_VALIDATION_FAILED":
     case "SURFACE_STORE_ERROR":
     case "CATALOG_REGISTRY_ERROR":
+    case "UNSUPPORTED_FEATURE":
       return messageProcessorError(error as MessageProcessorError);
     case "INVALID_JSON":
     case "FRAME_TOO_LARGE":

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
+  A2UI_V10_BASIC_CATALOG_ID,
   createA2UIV091StreamIngestion,
   type A2UIV091StreamIngestionEvent,
 } from "@cylayo/weaver-core";
@@ -42,7 +42,7 @@ test("the prompt lists reference.createRequest as the only action", () => {
 test("the prompt is deterministic and keeps the Basic catalog id", () => {
   const first = buildReferencePrompt();
   assert.equal(buildReferencePrompt(), first);
-  assert.ok(first.includes(A2UI_V091_BASIC_CATALOG_ID));
+  assert.ok(first.includes(A2UI_V10_BASIC_CATALOG_ID));
 });
 
 test("the canned model response is valid A2UI and renders in happy-dom", () => {

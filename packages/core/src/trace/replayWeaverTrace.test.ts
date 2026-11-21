@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createA2UIV091Producer,
-  createBasicCatalogV091Registration,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createA2UIV10Producer,
+  createBasicCatalogV10Registration,
   createA2UIV091StreamIngestion,
   createWeaverRuntime,
   type A2UIV091StreamIngestionEvent,
@@ -20,7 +20,7 @@ import {
 import type { WeaverTrace } from "./types.js";
 import { WEAVER_TRACE_FORMAT, WEAVER_TRACE_VERSION } from "./types.js";
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
 const frame = (message: unknown): string => `${JSON.stringify(message)}\n`;
 const EXTRA_CATALOG_ID = "urn:weaver:test:extra";
 
@@ -30,7 +30,7 @@ function steppingClock(): () => Date {
 }
 
 function basicCatalog() {
-  return createBasicCatalogV091Registration();
+  return createBasicCatalogV10Registration();
 }
 
 /** A copy of the Basic catalog under another id, so one trace can use two catalogs. */
@@ -78,7 +78,7 @@ function mixedSession() {
     recorder.recordIngestion(events, chunk);
   };
 
-  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID })));
+  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID })));
   push('{"version":"v0.9.1",}\n');
   push(frame({
     version: "v0.9.1",
@@ -133,7 +133,7 @@ test("recording a mixed session and replaying it into an identical runtime has n
 test("replaying into a runtime that lacks a catalog marks only the steps that need it as diverged", () => {
   const recorder = createWeaverTraceRecorder();
   const original = runtimeWith({ catalogs: [basicCatalog(), extraCatalog()], observer: recorder.observer });
-  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
+  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID }));
   original.process(producer.createSurface({ surfaceId: "side", catalogId: EXTRA_CATALOG_ID }));
   original.process(producer.updateComponents({
     surfaceId: "side",
@@ -163,7 +163,7 @@ test("until stops replay at the given seq, and reproduces the state after that s
   assert.deepEqual(atSeqThree.steps.map((step) => step.seq), [1, 2, 3]);
   // Only the createSurface message landed, so the components update was not applied.
   const createdOnly = runtimeWith();
-  createdOnly.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
+  createdOnly.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID }));
   assert.deepEqual(atSeqThree.surfaces.main, createdOnly.getSurface("main"));
   assert.equal(atSeqThree.surfaces.main?.components["root"], undefined);
 
@@ -185,7 +185,7 @@ test("replay makes no outbound calls: the recording's host callback is not invok
   let recordedCalls = 0;
   let replayCalls = 0;
   const openUrl = (counter: () => void): FunctionRegistration => ({
-    catalogId: A2UI_V091_BASIC_CATALOG_ID,
+    catalogId: A2UI_V10_BASIC_CATALOG_ID,
     name: "openUrl",
     effect: "action",
     implementation: () => {
@@ -199,7 +199,7 @@ test("replay makes no outbound calls: the recording's host callback is not invok
     functions: [openUrl(() => { recordedCalls += 1; })],
     observer: recorder.observer,
   });
-  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
+  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID }));
   original.process(producer.updateComponents({
     surfaceId: "main",
     components: [
@@ -262,8 +262,8 @@ test("a changed error code in the trace is reported as a divergence", () => {
 test("a session spanning two surfaces replays with zero divergence and every surface equal to the original", () => {
   const recorder = createWeaverTraceRecorder();
   const original = runtimeWith({ observer: recorder.observer });
-  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
-  original.process(producer.createSurface({ surfaceId: "other", catalogId: A2UI_V091_BASIC_CATALOG_ID }));
+  original.process(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID }));
+  original.process(producer.createSurface({ surfaceId: "other", catalogId: A2UI_V10_BASIC_CATALOG_ID }));
   original.process(producer.updateComponents({
     surfaceId: "main",
     components: [
@@ -299,7 +299,7 @@ test("a frame-error mid-trace is reported without applying it, and later steps s
   const ingestion = createA2UIV091StreamIngestion({ runtime });
   const push = (chunk: string) => recorder.recordIngestion(ingestion.push(chunk), chunk);
 
-  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V091_BASIC_CATALOG_ID })));
+  push(frame(producer.createSurface({ surfaceId: "main", catalogId: A2UI_V10_BASIC_CATALOG_ID })));
   push('{"version":"v0.9.1",}\n');
   push(frame(producer.updateComponents({
     surfaceId: "main",

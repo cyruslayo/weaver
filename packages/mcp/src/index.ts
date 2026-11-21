@@ -58,7 +58,7 @@ export function createA2UIMcpClientBridge(options: A2UIMcpClientBridgeOptions): 
   const actionToolName = validToolName(options.actionToolName ?? "a2ui_action", "actionToolName");
   const errorToolName = validToolName(options.errorToolName ?? "a2ui_error", "errorToolName");
 
-  const capabilitiesMeta = () => ({ a2ui: { clientCapabilities: session.getClientCapabilities() } });
+  const capabilitiesMeta = () => ({ a2ui: { rendererCapabilities: session.getRendererCapabilities() } });
 
   async function processTexts(texts: string[], diagnostics: A2UIMcpDiagnostic[], fallbackText: string[]) {
     let processedEnvelopes = 0;
@@ -138,13 +138,13 @@ export function createA2UIMcpClientBridge(options: A2UIMcpClientBridgeOptions): 
         arguments: structuredClone({ name: delivery.message.action.name, context: delivery.message.action.context }),
         _meta: {
           a2ui: {
-            clientCapabilities: session.getClientCapabilities(),
+            rendererCapabilities: session.getRendererCapabilities(),
             action: structuredClone({
               surfaceId: delivery.message.action.surfaceId,
               sourceComponentId: delivery.message.action.sourceComponentId,
               timestamp: delivery.message.action.timestamp,
             }),
-            ...(!("clientDataModel" in delivery) || delivery.clientDataModel === undefined ? {} : { clientDataModel: structuredClone(delivery.clientDataModel) }),
+            ...(!("rendererDataModel" in delivery) || delivery.rendererDataModel === undefined ? {} : { rendererDataModel: structuredClone(delivery.rendererDataModel) }),
           },
         },
       };

@@ -1,7 +1,13 @@
 import type { A2UIComponent, JsonObject } from "../protocol/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import type { CatalogRegistryError } from "./errors.js";
-import { A2UI_CATALOG_SCHEMA } from "./schema.js";
+import { buildCatalogCommonTypes } from "./common-types.js";
+import {
+  A2UI_CATALOG_ALLOWED_CALLERS,
+  A2UI_CATALOG_FUNCTION_RETURN_TYPES,
+  A2UI_CATALOG_IDENTIFIER_PATTERN,
+  A2UI_CATALOG_SCHEMA,
+} from "./schema.js";
 import {
   isValidSchema,
   referencesResolve,
@@ -17,6 +23,7 @@ import type {
   CatalogComponentValidationResult,
   CatalogDynamicPropertiesResult,
   CatalogDynamicValueLocationsResult,
+  CatalogFunctionAllowedCallers,
   CatalogFunctionArgumentDefinition,
   CatalogFunctionDefinition,
   CatalogFunctionDefinitionResult,
@@ -32,7 +39,6 @@ import type {
   DynamicValueLocationSegment,
   CatalogRegistryResult,
   CatalogSnapshot,
-  CatalogThemeValidationResult,
   CatalogValidationIssue,
 } from "./types.js";
 
@@ -52,23 +58,45 @@ interface RegisteredCatalog {
   bindableValueValidators: ReadonlyMap<string, SchemaValidator>;
   actionProperties: ReadonlyMap<string, readonly string[]>;
   checkableComponents: ReadonlySet<string>;
-  themeValidator: SchemaValidator;
 }
 
-const COMPONENT_ID_REF = "common_types.json#/$defs/ComponentId";
+/** The only external document a v1.0 catalog may reference, by its relative name. */
+const COMMON_TYPES_DOCUMENT = "common_types.json";
+/** The absolute v1.0 form is accepted as an alias and rewritten to the relative form on registration. */
+const COMMON_TYPES_ABSOLUTE_PREFIX =
+  "https://a2ui.org/specification/v1_0/common_types.json#";
+const ALLOWED_COMMON_TYPE_REFS: ReadonlySet<string> = new Set(
+  [
+    "ComponentId",
+    "Child",
+    "ChildList",
+    "DynamicString",
+    "DynamicNumber",
+    "DynamicBoolean",
+    "DynamicStringList",
+    "DynamicValue",
+    "AccessibilityAttributes",
+    "CheckRule",
+    "Checkable",
+    "Action",
+    "DataBinding",
+    "FunctionCall",
+  ].map((name) => `${COMMON_TYPES_DOCUMENT}#/$defs/${name}`),
+);
+
+/** Child references: a single component ID, which is either ComponentId or Child. */
+const COMPONENT_ID_REFS: ReadonlySet<string> = new Set([
+  "common_types.json#/$defs/ComponentId",
+  "common_types.json#/$defs/Child",
+]);
 const CHILD_LIST_REF = "common_types.json#/$defs/ChildList";
 const CHECKABLE_REF = "common_types.json#/$defs/Checkable";
 const ACTION_REF = "common_types.json#/$defs/Action";
-const DATA_BINDING_REFS = new Set([
+const DATA_BINDING_REFS: ReadonlySet<string> = new Set([
   "common_types.json#/$defs/DataBinding",
-  "common_types.json#/$defs/PathBinding",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DataBinding",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DataBinding",
 ]);
-const FUNCTION_CALL_REFS = new Set([
+const FUNCTION_CALL_REFS: ReadonlySet<string> = new Set([
   "common_types.json#/$defs/FunctionCall",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/FunctionCall",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/FunctionCall",
 ]);
 const DYNAMIC_PROPERTY_REFS: Readonly<Record<string, DynamicPropertyKind>> = {
   "common_types.json#/$defs/DynamicString": "dynamicString",
@@ -82,47 +110,51 @@ const DYNAMIC_FUNCTION_ARGUMENT_REFS: Readonly<
 > = {
   ...DYNAMIC_PROPERTY_REFS,
   "common_types.json#/$defs/DynamicValue": "dynamicValue",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString":
-    "dynamicString",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicNumber":
-    "dynamicNumber",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicBoolean":
-    "dynamicBoolean",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicStringList":
-    "dynamicStringList",
-  "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicValue":
-    "dynamicValue",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicString":
-    "dynamicString",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicNumber":
-    "dynamicNumber",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicBoolean":
-    "dynamicBoolean",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicStringList":
-    "dynamicStringList",
-  "https://a2ui.org/specification/v0_9_1/common_types.json#/$defs/DynamicValue":
-    "dynamicValue",
   "#/$defs/DynamicString": "dynamicString",
   "#/$defs/DynamicNumber": "dynamicNumber",
   "#/$defs/DynamicBoolean": "dynamicBoolean",
   "#/$defs/DynamicStringList": "dynamicStringList",
   "#/$defs/DynamicValue": "dynamicValue",
 };
-const FUNCTION_RETURN_TYPES: readonly CatalogFunctionReturnType[] = [
-  "string",
-  "number",
-  "boolean",
-  "array",
-  "object",
-  "any",
-  "void",
-];
+
+/**
+ * ComponentCommon envelope keys that the agent-to-renderer envelope validates.
+ * Catalog component definitions describe only catalog-owned properties, so
+ * these keys are removed before a component instance is validated.
+ */
+const ENVELOPE_KEYS: ReadonlySet<string> = new Set([
+  "id",
+  "@catalogId",
+  "@accessibility",
+  "@metadata",
+]);
+/** The Checkable mixin's property, declared by common types and exempt from the identifier rule. */
+const CHECKABLE_MIXIN_PROPERTY = "@checks";
+const IDENTIFIER = new RegExp(A2UI_CATALOG_IDENTIFIER_PATTERN, "u");
 
 function isPlainObject(value: unknown): value is JsonObject {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     return false;
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function isFunctionReturnType(value: unknown): value is CatalogFunctionReturnType {
+  return (A2UI_CATALOG_FUNCTION_RETURN_TYPES as readonly unknown[]).includes(value);
+}
+
+function isAllowedCallers(value: unknown): value is CatalogFunctionAllowedCallers {
+  return (A2UI_CATALOG_ALLOWED_CALLERS as readonly unknown[]).includes(value);
+}
+
+function pointerSegment(segment: string): string {
+  return segment.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+function stringArray(value: unknown): string[] | undefined {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string")
+    ? [...value]
+    : undefined;
 }
 
 function functionArgumentDefinition(
@@ -180,21 +212,17 @@ function discoverFunctionDefinition(
   name: string,
   functionSchema: JsonObject,
 ): CatalogFunctionDefinition | undefined {
+  const returnType = functionSchema.returnType;
+  if (!isFunctionReturnType(returnType)) return undefined;
+  const allowedCallers = functionSchema.allowedCallers ?? "rendererOnly";
+  if (!isAllowedCallers(allowedCallers)) return undefined;
+  const requiresUserActivation = functionSchema.requiresUserActivation ?? false;
+  if (typeof requiresUserActivation !== "boolean") return undefined;
+  if (requiresUserActivation && allowedCallers !== "rendererOnly") return undefined;
+
   const properties = isPlainObject(functionSchema.properties)
     ? functionSchema.properties
     : undefined;
-  const returnTypeSchema =
-    properties !== undefined && isPlainObject(properties.returnType)
-      ? properties.returnType
-      : undefined;
-  const returnType = returnTypeSchema?.const;
-  if (
-    returnType !== undefined &&
-    (typeof returnType !== "string" ||
-      !FUNCTION_RETURN_TYPES.includes(returnType as CatalogFunctionReturnType))
-  ) {
-    return undefined;
-  }
   const argsSchema =
     properties !== undefined && isPlainObject(properties.args)
       ? properties.args
@@ -211,7 +239,9 @@ function discoverFunctionDefinition(
   return {
     catalogId,
     name,
-    returnType: (returnType as CatalogFunctionReturnType | undefined) ?? "any",
+    returnType,
+    allowedCallers,
+    requiresUserActivation,
     arguments: args,
   };
 }
@@ -268,11 +298,18 @@ function discoverStructure(
       typeof propertySchema !== "object"
     )
       continue;
-    if (propertySchema.$ref === COMPONENT_ID_REF)
+    if (
+      typeof propertySchema.$ref === "string" &&
+      COMPONENT_ID_REFS.has(propertySchema.$ref)
+    )
       structure.singleChildFields.push(property);
     if (propertySchema.$ref === CHILD_LIST_REF)
       structure.childListFields.push(property);
   }
+  const allowedParents = stringArray(componentSchema.allowedParents);
+  if (allowedParents !== undefined) structure.allowedParents = allowedParents;
+  const allowedChildren = stringArray(componentSchema.allowedChildren);
+  if (allowedChildren !== undefined) structure.allowedChildren = allowedChildren;
   return structure;
 }
 
@@ -284,7 +321,7 @@ function discoverStructureLocations(
     schema: JsonObject,
     path: ComponentStructureLocationSegment[],
   ): void => {
-    if (schema.$ref === COMPONENT_ID_REF) {
+    if (typeof schema.$ref === "string" && COMPONENT_ID_REFS.has(schema.$ref)) {
       locations.push({
         path: path.map((segment) => ({ ...segment })),
         kind: "single",
@@ -465,6 +502,147 @@ function discoverDynamicProperties(
   return definitions;
 }
 
+/**
+ * Rewrites the absolute v1.0 common_types.json references to the relative
+ * form in a caller-owned clone. Other absolute references are left in place so
+ * the external-reference policy rejects them.
+ */
+function rewriteCommonTypeAliases(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) rewriteCommonTypeAliases(entry);
+    return;
+  }
+  if (!isPlainObject(value)) return;
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "$ref" && typeof child === "string" && child.startsWith(COMMON_TYPES_ABSOLUTE_PREFIX)) {
+      value[key] = `${COMMON_TYPES_DOCUMENT}#${child.slice(COMMON_TYPES_ABSOLUTE_PREFIX.length)}`;
+    } else {
+      rewriteCommonTypeAliases(child);
+    }
+  }
+}
+
+function embeddedCommonTypesIssues(value: unknown, path: string): CatalogValidationIssue[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((entry, index) => embeddedCommonTypesIssues(entry, `${path}/${index}`));
+  }
+  if (!isPlainObject(value)) return [];
+  const own: CatalogValidationIssue[] =
+    value.$id === COMMON_TYPES_DOCUMENT
+      ? [{
+          path: path === "" ? "/" : path,
+          message: "common_types.json is built into Weaver and must not be embedded in a catalog",
+          keyword: "$id",
+        }]
+      : [];
+  return [
+    ...own,
+    ...Object.entries(value).flatMap(([key, child]) =>
+      embeddedCommonTypesIssues(child, `${path}/${pointerSegment(key)}`),
+    ),
+  ];
+}
+
+function collectEmbeddedDocuments(value: unknown, documents: Set<string>): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) collectEmbeddedDocuments(entry, documents);
+    return;
+  }
+  if (!isPlainObject(value)) return;
+  if (typeof value.$id === "string") documents.add(value.$id);
+  for (const child of Object.values(value)) collectEmbeddedDocuments(child, documents);
+}
+
+/**
+ * Enforces the v1.0 catalog policy that needs the whole document: UAX #31
+ * identifiers, `@call` matching the function name, and external `$ref` targets.
+ * External targets are limited to the standard common_types.json names, and
+ * only when that document is embedded in the catalog. Nothing is fetched.
+ */
+function catalogSemanticIssues(schema: JsonObject): CatalogValidationIssue[] {
+  const issues: CatalogValidationIssue[] = [];
+
+  if (isPlainObject(schema.components)) {
+    for (const [name, definition] of Object.entries(schema.components)) {
+      const base = `/components/${pointerSegment(name)}`;
+      if (!IDENTIFIER.test(name)) {
+        issues.push({ path: base, message: "Component name must be a UAX #31 identifier", keyword: "pattern" });
+      }
+      if (isPlainObject(definition) && isPlainObject(definition.properties)) {
+        for (const property of Object.keys(definition.properties)) {
+          if (property === CHECKABLE_MIXIN_PROPERTY || IDENTIFIER.test(property)) continue;
+          issues.push({
+            path: `${base}/properties/${pointerSegment(property)}`,
+            message: "Property name must be a UAX #31 identifier",
+            keyword: "pattern",
+          });
+        }
+      }
+    }
+  }
+
+  if (isPlainObject(schema.functions)) {
+    for (const [name, definition] of Object.entries(schema.functions)) {
+      const base = `/functions/${pointerSegment(name)}`;
+      if (!IDENTIFIER.test(name)) {
+        issues.push({ path: base, message: "Function name must be a UAX #31 identifier", keyword: "pattern" });
+      }
+      const call = isPlainObject(definition) && isPlainObject(definition.properties)
+        ? definition.properties["@call"]
+        : undefined;
+      if (!isPlainObject(call) || call.const !== name) {
+        issues.push({
+          path: `${base}/properties/@call/const`,
+          message: "The @call const must equal the function name",
+          keyword: "const",
+        });
+      }
+    }
+  }
+
+  // The built-in common types are always available, so a catalog may not embed them.
+  // The rule is strict rejection, not "accept when identical": one embedded copy would
+  // otherwise be a second, unversioned source of the standard definitions.
+  issues.push(...embeddedCommonTypesIssues(schema, ""));
+  const embedded = new Set<string>([COMMON_TYPES_DOCUMENT]);
+  collectEmbeddedDocuments(schema, embedded);
+  const visit = (value: unknown, path: string): void => {
+    if (Array.isArray(value)) {
+      value.forEach((entry, index) => visit(entry, `${path}/${index}`));
+      return;
+    }
+    if (!isPlainObject(value)) return;
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "$ref" && typeof child === "string") {
+        const reference = externalReferenceIssue(child, embedded, path);
+        if (reference !== undefined) issues.push(reference);
+      } else {
+        visit(child, `${path}/${pointerSegment(key)}`);
+      }
+    }
+  };
+  visit(schema, "");
+  return issues;
+}
+
+function externalReferenceIssue(
+  reference: string,
+  embedded: ReadonlySet<string>,
+  path: string,
+): CatalogValidationIssue | undefined {
+  const hash = reference.indexOf("#");
+  const document = hash < 0 ? reference : reference.slice(0, hash);
+  if (document === "") return undefined;
+  if (embedded.has(document)) {
+    if (document !== COMMON_TYPES_DOCUMENT || ALLOWED_COMMON_TYPE_REFS.has(reference)) return undefined;
+  }
+  return {
+    path: path === "" ? "/" : path,
+    message: `Unsupported external $ref: ${reference}`,
+    keyword: "$ref",
+  };
+}
+
 function error(
   code: CatalogRegistryError["code"],
   catalogId: string,
@@ -481,6 +659,29 @@ function normalizeErrors(
     message,
     keyword,
   }));
+}
+
+/**
+ * A caller-owned compilation document with its own resource identity. The
+ * built-in common_types.json resource is embedded here, for compilation only,
+ * so every relative or absolute v1.0 common-types reference resolves locally.
+ */
+function compilationDocument(schema: JsonObject, id: string): JsonObject {
+  const document = cloneJson(schema);
+  document.$id = id;
+  if (!isPlainObject(document.$defs)) document.$defs = {};
+  const functions = isPlainObject(schema.functions) ? schema.functions : {};
+  (document.$defs as JsonObject).weaverCommonTypes = buildCatalogCommonTypes(functions);
+  return document;
+}
+
+/** Strips the ComponentCommon envelope keys before validating catalog-owned properties. */
+function catalogOwnedBody(component: A2UIComponent): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(component)) {
+    if (!ENVELOPE_KEYS.has(key)) body[key] = value;
+  }
+  return body;
 }
 
 export class CatalogRegistry {
@@ -516,17 +717,19 @@ export class CatalogRegistry {
         ),
       };
     }
+    rewriteCommonTypeAliases(schema);
 
     const catalogShape = this.#validateCatalogShape.validate(schema);
-    if (!catalogShape.valid || schema.catalogId !== catalogId) {
-      const issues = normalizeErrors(catalogShape.issues);
-      if (schema.catalogId !== catalogId) {
-        issues.push({
-          path: "/catalogId",
-          message: "Must match the registration catalogId",
-          keyword: "const",
-        });
-      }
+    const issues = normalizeErrors(catalogShape.issues);
+    if (catalogShape.valid) issues.push(...catalogSemanticIssues(schema));
+    if (schema.catalogId !== catalogId) {
+      issues.push({
+        path: "/catalogId",
+        message: "Must match the registration catalogId",
+        keyword: "const",
+      });
+    }
+    if (issues.length > 0) {
       return {
         ok: false,
         error: {
@@ -540,33 +743,7 @@ export class CatalogRegistry {
       };
     }
 
-    const themeSchema = (schema.$defs as JsonObject | undefined)?.theme;
-    if (themeSchema === undefined) {
-      return {
-        ok: false,
-        error: error(
-          "THEME_SCHEMA_NOT_FOUND",
-          catalogId,
-          "Catalog does not define $defs.theme",
-        ),
-      };
-    }
-    if (
-      themeSchema === null ||
-      Array.isArray(themeSchema) ||
-      typeof themeSchema !== "object"
-    ) {
-      return {
-        ok: false,
-        error: error(
-          "INVALID_CATALOG_SCHEMA",
-          catalogId,
-          "Catalog theme schema is invalid",
-        ),
-      };
-    }
-
-    const components = schema.components as JsonObject;
+    const components = (schema.components ?? {}) as JsonObject;
     const validators = new Map<string, SchemaValidator>();
     const functionValidators = new Map<string, SchemaValidator>();
     const functionDefinitions = new Map<string, CatalogFunctionDefinition>();
@@ -590,18 +767,7 @@ export class CatalogRegistry {
     const bindableValueValidators = new Map<string, SchemaValidator>();
     const actionProperties = new Map<string, readonly string[]>();
     const checkableComponents = new Set<string>();
-    const functions = schema.functions === undefined ? {} : schema.functions;
-    if (!isPlainObject(functions)) {
-      return {
-        ok: false,
-        error: error(
-          "INVALID_CATALOG_SCHEMA",
-          catalogId,
-          "Catalog functions must be an object",
-        ),
-      };
-    }
-    let themeValidator: SchemaValidator;
+    const functions = (schema.functions ?? {}) as JsonObject;
     try {
       for (const [componentName, componentSchema] of Object.entries(
         components,
@@ -634,8 +800,10 @@ export class CatalogRegistry {
           bindableValues.map(({ path }) => ({ path })),
         );
         for (const [index, bindable] of bindableValues.entries()) {
-          const compilationSchema = cloneJson(schema);
-          compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/bindable-${index}/catalog.json`;
+          const compilationSchema = compilationDocument(
+            schema,
+            `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/bindable-${index}/catalog.json`,
+          );
           (compilationSchema.$defs as JsonObject)[`weaverBindable${index}`] = {
             oneOf: bindable.literalSchemas,
           };
@@ -653,8 +821,10 @@ export class CatalogRegistry {
         );
         if (isCheckable(componentSchema))
           checkableComponents.add(componentName);
-        const compilationSchema = cloneJson(schema);
-        compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`;
+        const compilationSchema = compilationDocument(
+          schema,
+          `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(componentName)}/catalog.json`,
+        );
         (compilationSchema.$defs as JsonObject).weaverComponent =
           cloneJson(componentSchema);
         compilationSchema.$ref = "#/$defs/weaverComponent";
@@ -672,9 +842,11 @@ export class CatalogRegistry {
           functionSchema,
         );
         if (definition === undefined)
-          throw new Error("unsupported function return type");
-        const compilationSchema = cloneJson(schema);
-        compilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(functionName)}/function.json`;
+          throw new Error("unsupported function declaration");
+        const compilationSchema = compilationDocument(
+          schema,
+          `https://weaver.invalid/catalog/${this.#registrationSequence}/${encodeURIComponent(functionName)}/function.json`,
+        );
         (compilationSchema.$defs as JsonObject).weaverFunction =
           cloneJson(functionSchema);
         compilationSchema.$ref = "#/$defs/weaverFunction";
@@ -686,12 +858,6 @@ export class CatalogRegistry {
         );
         functionDefinitions.set(functionName, definition);
       }
-      const themeCompilationSchema = cloneJson(schema);
-      themeCompilationSchema.$id = `https://weaver.invalid/catalog/${this.#registrationSequence}/theme/catalog.json`;
-      themeCompilationSchema.$ref = "#/$defs/theme";
-      if (!referencesResolve(themeCompilationSchema))
-        throw new Error("unresolved schema reference");
-      themeValidator = new SchemaValidator(themeCompilationSchema);
     } catch {
       return {
         ok: false,
@@ -717,7 +883,6 @@ export class CatalogRegistry {
       bindableValueValidators,
       actionProperties,
       checkableComponents,
-      themeValidator,
     });
     return { ok: true, value: { catalogId, schema: cloneJson(schema) } };
   }
@@ -807,8 +972,8 @@ export class CatalogRegistry {
       };
     }
     const functionName =
-      isPlainObject(functionCall) && typeof functionCall.call === "string"
-        ? functionCall.call
+      isPlainObject(functionCall) && typeof functionCall["@call"] === "string"
+        ? functionCall["@call"]
         : undefined;
     if (
       functionName === undefined ||
@@ -830,18 +995,25 @@ export class CatalogRegistry {
     const issues: CatalogValidationIssue[] = [];
     if (
       !isPlainObject(functionCall) ||
-      !isPlainObject(functionCall.args) ||
-      ("returnType" in functionCall &&
-        (typeof functionCall.returnType !== "string" ||
-          !FUNCTION_RETURN_TYPES.includes(
-            functionCall.returnType as CatalogFunctionReturnType,
-          )))
+      !isPlainObject(functionCall.args)
     ) {
       issues.push({
         path: "/",
         message: "FunctionCall must contain a call name and object args",
         keyword: "type",
       });
+    }
+    // Declaration-only keys belong to the catalog definition, never the wire call.
+    if (isPlainObject(functionCall)) {
+      for (const key of ["returnType", "allowedCallers"]) {
+        if (key in functionCall) {
+          issues.push({
+            path: `/${key}`,
+            message: `A FunctionCall must not declare ${key}; set it in the catalog function definition`,
+            keyword: "additionalProperties",
+          });
+        }
+      }
     }
     const validator = catalog.functionValidators.get(functionName)!;
     if (issues.length === 0) {
@@ -899,6 +1071,12 @@ export class CatalogRegistry {
       value: {
         singleChildFields: [...structure.singleChildFields],
         childListFields: [...structure.childListFields],
+        ...(structure.allowedParents === undefined
+          ? {}
+          : { allowedParents: [...structure.allowedParents] }),
+        ...(structure.allowedChildren === undefined
+          ? {}
+          : { allowedChildren: [...structure.allowedChildren] }),
       },
     };
   }
@@ -1097,38 +1275,6 @@ export class CatalogRegistry {
     return { ok: true, value: [...properties] };
   }
 
-  validateTheme(
-    catalogId: string,
-    theme: JsonObject,
-  ): CatalogThemeValidationResult {
-    const catalog = this.#catalogs.get(catalogId);
-    if (catalog === undefined) {
-      return {
-        ok: false,
-        error: error(
-          "CATALOG_NOT_FOUND",
-          catalogId,
-          "Catalog is not registered",
-        ),
-      };
-    }
-    const validation = catalog.themeValidator.validate(theme);
-    if (!validation.valid) {
-      return {
-        ok: false,
-        error: {
-          ...error(
-            "THEME_VALIDATION_FAILED",
-            catalogId,
-            "Theme does not satisfy the catalog schema",
-          ),
-          issues: normalizeErrors(validation.issues),
-        },
-      };
-    }
-    return { ok: true, value: theme };
-  }
-
   validateComponent(
     catalogId: string,
     component: A2UIComponent,
@@ -1163,7 +1309,7 @@ export class CatalogRegistry {
 
     const componentId = component.id;
     const componentName = component.component;
-    const validation = validator.validate(component);
+    const validation = validator.validate(catalogOwnedBody(component));
     if (!validation.valid) {
       return {
         ok: false,

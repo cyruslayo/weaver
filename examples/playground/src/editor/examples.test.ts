@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
+  A2UI_V10_BASIC_CATALOG_ID,
   createA2UIV091StreamIngestion,
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
   type A2UIV091StreamIngestionEvent,
   type WeaverRuntime,
@@ -12,7 +12,7 @@ import { DEFAULT_EXAMPLE_ID, PLAYGROUND_EXAMPLES, PLAYGROUND_SURFACE_ID, findExa
 
 /** Runs the text through the same ingestion path the page uses, in one push, then finish. */
 function ingest(jsonl: string): { runtime: WeaverRuntime; events: A2UIV091StreamIngestionEvent[] } {
-  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV10Registration()] });
   if (!created.ok) throw new Error(`runtime configuration failed: ${created.error.code}`);
   const runtime = created.value;
   const ingestion = createA2UIV091StreamIngestion({ runtime });
@@ -53,7 +53,7 @@ for (const example of validExamples) {
     const surfaceLines = example.jsonl.split("\n").filter((line) => line.includes('"createSurface"'));
     assert.equal(surfaceLines.length, 1);
     const message = JSON.parse(surfaceLines[0]!) as { createSurface: { catalogId: string } };
-    assert.equal(message.createSurface.catalogId, A2UI_V091_BASIC_CATALOG_ID);
+    assert.equal(message.createSurface.catalogId, A2UI_V10_BASIC_CATALOG_ID);
   });
 }
 

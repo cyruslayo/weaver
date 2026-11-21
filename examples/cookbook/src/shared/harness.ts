@@ -1,10 +1,10 @@
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createA2UIV091Producer,
+  A2UI_V10_BASIC_CATALOG_ID,
+  createA2UIV10Producer,
   createA2UIV091StreamIngestion,
   createBasicCatalogFunctionImplementations,
   type A2UIComponent,
-  type A2UIServerMessage,
+  type A2UIAgentMessage,
   type A2UIV091StreamIngestionEvent,
   type BasicRegexMatcher,
   type CatalogRegistration,
@@ -85,7 +85,7 @@ export type CookbookEventResult =
     };
 
 export type CookbookActionOutcome =
-  | { accepted: true; messages: A2UIServerMessage[] }
+  | { accepted: true; messages: A2UIAgentMessage[] }
   | {
       accepted: false;
       reason: "EVENT_NOT_ALLOWLISTED" | "INVALID_EVENT_CONTEXT";
@@ -95,18 +95,18 @@ export type CookbookActionOutcome =
 export interface CookbookAgent<TState> {
   readonly surfaceId: string;
   getState(): TState;
-  start(): A2UIServerMessage[];
+  start(): A2UIAgentMessage[];
   handleAction(name: string, context: JsonObject): CookbookActionOutcome;
 }
 
 /** Serializes one producer message as one JSONL frame. */
-export function encodeA2UIMessage(message: A2UIServerMessage): string {
+export function encodeA2UIMessage(message: A2UIAgentMessage): string {
   return `${JSON.stringify(message)}\n`;
 }
 
 /** In-process JSONL stream into one long-lived Core ingestion. Validation stays owned by Core. */
 export interface CookbookStream {
-  send(messages: readonly A2UIServerMessage[]): void;
+  send(messages: readonly A2UIAgentMessage[]): void;
   /**
    * Pushes raw JSONL text into the same ingestion as `send`, and returns its events
    * instead of throwing. A screen uses it to feed bad input on purpose. Frame numbers
@@ -145,11 +145,11 @@ export function createCookbookAgent<TState>(
   definition: CookbookScreenDefinition<TState>,
   config: { catalogId: string },
 ): CookbookAgent<TState> {
-  const producer = createA2UIV091Producer();
+  const producer = createA2UIV10Producer();
   const surfaceId = definition.surfaceId;
   let state = structuredClone(definition.initialState);
 
-  const dataModel = (): A2UIServerMessage =>
+  const dataModel = (): A2UIAgentMessage =>
     producer.updateDataModel({
       surfaceId,
       // SAFETY: screen state must be JSON-shaped strings, arrays, numbers, and objects.
@@ -214,7 +214,7 @@ export interface CookbookScreen<TState> {
 
 export interface CookbookMountOptions {
   /** Observes the messages the agent emits in answer to an accepted action. Tests use it to assert on them. */
-  readonly onOutbound?: (messages: readonly A2UIServerMessage[]) => void;
+  readonly onOutbound?: (messages: readonly A2UIAgentMessage[]) => void;
   /**
    * Observes a render failure that the surface reports after an update. The previous
    * DOM stays in place when it fires, so the screen can show the error beside it.
@@ -238,7 +238,7 @@ export function mountCookbookScreen<TState>(
       safety: COOKBOOK_SAFETY_BUDGETS,
       // Basic functions (formatNumber, formatCurrency, ...) are opt-in. The harness registers them once by default.
       // A screen that supplies its own list replaces the default, so no name is registered twice.
-      functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({ catalogId: A2UI_V091_BASIC_CATALOG_ID }),
+      functions: definition.web?.functions ?? createBasicCatalogFunctionImplementations({ catalogId: A2UI_V10_BASIC_CATALOG_ID }),
     },
     ...(definition.catalog === undefined
       ? {}

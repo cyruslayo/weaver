@@ -1,118 +1,124 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  A2UI_V091_BASIC_CATALOG_ID,
-  createBasicCatalogV091Registration,
+  createBasicCatalogV10Registration,
   createWeaverRuntime,
-  validateA2UIServerMessage,
+  validateA2UIAgentMessage,
 } from "../../../index.js";
-import { createA2UIV091Producer } from "./producer.js";
+import { createA2UIV10Producer } from "./producer.js";
+import { formatAjvErrors, validatePinnedAgentMessage } from "./pinnedSchemas.test-helper.js";
 
-const producer = createA2UIV091Producer();
+const producer = createA2UIV10Producer();
+const CATALOG_ID = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json";
 
 function basicRuntime() {
-  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV091Registration()] });
+  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV10Registration()] });
   assert.ok(created.ok, created.ok ? undefined : JSON.stringify(created.error));
   return created.value;
 }
 
-test("produces exact v0.9.1 lifecycle wire shapes", () => {
-  const theme = { primaryColor: "#123456" };
+function assertPinned(message: unknown): void {
+  assert.equal(validatePinnedAgentMessage(message), true, formatAjvErrors(validatePinnedAgentMessage.errors));
+}
+
+test("produces exact v1.0 lifecycle wire shapes that match the pinned schema", () => {
   const components = [{ id: "root", component: "Text", text: "Hello" }];
-  assert.deepEqual(producer.createSurface({
-    surfaceId: "main",
-    catalogId: "catalog-a",
-    theme,
-    sendDataModel: false,
-  }), {
-    version: "v0.9.1",
-    createSurface: {
-      surfaceId: "main",
-      catalogId: "catalog-a",
-      theme,
-      sendDataModel: false,
-    },
+  const created = producer.createSurface({ surfaceId: "main", catalogId: CATALOG_ID, sendDataModel: false });
+  assert.deepEqual(created, {
+    version: "1.0",
+    createSurface: { surfaceId: "main", catalogId: CATALOG_ID, sendDataModel: false },
   });
-  assert.deepEqual(producer.updateComponents({ surfaceId: "main", components }), {
-    version: "v0.9.1",
-    updateComponents: { surfaceId: "main", components },
-  });
-  assert.deepEqual(producer.updateDataModel({ surfaceId: "main", path: "/name", value: "Ada" }), {
-    version: "v0.9.1",
-    updateDataModel: { surfaceId: "main", path: "/name", value: "Ada" },
-  });
-  assert.deepEqual(producer.updateDataModel({ surfaceId: "main" }), {
-    version: "v0.9.1",
-    updateDataModel: { surfaceId: "main" },
-  });
-  assert.deepEqual(producer.updateDataModel({ surfaceId: "main", value: null }), {
-    version: "v0.9.1",
-    updateDataModel: { surfaceId: "main", value: null },
-  });
-  assert.deepEqual(producer.deleteSurface({ surfaceId: "main" }), {
-    version: "v0.9.1",
-    deleteSurface: { surfaceId: "main" },
-  });
+  assertPinned(created);
+
+  const updated = producer.updateComponents({ surfaceId: "main", components });
+  assert.deepEqual(updated, { version: "1.0", updateComponents: { surfaceId: "main", components } });
+  assertPinned(updated);
+
+  const data = producer.updateDataModel({ surfaceId: "main", path: "/name", value: "Ada" });
+  assert.deepEqual(data, { version: "1.0", updateDataModel: { surfaceId: "main", path: "/name", value: "Ada" } });
+  assertPinned(data);
+
+  const deleted = producer.deleteSurface({ surfaceId: "main" });
+  assert.deepEqual(deleted, { version: "1.0", deleteSurface: { surfaceId: "main" } });
+  assertPinned(deleted);
 });
 
-test("owns nested producer input and does not mutate caller data", () => {
-  const input = {
+test("createSurface can carry components, a data model, and metadata inline", () => {
+  const message = producer.createSurface({
     surfaceId: "main",
-    components: [{ id: "root", component: "Text", text: { value: "Hello" } }],
+    catalogId: CATALOG_ID,
+    components: [{ id: "root", component: "Text", text: "Hello" }],
+    dataModel: { title: "Hello" },
+    metadata: { extensions: { vendor_x: true } },
+  });
+  assert.deepEqual(message.createSurface.dataModel, { title: "Hello" });
+  assert.deepEqual(message.createSurface.metadata, { extensions: { vendor_x: true } });
+  assertPinned(message);
+});
+
+test("createSurface omits catalogId when it is not supplied", () => {
+  const message = producer.createSurface({ surfaceId: "main" });
+  assert.deepEqual(message, { version: "1.0", createSurface: { surfaceId: "main" } });
+  assertPinned(message);
+});
+
+test("updateDataModel keeps an explicit null value as the deletion sentinel", () => {
+  const message = producer.updateDataModel({ surfaceId: "main", path: "/name", value: null });
+  assert.deepEqual(message.updateDataModel, { surfaceId: "main", path: "/name", value: null });
+  assert.equal("value" in message.updateDataModel, true);
+  assertPinned(message);
+});
+
+test("updateDataModel rejects a missing value at runtime", () => {
+  const input = { surfaceId: "main", path: "/name" } as unknown as Parameters<typeof producer.updateDataModel>[0];
+  assert.throws(() => producer.updateDataModel(input), TypeError);
+});
+
+test("producer types reject theme and a missing updateDataModel value at compile time", () => {
+  // Compile-time only: these calls are never executed, so the runtime is not exercised.
+  const compileOnly = () => {
+    // @ts-expect-error theme is not part of A2UI v1.0 createSurface
+    producer.createSurface({ surfaceId: "main", catalogId: CATALOG_ID, theme: { primaryColor: "#123456" } });
+    // @ts-expect-error updateDataModel requires value
+    producer.updateDataModel({ surfaceId: "main", path: "/name" });
   };
-  const message = producer.updateComponents(input);
-  input.components[0].text.value = "changed";
-  assert.deepEqual(message.updateComponents.components[0]?.text, { value: "Hello" });
-  message.updateComponents.components[0]!.text = { value: "message-only" };
-  assert.deepEqual(input.components[0].text, { value: "changed" });
-
-  const theme = { primaryColor: "#123456" };
-  const created = producer.createSurface({ surfaceId: "main", catalogId: "catalog-a", theme });
-  theme.primaryColor = "changed";
-  assert.deepEqual(created.createSurface.theme, { primaryColor: "#123456" });
+  assert.equal(typeof compileOnly, "function");
 });
 
-test("supports independent surfaces and validates every produced protocol envelope", () => {
-  const messages = [
-    producer.createSurface({ surfaceId: "one", catalogId: "catalog-a" }),
-    producer.createSurface({ surfaceId: "two", catalogId: "catalog-b" }),
-    producer.updateComponents({ surfaceId: "one", components: [{ id: "root", component: "Text", text: "One" }] }),
-    producer.updateComponents({ surfaceId: "two", components: [{ id: "root", component: "Text", text: "Two" }] }),
-    producer.updateDataModel({ surfaceId: "one", value: {} }),
-    producer.deleteSurface({ surfaceId: "two" }),
-  ];
-  for (const message of messages) assert.deepEqual(validateA2UIServerMessage(message), { ok: true, value: message });
+test("producer refuses identifiers that the protocol rejects", () => {
+  assert.throws(
+    () => producer.updateComponents({ surfaceId: "main", components: [{ id: "user-card", component: "Text" }] }),
+    TypeError,
+  );
+  assert.throws(
+    () => producer.updateComponents({ surfaceId: "main", components: [{ id: "1st_item", component: "Text" }] }),
+    TypeError,
+  );
+  assert.throws(
+    () => producer.updateComponents({ surfaceId: "main", components: [{ id: "root", component: "Surface" }] }),
+    TypeError,
+  );
 });
 
-test("rejects invalid runtime caller values without repairing them", () => {
-  assert.throws(() => producer.createSurface(null as never), /createSurface producer input must be an object/);
-  assert.throws(() => producer.updateComponents({ surfaceId: "main", components: [] }), TypeError);
-  assert.throws(() => producer.updateDataModel({ surfaceId: "main", value: undefined }), TypeError);
-  assert.throws(() => producer.updateComponents({
-    surfaceId: "main",
-    components: [{ id: "root", component: "Text", text: "ok", invalid: Number.NaN }],
-  }), TypeError);
-  const cyclic: { value?: unknown } = {};
-  cyclic.value = cyclic;
-  assert.throws(() => producer.createSurface({ surfaceId: "main", catalogId: "catalog-a", theme: cyclic as never }), TypeError);
-
-  const protoTheme = JSON.parse('{"__proto__":{"polluted":true}}');
-  const message = producer.createSurface({ surfaceId: "main", catalogId: "catalog-a", theme: protoTheme });
-  assert.equal(Object.prototype.hasOwnProperty.call(message.createSurface.theme, "__proto__"), true);
-  assert.deepEqual(message.createSurface.theme?.["__proto__"], { polluted: true });
-  assert.equal(({} as { polluted?: boolean }).polluted, undefined);
+test("producer output is owned and does not alias caller input", () => {
+  const components = [{ id: "root", component: "Text", text: "Hello" }];
+  const message = producer.updateComponents({ surfaceId: "main", components });
+  components[0].text = "Changed";
+  assert.equal(message.updateComponents.components[0]?.text, "Hello");
 });
 
-test("produces canonical Basic messages accepted by a Basic-configured runtime", () => {
+test("producer rejects non-JSON input and cycles", () => {
+  assert.throws(() => producer.updateDataModel({ surfaceId: "main", value: Number.NaN }), TypeError);
+  const cyclic: Record<string, unknown> = { name: "loop" };
+  cyclic.self = cyclic;
+  assert.throws(() => producer.updateDataModel({ surfaceId: "main", value: cyclic as never }), TypeError);
+});
+
+test("producer output is accepted by the Weaver validator and the runtime rejects theme-free createSurface without catalog", () => {
   const runtime = basicRuntime();
-  const messages = [
-    producer.createSurface({ surfaceId: "basic", catalogId: A2UI_V091_BASIC_CATALOG_ID }),
-    producer.updateComponents({ surfaceId: "basic", components: [
-      { id: "root", component: "Text", text: "Hello from the producer" },
-    ] }),
-  ];
-  for (const message of messages) assert.equal(runtime.process(message).ok, true);
-  const resolved = runtime.resolveSurface("basic");
-  assert.equal(resolved.ok, true);
-  if (resolved.ok) assert.equal(resolved.value.tree.root?.component, "Text");
+  const message = producer.createSurface({ surfaceId: "main" });
+  assert.equal(validateA2UIAgentMessage(message).ok, true);
+  const result = runtime.process(message);
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "UNSUPPORTED_FEATURE");
 });
