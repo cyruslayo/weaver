@@ -1,14 +1,17 @@
-A2UI repository: a2ui-project/a2ui
-Commit: ec97cb0d7499932e67003ffe5b709a3db7e7033a
-Pinned upstream sources:
-- specification/v0_9_1/json/common_types.json
-- specification/v0_9_1/json/server_to_client.json
-- specification/v0_9_1/catalogs/basic/catalog.json
+A2UI repository: a2ui-project/a2ui (formerly google/A2UI)
+A2UI version: 1.0
+Commit: 5ff1b05f02d39f969b52a942e78e864ef3ac01fa
+Pinned upstream sources (exact unmodified copies of the files at that commit):
+- specification/v1_0/json/agent_to_renderer.json        -> agent_to_renderer.json
+- specification/v1_0/json/common_types.json              -> common_types.json
+- specification/v1_0/json/catalog_definition.json        -> catalog_definition.json
+- catalogs/basic/v1/catalog.json                         -> catalog.json
 
 Pinned exact upstream copies (used by conformance fixtures and by the Basic
 Catalog generator; these are not exported or copied to dist):
+- agent_to_renderer.json
 - common_types.json
-- server_to_client.json
+- catalog_definition.json
 - catalog.json
 
 Weaver-normalized production representation:

@@ -11,7 +11,7 @@ import {
 } from "./index.js";
 
 const fixture = (name: string): object => JSON.parse(readFileSync(
-  new URL(`../../../../../src/protocol/a2ui/v0_9_1/outbound/fixtures/${name}.json`, import.meta.url),
+  new URL(`../../../../../src/protocol/a2ui/v1_0/outbound/fixtures/${name}.json`, import.meta.url),
   "utf8",
 ));
 const ajv = new Ajv2020({ strict: false, validateFormats: false });

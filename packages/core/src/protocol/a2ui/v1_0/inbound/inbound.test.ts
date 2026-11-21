@@ -6,7 +6,7 @@ import { createWeaverRuntime } from "../../../../runtime/index.js";
 import type { JsonObject } from "../types.js";
 
 const fixture = (name: string): JsonObject => JSON.parse(readFileSync(
-  new URL(`../../../../../src/protocol/a2ui/v0_9_1/inbound/fixtures/${name}.json`, import.meta.url), "utf8",
+  new URL(`../../../../../src/protocol/a2ui/v1_0/inbound/fixtures/${name}.json`, import.meta.url), "utf8",
 )) as JsonObject;
 const common = fixture("common_types");
 const catalog = fixture("catalog");

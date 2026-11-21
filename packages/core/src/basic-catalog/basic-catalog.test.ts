@@ -8,7 +8,7 @@ import { CatalogRegistry } from "../catalog/index.js";
 import { A2UI_V091_BASIC_CATALOG_ID, createBasicCatalogV091Registration } from "./index.js";
 
 const fixture = (name: string): JsonObject => JSON.parse(readFileSync(
-  new URL(`../../src/protocol/a2ui/v0_9_1/inbound/fixtures/${name}.json`, import.meta.url),
+  new URL(`../../src/protocol/a2ui/v1_0/inbound/fixtures/${name}.json`, import.meta.url),
   "utf8",
 )) as JsonObject;
 

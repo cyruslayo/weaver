@@ -15,7 +15,7 @@ import type { FunctionEvaluationError, FunctionEvaluationErrorCode, FunctionRegi
 import type { InputBindingWriteError } from "../input-binding/errors.js";
 import type { MessageProcessorError } from "../message-processor/errors.js";
 import { A2UIMessageProcessor } from "../message-processor/index.js";
-import type { ValidationIssue } from "../protocol/a2ui/v0_9_1/errors.js";
+import type { ValidationIssue } from "../protocol/a2ui/v1_0/errors.js";
 import type { ResolutionBudgetExceededError, WeaverRuntimeSafetyConfigurationError } from "../runtime/safety.js";
 import type {
   WeaverRuntimeConfigurationError,

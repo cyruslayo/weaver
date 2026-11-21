@@ -5,8 +5,8 @@
 // It reads the pinned official fixtures (exact upstream copies) and produces the
 // Weaver-normalized production representation consumed by @cylayo/weaver-core:
 //
-//   packages/core/src/protocol/a2ui/v0_9_1/inbound/fixtures/catalog.json
-//   packages/core/src/protocol/a2ui/v0_9_1/inbound/fixtures/common_types.json
+//   packages/core/src/protocol/a2ui/v1_0/inbound/fixtures/catalog.json
+//   packages/core/src/protocol/a2ui/v1_0/inbound/fixtures/common_types.json
 //        -> this generator
 //        -> packages/core/src/basic-catalog/generated-basic-catalog.ts
 //
@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const fixtures = path.join(root, "packages", "core", "src", "protocol", "a2ui", "v0_9_1", "inbound", "fixtures");
+const fixtures = path.join(root, "packages", "core", "src", "protocol", "a2ui", "v1_0", "inbound", "fixtures");
 const output = path.join(root, "packages", "core", "src", "basic-catalog", "generated-basic-catalog.ts");
 
 const CATALOG_ID = "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
