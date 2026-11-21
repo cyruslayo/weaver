@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { createMcpHandler, fromJsonSchema, McpServer } from "@modelcontextprotocol/server";
-import type { A2UITransportSession } from "@cylayo/weaver-core";
+import { createBasicCatalogV10Registration, createWeaverRuntime, type A2UITransportSession, type WeaverRuntime } from "@cylayo/weaver-core";
 import {
   createA2UIMcpClientBridge,
   registerMcpApplicationCapabilities,
@@ -10,6 +10,12 @@ import {
 } from "./index.js";
 
 const capabilities = { "1.0": { supportedCatalogIds: ["catalog.test"] } };
+
+function testRuntime(): WeaverRuntime {
+  const created = createWeaverRuntime({ catalogs: [createBasicCatalogV10Registration()] });
+  if (!created.ok) throw new Error("runtime configuration failed");
+  return created.value;
+}
 const validMessages = [
   { version: "1.0", createSurface: { surfaceId: "surface", catalogId: "catalog.test" } },
   { version: "1.0", updateComponents: { surfaceId: "surface", components: [{ id: "root", component: "Text", text: "Hello" }] } },
@@ -21,7 +27,10 @@ function recordingSession(route = "route-a") {
     processInbound(routeId, input) { received.push({ route: routeId, input: structuredClone(input) }); return { ok: true, value: { operation: "surfaceDeleted", surfaceId: "surface" } }; },
     getSurfaceRoute() { return route; },
     prepareActionDelivery() { return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } }; },
+    prepareActionCallDelivery() { return { ok: false, error: { code: "ACTION_DELIVERY_UNAVAILABLE" } }; },
+    drainOutbound() { return []; },
     prepareValidationErrorDelivery() { return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } }; },
+    prepareFunctionResponseDelivery() { return { ok: false, error: { code: "FUNCTION_RESPONSE_UNAVAILABLE" } }; },
     getRendererCapabilities() { return structuredClone(capabilities); },
   };
   return { session, received };
@@ -60,7 +69,7 @@ test("modern 2026-07-28 resource, tool, and action flows use official HTTP SDK",
   const harness = await modernHarness();
   try {
     const { session, received } = recordingSession();
-    const bridge = createA2UIMcpClientBridge({ client: harness.client, session, routeId: "route-a" });
+    const bridge = createA2UIMcpClientBridge({ runtime: testRuntime(), client: harness.client, session, routeId: "route-a" });
     const resource = await bridge.readResource({ uri: "a2ui://test-form" });
     assert.equal(resource.ok, true);
     assert.deepEqual(received.map(({ input }) => input), validMessages);
@@ -94,7 +103,7 @@ test("MIME, audience, payload, error, and route security rules", async () => {
       { type: "resource", resource: { uri: "x", mimeType: "text/html", text: JSON.stringify(validMessages[0]) } },
     ] }; },
   };
-  const bridge = createA2UIMcpClientBridge({ client: client as unknown as Client, session, routeId: "route-a", maxPayloadBytes: 4 });
+  const bridge = createA2UIMcpClientBridge({ runtime: testRuntime(), client: client as unknown as Client, session, routeId: "route-a", maxPayloadBytes: 4 });
   const read = await bridge.readResource({ uri: "x" });
   assert.equal(read.ok, true);
   if (read.ok) assert.deepEqual(read.diagnostics, [{ code: "A2UI_MCP_BINARY_RESOURCE_UNSUPPORTED" }]);
@@ -104,6 +113,78 @@ test("MIME, audience, payload, error, and route security rules", async () => {
   const wrong = await bridge.sendDelivery({ routeId: "route-b", message: { version: "1.0", error: { code: "VALIDATION_FAILED", surfaceId: "surface", path: "/", message: "bad" } } });
   assert.deepEqual(wrong, { ok: false, error: { code: "MCP_DELIVERY_ROUTE_MISMATCH" } });
   assert.equal(calls.length, 1);
+});
+
+test("function responses and drained calls use reply; without reply they are reported, and drained calls are cancelled", async () => {
+  const RESPONSE = { version: "1.0", rendererFunctionResponse: { functionCallId: "c1", value: "2026" } };
+  const CALL = { version: "1.0", callAgentFunction: { functionCallId: "a1", surfaceId: "surface", callFunction: { "@call": "fetchRate", catalogId: "catalog.test", args: { id: "A-1" } } } };
+  const toolText = JSON.stringify({ version: "1.0", callRendererFunction: { functionCallId: "c1", callFunction: { "@call": "formatDate", args: {} } } });
+  const client = {
+    async callTool() { return { content: [{ type: "resource", resource: { uri: "x", mimeType: "application/a2ui+json", text: toolText }, annotations: { audience: ["user"] } }] }; },
+  } as unknown as Client;
+  const baseSession = recordingSession().session;
+  let queued: Array<{ routeId: string; message: unknown }> = [{ routeId: "route-a", message: CALL }];
+  const session: A2UITransportSession = {
+    ...baseSession,
+    processInbound() { return { ok: true, value: { operation: "rendererFunctionResponded", response: RESPONSE } } as unknown as ReturnType<A2UITransportSession["processInbound"]>; },
+    prepareFunctionResponseDelivery(routeId) { return { ok: true, value: { routeId, message: RESPONSE } } as never; },
+    drainOutbound() { const taken = queued as never; queued = []; return taken; },
+  };
+  const cancelled: string[] = [];
+  const runtime = { cancelAgentFunctionCall(id: string) { cancelled.push(id); return { ok: true, value: { operation: "agentFunctionCancelled", surfaceId: "surface", functionCallId: id } }; } } as unknown as WeaverRuntime;
+
+  const replies: unknown[] = []; const diagnostics: unknown[] = [];
+  const withReply = createA2UIMcpClientBridge({ client, session, runtime, routeId: "route-a", reply: (delivery) => { replies.push(delivery); }, onDiagnostic: (d) => diagnostics.push(d) });
+  assert.equal((await withReply.callTool({ name: "x" })).ok, true);
+  // The response goes out while the envelope is processed, and the drained call after the payload.
+  assert.deepEqual(replies, [{ routeId: "route-a", message: RESPONSE }, { routeId: "route-a", message: CALL }]);
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(cancelled, []);
+
+  queued = [{ routeId: "route-a", message: CALL }];
+  const bareDiagnostics: unknown[] = [];
+  const bare = createA2UIMcpClientBridge({ client, session, runtime, routeId: "route-a", onDiagnostic: (d) => { bareDiagnostics.push(d); } });
+  assert.equal((await bare.callTool({ name: "x" })).ok, true);
+  assert.deepEqual(bareDiagnostics, [
+    { code: "A2UI_MCP_FUNCTION_RESPONSE_UNDELIVERED" },
+    { code: "A2UI_MCP_AGENT_CALL_CANCELLED", functionCallId: "a1", reason: "TRANSPORT_FAILED" },
+  ]);
+  assert.deepEqual(cancelled, ["a1"]);
+  assert.deepEqual(await bare.sendDelivery({ routeId: "route-a", message: RESPONSE as never }), { ok: false, error: { code: "MCP_DELIVERY_UNSUPPORTED" } });
+  assert.deepEqual(await bare.sendDelivery({ routeId: "route-a", message: CALL as never }), { ok: false, error: { code: "MCP_DELIVERY_UNSUPPORTED" } });
+});
+
+test("bridges that share one session each reply only the calls of their own route; a route with no bridge stays queued", async () => {
+  const call = (functionCallId: string, surfaceId: string) => ({ version: "1.0", callAgentFunction: { functionCallId, surfaceId, callFunction: { "@call": "fetchRate", catalogId: "catalog.test", args: {} } } });
+  let queued: Array<{ routeId: string; message: unknown }> = [
+    { routeId: "route-a", message: call("a1", "X") },
+    { routeId: "route-b", message: call("b1", "Y") },
+    { routeId: "route-c", message: call("c1", "Z") },
+  ];
+  const base = recordingSession().session;
+  // Like the Core session: a drain takes only the asking route's deliveries.
+  const session: A2UITransportSession = {
+    ...base,
+    drainOutbound(routeId: string) {
+      const taken = queued.filter((delivery) => delivery.routeId === routeId);
+      queued = queued.filter((delivery) => delivery.routeId !== routeId);
+      return taken as never;
+    },
+  };
+  const cancelled: string[] = [];
+  const runtime = { cancelAgentFunctionCall(id: string) { cancelled.push(id); return { ok: true, value: { operation: "agentFunctionCancelled", surfaceId: "Z", functionCallId: id } }; } } as unknown as WeaverRuntime;
+  const aReplies: any[] = []; const bReplies: any[] = []; const diagnostics: unknown[] = [];
+  const client = {} as unknown as Client;
+  const a = createA2UIMcpClientBridge({ client, session, runtime, routeId: "route-a", reply: (delivery) => { aReplies.push(delivery); }, onDiagnostic: (d) => { diagnostics.push(d); } });
+  const b = createA2UIMcpClientBridge({ client, session, runtime, routeId: "route-b", reply: (delivery) => { bReplies.push(delivery); }, onDiagnostic: (d) => { diagnostics.push(d); } });
+  await a.flushAgentCalls();
+  await b.flushAgentCalls();
+  assert.deepEqual(aReplies.map((delivery) => delivery.message.callAgentFunction.functionCallId), ["a1"]);
+  assert.deepEqual(bReplies.map((delivery) => delivery.message.callAgentFunction.functionCallId), ["b1"]);
+  // Nothing was cancelled: the call for route C has no bridge, so it stays queued for its host.
+  assert.deepEqual(cancelled, []);
+  assert.deepEqual(diagnostics, []);
+  assert.deepEqual(queued.map((delivery) => delivery.routeId), ["route-c"]);
 });
 
 const emptySchema = fromJsonSchema({ type: "object", additionalProperties: false });

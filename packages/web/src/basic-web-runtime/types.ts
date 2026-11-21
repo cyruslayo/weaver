@@ -10,6 +10,7 @@ import type {
   RendererRegistryConfigurationError,
 } from "../renderers/index.js";
 import type {
+  WebAgentFunctionCallsHandoff,
   WebServerEventHandoff,
   WebSurfaceAttributionProvider,
   WebSurfaceMountOptions,
@@ -19,6 +20,8 @@ import type {
 export interface BasicWebRuntimeRenderingOptions {
   attributionProvider?: WebSurfaceAttributionProvider;
   onServerEvent?: (event: WebServerEventHandoff) => void;
+  /** See WebSurfaceRendererConfig.onAgentFunctionCalls. */
+  onAgentFunctionCalls?: (result: WebAgentFunctionCallsHandoff) => void;
 }
 
 export interface BasicWebRuntimeConfig {

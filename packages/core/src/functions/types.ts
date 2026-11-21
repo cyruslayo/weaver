@@ -44,6 +44,12 @@ export type FunctionRegistrationResult =
 
 export type FunctionEvaluationValue = JsonValue | undefined;
 
+/**
+ * A successful evaluation has a value. `awaiting` is set when the value depends on
+ * a routed agent call that has not settled (see agent-functions). Its value is
+ * then undefined, which reads as pending and never as a failure. The call is not
+ * executed. The id names the pending call that the evaluation waits on.
+ */
 export type FunctionEvaluationResult<T extends FunctionEvaluationValue = FunctionEvaluationValue> =
-  | { ok: true; value: T }
+  | { ok: true; value: T; awaiting?: string }
   | { ok: false; error: import("./errors.js").FunctionEvaluationError };

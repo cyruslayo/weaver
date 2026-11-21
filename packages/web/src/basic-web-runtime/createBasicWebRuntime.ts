@@ -53,6 +53,7 @@ export function createBasicWebRuntime(
     renderers,
     ...(config.rendering?.attributionProvider === undefined ? {} : { attributionProvider: config.rendering.attributionProvider }),
     ...(config.rendering?.onServerEvent === undefined ? {} : { onServerEvent: config.rendering.onServerEvent }),
+    ...(config.rendering?.onAgentFunctionCalls === undefined ? {} : { onAgentFunctionCalls: config.rendering.onAgentFunctionCalls }),
   });
 
   const runtime = runtimeCreated.value;

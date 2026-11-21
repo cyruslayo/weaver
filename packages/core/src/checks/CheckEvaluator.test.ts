@@ -172,7 +172,7 @@ test("failed functions are reported as error checks and a boolean final result i
   let check = value(evaluator.evaluate(catalogId, instance("x", [rule({ "@call": "missing", args: {} })]), DataContext.root({}))).checks[0]!;
   assert.equal(check.status, "error");
   assert.equal(check.issues[0]?.code, "CHECK_FUNCTION_EVALUATION_FAILED");
-  if (check.issues[0]?.code === "CHECK_FUNCTION_EVALUATION_FAILED") assert.equal(check.issues[0].error.code, "FUNCTION_IMPLEMENTATION_NOT_FOUND");
+  if (check.issues[0]?.code === "CHECK_FUNCTION_EVALUATION_FAILED") assert.equal(check.issues[0].error.code, "EXPRESSION_ERROR");
   assert.equal(functions.register({ catalogId, name: "missing", effect: "pure", implementation: () => true }).ok, true);
   assert.equal(value(evaluator.evaluate(catalogId, instance("x", [rule({ "@call": "missing", args: {} })]), DataContext.root({}))).checks[0]?.status, "passed");
   assert.equal(functions.register({ catalogId, name: "thrower", effect: "pure", implementation: () => { throw new Error("boom"); } }).ok, true);

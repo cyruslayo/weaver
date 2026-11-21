@@ -127,20 +127,42 @@ Client and server become renderer and agent:
 These are valid A2UI v1.0 features that 0.4.0 does not implement. The runtime returns a typed
 `UNSUPPORTED_FEATURE` error for each one, and it changes no state.
 
-- Remote function calls: `callRendererFunction` and `agentFunctionResponse` messages.
 - `createSurface` without a `catalogId`, which is multi-catalog support.
 - A component `@catalogId`, or a function-call `catalogId`, that differs from its surface's.
 - Enforcement of composition constraints (`allowedParents`, `allowedChildren`).
+- A nested call into a different catalog, deferred until multi-catalog surfaces.
 
 ### Added
 
 - A2UI v1.0 features: the `@path` and `@call` bindings, the `@@` escape, the `@index` template
   variable, function-level `requiresUserActivation` and `allowedCallers`, and checks with severity.
   See [docs/conformance-v1.0.md](docs/conformance-v1.0.md) for the status of each item.
+- Remote function calls in both directions. The agent's `callRendererFunction` is answered with a
+  `rendererFunctionResponse`. A renderer call with no local implementation becomes a
+  `callAgentFunction`, which the host sends and answers with `agentFunctionResponse`. The runtime
+  takes `agentFunctions` config with `onCallQueued`, and `takeAgentFunctionCalls(surfaceFilter?)`,
+  and the transport session's `drainOutbound(routeId)` takes only that route's calls (other calls
+  stay queued). A session result's type includes the resumed `action`,
+  `cancelAgentFunctionCall()` and `agentFunctionSettled` surface changes. The Web HTTP/SSE transport
+  adds `runtime`, `flushAgentCalls()` and `sendActionCalls()`, and the Web renderer adds
+  `onAgentFunctionCalls`. The MCP bridge adds `runtime`, `reply`, `onDiagnostic`, `flushAgentCalls()`
+  and `sendActionCalls()`. See [docs/architecture.md](docs/architecture.md#remote-function-calls).
 - The typed `UNSUPPORTED_FEATURE` and `INVALID_RESERVED_KEY` errors, with descriptions in
   `describeWeaverError()`.
 - `docs/conformance-v1.0.md`, a requirement tracker for v1.0 that marks each item as implemented,
   planned or an accepted limitation.
+
+### Changed
+
+- A declared function with no implementation, an `agentOnly` function called from a binding or an
+  action, and invalid routed arguments now report `EXPRESSION_ERROR`. They used to report
+  `FUNCTION_IMPLEMENTATION_NOT_FOUND`, `FUNCTION_CALLER_NOT_ALLOWED` and `FUNCTION_VALIDATION_FAILED`.
+- A binding that waits on an agent call resolves to `null` until the answer or the cancellation.
+- `EXPRESSION_ERROR` may carry a `functionCallId`, which names the call that failed.
+- The new `MCP_DELIVERY_UNSUPPORTED` code is returned by an MCP bridge with no `reply` callback when
+  asked to send a response or a call.
+- `createBrowserA2UIHttpSseTransport` and `createA2UIMcpClientBridge` require `runtime`, the
+  `WeaverRuntime` that the session wraps.
 
 ### Migrating from 0.3.x
 

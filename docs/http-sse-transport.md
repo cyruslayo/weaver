@@ -35,6 +35,54 @@ The same host-supplied `fetch` wrapper handles initial stream, reconnect stream,
 
 Actions and automatic standard validation responses use serialized `POST <sendUrl>` requests with exact `{ message, metadata }` wrappers. Capabilities are included every time; optional owner-routed `a2uiRendererDataModel` is included only when supplied by the session. Failed sends do not stop later sends. Local function actions remain local. Disconnect/resume never mutates Core surface ownership or adds replay state to `A2UITransportSession`, `SurfaceStore`, or `DataModel`.
 
+Every inbound event that the session answers also sends its reply on the same route, in the same serialized queue:
+
+- a `rendererFunctionResponse` for an agent `callRendererFunction`, including the error response that routing gives a refused call;
+- a generic renderer `error` for a malformed call envelope, correlated by its `functionCallId`;
+- the work a settled agent call resumed, whether that is an action server event or more `callAgentFunction` messages.
+
+## Remote function calls
+
+The renderer also calls functions the agent implements. Core queues each such call as a `callAgentFunction` message. The transport sends queued calls itself, so the host does not poll. The host wires two things:
+
+```ts
+import { createA2UITransportSession } from "@cylayo/weaver-core";
+import { createBasicWebRuntime, createBrowserA2UIHttpSseTransport, type BrowserA2UIHttpSseTransport } from "@cylayo/weaver-web";
+
+let transport: BrowserA2UIHttpSseTransport | undefined;
+// One runtime serves the renderer, the session and the transport.
+const created = createBasicWebRuntime({
+  // Core calls this after it queues a call. The drain is deferred to a microtask and then serialized.
+  runtime: { agentFunctions: { onCallQueued: () => { void transport?.flushAgentCalls(); } } },
+  // A user action that waits on calls is handed here. Its calls are sent with sendActionCalls.
+  rendering: { onAgentFunctionCalls: (result) => { void transport?.sendActionCalls(result); } },
+});
+if (!created.ok) throw new Error(created.error.code);
+const web = created.value;
+const session = createA2UITransportSession({ runtime: web.runtime });
+transport = createBrowserA2UIHttpSseTransport({
+  runtime: web.runtime, // the runtime the session wraps; a call that fails to send is cancelled on it
+  session,
+  routeId: "host-assigned-route",
+  streamUrl: "/a2ui/stream",
+  sendUrl: "/a2ui/send",
+});
+```
+
+A host that calls `runtime.dispatchAction` itself passes the result to `transport.sendActionCalls(result)`. Either path sends only the `callAgentFunction` messages that the result carries. Other kinds are not handled there, so a server event stays with the host.
+
+Several adapters may share one session, one per route. Each adapter's flush drains only its own route, so the hook must flush every adapter on the session. Calls for other routes stay queued for their own adapter. A call whose surface has no route also stays queued until the host cancels it with `cancelAgentFunctionCall(id, "TRANSPORT_FAILED")`. A Web adapter and an MCP bridge can share one session, because each drains only its own route.
+
+The transport's rules:
+
+- A send that fails cancels its call with `cancelAgentFunctionCall(id, "TRANSPORT_FAILED")`, and an action that the cancellation resumes is delivered. The failure is reported as `AGENT_CALL_DELIVERY_FAILED`.
+- A call whose surface has no route stays queued, and the host cancels it. The transport never sends it on another route.
+- The transport delivers the work a resumed action produced, so the host must not send it again.
+- The host owns timeouts. Core has no clock. Cancel a stale call with `cancelAgentFunctionCall(id, "TIMEOUT")` from the host's own timer.
+- Each answer is correlated by `functionCallId` and must arrive on the route that owns the call's surface. Otherwise the session refuses it with `SURFACE_ROUTE_MISMATCH`.
+
+Diagnostics for these paths are `FUNCTION_RESPONSE_DELIVERY_FAILED`, `AGENT_CALL_DELIVERY_FAILED`, and `CONTINUATION_DELIVERY_FAILED`. The response bodies are the same `{ message, metadata }` wrappers as every other renderer message. Authentication and CORS stay with the host-supplied `fetch`.
+
 ## Reference server
 
 `examples/http-sse-server/` is a dependency-free, loopback reference peer. Each successfully accepted `sendA2UI()` receives a unique monotonically increasing decimal event ID and emits:

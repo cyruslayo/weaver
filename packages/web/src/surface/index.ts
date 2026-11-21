@@ -1,6 +1,7 @@
 export { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
 export type { WebRenderError } from "./errors.js";
 export type {
+  WebAgentFunctionCallsHandoff,
   WebServerEventHandoff,
   WebSurfaceAttributionInput,
   WebSurfaceAttributionProvider,

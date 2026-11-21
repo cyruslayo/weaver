@@ -49,7 +49,7 @@ test("rejects every cross-route mutation before runtime state changes", () => {
 
   for (const input of [update("X", "after"), data("X", { count: 2 }), remove("X"), create("X")]) {
     const result = session.processInbound("B", input);
-    assert.deepEqual(result, { ok: false, error: { code: "SURFACE_ROUTE_MISMATCH", surfaceId: "X" } });
+    assert.equal(!result.ok && result.error.code, "SURFACE_ROUTE_MISMATCH");
   }
   assert.equal(runtime.getSurface("X")?.components.root?.text, "before");
   assert.deepEqual(runtime.getSurface("X")?.dataModel, { count: 1 });

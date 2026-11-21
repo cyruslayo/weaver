@@ -1,4 +1,10 @@
 import { ActionDispatcher } from "../actions/index.js";
+import {
+  AgentFunctionBroker,
+  normalizeAgentFunctionsConfig,
+  type ActionCallMemo,
+  type AgentFunctionCancelReason,
+} from "../agent-functions/index.js";
 import { CatalogRegistry } from "../catalog/index.js";
 import { CheckEvaluator } from "../checks/index.js";
 import { cloneJson } from "../data-model/clone.js";
@@ -23,8 +29,10 @@ import { createResolutionBudget, normalizeResolutionSafety } from "./safety.js";
 import type {
   WeaverActionRequest,
   WeaverActionResult,
+  WeaverAgentFunctionCancelResult,
   WeaverInputRequest,
   WeaverInputResult,
+  WeaverProcessResult,
   WeaverRuntimeConfig,
   WeaverRuntimeCreationResult,
   WeaverRuntimeEvent,
@@ -32,7 +40,7 @@ import type {
   WeaverSurfaceResolutionResult,
   WeaverSurfaceSubscriber,
 } from "./types.js";
-import type { JsonValue } from "../protocol/index.js";
+import type { A2UIRendererCallAgentFunctionMessage, JsonValue } from "../protocol/index.js";
 
 function cloneRuntimeJson<T>(value: T): T {
   // SAFETY: runtime snapshots cloned here are JSON-shaped protocol values.
@@ -155,6 +163,9 @@ interface RuntimeServices {
   actions: ActionDispatcher;
   safety: import("./safety.js").ResolutionSafetyPolicy;
   observer?: WeaverRuntimeObserver;
+  agentCalls: AgentFunctionBroker;
+  /** True when agent routing is configured. Only then do bindings, checks and actions route calls. */
+  routing: boolean;
 }
 
 export class WeaverRuntime {
@@ -179,8 +190,8 @@ export class WeaverRuntime {
     }
   }
 
-  process(input: unknown): ReturnType<A2UIMessageProcessor["process"]> {
-    const result = this.#services.processor.process(input);
+  process(input: unknown): WeaverProcessResult {
+    const result = this.#processMessage(input);
     this.#observe(() => ({
       kind: "message",
       input: observedValue(input),
@@ -189,10 +200,80 @@ export class WeaverRuntime {
     return result;
   }
 
-  processMany(
-    inputs: readonly unknown[],
-  ): ReturnType<A2UIMessageProcessor["process"]>[] {
+  processMany(inputs: readonly unknown[]): WeaverProcessResult[] {
     return inputs.map((input) => this.process(input));
+  }
+
+  /**
+   * Processes one message. An agentFunctionResponse that settles an action's call
+   * runs that action again, and its result is attached as `action`. With routing
+   * enabled, the surface is resolved after a successful message, so the calls that
+   * a changed value now requires are queued.
+   */
+  #processMessage(input: unknown): WeaverProcessResult {
+    const processed = this.#services.processor.process(input);
+    if (!processed.ok) return processed;
+    const value = processed.value;
+    if (value.operation === "agentFunctionResolved") {
+      const { continuation, ...settled } = value;
+      const action = continuation === undefined ? undefined : this.#runContinuation(continuation);
+      this.#settleRouting(settled.surfaceId);
+      return { ok: true, value: { ...settled, ...(action === undefined ? {} : { action }) } };
+    }
+    if ("surfaceId" in value) this.#settleRouting(value.surfaceId);
+    return processed;
+  }
+
+  /**
+   * Queued callAgentFunction messages for the host to send, in order. Each is returned once.
+   * With `surfaceFilter`, only the calls of surfaces it accepts are taken. A transport passes
+   * "my route owns this surface", so the other routes' calls stay queued for their own drain.
+   */
+  takeAgentFunctionCalls(surfaceFilter?: (surfaceId: string) => boolean): A2UIRendererCallAgentFunctionMessage[] {
+    return this.#services.agentCalls.drain(surfaceFilter);
+  }
+
+  /**
+   * The surface a pending agent call belongs to, or undefined when the call is not
+   * pending. A transport uses it to check route ownership before it settles the call.
+   */
+  getAgentFunctionCallSurface(functionCallId: string): string | undefined {
+    return this.#services.agentCalls.surfaceOf(functionCallId);
+  }
+
+  /**
+   * Cancels a pending agent call the host gave up on, for example after a timeout
+   * or a failed send. The dependents resolve to an EXPRESSION_ERROR state. A late
+   * response for the call is then ignored.
+   */
+  cancelAgentFunctionCall(functionCallId: string, reason: AgentFunctionCancelReason): WeaverAgentFunctionCancelResult {
+    const settlement = this.#services.agentCalls.cancel(functionCallId, reason);
+    if (settlement.status === "ignored") {
+      return { ok: false, error: { code: "AGENT_FUNCTION_CALL_NOT_PENDING", functionCallId } };
+    }
+    this.#services.store.notifyAgentFunctionSettled(settlement.surfaceId, functionCallId);
+    const action = settlement.continuation === undefined ? undefined : this.#runContinuation(settlement.continuation);
+    this.#settleRouting(settlement.surfaceId);
+    return {
+      ok: true,
+      value: {
+        operation: "agentFunctionCancelled",
+        surfaceId: settlement.surfaceId,
+        functionCallId,
+        ...(action === undefined ? {} : { action }),
+      },
+    };
+  }
+
+  /** Runs an action's continuation. The result is JSON, as the action results are. */
+  #runContinuation(continuation: () => unknown): WeaverActionResult {
+    return continuation() as WeaverActionResult;
+  }
+
+  /** Resolves a surface, so the calls it now needs are queued. A no-op without agent routing. The result is discarded. */
+  #settleRouting(surfaceId: string): void {
+    if (!this.#services.routing) return;
+    this.resolveSurface(surfaceId);
   }
 
   getSurface(surfaceId: string) {
@@ -262,6 +343,7 @@ export class WeaverRuntime {
 
   writeInput(request: WeaverInputRequest): WeaverInputResult {
     const result = this.#writeInput(request);
+    if (result.ok) this.#settleRouting(request.surfaceId);
     this.#observe(() => ({
       kind: "input",
       request: {
@@ -278,6 +360,7 @@ export class WeaverRuntime {
 
   dispatchAction(request: WeaverActionRequest): WeaverActionResult {
     const result = this.#dispatchAction(request);
+    if (result.ok) this.#settleRouting(request.surfaceId);
     this.#observe(() => ({
       kind: "action",
       request: observedActionRequest(request),
@@ -303,14 +386,23 @@ export class WeaverRuntime {
         };
   }
 
-  #dispatchAction(request: WeaverActionRequest): WeaverActionResult {
+  /**
+   * Dispatches an action. With agent routing, the dispatch keeps a memo, and its
+   * continuation re-runs this same request against the current instance. The memo
+   * is shared by every run, so the calls already sent are never sent again.
+   */
+  #dispatchAction(request: WeaverActionRequest, memo?: ActionCallMemo): WeaverActionResult {
     const current = this.#resolveCurrentInstance(request);
     if (!current.ok) return current;
+    const actionMemo: ActionCallMemo = memo ?? { states: new Map(), outbox: [] };
     const dispatched = this.#services.actions.dispatch({
       surface: current.value.surface,
       instance: current.value.instance,
       actionProperty: request.actionProperty,
       userActivation: request.userActivation === true,
+      ...(this.#services.routing
+        ? { memo: actionMemo, continuation: () => this.#dispatchAction(request, actionMemo) }
+        : {}),
     });
     return dispatched.ok
       ? dispatched
@@ -450,8 +542,20 @@ export function createWeaverRuntime(
       };
   }
 
+  const agentFunctions = normalizeAgentFunctionsConfig(config.agentFunctions);
+  if (!agentFunctions.ok)
+    return {
+      ok: false,
+      error: {
+        code: "AGENT_FUNCTIONS_CONFIGURATION_FAILED",
+        agentFunctionsError: agentFunctions.error,
+      },
+    };
+  const agentCalls = new AgentFunctionBroker(agentFunctions.value);
+  const routing = config.agentFunctions !== undefined;
+
   const store = new SurfaceStore();
-  const functionEvaluator = new FunctionEvaluator(catalogs, functions);
+  const functionEvaluator = new FunctionEvaluator(catalogs, functions, routing ? { agentRouter: agentCalls } : {});
   const trees = new ComponentTreeResolver(catalogs);
   const instances = new ComponentInstanceResolver(trees);
   const checks = new CheckEvaluator(catalogs, functionEvaluator);
@@ -461,7 +565,9 @@ export function createWeaverRuntime(
       catalogs,
       functions,
       store,
-      processor: new A2UIMessageProcessor(store, catalogs),
+      processor: new A2UIMessageProcessor(store, catalogs, functionEvaluator, agentCalls),
+      agentCalls,
+      routing,
       trees,
       instances,
       properties: new ComponentPropertyResolver(catalogs, functionEvaluator),

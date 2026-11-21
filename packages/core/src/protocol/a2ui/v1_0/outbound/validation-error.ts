@@ -59,6 +59,10 @@ export function mapA2UIValidationFailure(
   input: A2UIValidationFailureMappingInput,
 ): A2UIValidationFailureMappingResult {
   if (input.result.ok) return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } };
+  // A failed callRendererFunction envelope is answered with a generic renderer error (see the transport session), not a surface validation error.
+  if (input.result.error.code === "PROTOCOL_VALIDATION_FAILED" && input.result.error.functionCallId !== undefined) {
+    return { ok: false, error: { code: "NOT_A_VALIDATION_FAILURE" } };
+  }
 
   const failure = input.result.error;
   let issue: { path: string; message: string; surfaceId?: string } | undefined;

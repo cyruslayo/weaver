@@ -14,6 +14,7 @@ import type {
 } from "../renderers/index.js";
 import type { WebRenderError } from "./errors.js";
 import type {
+  WebAgentFunctionCallsHandoff,
   WebServerEventHandoff,
   WebSurfaceAttributionProvider,
   WebSurfaceMountOptions,
@@ -40,12 +41,14 @@ export class WebSurfaceRenderer {
   readonly #renderers: RendererRegistry;
   readonly #attributionProvider?: WebSurfaceAttributionProvider;
   readonly #onServerEvent?: (event: WebServerEventHandoff) => void;
+  readonly #onAgentFunctionCalls?: (result: WebAgentFunctionCallsHandoff) => void;
 
   constructor(config: WebSurfaceRendererConfig) {
     this.#runtime = config.runtime;
     this.#renderers = config.renderers;
     this.#attributionProvider = config.attributionProvider;
     this.#onServerEvent = config.onServerEvent;
+    this.#onAgentFunctionCalls = config.onAgentFunctionCalls;
   }
 
   mount(options: WebSurfaceMountOptions): WebSurfaceMountResult {
@@ -307,6 +310,10 @@ export class WebSurfaceRenderer {
           try {
             this.#onServerEvent(structuredClone({ message: result.value.message, ...(result.value.metadata === undefined ? {} : { metadata: result.value.metadata }) }));
           } catch { return { ok: false, error: { code: "SERVER_EVENT_HANDOFF_FAILED" } }; }
+        }
+        // The handoff is isolated like the observer: a throwing handler does not change the result. The calls stay pending until the host sends or cancels them.
+        if (result.ok && result.value.kind === "agentFunctionCalls" && this.#onAgentFunctionCalls !== undefined) {
+          try { this.#onAgentFunctionCalls(structuredClone(result) as WebAgentFunctionCallsHandoff); } catch { /* Host callback isolation. */ }
         }
         return result;
       },

@@ -251,17 +251,20 @@ test("updateDataModel without value is a protocol validation failure", () => {
   assert.deepEqual(store.get("main")?.dataModel, {});
 });
 
-test("callRendererFunction and agentFunctionResponse are valid but unsupported", () => {
+test("agentFunctionResponse with no pending call is ignored; callRendererFunction is answered as a response", () => {
   const { processor } = setup();
+  // Remote calls are executed by the evaluator. Remote-call behavior is covered in remoteFunctions.test.ts.
   const call = processor.process(envelope({
     callRendererFunction: {
       functionCallId: "call-1",
       callFunction: { "@call": "formatDate", catalogId: "catalog", args: {} },
     },
   }));
-  assert.equal(!call.ok && call.error.code, "UNSUPPORTED_FEATURE");
+  assert.equal(call.ok, true);
+  if (call.ok) assert.equal(call.value.operation, "rendererFunctionResponded");
+  // call-1 names a renderer call, not a pending agent call, so the response matches nothing and is ignored.
   const response = processor.process(envelope({ agentFunctionResponse: { functionCallId: "call-1", value: 1 } }));
-  assert.equal(!response.ok && response.error.code, "UNSUPPORTED_FEATURE");
+  assert.deepEqual(response, { ok: true, value: { operation: "agentFunctionIgnored", functionCallId: "call-1" } });
 });
 
 test("rejects v0.9 and v0.9.1 envelopes and legacy messages", () => {

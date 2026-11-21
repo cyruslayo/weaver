@@ -143,7 +143,8 @@ test("preserves literal configuration objects", () => {
 
 test("distinguishes an unimplemented declared function", () => {
   const { evaluator, data } = setup();
-  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "allowedButUnimplemented", args: {} }, data)), "FUNCTION_IMPLEMENTATION_NOT_FOUND");
+  // A declared function with no implementation is never run locally. Without agent routing it fails as an EXPRESSION_ERROR.
+  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "allowedButUnimplemented", args: {} }, data)), "EXPRESSION_ERROR");
 });
 
 test("uses the catalog contract rather than a caller returnType", () => {
@@ -235,8 +236,9 @@ test("user activation is never inherited by a nested call", () => {
 
 test("agentOnly functions cannot be bound to properties or run from renderer actions", () => {
   const { evaluator, data } = setup({ agentTool: () => "agent" });
-  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "agentTool", args: {} }, data)), "FUNCTION_CALLER_NOT_ALLOWED");
-  assert.equal(errorCode(evaluator.evaluateAction("test", { "@call": "agentTool", args: {} }, data, { userActivation: true })), "FUNCTION_CALLER_NOT_ALLOWED");
+  // A renderer binding or action refuses agentOnly with EXPRESSION_ERROR (spec: "reports an EXPRESSION_ERROR"). The agent path keeps FUNCTION_CALLER_NOT_ALLOWED.
+  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "agentTool", args: {} }, data)), "EXPRESSION_ERROR");
+  assert.equal(errorCode(evaluator.evaluateAction("test", { "@call": "agentTool", args: {} }, data, { userActivation: true })), "EXPRESSION_ERROR");
 });
 
 test("a FunctionCall that declares allowedCallers or returnType is rejected on the wire", () => {
@@ -297,7 +299,8 @@ test("a literal object in a DynamicValue argument unescapes @@ keys and rejects 
 test("function-call args are optional, but the function's required arguments still apply", () => {
   const { evaluator, data } = setup({ stringResult: () => "bare" });
   assert.deepEqual(evaluator.evaluate("test", { "@call": "stringResult" }, data), { ok: true, value: "bare" });
-  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "echo" }, data)), "FUNCTION_VALIDATION_FAILED");
+  // echo is declared but has no implementation here, so its failed arguments are an EXPRESSION_ERROR that names it.
+  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "echo" }, data)), "EXPRESSION_ERROR");
   assert.equal(errorCode(evaluator.evaluate("test", { "@call": "stringResult", args: "x" }, data)), "FUNCTION_VALIDATION_FAILED");
 });
 

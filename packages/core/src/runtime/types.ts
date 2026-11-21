@@ -28,13 +28,20 @@ import type {
   InputBindingWriteError,
   InputBindingWriteSuccess,
 } from "../input-binding/index.js";
-import type { MessageProcessorResult } from "../message-processor/index.js";
+import type {
+  MessageProcessorResult,
+  MessageProcessorSuccess,
+} from "../message-processor/index.js";
 import type { JsonValue } from "../protocol/index.js";
 import type { WeaverRuntime } from "./WeaverRuntime.js";
 import type {
   WeaverRuntimeSafetyConfig,
   WeaverRuntimeSafetyConfigurationError,
 } from "./safety.js";
+import type {
+  AgentFunctionsConfig,
+} from "../agent-functions/index.js";
+import type { AgentFunctionsConfigurationError } from "../agent-functions/index.js";
 
 export interface WeaverRuntimeConfig {
   catalogs: readonly CatalogRegistration[];
@@ -42,12 +49,44 @@ export interface WeaverRuntimeConfig {
   now?: () => Date;
   safety?: WeaverRuntimeSafetyConfig;
   /**
+   * Opt-in renderer-to-agent calls (callAgentFunction). Presence enables routing
+   * for calls with no local implementation. Without it, such a call fails locally.
+   */
+  agentFunctions?: AgentFunctionsConfig;
+  /**
    * Opt-in observer. It receives a defensive copy of each message, input write
    * and action outcome, in order. Exceptions it throws are ignored, so it can
    * never change runtime results or state.
    */
   observer?: WeaverRuntimeObserver;
 }
+
+/** A successful processed message. An action that an agent response resumed is attached as `action`. */
+export type WeaverProcessSuccess =
+  | Exclude<MessageProcessorSuccess, { operation: "agentFunctionResolved" }>
+  | {
+      operation: "agentFunctionResolved";
+      surfaceId: string;
+      functionCallId: string;
+      /** Set when the settled call belongs to an action and the action ran again. */
+      action?: WeaverActionResult;
+    };
+
+export type WeaverProcessResult =
+  | { ok: true; value: WeaverProcessSuccess }
+  | Extract<MessageProcessorResult, { ok: false }>;
+
+export type WeaverAgentFunctionCancelResult =
+  | {
+      ok: true;
+      value: {
+        operation: "agentFunctionCancelled";
+        surfaceId: string;
+        functionCallId: string;
+        action?: WeaverActionResult;
+      };
+    }
+  | { ok: false; error: { code: "AGENT_FUNCTION_CALL_NOT_PENDING"; functionCallId: string } };
 
 /**
  * Event delivered to a WeaverRuntime observer. Payloads are defensive copies,
@@ -69,7 +108,7 @@ export interface WeaverRuntimeConfig {
  * would not be delivered, as when an observer throws.
  */
 export type WeaverRuntimeEvent =
-  | { kind: "message"; input: unknown; result: MessageProcessorResult }
+  | { kind: "message"; input: unknown; result: WeaverProcessResult }
   | {
       kind: "input";
       request: WeaverInputRequest;
@@ -85,6 +124,10 @@ export type WeaverRuntimeObserver = (event: WeaverRuntimeEvent) => void;
 
 export type WeaverRuntimeConfigurationError =
   | { code: "CATALOG_CONFIGURATION_FAILED"; catalogError: CatalogRegistryError }
+  | {
+      code: "AGENT_FUNCTIONS_CONFIGURATION_FAILED";
+      agentFunctionsError: AgentFunctionsConfigurationError;
+    }
   | {
       code: "FUNCTION_CONFIGURATION_FAILED";
       functionError: FunctionRegistryError;

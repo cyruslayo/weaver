@@ -9,6 +9,7 @@ import type { ComponentPropertyError } from "../component-properties/index.js";
 import type { ComponentTreeError } from "../component-tree/index.js";
 import type { DataContextError } from "../data-context/index.js";
 import type { DataModelError } from "../data-model/index.js";
+import type { AgentFunctionsConfigurationError } from "../agent-functions/index.js";
 import type { FunctionEvaluationError, FunctionRegistryError } from "../functions/index.js";
 import type { InputBindingWriteError } from "../input-binding/index.js";
 import type { MessageProcessorError } from "../message-processor/index.js";
@@ -171,6 +172,23 @@ function resolutionBudgetExceeded(error: ResolutionBudgetExceededError): ErrorNo
   return node("RESOLUTION_BUDGET_EXCEEDED", summary, {
     componentId: error.componentId,
     hint: "Simplify the component tree, or raise maxResolutionDepth or maxResolvedInstances within the host maximums.",
+  });
+}
+
+function agentFunctionsConfigurationError(error: AgentFunctionsConfigurationError): ErrorNode {
+  if (error.reason === "MUST_BE_OBJECT") {
+    return node("INVALID_AGENT_FUNCTIONS_CONFIGURATION", "The agentFunctions option must be an object.", {
+      hint: "Pass an object such as { maxPending }, or leave the option out.",
+    });
+  }
+  if (error.reason === "MUST_BE_FUNCTION") {
+    return node("INVALID_AGENT_FUNCTIONS_CONFIGURATION", `The agentFunctions option "${error.option}" must be a function.`, {
+      hint: "Pass a function, or leave the option out.",
+    });
+  }
+  const detail = "maxPending must be a positive safe integer.";
+  return node("INVALID_AGENT_FUNCTIONS_CONFIGURATION", `The agentFunctions option is invalid: ${detail}`, {
+    hint: "Check the agentFunctions option passed to createWeaverRuntime.",
   });
 }
 
@@ -907,6 +925,11 @@ function runtimeConfigurationError(error: WeaverRuntimeConfigurationError): Erro
         children: [safetyConfigurationError(error.safetyError)],
         hint: "Check the safety limits passed to createWeaverRuntime.",
       });
+    case "AGENT_FUNCTIONS_CONFIGURATION_FAILED":
+      return node("AGENT_FUNCTIONS_CONFIGURATION_FAILED", "The runtime's agent function configuration is invalid.", {
+        children: [agentFunctionsConfigurationError(error.agentFunctionsError)],
+        hint: "Check the agentFunctions option passed to createWeaverRuntime.",
+      });
     default:
       return unknownError(error);
   }
@@ -1034,6 +1057,7 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "CATALOG_CONFIGURATION_FAILED":
     case "FUNCTION_CONFIGURATION_FAILED":
     case "SAFETY_CONFIGURATION_FAILED":
+    case "AGENT_FUNCTIONS_CONFIGURATION_FAILED":
       return runtimeConfigurationError(error as WeaverRuntimeConfigurationError);
     case "SURFACE_NOT_FOUND":
       return surfaceNotFound(error.surfaceId);

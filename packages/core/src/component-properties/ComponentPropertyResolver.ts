@@ -4,6 +4,7 @@ import type {
   DynamicPropertyKind,
   DynamicValueLocationSegment,
 } from "../catalog/index.js";
+import type { AgentFunctionScope } from "../agent-functions/types.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { cloneJson } from "../data-model/clone.js";
 import { DataContext } from "../data-context/index.js";
@@ -200,6 +201,7 @@ export class ComponentPropertyResolver {
     instance: ResolvedComponentInstance,
     dataContext: DataContext,
     catalogId: string,
+    scope?: AgentFunctionScope,
   ): ComponentPropertyResult {
     const envelope = checkEnvelope(instance, catalogId, this.catalogs);
     if (envelope !== undefined) return { ok: false, error: envelope };
@@ -250,6 +252,7 @@ export class ComponentPropertyResolver {
           catalogId,
           original,
           dataContext,
+          scope,
         );
         if (!evaluated.ok) {
           unresolved.push({
@@ -268,7 +271,8 @@ export class ComponentPropertyResolver {
           );
           return undefined;
         }
-        value = evaluated.value;
+        // A binding that waits on an agent call resolves to null until the call settles (spec: pending value is null).
+        value = evaluated.awaiting === undefined ? evaluated.value : null;
         functionOwned = true;
       } else if (isDataBinding(original)) {
         const resolved = dataContext.resolveBinding(original);
@@ -523,7 +527,7 @@ export class ComponentPropertyResolver {
       instance: ResolvedComponentInstance,
       context: DataContext,
     ): ComponentPropertyResult<HydratedComponentInstance> => {
-      const own = this.resolve(instance, context, surface.catalogId);
+      const own = this.resolve(instance, context, surface.catalogId, { surfaceId: surface.surfaceId, kind: "reactive" });
       if (!own.ok) return own;
       issues.push(...own.value.issues.map((issue) => ({ ...issue })));
       const relationships: HydratedInstanceRelationship[] = [];

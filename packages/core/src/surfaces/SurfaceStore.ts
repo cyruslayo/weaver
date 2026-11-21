@@ -175,6 +175,21 @@ export class SurfaceStore {
     return success(snapshot);
   }
 
+  /**
+   * Tells subscribers that a routed agent call of the surface settled. No data
+   * changes. Subscribers re-resolve the surface, so a pending binding or check
+   * shows its settled value or failure.
+   */
+  notifyAgentFunctionSettled(surfaceId: string, functionCallId: string): void {
+    const surface = this.#surfaces.get(surfaceId);
+    if (surface === undefined) return;
+    this.#notify(surfaceId, () => ({
+      type: "agentFunctionSettled",
+      surface: this.#snapshot(surface),
+      functionCallId,
+    }));
+  }
+
   delete(surfaceId: string): SurfaceStoreResult<void> {
     if (!this.#surfaces.delete(surfaceId)) {
       return { ok: false, error: { code: "SURFACE_NOT_FOUND", surfaceId } };

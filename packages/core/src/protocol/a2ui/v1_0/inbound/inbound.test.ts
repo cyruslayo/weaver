@@ -145,7 +145,7 @@ test("catalog-aware Weaver validation rejects an invalid Basic property", () => 
   assert.equal(rt.process(invalid).ok, false);
 });
 
-test("a callRendererFunction message is valid A2UI but reports UNSUPPORTED_FEATURE at runtime", () => {
+test("a callRendererFunction message is valid A2UI and is answered with a renderer response", () => {
   const rt = runtime();
   const message = {
     version: "1.0",
@@ -156,6 +156,9 @@ test("a callRendererFunction message is valid A2UI but reports UNSUPPORTED_FEATU
   };
   assertPinned(message);
   const result = rt.process(message);
-  assert.equal(result.ok, false);
-  assert.equal(!result.ok && result.error.code, "UNSUPPORTED_FEATURE");
+  // formatDate defaults to rendererOnly in the Basic catalog, so the agent's call is refused and the response carries the error.
+  assert.equal(result.ok, true);
+  if (!result.ok || result.value.operation !== "rendererFunctionResponded") return assert.fail("expected a response");
+  assert.equal(result.value.response.rendererFunctionResponse.functionCallId, "call-1");
+  assert.equal(result.value.response.rendererFunctionResponse.error?.code, "INVALID_FUNCTION_CALL");
 });

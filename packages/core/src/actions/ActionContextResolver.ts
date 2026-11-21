@@ -1,4 +1,5 @@
 import type { CatalogRegistry } from "../catalog/index.js";
+import type { AgentFunctionScope } from "../agent-functions/types.js";
 import { cloneJson } from "../data-model/clone.js";
 import { DataContext } from "../data-context/index.js";
 import {
@@ -21,7 +22,17 @@ export class ActionContextResolver {
     private readonly functionEvaluator: FunctionEvaluator,
   ) {}
 
-  resolve(catalogId: string, context: JsonObject, dataContext: DataContext): ActionContextResolutionResult {
+  /**
+   * Entries resolve in declared order. An entry that waits on an agent call stops
+   * the resolution there, so later entries are not evaluated until it settles. The
+   * result then has `awaiting` set and an incomplete value.
+   */
+  resolve(
+    catalogId: string,
+    context: JsonObject,
+    dataContext: DataContext,
+    scope?: AgentFunctionScope,
+  ): ActionContextResolutionResult {
     const resolved: JsonObject = {};
     for (const [key, value] of Object.entries(context)) {
       if (isDataBinding(value)) {
@@ -55,7 +66,7 @@ export class ActionContextResolver {
             },
           };
         }
-        const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataContext);
+        const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataContext, scope);
         if (!evaluated.ok) {
           return {
             ok: false,
@@ -67,6 +78,7 @@ export class ActionContextResolver {
             },
           };
         }
+        if (evaluated.awaiting !== undefined) return { ok: true, value: resolved, awaiting: evaluated.awaiting };
         if (evaluated.value === undefined) {
           return {
             ok: false,

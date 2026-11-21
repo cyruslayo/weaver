@@ -133,6 +133,12 @@ transport metadata (including `a2uiRendererDataModel` when requested):
 ActionDispatcher → server event result → optional onServerEvent → host → future transport
 ```
 
+An action that waits on agent calls is handed off the same way through the optional
+`onAgentFunctionCalls` callback, which receives a copy of the action result. The host passes it
+to `transport.sendActionCalls(result)`. Without the callback the calls stay pending until the host
+cancels them. A throwing callback does not change the result. See
+[http-sse-transport.md](http-sse-transport.md#remote-function-calls).
+
 The callback is a handoff, not delivery. Missing callbacks do not make dispatch
 fail. Local functions have already run in Core and are never handed off. Blocked
 or failed actions are not handed off. Host callback exceptions are isolated as

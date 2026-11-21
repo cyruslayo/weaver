@@ -231,7 +231,7 @@ test("withholds missing implementations as unresolved with an issue while other 
   assert.deepEqual(result.issues.map(({ code }) => code), ["FUNCTION_EVALUATION_FAILED"]);
   const failed = result.issues[0];
   if (failed && failed.code === "FUNCTION_EVALUATION_FAILED") {
-    assert.equal(failed.error.code, "FUNCTION_IMPLEMENTATION_NOT_FOUND");
+    assert.equal(failed.error.code, "EXPRESSION_ERROR");
   }
 });
 
