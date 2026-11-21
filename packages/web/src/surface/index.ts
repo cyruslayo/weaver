@@ -9,9 +9,6 @@ export type {
   WebSurfaceMountResult,
   WebSurfaceRendererConfig,
   WebSurfaceRenderResult,
-  WebSurfaceThemeAdapter,
-  WebSurfaceThemeInput,
-  WebSurfaceThemeResult,
   WebVerifiedSurfaceAttribution,
 } from "./types.js";
 export { describeWebRenderError } from "./describeWebRenderError.js";

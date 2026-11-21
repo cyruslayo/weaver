@@ -89,12 +89,6 @@ function describeWebError(error: DescribableWebError): WeaverErrorDescription {
         describeWeaverError(error.cause),
         error.surfaceId,
       );
-    case "THEME_ADAPTER_FAILED":
-      return leaf(
-        "THEME_ADAPTER_FAILED",
-        "The theme adapter failed or returned an invalid value, so the theme was not applied.",
-        "Make the themeAdapter return a plain object of custom properties, and do not throw.",
-      );
     case "ATTRIBUTION_PROVIDER_FAILED":
       return leaf(
         "ATTRIBUTION_PROVIDER_FAILED",

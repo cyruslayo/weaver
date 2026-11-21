@@ -7,6 +7,7 @@ import {
 } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
 import { RendererRegistryConfigurationError } from "../renderers/index.js";
+import { createBasicCatalogBrowserFunctionImplementations } from "../basic-functions/index.js";
 import { createBasicWebRuntime, type BasicWebRuntimeConfig } from "./index.js";
 
 function dom() {
@@ -19,7 +20,7 @@ function dom() {
 
 function message(surfaceId: string, catalogId: string, text = "Hello") {
   return [
-    { version: "1.0", createSurface: { surfaceId, catalogId, theme: { primaryColor: "#112233", agentDisplayName: "Untrusted", iconUrl: "https://invalid.example/icon" } } },
+    { version: "1.0", createSurface: { surfaceId, catalogId } },
     { version: "1.0", updateComponents: { surfaceId, components: [{ id: "root", component: "Text", text }] } },
   ];
 }
@@ -29,10 +30,10 @@ function customCatalog(catalogId: string): { catalogId: string; schema: JsonObje
     catalogId,
     schema: {
       $schema: "https://json-schema.org/draft/2020-12/schema",
+      protocolVersion: "1.0",
       catalogId,
-      components: { Custom: { type: "object", properties: { id: { type: "string" }, component: { const: "Custom" } }, required: ["id", "component"], additionalProperties: false } },
+      components: { Custom: { type: "object", properties: { component: { const: "Custom" } }, required: ["component"], additionalProperties: false } },
       functions: {},
-      $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {} } },
     },
   };
 }
@@ -78,7 +79,7 @@ test("processes and mounts a canonical Basic surface", () => {
   assert.equal(target.textContent, "Hello");
 });
 
-test("installs only the safe canonical Basic theme adapter", () => {
+test("installs no theme styling or attribution by default", () => {
   const created = createBasicWebRuntime();
   assert.ok(created.ok);
   if (!created.ok) return;
@@ -86,8 +87,6 @@ test("installs only the safe canonical Basic theme adapter", () => {
   const { target } = dom();
   const mounted = created.value.mount({ surfaceId: "main", target });
   assert.ok(mounted.ok);
-  const container = target.firstElementChild as HTMLElement;
-  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
   assert.equal(target.querySelector("[data-weaver-surface-attribution]") === null, true, "no attribution element");
   assert.equal(target.querySelector("img") === null, true, "no img");
 });
@@ -109,7 +108,6 @@ test("passes explicit Basic policies to the composed renderers", () => {
     basic: {
       resourcePolicy: ({ url }) => { seen.push(`resource:${url}`); return undefined; },
       iconResolver: ({ name }) => { seen.push(`icon:${name}`); return "M0 0"; },
-      regexMatcher: ({ value, pattern }) => { seen.push(`regex:${value}:${pattern}`); return true; },
       dateTimeInputLocalValueResolver: ({ rawValue }) => { seen.push(`date:${rawValue}`); return { status: "accept", value: `resolved:${rawValue}` }; },
     },
   });
@@ -118,7 +116,7 @@ test("passes explicit Basic policies to the composed renderers", () => {
   for (const [surfaceId, component] of [
     ["icon", { id: "root", component: "Icon", name: "home" }],
     ["image", { id: "root", component: "Image", url: "https://invalid.example/image.png" }],
-    ["regex", { id: "root", component: "TextField", label: "Name", value: "Ada", validationRegexp: "^[A-Z]" }],
+    ["field", { id: "root", component: "TextField", label: "Name", value: "Ada", placeholder: "Name" }],
   ] as const) {
     assert.equal(created.value.runtime.process({ version: "1.0", createSurface: { surfaceId, catalogId: created.value.catalogId } }).ok, true);
     assert.equal(created.value.runtime.process({ version: "1.0", updateComponents: { surfaceId, components: [component] } }).ok, true);
@@ -138,7 +136,6 @@ test("passes explicit Basic policies to the composed renderers", () => {
   assert.equal((created.value.runtime.getSurface(dateSurfaceId)?.dataModel as JsonObject).value, "resolved:2032-11-07T01:30");
   assert.equal(seen.includes("icon:home"), true);
   assert.equal(seen.includes("resource:https://invalid.example/image.png"), true);
-  assert.equal(seen.includes("regex:Ada:^[A-Z]"), true);
 });
 
 test("does not install an icon resolver by default", () => {
@@ -152,19 +149,6 @@ test("does not install an icon resolver by default", () => {
   assert.equal(created.value.mount({ surfaceId, target }).ok, true);
   assert.equal(target.querySelector("[data-a2ui-icon-state=unresolved]")?.getAttribute("data-a2ui-component"), "Icon");
   assert.equal(target.querySelector("path") === null, true, "no path");
-});
-
-test("does not install a regex matcher by default", () => {
-  const created = createBasicWebRuntime();
-  assert.ok(created.ok);
-  if (!created.ok) return;
-  const surfaceId = "default-regex";
-  assert.equal(created.value.runtime.process({ version: "1.0", createSurface: { surfaceId, catalogId: created.value.catalogId } }).ok, true);
-  assert.equal(created.value.runtime.process({ version: "1.0", updateComponents: { surfaceId, components: [{ id: "root", component: "TextField", label: "Name", value: "bad", validationRegexp: "p" }] } }).ok, true);
-  const { target } = dom();
-  assert.equal(created.value.mount({ surfaceId, target }).ok, true);
-  assert.equal(target.querySelector("[data-a2ui-component=TextField]")?.getAttribute("data-a2ui-regexp-state"), "unavailable");
-  assert.equal(target.querySelector("[data-a2ui-validation-state=invalid]") === null, true, "no invalid state");
 });
 
 test("keeps built-in datetime-local conversion without a custom resolver", () => {
@@ -284,4 +268,37 @@ test("one facade can mount multiple independent surfaces", () => {
   assert.equal(created.value.mount({ surfaceId: "two", target: second.target }).ok, true);
   assert.equal(first.target.textContent, "One");
   assert.equal(second.target.textContent, "Two");
+});
+
+test("a Button click is a user gesture that lets openUrl run; programmatic dispatch is rejected", () => {
+  const opened: unknown[][] = [];
+  const browser = new Window({ url: "https://app.example/" });
+  Object.defineProperty(browser, "open", { configurable: true, value: (...args: unknown[]) => { opened.push(args); return null; } });
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "window");
+  Object.defineProperty(globalThis, "window", { configurable: true, value: browser });
+  try {
+    const created = createBasicWebRuntime({
+      runtime: { functions: createBasicCatalogBrowserFunctionImplementations({ catalogId: A2UI_V10_BASIC_CATALOG_ID, baseUrl: "https://app.example/" }) },
+    });
+    assert.ok(created.ok);
+    if (!created.ok) return;
+    const surfaceId = "gesture";
+    assert.equal(created.value.runtime.process({ version: "1.0", createSurface: { surfaceId, catalogId: created.value.catalogId } }).ok, true);
+    assert.equal(created.value.runtime.process({ version: "1.0", updateComponents: { surfaceId, components: [
+      { id: "root", component: "Button", child: "label", action: { functionCall: { "@call": "openUrl", args: { url: "https://docs.example/help" } } } },
+      { id: "label", component: "Text", text: "Help" },
+    ] } }).ok, true);
+    const { target } = dom();
+    assert.equal(created.value.mount({ surfaceId, target }).ok, true);
+
+    const programmatic = created.value.runtime.dispatchAction({ surfaceId, sourceComponentId: "root", scopePath: "/", actionProperty: "action" });
+    assert.equal(programmatic.ok, false);
+    assert.equal(opened.length, 0, "a programmatic dispatch never opens a window");
+
+    (target.querySelector("button") as HTMLButtonElement).click();
+    assert.deepEqual(opened, [["https://docs.example/help", "_blank", "noopener,noreferrer"]]);
+  } finally {
+    if (prior === undefined) delete (globalThis as { window?: unknown }).window;
+    else Object.defineProperty(globalThis, "window", prior);
+  }
 });

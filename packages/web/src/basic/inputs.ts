@@ -1,4 +1,4 @@
-import type { BasicRegexMatcher, ComponentCheckSnapshot, HydratedValue } from "@cylayo/weaver-core";
+import type { ComponentCheckSnapshot, HydratedValue } from "@cylayo/weaver-core";
 import type { WebComponentRenderInput, WebComponentRenderer } from "../renderers/index.js";
 import { applyBasicHook } from "./layout.js";
 import { appendBasicStyle, applyBasicMargin, basicControl, basicOutline, basicPrimaryFallback, basicRadius, basicSpace } from "./styles.js";
@@ -22,7 +22,7 @@ export type DateTimeInputLocalValueResolver = (
   request: DateTimeInputLocalValueRequest,
 ) => DateTimeInputLocalValueResult;
 
-export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher, dateTimeInputLocalValueResolver?: DateTimeInputLocalValueResolver): Record<"TextField" | "CheckBox" | "Slider" | "ChoicePicker" | "DateTimeInput", WebComponentRenderer> {
+export function createBasicInputRenderers(dateTimeInputLocalValueResolver?: DateTimeInputLocalValueResolver): Record<"TextField" | "CheckBox" | "Slider" | "ChoicePicker" | "DateTimeInput", WebComponentRenderer> {
   let opaqueId = 0;
   const nextId = (kind: string) => `weaver-basic-${kind}-${++opaqueId}`;
 
@@ -36,11 +36,12 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher, date
     const control: NativeControl = variant === "longText" ? document.createElement("textarea") : document.createElement("input");
     if (control instanceof document.defaultView!.HTMLInputElement) control.type = variant === "number" ? "number" : variant === "obscured" ? "password" : "text";
     control.id = id;
-    control.value = typeof properties.value === "string" ? properties.value : "";
+    // value is a required binding: an unresolved progressive value leaves the field empty and inert.
+    if (typeof properties.value === "string") control.value = properties.value;
+    else control.disabled = true;
+    if (typeof properties.placeholder === "string") control.placeholder = properties.placeholder;
     interactions.registerControl(control, "value");
-    const regexp = evaluateRegexp(properties.value, properties.validationRegexp, regexMatcher);
-    if (regexp !== "absent") wrapper.setAttribute("data-a2ui-regexp-state", regexp);
-    applyValidation(document, wrapper, [control], input.checks, nextId, regexp);
+    applyValidation(document, wrapper, [control], input.checks, nextId);
     let composing = false;
     control.addEventListener("compositionstart", () => { composing = true; });
     control.addEventListener("input", () => { if (!composing) interactions.writeInput("value", control.value); });
@@ -76,16 +77,22 @@ export function createBasicInputRenderers(regexMatcher?: BasicRegexMatcher, date
     control.id = id;
     control.type = "range";
     applyPrimaryAccent(control);
-    control.min = typeof properties.min === "number" && Number.isFinite(properties.min) ? String(properties.min) : "0";
-    if (typeof properties.max === "number" && Number.isFinite(properties.max)) control.max = String(properties.max);
-    control.step = "any";
+    const min = typeof properties.min === "number" && Number.isFinite(properties.min) ? properties.min : 0;
+    control.min = String(min);
+    const max = typeof properties.max === "number" && Number.isFinite(properties.max) ? properties.max : undefined;
+    if (max !== undefined) control.max = String(max);
+    // steps divides [min, max] into that many equal intervals; values snap to min + k * interval.
+    const interval = max !== undefined && max > min ? sliderInterval(properties.steps, max - min) : undefined;
+    control.step = interval === undefined ? "any" : String(interval);
     if (typeof properties.value === "number" && Number.isFinite(properties.value)) control.value = String(properties.value);
     else control.disabled = true;
     interactions.registerControl(control, "value");
     applyValidation(document, wrapper, [control], input.checks, nextId);
     control.addEventListener("input", () => {
-      const value = Number(control.value);
-      if (Number.isFinite(value)) interactions.writeInput("value", value);
+      const raw = Number(control.value);
+      if (!Number.isFinite(raw)) return;
+      const value = interval === undefined || max === undefined ? raw : snapToInterval(raw, min, max, interval);
+      interactions.writeInput("value", value);
     });
     wrapper.append(control);
     return wrapper;
@@ -234,51 +241,40 @@ function stringOrEmpty(value: unknown): string { return typeof value === "string
 function stringList(value: unknown): string[] { return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []; }
 function optionList(value: unknown): Option[] { return Array.isArray(value) ? value.filter((item): item is Option => typeof item === "object" && item !== null && typeof (item as { value?: unknown }).value === "string") : []; }
 
-type RegexpState = "absent" | "passed" | "failed" | "pending" | "error" | "unavailable";
-type ValidationState = "valid" | "invalid" | "pending" | "error";
-
-function evaluateRegexp(value: HydratedValue, pattern: HydratedValue, matcher: BasicRegexMatcher | undefined): RegexpState {
-  if (typeof pattern !== "string") return "absent";
-  if (matcher === undefined) return "unavailable";
-  if (value === undefined) return "pending";
-  if (typeof value !== "string") return "error";
-  try {
-    const result = matcher({ value, pattern });
-    return typeof result !== "boolean" ? "error" : result ? "passed" : "failed";
-  } catch {
-    return "error";
-  }
+/** steps must be an integer >= 1; any other value leaves the slider continuous. */
+function sliderInterval(steps: unknown, range: number): number | undefined {
+  if (typeof steps !== "number" || !Number.isInteger(steps) || steps < 1) return undefined;
+  return range / steps;
 }
 
-function combinedValidationState(checks: ComponentCheckSnapshot | undefined, regexp: RegexpState): ValidationState {
-  const core = checks?.status ?? "valid";
-  if (core === "invalid" || regexp === "failed") return "invalid";
-  if (core === "error" || regexp === "error") return "error";
-  if (core === "pending" || regexp === "pending") return "pending";
-  return "valid";
+function snapToInterval(value: number, min: number, max: number, interval: number): number {
+  const index = Math.round((value - min) / interval);
+  const snapped = min + index * interval;
+  // Trim floating-point residue from repeated interval arithmetic, then keep the result inside the range.
+  return Math.min(max, Math.max(min, Number(snapped.toFixed(10))));
 }
 
-function applyValidation(document: Document, wrapper: HTMLElement, controls: readonly HTMLElement[], checks: ComponentCheckSnapshot | undefined, nextId: (kind: string) => string, regexp: RegexpState = "absent"): void {
-  const status = combinedValidationState(checks, regexp);
-  if (checks !== undefined || regexp !== "absent") wrapper.setAttribute("data-a2ui-validation-state", status);
+/**
+ * Shows the Core check snapshot: failed (blocking) and advisory (non-blocking)
+ * messages, each with its severity. Only a blocking "invalid" status sets aria-invalid.
+ */
+function applyValidation(document: Document, wrapper: HTMLElement, controls: readonly HTMLElement[], checks: ComponentCheckSnapshot | undefined, nextId: (kind: string) => string): void {
+  const status = checks?.status ?? "valid";
+  if (checks !== undefined) wrapper.setAttribute("data-a2ui-validation-state", status);
   if (status === "invalid") controls.forEach((control) => control.setAttribute("aria-invalid", "true"));
 
   const messages: string[] = [];
   const list = document.createElement("div");
-  if (checks?.status === "invalid") {
-    for (const check of checks.checks) {
-      if (check.status !== "failed") continue;
-      const message = document.createElement("div");
-      message.id = nextId("validation");
-      message.textContent = check.message;
-      messages.push(message.id);
-      list.append(message);
-    }
-  }
-  if (regexp === "failed") {
+  for (const check of checks?.checks ?? []) {
+    const shown = check.status === "failed" || check.status === "advisory";
+    if (!shown || typeof check.message !== "string" || check.message === "") continue;
     const message = document.createElement("div");
     message.id = nextId("validation");
-    message.textContent = "Value does not match the required format.";
+    message.setAttribute("data-a2ui-check-status", check.status);
+    message.setAttribute("data-a2ui-check-severity", check.severity);
+    if (check.status === "advisory") message.style.fontStyle = "italic";
+    else message.style.color = "var(--a2ui-color-error, #b42318)";
+    message.textContent = check.message;
     messages.push(message.id);
     list.append(message);
   }

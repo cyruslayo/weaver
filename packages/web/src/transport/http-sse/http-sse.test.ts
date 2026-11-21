@@ -106,13 +106,10 @@ test("rejects concurrent run, permits rerun, and reports pre-abort deterministic
 });
 
 const integrationSchema: JsonObject = {
-  $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: "basic",
+  $schema: "https://json-schema.org/draft/2020-12/schema", protocolVersion: "1.0", catalogId: "basic",
   components: {
-    Button: { type: "object", properties: { id: { type: "string" }, component: { const: "Button" }, action: { $ref: "common_types.json#/$defs/Action" } }, required: ["id", "component", "action"], additionalProperties: false },
+    Button: { type: "object", properties: { component: { const: "Button" }, action: { $ref: "common_types.json#/$defs/Action" } }, required: ["component", "action"], additionalProperties: false },
   },
-  $defs: { theme: { type: "object", additionalProperties: false }, commonTypes: { $id: "common_types.json", $defs: {
-    Action: { type: "object", properties: { event: { type: "object", properties: { name: { type: "string" }, context: { type: "object" } }, required: ["name", "context"], additionalProperties: false } }, required: ["event"], additionalProperties: false },
-  } } },
 };
 function integration() { const made = createWeaverRuntime({ catalogs: [{ catalogId: "basic", schema: integrationSchema }], now: () => new Date("2026-01-01T00:00:00.000Z") }); assert.ok(made.ok); return { runtime: made.value, session: createA2UITransportSession({ runtime: made.value }) }; }
 const createMessage = (surfaceId: string, sendDataModel = false) => ({ version: "1.0", createSurface: { surfaceId, catalogId: "basic", sendDataModel } });

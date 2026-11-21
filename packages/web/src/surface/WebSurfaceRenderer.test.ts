@@ -2,22 +2,22 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createWeaverRuntime, type JsonObject, type WeaverRuntime } from "@cylayo/weaver-core";
 import { Window } from "happy-dom";
-import { createBasicCatalogRendererRegistrations, createBasicCatalogThemeAdapter } from "../basic/index.js";
+import { createBasicCatalogRendererRegistrations } from "../basic/index.js";
 import { RendererRegistry, type RendererRegistration } from "../renderers/index.js";
 import { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
 import { describeWebRenderError } from "./describeWebRenderError.js";
 import type { WebRenderError } from "./errors.js";
 
 const ref = (name: string): JsonObject => ({ $ref: `common_types.json#/$defs/${name}` });
-const dynamic = (literal: JsonObject): JsonObject => ({ oneOf: [literal, ref("PathBinding"), ref("FunctionCall")] });
+const dynamic = (literal: JsonObject): JsonObject => ({ oneOf: [literal, ref("DataBinding"), ref("FunctionCall")] });
 const component = (name: string, properties: JsonObject = {}, allOf: JsonObject[] = []): JsonObject => ({
   type: "object", ...(allOf.length ? { allOf } : {}),
-  properties: { id: { type: "string" }, component: { const: name }, ...properties },
-  required: ["id", "component"], additionalProperties: false,
+  properties: { component: { const: name }, ...properties },
+  required: ["component"], additionalProperties: false,
 });
 function catalog(catalogId: string): JsonObject {
   return {
-    $schema: "https://json-schema.org/draft/2020-12/schema", catalogId,
+    $schema: "https://json-schema.org/draft/2020-12/schema", protocolVersion: "1.0", catalogId,
     components: {
       Text: component("Text", { text: ref("DynamicString"), weight: { type: "number" } }),
       Row: component("Row", { children: ref("ChildList") }),
@@ -44,30 +44,15 @@ function catalog(catalogId: string): JsonObject {
       Modal: component("Modal", { trigger: ref("ComponentId"), content: ref("ComponentId") }),
       Button: component("Button", { child: ref("ComponentId"), action: ref("Action") }),
       Local: component("Local"),
-      CheckText: component("CheckText", { text: ref("DynamicString"), checks: { type: "array" } }, [ref("Checkable")]),
+      CheckText: component("CheckText", { text: ref("DynamicString"), "@checks": { type: "array", items: ref("CheckRule") } }, [ref("Checkable")]),
       Missing: component("Missing"), Throwing: component("Throwing"), Invalid: component("Invalid"),
     },
     functions: {
-      mediaUrl: { type: "object", properties: { call: { const: "mediaUrl" }, args: { type: "object" }, returnType: { const: "string" } }, required: ["call", "args"], additionalProperties: false },
+      mediaUrl: { type: "object", returnType: "string", properties: { "@call": { const: "mediaUrl" }, args: { type: "object", unevaluatedProperties: false } }, required: ["@call", "args"] },
     },
-    $defs: { theme: { type: "object" }, commonTypes: { $id: "common_types.json", $defs: {
-      ComponentId: { type: "string" },
-      ChildList: { oneOf: [
-        { type: "array", items: ref("ComponentId") },
-        { type: "object", properties: { path: { type: "string" }, componentId: ref("ComponentId") }, required: ["path", "componentId"], additionalProperties: false },
-      ] },
-      PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-      FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
-      DynamicString: dynamic({ type: "string" }), DynamicNumber: dynamic({ type: "number" }),
-      DynamicBoolean: dynamic({ type: "boolean" }), DynamicStringList: dynamic({ type: "array", items: { type: "string" } }),
-      Checkable: {}, Action: { oneOf: [
-        { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
-        { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
-      ] },
-    } } },
   };
 }
-const create = (catalogId = "test", theme?: JsonObject) => ({ version: "1.0", createSurface: { surfaceId: "s", catalogId, ...(theme === undefined ? {} : { theme }) } });
+const create = (catalogId = "test") => ({ version: "1.0", createSurface: { surfaceId: "s", catalogId } });
 const components = (values: JsonObject[]) => ({ version: "1.0", updateComponents: { surfaceId: "s", components: values } });
 const data = (value: unknown) => ({ version: "1.0", updateDataModel: { surfaceId: "s", value } });
 function runtime(catalogIds = ["test"]): WeaverRuntime {
@@ -103,31 +88,10 @@ function mount(rt: WeaverRuntime, regs = registrations()) {
   return { target, result };
 }
 
-test("surface theme translation is opt-in, catalog-isolated, allowlisted, and mount-scoped", () => {
-  const themed = runtime(["test", "custom"]); themed.process(create("test", { primaryColor: "#112233", customThing: "ignored", iconUrl: "https://invalid.example/icon", agentDisplayName: "Agent" }));
-  themed.process(components([{ id: "root", component: "Text", text: "safe" }]));
-  const absent = mount(themed); assert.ok(absent.result.ok);
-  const absentContainer = absent.target.firstElementChild as HTMLElement;
-  assert.equal(absentContainer.style.getPropertyValue("--a2ui-color-primary"), "");
-  assert.equal(absent.target.querySelector("img") === null, true, "no img"); assert.equal(absent.target.textContent, "safe");
-
-  const { target } = dom();
-  const web = new WebSurfaceRenderer({ runtime: themed, renderers: new RendererRegistry(registrations()), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) });
-  const mounted = web.mount({ surfaceId: "s", target }); assert.ok(mounted.ok);
-  const container = target.firstElementChild as HTMLElement;
-  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
-  assert.equal(container.style.length, 1);
-
-  const mismatch = runtime(["test", "custom"]); mismatch.process(create("custom", { primaryColor: "#abcdef" }));
-  mismatch.process({ version: "1.0", updateComponents: { surfaceId: "s", components: [{ id: "root", component: "Text", text: "custom" }] } });
-  const mismatchTarget = dom().target;
-  const mismatchMount = new WebSurfaceRenderer({ runtime: mismatch, renderers: new RendererRegistry([{ catalogId: "custom", component: "Text", render: ({ document }) => document.createElement("span") }]), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) }).mount({ surfaceId: "s", target: mismatchTarget });
-  assert.ok(mismatchMount.ok); assert.equal((mismatchTarget.firstElementChild as HTMLElement).style.length, 0);
-});
 
 test("raw attribution claims are inert without a trusted provider", () => {
   const rt = runtime();
-  rt.process(create("test", { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/icon.png" }));
+  rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "content" }]));
   const { target, result } = mount(rt); assert.ok(result.ok);
   assert.equal(target.querySelector("[data-weaver-surface-attribution]") === null, true, "no attribution element");
@@ -137,7 +101,7 @@ test("raw attribution claims are inert without a trusted provider", () => {
 
 test("trusted attribution overrides raw claims and uses safe accessible chrome", () => {
   const rt = runtime();
-  rt.process(create("test", { agentDisplayName: "Trusted Bank", iconUrl: "https://attacker.example/a.png" }));
+  rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "tree" }]));
   const seen: unknown[] = [];
   const { target } = dom();
@@ -146,7 +110,6 @@ test("trusted attribution overrides raw claims and uses safe accessible chrome",
     renderers: new RendererRegistry(registrations()),
     attributionProvider: (input) => {
       seen.push(input);
-      if (input.theme !== undefined) input.theme.agentDisplayName = "mutated provider copy";
       return { displayName: "<img src=x onerror=attack>", iconUrl: "https://trusted.example/verified.png" };
     },
   }).mount({ surfaceId: "s", target });
@@ -169,7 +132,7 @@ test("trusted attribution overrides raw claims and uses safe accessible chrome",
 });
 
 test("attribution supports name-only, undefined, independent mounts, updates, and delete/recreate", () => {
-  const rt = runtime(); rt.process(create("test", { agentDisplayName: "raw" }));
+  const rt = runtime(); rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "one" }]));
   let verified: string | undefined = "Registry One"; let calls = 0;
   const provider = ({ surfaceId, catalogId }: { surfaceId: string; catalogId: string }) => {
@@ -189,21 +152,20 @@ test("attribution supports name-only, undefined, independent mounts, updates, an
   one.value.unmount(); assert.equal(oneTarget.childNodes.length, 0); assert.equal(twoTarget.textContent, "two");
 
   rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
-  rt.process(create("test", { agentDisplayName: "new raw" }));
+  rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "new tree" }]));
   verified = "Recreated"; const refreshed = two.value.refresh(); assert.ok(refreshed.ok);
   assert.equal(twoTarget.textContent, "Recreated:s:testnew tree");
 });
 
-test("invalid or throwing attribution providers preserve the prior chrome, tree, and theme", () => {
-  const rt = runtime(); rt.process(create("test", { primaryColor: "#112233" }));
+test("invalid or throwing attribution providers preserve the prior chrome and tree", () => {
+  const rt = runtime(); rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "old" }]));
   let mode: "valid" | "empty" | "throw" = "valid";
   const { target } = dom();
   const mounted = new WebSurfaceRenderer({
     runtime: rt,
     renderers: new RendererRegistry(registrations()),
-    themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }),
     attributionProvider: () => {
       if (mode === "throw") throw new Error("provider secret");
       return { displayName: mode === "empty" ? "   " : "Verified" };
@@ -214,66 +176,14 @@ test("invalid or throwing attribution providers preserve the prior chrome, tree,
   mode = "empty"; rt.process(components([{ id: "root", component: "Text", text: "new" }]));
   let failure = mounted.value.getLastResult(); assert.deepEqual(failure, { ok: false, error: { code: "INVALID_VERIFIED_ATTRIBUTION" } });
   assert.equal(container.childNodes.length === oldChildren.length && oldChildren.every((node, i) => container.childNodes[i] === node), true, "child nodes unchanged"); assert.equal(container.textContent, "Verifiedold");
-  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#112233");
   mode = "throw"; mounted.value.refresh(); failure = mounted.value.getLastResult();
   assert.deepEqual(failure, { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } });
   assert.equal(JSON.stringify(failure).includes("secret"), false); assert.equal(container.childNodes.length === oldChildren.length && oldChildren.every((node, i) => container.childNodes[i] === node), true, "child nodes unchanged");
 });
 
-test("theme adapter and attribution provider receive independent defensive theme copies", () => {
-  const rt = runtime(); rt.process(create("test", { primaryColor: "#445566", agentDisplayName: "raw" }));
-  rt.process(components([{ id: "root", component: "Text", text: "tree" }]));
-  const adapter = createBasicCatalogThemeAdapter({ catalogId: "test" });
-  const { target } = dom();
-  const mounted = new WebSurfaceRenderer({
-    runtime: rt, renderers: new RendererRegistry(registrations()),
-    themeAdapter: (input) => { const result = adapter(input); if (input.theme) input.theme.agentDisplayName = "adapter mutation"; return result; },
-    attributionProvider: (input) => ({ displayName: String(input.theme?.agentDisplayName) }),
-  }).mount({ surfaceId: "s", target });
-  assert.ok(mounted.ok);
-  assert.equal(target.querySelector("[data-weaver-surface-attribution]")?.textContent, "raw");
-  assert.equal((target.firstElementChild as HTMLElement).style.getPropertyValue("--a2ui-color-primary"), "#445566");
-});
 
-test("theme updates clean only mount-owned properties and delete/recreate does not leak", () => {
-  const rt = runtime(); rt.process(create("test", { primaryColor: "#ff0000" })); rt.process(components([{ id: "root", component: "Text", text: "red" }]));
-  const { target } = dom();
-  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: createBasicCatalogThemeAdapter({ catalogId: "test" }) }).mount({ surfaceId: "s", target });
-  assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement;
-  container.style.setProperty("--host-owned", "keep");
-  rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
-  rt.process(create("test")); rt.process(components([{ id: "root", component: "Text", text: "plain" }]));
-  assert.ok(mounted.value.refresh().ok);
-  assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), ""); assert.equal(container.style.getPropertyValue("--host-owned"), "keep");
-  rt.process({ version: "1.0", deleteSurface: { surfaceId: "s" } });
-  rt.process(create("test", { primaryColor: "#0000ff" })); rt.process(components([{ id: "root", component: "Text", text: "blue" }]));
-  mounted.value.refresh(); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#0000ff");
-});
 
-test("theme adapter failures and invalid property names preserve previous DOM and theme atomically", () => {
-  const rt = runtime(); rt.process(create("test", { primaryColor: "#ff0000" })); rt.process(components([{ id: "root", component: "Text", text: "old" }]));
-  let fail = false;
-  const adapter = createBasicCatalogThemeAdapter({ catalogId: "test" });
-  const { target } = dom();
-  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: (input) => { if (fail) throw new Error("secret"); return adapter(input); } }).mount({ surfaceId: "s", target });
-  assert.ok(mounted.ok); const container = target.firstElementChild as HTMLElement; const oldNode = container.firstChild;
-  fail = true; rt.process(components([{ id: "root", component: "Text", text: "new" }]));
-  const failed = mounted.value.getLastResult(); assert.equal(!failed.ok && failed.error.code, "THEME_ADAPTER_FAILED");
-  assert.ok(container.firstChild === oldNode, "old node kept after failed theme"); assert.equal(container.textContent, "old"); assert.equal(container.style.getPropertyValue("--a2ui-color-primary"), "#ff0000");
 
-  const badTarget = dom().target;
-  const bad = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: () => ({ customProperties: { color: "red" } }) }).mount({ surfaceId: "s", target: badTarget });
-  assert.equal(!bad.ok && bad.error.code, "THEME_ADAPTER_FAILED"); assert.equal(badTarget.childNodes.length, 0);
-});
-
-test("theme property ownership is independent across mounts", () => {
-  const rt = runtime(); rt.process(create("test", { primaryColor: "#112233" })); rt.process(components([{ id: "root", component: "Text", text: "x" }]));
-  const adapter = createBasicCatalogThemeAdapter({ catalogId: "test" });
-  const oneTarget = dom().target; const twoTarget = dom().target;
-  const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), themeAdapter: adapter });
-  const one = web.mount({ surfaceId: "s", target: oneTarget }); const two = web.mount({ surfaceId: "s", target: twoTarget }); assert.ok(one.ok && two.ok);
-  one.value.unmount(); assert.equal((twoTarget.firstElementChild as HTMLElement).style.getPropertyValue("--a2ui-color-primary"), "#112233");
-});
 
 test("renders repeated nested child relationships by location without exposing component IDs", () => {
   const rt = runtime(); rt.process(create());
@@ -474,7 +384,7 @@ test("Basic media policy receives trusted function-backed URL results", () => {
 
 test("checks are matched by full template instance identity and mounts are independent", () => {
   const rt = runtime(); rt.process(create());
-  rt.process(components([{ id: "root", component: "Stack", sections: { path: "/items", componentId: "item" } }, { id: "item", component: "CheckText", text: { "@path": "name" }, checks: [{ condition: { "@path": "valid" }, message: "required" }] }]));
+  rt.process(components([{ id: "root", component: "Stack", sections: { path: "/items", componentId: "item" } }, { id: "item", component: "CheckText", text: { "@path": "name" }, "@checks": [{ condition: { "@path": "valid" }, message: "required" }] }]));
   rt.process(data({ items: [{ name: "A", valid: true }, { name: "B", valid: false }] }));
   const one = mount(rt); const two = mount(rt); assert.ok(one.result.ok && two.result.ok);
   assert.equal(one.target.textContent, "A:validB:invalid"); assert.equal(two.target.textContent, "A:validB:invalid");
@@ -565,17 +475,17 @@ test("Basic Tabs selects by structural location, persists locally, restores keyb
 test("official Basic all-18-component surface validates, resolves, and mounts", () => {
   const catalogId = "test";
   const rt = runtime();
-  assert.ok(rt.process({ version: "1.0", createSurface: { surfaceId: "all", catalogId, theme: { primaryColor: "#123456" } } }).ok);
+  assert.ok(rt.process({ version: "1.0", createSurface: { surfaceId: "all", catalogId } }).ok);
   const all = [
     { id: "root", component: "Column", children: ["text", "image", "icon", "video", "audio", "row", "list", "card", "tabs", "modal", "divider", "button", "field", "checkbox", "slider", "choice", "date"] },
     { id: "text", component: "Text", text: "All components" }, { id: "image", component: "Image", url: "/image.png" },
     { id: "icon", component: "Icon", name: "home" }, { id: "video", component: "Video", url: "/video.mp4" }, { id: "audio", component: "AudioPlayer", url: "/audio.mp3" },
-    { id: "row", component: "Row", children: ["row-text"] }, { id: "row-text", component: "Text", text: "Row" },
-    { id: "list", component: "List", children: ["list-text"] }, { id: "list-text", component: "Text", text: "List" },
-    { id: "card", component: "Card", child: "card-text" }, { id: "card-text", component: "Text", text: "Card" },
-    { id: "tabs", component: "Tabs", tabs: [{ title: "One", child: "tab-one" }, { title: "Two", child: "tab-two" }] }, { id: "tab-one", component: "Text", text: "Tab one" }, { id: "tab-two", component: "Text", text: "Tab two" },
-    { id: "modal", component: "Modal", trigger: "modal-trigger", content: "modal-content" }, { id: "modal-trigger", component: "Text", text: "Open modal" }, { id: "modal-content", component: "Text", text: "Modal content" },
-    { id: "divider", component: "Divider" }, { id: "button", component: "Button", child: "button-text", action: { event: { name: "submit", context: {} } } }, { id: "button-text", component: "Text", text: "Submit" },
+    { id: "row", component: "Row", children: ["row_text"] }, { id: "row_text", component: "Text", text: "Row" },
+    { id: "list", component: "List", children: ["list_text"] }, { id: "list_text", component: "Text", text: "List" },
+    { id: "card", component: "Card", child: "card_text" }, { id: "card_text", component: "Text", text: "Card" },
+    { id: "tabs", component: "Tabs", tabs: [{ title: "One", child: "tab_one" }, { title: "Two", child: "tab_two" }] }, { id: "tab_one", component: "Text", text: "Tab one" }, { id: "tab_two", component: "Text", text: "Tab two" },
+    { id: "modal", component: "Modal", trigger: "modal_trigger", content: "modal_content" }, { id: "modal_trigger", component: "Text", text: "Open modal" }, { id: "modal_content", component: "Text", text: "Modal content" },
+    { id: "divider", component: "Divider" }, { id: "button", component: "Button", child: "button_text", action: { event: { name: "submit", context: {} } } }, { id: "button_text", component: "Text", text: "Submit" },
     { id: "field", component: "TextField", label: "Field", value: { "@path": "/field" } }, { id: "checkbox", component: "CheckBox", label: "Check", value: { "@path": "/checked" } },
     { id: "slider", component: "Slider", max: 10, value: { "@path": "/slider" } }, { id: "choice", component: "ChoicePicker", options: [{ label: "A", value: "a" }], value: { "@path": "/choice" } },
     { id: "date", component: "DateTimeInput", value: { "@path": "/date" }, enableDate: true },
@@ -583,9 +493,9 @@ test("official Basic all-18-component surface validates, resolves, and mounts", 
   const update = rt.process({ version: "1.0", updateComponents: { surfaceId: "all", components: all } }); assert.ok(update.ok);
   assert.ok(rt.process({ version: "1.0", updateDataModel: { surfaceId: "all", value: { field: "x", checked: true, slider: 2, choice: ["a"], date: "2026-08-10" } } }).ok);
   const resolved = rt.resolveSurface("all"); assert.ok(resolved.ok); assert.equal(resolved.value.tree.ready, true); assert.deepEqual(resolved.value.issues, { tree: [], instances: [], properties: [] });
-  const registrations = createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy: () => undefined, iconResolver: () => "M0 0", regexMatcher: () => true });
+  const registrations = createBasicCatalogRendererRegistrations({ catalogId, resourcePolicy: () => undefined, iconResolver: () => "M0 0" });
   assert.equal(registrations.length, 18); assert.equal(new Set(registrations.map(({ component }) => component)).size, 18);
-  const { target } = dom(); const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations), themeAdapter: createBasicCatalogThemeAdapter({ catalogId }), attributionProvider: () => ({ displayName: "Trusted test host" }) }).mount({ surfaceId: "all", target });
+  const { target } = dom(); const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations), attributionProvider: () => ({ displayName: "Trusted test host" }) }).mount({ surfaceId: "all", target });
   assert.ok(mounted.ok); assert.equal(target.querySelectorAll("[data-a2ui-component]").length >= 18, true); assert.equal(target.querySelector("img")?.hasAttribute("src"), false);
 });
 
@@ -595,11 +505,11 @@ test("closed Modal and inactive Tabs descendants are safely constructed detached
     { id: "root", component: "Column", children: ["modal", "tabs"] },
     { id: "modal", component: "Modal", trigger: "trigger", content: "media" },
     { id: "trigger", component: "Text", text: "Open" },
-    { id: "media", component: "Column", children: ["image", "video", "audio", "modal-probe"] },
+    { id: "media", component: "Column", children: ["image", "video", "audio", "modal_probe"] },
     { id: "image", component: "Image", url: "/approved.png" },
     { id: "video", component: "Video", url: "/approved.mp4" },
     { id: "audio", component: "AudioPlayer", url: "/approved.mp3" },
-    { id: "modal-probe", component: "Probe" },
+    { id: "modal_probe", component: "Probe" },
     { id: "tabs", component: "Tabs", tabs: [{ title: "Alpha", child: "alpha" }, { title: "Beta", child: "beta" }, { title: "Gamma", child: "gamma" }] },
     { id: "alpha", component: "Probe" }, { id: "beta", component: "Probe" }, { id: "gamma", component: "Probe" },
   ]));
@@ -617,7 +527,7 @@ test("closed Modal and inactive Tabs descendants are safely constructed detached
   const { target } = dom();
   const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry([...mediaAudit, probe]) }).mount({ surfaceId: "s", target });
   assert.ok(mounted.ok);
-  assert.deepEqual(constructed, ["modal-probe", "alpha", "beta", "gamma"]);
+  assert.deepEqual(constructed, ["modal_probe", "alpha", "beta", "gamma"]);
   assert.deepEqual(approved, ["/approved.png", "/approved.mp4", "/approved.mp3"]);
   assert.deepEqual(assigned, ["Image:/approved.png", "Video:/approved.mp4", "AudioPlayer:/approved.mp3"]);
   assert.equal(target.textContent, "OpenAlphaBetaGamma");
@@ -658,15 +568,15 @@ test("a focused Basic Button survives a data-model rerender, and sibling buttons
 test("nested Basic Modals keep the closest dialog open, focused, and keyboard-contained", () => {
   const rt = runtime(); rt.process(create());
   rt.process(components([
-    { id: "root", component: "Modal", trigger: "outer-trigger", content: "outer-content" },
-    { id: "outer-trigger", component: "Button", child: "outer-label", action: { event: { name: "outer-trigger-leak", context: {} } } },
-    { id: "outer-label", component: "Text", text: "Open outer" },
-    { id: "outer-content", component: "Row", children: ["inner"] },
-    { id: "inner", component: "Modal", trigger: "inner-trigger", content: "inner-content" },
-    { id: "inner-trigger", component: "Button", child: "inner-label", action: { event: { name: "inner-trigger-leak", context: {} } } },
-    { id: "inner-label", component: "Text", text: "Open inner" },
-    { id: "inner-content", component: "Button", child: "action-label", action: { event: { name: "inside", context: {} } } },
-    { id: "action-label", component: "Text", text: "Run inner action" },
+    { id: "root", component: "Modal", trigger: "outer_trigger", content: "outer_content" },
+    { id: "outer_trigger", component: "Button", child: "outer_label", action: { event: { name: "outer-trigger-leak", context: {} } } },
+    { id: "outer_label", component: "Text", text: "Open outer" },
+    { id: "outer_content", component: "Row", children: ["inner"] },
+    { id: "inner", component: "Modal", trigger: "inner_trigger", content: "inner_content" },
+    { id: "inner_trigger", component: "Button", child: "inner_label", action: { event: { name: "inner-trigger-leak", context: {} } } },
+    { id: "inner_label", component: "Text", text: "Open inner" },
+    { id: "inner_content", component: "Button", child: "action_label", action: { event: { name: "inside", context: {} } } },
+    { id: "action_label", component: "Text", text: "Run inner action" },
   ]));
   const { target } = dom(); target.ownerDocument.body.append(target); const handoffs: unknown[] = [];
   const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId: "test" })), onServerEvent: (event) => handoffs.push(event) }).mount({ surfaceId: "s", target });
@@ -703,10 +613,10 @@ test("Basic Modal intercepts a real Button trigger, persists open state, restore
   const rt = runtime(); rt.process(create());
   rt.process(components([
     { id: "root", component: "Modal", trigger: "trigger", content: "content" },
-    { id: "trigger", component: "Button", child: "trigger-label", action: { event: { name: "leak", context: {} } } },
-    { id: "trigger-label", component: "Text", text: "Open" },
-    { id: "content", component: "Button", child: "content-label", action: { event: { name: "inside", context: {} } } },
-    { id: "content-label", component: "Text", text: "Run" },
+    { id: "trigger", component: "Button", child: "trigger_label", action: { event: { name: "leak", context: {} } } },
+    { id: "trigger_label", component: "Text", text: "Open" },
+    { id: "content", component: "Button", child: "content_label", action: { event: { name: "inside", context: {} } } },
+    { id: "content_label", component: "Text", text: "Run" },
   ]));
   const { target } = dom(); target.ownerDocument.body.append(target); const handoffs: unknown[] = [];
   const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(createBasicCatalogRendererRegistrations({ catalogId: "test" })), onServerEvent: (event) => handoffs.push(event) }).mount({ surfaceId: "s", target });
@@ -722,30 +632,17 @@ test("Basic Modal intercepts a real Button trigger, persists open state, restore
 });
 
 function interactionCatalog(): JsonObject {
-  const action: JsonObject = { oneOf: [
-    { type: "object", properties: { functionCall: { type: "object" } }, required: ["functionCall"], additionalProperties: false },
-    { type: "object", properties: { event: { type: "object" } }, required: ["event"], additionalProperties: false },
-  ] };
   return {
-    $schema: "https://json-schema.org/draft/2020-12/schema", catalogId: "interactive",
+    $schema: "https://json-schema.org/draft/2020-12/schema", protocolVersion: "1.0", catalogId: "interactive",
     components: {
       Stack: component("Stack", { sections: ref("ChildList") }),
       Input: component("Input", { value: ref("DynamicString") }),
       Rating: component("Rating", { rating: ref("DynamicNumber") }),
       Display: component("Display", { text: ref("DynamicString") }),
-      Button: component("Button", { primaryAction: ref("Action"), checks: { type: "array" } }, [ref("Checkable")]),
+      Button: component("Button", { action: ref("Action"), "@checks": { type: "array", items: ref("CheckRule") } }, [ref("Checkable")]),
       Missing: component("Missing"),
     },
-    functions: { local: { type: "object", properties: { call: { const: "local" }, args: { type: "object" }, returnType: { const: "void" } }, required: ["call", "args"], additionalProperties: false } },
-    $defs: { theme: { type: "object" }, common: { $id: "common_types.json", $defs: {
-      ComponentId: { type: "string" },
-      ChildList: { oneOf: [{ type: "array", items: ref("ComponentId") }, { type: "object", properties: { path: { type: "string" }, componentId: ref("ComponentId") }, required: ["path", "componentId"], additionalProperties: false }] },
-      PathBinding: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false },
-      FunctionCall: { type: "object", properties: { call: { type: "string" }, args: { type: "object" } }, required: ["call", "args"], additionalProperties: false },
-      DynamicString: dynamic({ type: "string" }), DynamicNumber: dynamic({ type: "number" }),
-      DynamicBoolean: dynamic({ type: "boolean" }), DynamicStringList: dynamic({ type: "array", items: { type: "string" } }),
-      Checkable: {}, Action: action,
-    } } },
+    functions: { local: { type: "object", returnType: "void", properties: { "@call": { const: "local" }, args: { type: "object", unevaluatedProperties: false } }, required: ["@call", "args"] } },
   };
 }
 
@@ -830,7 +727,7 @@ function interactionRegistrations(results: unknown[] = []): RendererRegistration
     { catalogId: "interactive", component: "Input", render: ({ document, properties, interactions }) => { const node = document.createElement("input"); node.value = String(properties.value ?? ""); interactions.registerControl(node, "value"); node.addEventListener("input", () => results.push(interactions.writeInput("value", node.value))); return node; } },
     { catalogId: "interactive", component: "Rating", render: ({ document, properties, interactions }) => { const node = document.createElement("input"); node.value = String(properties.rating ?? ""); node.addEventListener("input", () => results.push(interactions.writeInput("rating", Number(node.value)))); return node; } },
     { catalogId: "interactive", component: "Display", render: ({ document, properties }) => { const node = document.createElement("output"); node.textContent = String(properties.text ?? ""); return node; } },
-    { catalogId: "interactive", component: "Button", render: ({ document, interactions }) => { const node = document.createElement("button"); node.addEventListener("click", () => results.push(interactions.dispatchAction("primaryAction"))); return node; } },
+    { catalogId: "interactive", component: "Button", render: ({ document, interactions }) => { const node = document.createElement("button"); node.addEventListener("click", () => results.push(interactions.dispatchAction("action"))); return node; } },
   ];
 }
 
@@ -848,7 +745,7 @@ test("input writes synchronously, rerenders, and a later action uses current mod
     { id: "root", component: "Stack", sections: ["input", "display", "button"] },
     { id: "input", component: "Input", value: { "@path": "/name" } },
     { id: "display", component: "Display", text: { "@path": "/name" } },
-    { id: "button", component: "Button", primaryAction: { event: { name: "submit", context: { name: { "@path": "/name" } } } } },
+    { id: "button", component: "Button", action: { event: { name: "submit", context: { name: { "@path": "/name" } } } } },
   ]));
   rt.process(interactiveData({ name: "Ada" }));
   const { target } = dom(); const handoffs: unknown[] = []; const results: unknown[] = [];
@@ -880,16 +777,17 @@ test("custom input properties and nested template scopes delegate unchanged", ()
 
 test("local actions execute once, blocked actions do not hand off, and handoff failures are typed", () => {
   let calls = 0; const rt = interactiveRuntime(() => { calls++; });
-  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { functionCall: { "@call": "local", args: {} } } }]));
+  rt.process(interactiveComponents([{ id: "root", component: "Button", action: { functionCall: { "@call": "local", args: {} } } }]));
   const { target } = dom(); let handoffs = 0; const results: unknown[] = [];
   const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(results)), onServerEvent: () => { handoffs++; } });
   const mounted = web.mount({ surfaceId: "s", target }); assert.ok(mounted.ok); dispatch(target.querySelector("button")!, "click");
   assert.equal(calls, 1); assert.equal(handoffs, 0);
-  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { event: { name: "blocked", context: {} } }, checks: [{ condition: false, message: "no" }] }]));
+  rt.process(interactiveComponents([{ id: "root", component: "Button", action: { event: { name: "blocked", context: {} } }, "@checks": [{ condition: { "@path": "/blocked" }, message: "no" }] }]));
+  rt.process(interactiveData({ blocked: false }));
   dispatch(target.querySelector("button")!, "click"); assert.equal(handoffs, 0);
-  assert.equal((results.at(-1) as { ok: false; error: { cause: { code: string } } }).error.cause.code, "ACTION_BLOCKED_BY_CHECKS");
+  assert.equal((results.at(-1) as { ok: false; error: { code: string; cause: { code: string } } }).error.cause.code, "ACTION_BLOCKED_BY_CHECKS");
 
-  rt.process(interactiveComponents([{ id: "root", component: "Button", primaryAction: { event: { name: "ready", context: {} } } }]));
+  rt.process(interactiveComponents([{ id: "root", component: "Button", action: { event: { name: "ready", context: {} } } }]));
   const failingResults: unknown[] = []; const secondTarget = dom().target;
   const second = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(interactionRegistrations(failingResults)), onServerEvent: () => { throw new Error("host secret"); } }).mount({ surfaceId: "s", target: secondTarget }); assert.ok(second.ok);
   dispatch(secondTarget.querySelector("button")!, "click");
@@ -909,4 +807,31 @@ test("successful, failed, refresh, and unmount render attempts invalidate retain
   assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
   const beforeUnmount = target.querySelector("input")!; mounted.value.unmount(); dispatch(beforeUnmount, "input");
   assert.deepEqual(results.at(-1), { ok: false, error: { code: "STALE_RENDER_INTERACTION" } });
+});
+
+test("resolved @accessibility maps label, description, live, and hidden onto every rendered component", () => {
+  const rt = runtime(); rt.process(create());
+  rt.process(components([
+    { id: "root", component: "Stack", sections: ["labelled", "described", "polite", "hidden", "dynamic", "off"] },
+    { id: "labelled", component: "Text", text: "Visible", "@accessibility": { label: "Explicit name" } },
+    { id: "described", component: "Text", text: "Body", "@accessibility": { description: "More detail" } },
+    { id: "polite", component: "Text", text: "Status", "@accessibility": { live: "polite" } },
+    { id: "hidden", component: "Text", text: "Decor", "@accessibility": { hidden: true } },
+    { id: "dynamic", component: "Text", text: "Bound", "@accessibility": { label: { "@path": "/name" }, live: "assertive" } },
+    { id: "off", component: "Text", text: "Quiet", "@accessibility": { live: "off" } },
+  ]));
+  rt.process(data({ name: "Dynamic name" }));
+  const { target } = dom();
+  const mounted = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()) }).mount({ surfaceId: "s", target });
+  assert.ok(mounted.ok);
+  const byText = (text: string) => [...target.querySelectorAll("span")].find((node) => node.textContent === text)!;
+  assert.equal(byText("Visible").getAttribute("aria-label"), "Explicit name");
+  assert.equal(byText("Body").getAttribute("aria-description"), "More detail");
+  assert.equal(byText("Status").getAttribute("aria-live"), "polite");
+  assert.equal(byText("Decor").getAttribute("aria-hidden"), "true");
+  assert.equal(byText("Bound").getAttribute("aria-label"), "Dynamic name");
+  assert.equal(byText("Bound").getAttribute("aria-live"), "assertive");
+  assert.equal(byText("Quiet").hasAttribute("aria-live"), false, "live off is omitted");
+  assert.equal(byText("Quiet").hasAttribute("aria-hidden"), false);
+  assert.equal(byText("Visible").hasAttribute("aria-live"), false, "absent live adds no region");
 });

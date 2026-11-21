@@ -1,4 +1,3 @@
-import type { BasicRegexMatcher } from "@cylayo/weaver-core";
 import type { RendererRegistration } from "../renderers/index.js";
 import {
   renderButton,
@@ -22,7 +21,6 @@ export interface BasicCatalogRendererRegistrationOptions {
   catalogId: string;
   resourcePolicy?: BasicResourcePolicy;
   iconResolver?: BasicIconResolver;
-  regexMatcher?: BasicRegexMatcher;
   /** Resolves raw datetime-local values before any ECMAScript Date conversion. */
   dateTimeInputLocalValueResolver?: DateTimeInputLocalValueResolver;
 }
@@ -31,7 +29,7 @@ export interface BasicCatalogRendererRegistrationOptions {
 export function createBasicCatalogRendererRegistrations(
   options: BasicCatalogRendererRegistrationOptions,
 ): RendererRegistration[] {
-  const inputs = createBasicInputRenderers(options.regexMatcher, options.dateTimeInputLocalValueResolver);
+  const inputs = createBasicInputRenderers(options.dateTimeInputLocalValueResolver);
   const media = createBasicMediaRenderers(options.resourcePolicy);
   return [
     { catalogId: options.catalogId, component: "Text", render: renderText },

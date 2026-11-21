@@ -1,36 +1,26 @@
 import type { WebComponentRenderer, WebRenderedRelationship } from "../renderers/index.js";
 import { applyBasicHook, mapAlign, mapJustify, relationshipChildren } from "./layout.js";
-import { renderBasicInlineMarkdown } from "./markdown.js";
+import { renderBasicMarkdownBlocks, type BasicMarkdownBlocks } from "./markdown.js";
 import { appendBasicStyle, applyBasicMargin, applyControlShape, basicCardShadow, basicControl, basicOutline, basicPrimaryFallback, basicRadius, basicSpace } from "./styles.js";
 
-const textElements = {
-  h1: "h1",
-  h2: "h2",
-  h3: "h3",
-  h4: "h4",
-  h5: "h5",
-  caption: "small",
-  body: "p",
-} as const;
-
 export const renderText: WebComponentRenderer = ({ document, properties }) => {
-  const variant = typeof properties.variant === "string" && properties.variant in textElements
-    ? properties.variant as keyof typeof textElements
-    : "body";
-  const element = document.createElement(textElements[variant]);
-  applyBasicHook(element, "Text");
-  element.style.fontSize = variant === "body" ? "1em" : variant === "caption" ? "0.8em" : ({ h1: "2.5em", h2: "2em", h3: "1.75em", h4: "1.5em", h5: "1.25em" } as const)[variant];
-  element.style.fontWeight = variant === "body" || variant === "caption" ? "normal" : "700";
-  if (variant === "caption") element.style.fontStyle = "italic";
-  if (variant !== "body" && variant !== "caption") element.style.lineHeight = "1.2";
-  applyBasicMargin(element);
+  const caption = properties.variant === "caption";
+  let blocks: BasicMarkdownBlocks = { hasHeadings: false, nodes: [] };
   if (typeof properties.text === "string") {
     try {
-      element.append(...renderBasicInlineMarkdown(document, properties.text));
+      blocks = renderBasicMarkdownBlocks(document, properties.text);
     } catch {
-      element.textContent = properties.text;
+      blocks = { hasHeadings: false, nodes: [document.createTextNode(properties.text)] };
     }
   }
+  // Headings are flow content, so a heading-bearing Text uses a div root; otherwise the root is a paragraph or caption.
+  const element = document.createElement(blocks.hasHeadings ? "div" : caption ? "small" : "p");
+  applyBasicHook(element, "Text");
+  element.style.fontSize = caption ? "0.8em" : "1em";
+  element.style.fontWeight = "normal";
+  if (caption) element.style.fontStyle = "italic";
+  applyBasicMargin(element);
+  element.append(...blocks.nodes);
   return element;
 };
 
@@ -350,8 +340,8 @@ export const renderButton: WebComponentRenderer = ({ document, properties, relat
   applyBasicMargin(button);
   const children = relationshipChildren(relationships, "child");
   button.append(...children);
-  button.disabled = children.length === 0
-    || (checks !== undefined && checks.status !== "valid");
+  // Only a blocking check failure (status "invalid") disables the button; advisory checks never do.
+  button.disabled = children.length === 0 || checks?.status === "invalid";
   if (button.disabled) appendBasicStyle(button, "opacity: 0.6");
   // Identity is (sourceComponentId, scopePath, "action"), so it is stable across rerenders and unique per button instance.
   interactions.registerControl(button, "action");

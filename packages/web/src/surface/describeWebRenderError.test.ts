@@ -20,7 +20,7 @@ import { WebSurfaceRenderer } from "./WebSurfaceRenderer.js";
 // ---------------------------------------------------------------------------
 
 const ALL_CODES = [
-  "SURFACE_RESOLUTION_FAILED", "THEME_ADAPTER_FAILED", "ATTRIBUTION_PROVIDER_FAILED",
+  "SURFACE_RESOLUTION_FAILED", "ATTRIBUTION_PROVIDER_FAILED",
   "INVALID_VERIFIED_ATTRIBUTION", "RENDERER_NOT_FOUND", "RENDERER_EXECUTION_FAILED",
   "INVALID_RENDERER_RESULT", "STALE_RENDER_INTERACTION", "SERVER_EVENT_HANDOFF_FAILED",
   "INVALID_LOCAL_STATE_VALUE",
@@ -60,7 +60,6 @@ const componentTreeCause: WeaverSurfaceResolutionError = {
 
 const fixtures: { code: WebErrorCode; error: DescribableWebError }[] = [
   { code: "SURFACE_RESOLUTION_FAILED", error: { code: "SURFACE_RESOLUTION_FAILED", cause: surfaceNotFoundCause } },
-  { code: "THEME_ADAPTER_FAILED", error: { code: "THEME_ADAPTER_FAILED" } },
   { code: "ATTRIBUTION_PROVIDER_FAILED", error: { code: "ATTRIBUTION_PROVIDER_FAILED" } },
   { code: "INVALID_VERIFIED_ATTRIBUTION", error: { code: "INVALID_VERIFIED_ATTRIBUTION" } },
   { code: "RENDERER_NOT_FOUND", error: { code: "RENDERER_NOT_FOUND", ...rendererLocation } },
@@ -139,7 +138,6 @@ test("SURFACE_RESOLUTION_FAILED flattens Core's nested cause chain, and each ent
 test("SURFACE_RESOLUTION_FAILED takes its location from Core when the wrapper has none", () => {
   const description = describeWebRenderError({ code: "SURFACE_RESOLUTION_FAILED", cause: surfaceNotFoundCause });
   assert.equal(description.surfaceId, "main");
-  assert.equal(describeWebRenderError({ code: "THEME_ADAPTER_FAILED" }).surfaceId, undefined);
 });
 
 test("STALE_RENDER_INTERACTION and SERVER_EVENT_HANDOFF_FAILED carry actionable hints", () => {
@@ -185,27 +183,8 @@ const BUDGET_SURFACE_ID = "budget-surface";
 function budgetCatalog(): JsonObject {
   return {
     $schema: "https://json-schema.org/draft/2020-12/schema",
+    protocolVersion: "1.0",
     catalogId: BUDGET_CATALOG_ID,
-    $defs: {
-      theme: { type: "object" },
-      commonTypes: {
-        $id: "common_types.json",
-        $defs: {
-          ComponentId: { type: "string" },
-          ChildList: {
-            oneOf: [
-              { type: "array", items: { $ref: "common_types.json#/$defs/ComponentId" } },
-              {
-                type: "object",
-                properties: { path: { type: "string" }, componentId: { $ref: "common_types.json#/$defs/ComponentId" } },
-                required: ["path", "componentId"],
-                additionalProperties: false,
-              },
-            ],
-          },
-        },
-      },
-    },
     components: {
       Column: {
         type: "object",
@@ -214,13 +193,13 @@ function budgetCatalog(): JsonObject {
           component: { const: "Column" },
           children: { $ref: "common_types.json#/$defs/ChildList" },
         },
-        required: ["id", "component"],
+        required: ["component"],
         additionalProperties: false,
       },
       Text: {
         type: "object",
-        properties: { id: { type: "string" }, component: { const: "Text" }, text: { type: "string" } },
-        required: ["id", "component"],
+        properties: { component: { const: "Text" }, text: { type: "string" } },
+        required: ["component"],
         additionalProperties: false,
       },
     },
