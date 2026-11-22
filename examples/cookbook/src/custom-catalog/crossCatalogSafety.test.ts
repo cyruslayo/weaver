@@ -14,9 +14,10 @@ import { cookbookCatalogRendererRegistrations } from "./renderers.js";
 /*
  * Cross-catalog safety. Each guarantee has a test that fails when it breaks:
  * (a) an unknown component on a cookbook surface is rejected at validation,
- * (b) a cookbook component on a Basic surface is rejected, with no fallback,
+ * (b) a cookbook component with no @catalogId on a Basic surface is rejected, with no fallback,
  * (c) a component declared by the catalog with no renderer keeps the last good
- *     DOM, calls onError, and is described with a hint.
+ *     DOM, calls onError, and is described with a hint,
+ * (d) a Basic surface can mix in a cookbook component through @catalogId.
  * Case (d), the standalone browser check, is not covered here. See the issue Log.
  *
  * Comparisons use strings and booleans only. Never pass a DOM node to assert.
@@ -175,4 +176,32 @@ test("(c) a component declared by the catalog with no renderer keeps the last go
   assert.equal(description.code, "RENDERER_NOT_FOUND", "describeWebRenderError keeps the code");
   assert.equal(description.summary.includes('component "DataTable"'), true, "the summary names the component");
   assert.equal(typeof description.hint === "string" && description.hint.length > 0, true, "the description gives a hint");
+});
+
+test("(d) a Basic surface mixes in a cookbook DataTable through @catalogId, and the rest of the screen stays Basic", () => {
+  const web = createWeb();
+  assert.equal(web.runtime.process(createSurface(BASIC_CATALOG_ID)).ok, true, "the Basic default surface must create");
+  const mixed = web.runtime.process(
+    update([
+      { id: "root", component: "Column", children: ["title", "table"] },
+      { id: "title", component: "Text", text: "Mixed screen" },
+      {
+        id: "table",
+        component: "DataTable",
+        "@catalogId": COOKBOOK_CATALOG_ID,
+        columns: [{ key: "id", header: "Order" }],
+        rows: [{ id: "A-1" }],
+      } as unknown as A2UIComponent,
+    ]),
+  );
+  assert.equal(mixed.ok, true, "a DataTable that names the cookbook catalog is accepted on a Basic surface");
+  const target = createTarget();
+  const mounted = web.mount({ surfaceId: SURFACE_ID, target });
+  assert.equal(mounted.ok, true, "the mixed surface must render");
+  assert.equal(target.textContent?.includes("Mixed screen"), true, "the Basic Text renders with the Basic renderer");
+  assert.equal(
+    target.querySelector("[data-cookbook-component=DataTable]") !== null,
+    true,
+    "the DataTable renders with the cookbook renderer",
+  );
 });

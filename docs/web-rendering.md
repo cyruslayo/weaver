@@ -86,8 +86,11 @@ Renderer registration = browser implementation is allowed
 ```
 
 A validated component still requires an explicitly registered trusted renderer
-for its exact `catalogId + component` identity. There is no cross-catalog,
-wildcard, default, or unknown-component fallback.
+for its exact `catalogId + component` identity. The catalog is the one the component
+resolved to: its own `@catalogId`, else the surface's default catalog. There is no
+cross-catalog, wildcard, default, or unknown-component fallback. A renderer is
+looked up for each instance, so one surface can render components from several
+catalogs, and a defaultless surface renders when every component names its catalog.
 
 A2UI data never loads renderer code. Renderer implementations are host
 application code registered during initialization. Weaver does not deserialize
@@ -274,7 +277,7 @@ no theme error code exists. Agent output cannot change colours, fonts, or identi
 trusted host boundary:
 
 ```text
-surfaceId + catalogId
+surfaceId + catalogId (the surface default, absent when the surface has none)
         ↓
 trusted host attribution provider (host code, not agent data)
         ↓

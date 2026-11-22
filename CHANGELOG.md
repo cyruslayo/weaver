@@ -84,6 +84,8 @@ mark those releases. This file does not rewrite them.
 - Core: `isDataPathBinding` (use `isDataBinding`) and the `DataPathBinding` type (use
   `DataBinding`).
 - Core: the error codes `THEME_SCHEMA_NOT_FOUND` and `THEME_VALIDATION_FAILED`, and the `CatalogThemeValidationResult` type.
+- Core: the `UNSUPPORTED_FEATURE` error code and the `UnsupportedFeature` type. Multi-catalog surfaces
+  no longer produce them.
 
 **Renames**
 
@@ -124,13 +126,8 @@ Client and server become renderer and agent:
 
 ### Not yet supported
 
-These are valid A2UI v1.0 features that 0.4.0 does not implement. The runtime returns a typed
-`UNSUPPORTED_FEATURE` error for each one, and it changes no state.
-
-- `createSurface` without a `catalogId`, which is multi-catalog support.
-- A component `@catalogId`, or a function-call `catalogId`, that differs from its surface's.
-- Enforcement of composition constraints (`allowedParents`, `allowedChildren`).
-- A nested call into a different catalog, deferred until multi-catalog surfaces.
+- Enforcement of composition constraints (`allowedParents`, `allowedChildren`). They are accepted
+  but not checked.
 
 ### Added
 
@@ -147,8 +144,18 @@ These are valid A2UI v1.0 features that 0.4.0 does not implement. The runtime re
   adds `runtime`, `flushAgentCalls()` and `sendActionCalls()`, and the Web renderer adds
   `onAgentFunctionCalls`. The MCP bridge adds `runtime`, `reply`, `onDiagnostic`, `flushAgentCalls()`
   and `sendActionCalls()`. See [docs/architecture.md](docs/architecture.md#remote-function-calls).
-- The typed `UNSUPPORTED_FEATURE` and `INVALID_RESERVED_KEY` errors, with descriptions in
+- The typed `INVALID_RESERVED_KEY` and `CATALOG_RESOLUTION_FAILED` errors, with descriptions in
   `describeWeaverError()`.
+- Multi-catalog surfaces. A component resolves to its `@catalogId`, else to the surface's default
+  `catalogId`, and each function call resolves to its own `catalogId`, else to the surface default.
+  `createSurface.catalogId` is optional, so a surface may have no default and every component then
+  names its own catalog. A component or call that resolves to no catalog is rejected at ingress
+  with `CATALOG_RESOLUTION_FAILED`, and nothing is stored. Each embedded call is validated against
+  its resolved catalog. Hydrated instances carry their resolved `catalogId`. The Web renderer looks
+  up each component's renderer in that catalog. A component whose resolved catalog has no registered
+  renderer fails the render with `RENDERER_NOT_FOUND`, as any missing renderer does. The prompt
+  generator takes a `defaultCatalogId` option. See
+  [docs/architecture.md](docs/architecture.md#catalog-resolution).
 - `docs/conformance-v1.0.md`, a requirement tracker for v1.0 that marks each item as implemented,
   planned or an accepted limitation.
 
@@ -157,6 +164,17 @@ These are valid A2UI v1.0 features that 0.4.0 does not implement. The runtime re
 - A declared function with no implementation, an `agentOnly` function called from a binding or an
   action, and invalid routed arguments now report `EXPRESSION_ERROR`. They used to report
   `FUNCTION_IMPLEMENTATION_NOT_FOUND`, `FUNCTION_CALLER_NOT_ALLOWED` and `FUNCTION_VALIDATION_FAILED`.
+- A nested function call no longer inherits the catalog of the call that encloses it. It resolves its
+  own `catalogId`, else the surface default. The exception is a `${...}` call inside a `formatString`,
+  which takes that `formatString` call's catalog. `@index` belongs to no catalog.
+- A function call whose name the component's catalog does not declare now fails at ingress as
+  `CATALOG_REGISTRY_ERROR` (`FUNCTION_NOT_ALLOWED`). It used to fail as `COMPONENT_VALIDATION_FAILED`.
+- `CatalogRegistry.validateComponent` no longer checks function calls. Component schemas accept any
+  `FunctionCall` envelope. Use `CatalogRegistry.validateFunctionCall` to check a call against its catalog.
+- The prompt generator takes a `defaultCatalogId` option in `A2UIV10PromptConfig`. A prompt generated
+  without it describes a surface with no default catalog, so every component sets `"@catalogId"` and
+  every function call sets `"catalogId"`.
+- `WebSurfaceAttributionInput.catalogId` is optional, because a surface may have no default catalog.
 - A binding that waits on an agent call resolves to `null` until the answer or the cancellation.
 - `EXPRESSION_ERROR` may carry a `functionCallId`, which names the call that failed.
 - The new `MCP_DELIVERY_UNSUPPORTED` code is returned by an MCP bridge with no `reply` callback when

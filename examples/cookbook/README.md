@@ -127,11 +127,14 @@ app-owned catalog with `DataTable` and `BarChart`, plus the `Column`, `Text`,
 report (`orders-report.html`, `src/screens/orders-report.ts`) is the screen that
 mounts it. Its harness field is `catalog`, and every other screen uses Basic.
 
-**One catalog per surface.** A surface is created with exactly one `catalogId`,
-so a surface that uses `DataTable` must declare every component it uses in the
-same catalog. The canonical Basic catalog is never modified. The custom catalog
-has its own `catalogId` and is registered next to Basic with
-`additionalCatalogs`. A component outside the catalog (for example `TextField`) is
+**Components choose their catalog.** A component with `"@catalogId"` resolves to
+that catalog. A component without one resolves to its surface's default catalog,
+and `createSurface` may name no default at all. So a Basic screen can place
+`DataTable` with `"@catalogId"` and keep the rest of the screen in Basic (see the
+test "(d)" in `src/custom-catalog/crossCatalogSafety.test.ts`). The canonical
+Basic catalog is never modified. The custom catalog has its own `catalogId` and is
+registered next to Basic with `additionalCatalogs`. A component that resolves to
+the cookbook catalog but is not declared there (for example `TextField` in it) is
 rejected at message validation.
 
 - `DataTable`: `caption`, `columns` (1 to 12 `{ key, header, align? }`), and `rows`

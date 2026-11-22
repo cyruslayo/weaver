@@ -41,7 +41,7 @@ Each pinned corpus file is listed with the Weaver area that covers it.
 | `accessibility.yaml` | `@accessibility` envelope key | Implemented, corpus not run | `component-properties/` tests |
 | `rpc_functions.yaml` | `callRendererFunction`, `agentFunctionResponse` | Implemented, corpus not run | Cases ported by hand in `message-processor/remoteFunctions.test.ts` and `transport/session/remoteFunctions.test.ts`; see R-F1 to R-F6 |
 | `agent_function_routing.yaml` | Remote function routing | Implemented, corpus not run | Cases ported by hand in `agent-functions/agentFunctionRouting.test.ts`; deviations listed under Known gaps |
-| `multi_catalog.yaml` | Multi-catalog surfaces, `@catalogId` | Planned | Returns `UNSUPPORTED_FEATURE` (see R-P2, R-P3) |
+| `multi_catalog.yaml` | Multi-catalog surfaces, `@catalogId` | Implemented, corpus not run | `message-processor/multiCatalog.test.ts`; cases ported by intent, see Known gaps (R-M1 to R-M6) |
 | `composition_constraints.yaml` | `allowedParents`, `allowedChildren` | Planned | Accepted in catalogs, not enforced (see R-P4) |
 | `catalog.yaml` | Catalog schema and registration | Implemented, corpus not run | `catalog/` tests; schema-level cases that need embedded `common_types` are rejected by design |
 | `common_types.yaml` | Built-in `common_types.json` | Implemented, corpus not run | `catalog/` tests; embedding is rejected |
@@ -136,14 +136,23 @@ Each pinned corpus file is listed with the Weaver area that covers it.
 | R-F5 | `allowedCallers` and `requiresUserActivation` are enforced on both sides; an `agentOnly` function is not callable from a binding or action | Implemented | `agent-functions/agentFunctionRouting.test.ts`, `functions/` tests |
 | R-F6 | A call that fails is answered once; a later identical reactive call returns the failure from the surface cache rather than sending again | Accepted limitation | See Known gaps |
 | R-F7 | Local implementations are synchronous | Accepted limitation | See Known gaps |
-| R-F8 | A nested call into a different catalog | Planned | Deferred until multi-catalog surfaces (R-P2, R-P3) |
+| R-F8 | A nested call into a different catalog resolves its own catalog, not the enclosing call's | Implemented | `message-processor/multiCatalog.test.ts` (a nested call does not inherit the catalog of the call that contains it) |
+
+### Multi-catalog surfaces
+
+| ID | Requirement | Status | Evidence / note |
+|---|---|---|---|
+| R-M1 | A component resolves to its `@catalogId`, else to the surface default catalog; `createSurface.catalogId` is optional | Implemented | `message-processor/multiCatalog.test.ts` (explicit catalog id resolution, surface default fallback, a surface with no default and no components) |
+| R-M2 | A function call resolves to its own `catalogId`, else to the surface default; a `${...}` call inside `formatString` takes that call's catalog; `@index` takes none | Implemented | `multiCatalog.test.ts` (function resolution precedence, catalog id override, formatString without default) |
+| R-M3 | A component or call that resolves to no catalog is rejected at ingress with `CATALOG_RESOLUTION_FAILED`, and nothing is stored | Implemented | `multiCatalog.test.ts` (no default catalog and no `@catalogId` is refused atomically; a top-level call on a defaultless surface is refused with its JSON pointer) |
+| R-M4 | An unregistered catalog id on a component is refused and stores nothing | Implemented | `multiCatalog.test.ts` (unregistered catalog error) |
+| R-M5 | Each embedded call is validated against its resolved catalog; an undeclared call name fails at ingress as `CATALOG_REGISTRY_ERROR` with `FUNCTION_NOT_ALLOWED` | Implemented | `multiCatalog.test.ts`, `catalog/CatalogRegistry.test.ts` |
+| R-M6 | Hydrated instances carry their resolved `catalogId`; the Web renderer looks up each instance's renderer in that catalog | Implemented | `multiCatalog.test.ts` (resolved surfaces keep the catalogId of each component); `web/src/surface/WebSurfaceRenderer.test.ts` (mixed catalogs, defaultless surface, RENDERER_NOT_FOUND for another catalog) |
 
 ### Planned
 
 | ID | Requirement | Status | Typed result |
 |---|---|---|---|
-| R-P2 | `createSurface` without `catalogId` (multi-catalog surfaces) | Planned | `UNSUPPORTED_FEATURE` with feature `createSurface.catalogId` |
-| R-P3 | Per-component `@catalogId` or function `catalogId` that differs from the surface | Planned | `UNSUPPORTED_FEATURE` with feature `@catalogId` |
 | R-P4 | Composition constraints (`allowedParents`, `allowedChildren`) | Planned | Accepted in catalogs; not enforced |
 
 ## Known gaps and decisions
@@ -159,8 +168,13 @@ Each pinned corpus file is listed with the Weaver area that covers it.
     function, and the renderer calls it only from a user gesture.
   - **Synchronous implementations.** Local function implementations run synchronously. A function
     that needs I/O is an agent function.
-  - **Nested calls across catalogs deferred.** A nested call into a different catalog waits for
-    multi-catalog surfaces (R-P2, R-P3).
+  - **Version mismatch is a registration rejection.** A catalog that declares a v0.9 protocol
+    version is rejected when it is registered, with `CATALOG_CONFIGURATION_FAILED`. It never reaches
+    a surface, because every v1.0 catalog declares `protocolVersion` as the constant `"1.0"`. The
+    pinned case expects the mixed-version error at message time.
+  - **Multi-catalog cases ported by intent.** The `multi_catalog.yaml` cases are not run from the
+    corpus. Their intent is tested in `message-processor/multiCatalog.test.ts`, and the cases that
+    use legacy shapes are written in the v1.0 envelope.
 - Strict bare-key rejection is deliberate. Catalogs that still use legacy bare `accessibility`,
   `checks` or `metadata` keys must rename them to the `@`-prefixed form.
 - The Basic Catalog's `Text` Markdown support is limited. Links, images and HTML are not interpreted.

@@ -10,9 +10,10 @@ Three rules hold for every custom catalog:
 
 - **The catalog is trusted host configuration.** Its schema is what the runtime validates against,
   and its renderers are host code. The model only chooses from them.
-- **One catalog per surface.** A surface is created with exactly one `catalogId`. Per-component
-  `@catalogId` values and multi-catalog surfaces are not supported in 0.4.0; the runtime
-  returns `UNSUPPORTED_FEATURE` for them.
+- **A component chooses its catalog.** A component with `"@catalogId"` resolves to that catalog,
+  and a component without one resolves to its surface's default catalog. A Basic surface can
+  therefore place a custom component, and a custom surface can place Basic layout components.
+  See [Catalog resolution](architecture.md#catalog-resolution).
 - **A renderer is registered per catalog and component.** A component with no renderer fails
   safely, and it never falls back to another catalog.
 
@@ -271,7 +272,10 @@ reports the failure through `onError`, and the last good DOM stays in place.
 Pass the same catalog to `generateA2UIV10Prompt()`. The generated prompt lists only the
 components the catalog declares, and only the functions that are both declared and registered.
 Catalog `instructions` are included in the prompt, with their Markdown headings demoted so they
-cannot override the surrounding prompt sections. See [prompt generation](prompt-generation.md).
+cannot override the surrounding prompt sections. Set `defaultCatalogId` to the catalog that the
+model's surfaces use by default, so the model can omit `"@catalogId"` for those components. Without
+it, the prompt tells the model that there is no default catalog, and every component and call must
+name its catalog. See [prompt generation](prompt-generation.md).
 
 ## Step 6: failure tests
 
@@ -359,6 +363,24 @@ test("(b) a custom DataTable on a Basic surface is rejected, and Basic never fal
 });
 ```
 
+## Mixing custom components with Basic
+
+A surface does not need to be built on the custom catalog. A Basic surface can place a custom
+component with `"@catalogId"`, and the rest of the screen stays Basic. The cookbook test
+"(d) a Basic surface mixes in a cookbook DataTable" in `crossCatalogSafety.test.ts` covers this.
+
+```json
+{ "version": "1.0", "createSurface": { "surfaceId": "orders", "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json" } }
+{ "version": "1.0", "updateComponents": { "surfaceId": "orders", "components": [
+  { "id": "root", "component": "Column", "children": ["title", "table"] },
+  { "id": "title", "component": "Text", "text": "Orders" },
+  { "id": "table", "component": "DataTable", "@catalogId": "https://weaver.dev/examples/cookbook/v1", "columns": [{ "key": "id", "header": "Order" }], "rows": [{ "id": "A-1" }] }
+] } }
+```
+
+Without `"@catalogId"`, the `DataTable` resolves to Basic and is rejected, because Basic does not
+declare it. The model must name the catalog for each custom component it places.
+
 ## Security checklist
 
 - The catalog schema is host code, reviewed like any other trusted configuration. Messages cannot
@@ -369,6 +391,7 @@ test("(b) a custom DataTable on a Basic surface is rejected, and Basic never fal
   for any function that opens a URL or performs an effect a click should gate, and set `allowedCallers`
   to the callers that need it.
 - The catalog does not embed `common_types.json`, and it uses no external `$ref` targets.
-- Each surface has one `catalogId`. Do not rely on multi-catalog components.
-- Tests cover an undeclared component, a cross-catalog component, and a declared component with no
-  renderer.
+- Each component's `@catalogId` is checked against the registered catalogs. A component that names an
+  unregistered catalog is refused.
+- Tests cover an undeclared component, a component without `@catalogId` placed in the wrong catalog, and
+  a declared component with no renderer.

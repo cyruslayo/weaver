@@ -218,14 +218,11 @@ export class WebSurfaceRenderer {
     for (const snapshot of surface.checks.components) {
       checks.set(identityKey(snapshot.sourceComponentId, snapshot.scopePath), snapshot);
     }
-    // WEB-SLICE GAP: renderer lookup still uses the surface default catalog. A defaultless surface renders no
-    // instance until the lookup moves to each instance.catalogId. Components of other catalogs are not looked up yet.
-    return this.#renderInstance(surface.surfaceId, surface.catalogId ?? "", surface.tree.root!, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
+    return this.#renderInstance(surface.surfaceId, surface.tree.root!, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
   }
 
   #renderInstance(
     surfaceId: string,
-    catalogId: string,
     instance: HydratedComponentInstance,
     checks: ReadonlyMap<string, ComponentCheckSnapshot>,
     document: Document,
@@ -247,7 +244,7 @@ export class WebSurfaceRenderer {
             location: relationship.location.map((segment) => ({ ...segment })) });
           continue;
         }
-        const child = this.#renderInstance(surfaceId, catalogId, relationship.child, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
+        const child = this.#renderInstance(surfaceId, relationship.child, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
         if (!child.ok) return child;
         relationships.push({
           kind: "single",
@@ -263,7 +260,7 @@ export class WebSurfaceRenderer {
       const childComponents: string[] = [];
       const childProperties: Readonly<Record<string, HydratedValue>>[] = [];
       for (const childInstance of relationship.children) {
-        const child = this.#renderInstance(surfaceId, catalogId, childInstance, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
+        const child = this.#renderInstance(surfaceId, childInstance, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
         if (!child.ok) return child;
         children.push(child.value);
         childComponents.push(childInstance.component);
@@ -279,6 +276,8 @@ export class WebSurfaceRenderer {
       });
     }
 
+    // Each instance renders with the catalog it resolved to, so a surface can mix catalogs and a defaultless surface still renders.
+    const catalogId = instance.catalogId;
     const renderer = this.#renderers.get(catalogId, instance.component);
     const metadata = { catalogId, component: instance.component, sourceComponentId: instance.sourceComponentId, scopePath: instance.scopePath };
     if (renderer === undefined) return { ok: false, error: { code: "RENDERER_NOT_FOUND", ...metadata } };

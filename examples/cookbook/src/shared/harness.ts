@@ -63,10 +63,12 @@ export interface CookbookScreenDefinition<TState> {
     readonly regexMatcher?: BasicRegexMatcher;
   };
   /**
-   * Optional app-owned catalog for this screen. When it is set, the surface uses
-   * this catalog's id, and its renderers are registered next to Basic's. A surface
-   * uses exactly one catalog, so the catalog must declare every component the
-   * screen uses. When it is omitted, the screen uses the canonical Basic catalog.
+   * Optional app-owned catalog for this screen. When it is set, the surface's default
+   * catalog is this catalog's id, and its renderers are registered next to Basic's.
+   * A component with no "@catalogId" resolves to the default, so the default must
+   * declare every such component. Components that name another catalog with
+   * "@catalogId" resolve to that catalog. When it is omitted, the screen uses the
+   * canonical Basic catalog as its default.
    */
   readonly catalog?: CookbookCatalogSetup;
 }

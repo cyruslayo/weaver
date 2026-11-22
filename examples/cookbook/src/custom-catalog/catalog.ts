@@ -9,10 +9,12 @@ import {
  * The app-owned cookbook catalog: DataTable and BarChart, plus the layout
  * primitives (Column, Text, Card) and the Button that the screens need.
  *
- * ONE CATALOG PER SURFACE. A surface is created with exactly one catalogId,
- * so this catalog must declare every component the surface uses. It does not
- * inherit Basic components at runtime. The layout primitives below are copied
- * from the canonical Basic registration, so their schemas are not redefined here.
+ * A surface mixes catalogs. Each component resolves to its `@catalogId` when it
+ * names one, else to the surface's default catalogId. A cookbook screen can
+ * therefore be built on the Basic catalog and place DataTable or BarChart with
+ * `"@catalogId": COOKBOOK_CATALOG_ID`, or it can use this catalog as its default.
+ * The layout primitives below are copied from the canonical Basic registration, so
+ * their schemas are not redefined here; they are used as-is when this catalog is the default.
  *
  * The canonical Basic catalog is never modified. This catalog has its own
  * catalogId and is registered next to Basic with `additionalCatalogs`.
