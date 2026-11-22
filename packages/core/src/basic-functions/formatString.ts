@@ -116,7 +116,9 @@ function stringify(value: unknown): string {
 
 function evaluateExpression(expression: Expression, context: FunctionExecutionContext): unknown {
   if (isFunctionCall(expression)) {
-    const result = context.evaluateFunctionCall(expression);
+    // A ${...} call has no catalogId syntax, so it takes the catalog of this formatString. @index belongs to no catalog.
+    const scoped = expression["@call"] === "@index" ? expression : { ...expression, catalogId: context.catalogId };
+    const result = context.evaluateFunctionCall(scoped);
     if (!result.ok) context.propagateFunctionFailure(result.error);
     return result.value;
   }

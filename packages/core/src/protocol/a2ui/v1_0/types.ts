@@ -24,7 +24,7 @@ export interface CreateSurfaceMessage {
   version: A2UIV10WireVersion;
   createSurface: {
     surfaceId: string;
-    /** Optional at the wire level; the runtime rejects a missing catalogId until multi-catalog lands. */
+    /** Optional. The surface default catalog for components and calls that name no catalogId of their own. */
     catalogId?: string;
     sendDataModel?: boolean;
     components?: A2UIComponent[];

@@ -569,7 +569,10 @@ test("resolves built-in common types with relative and absolute v1.0 refs and no
     true,
   );
   expectCode(registry.validateComponent("builtin-common", label({ text: 42 })), "COMPONENT_VALIDATION_FAILED");
-  expectCode(registry.validateComponent("builtin-common", label({ text: { "@call": "missing", args: {} } })), "COMPONENT_VALIDATION_FAILED");
+  // Component schemas accept any FunctionCall envelope; an unknown name is refused per call against its catalog.
+  assert.equal(registry.validateComponent("builtin-common", label({ text: { "@call": "missing", args: {} } })).ok, true);
+  const unknownCall = registry.validateFunctionCall("builtin-common", { "@call": "missing", args: {} });
+  assert.equal(!unknownCall.ok && unknownCall.error.code, "FUNCTION_NOT_ALLOWED");
   expectCode(registry.validateComponent("builtin-common", label({ caption: 42 })), "COMPONENT_VALIDATION_FAILED");
   assert.equal(registry.validateComponent("builtin-common", label({ caption: "Plain" })).ok, true);
 

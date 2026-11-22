@@ -6,7 +6,7 @@ import { isFunctionCall, type FunctionCallShape } from "./dynamic.js";
 export type FunctionReturnType = CatalogFunctionReturnType;
 export type FunctionEffect = "pure" | "action";
 
-/** A v1.0 FunctionCall. `args` is optional; `catalogId` must match the surface catalog until multi-catalog support lands. */
+/** A v1.0 FunctionCall. `args` is optional. `catalogId` is optional: without it the call resolves to the surface default catalog. */
 export type FunctionCall = FunctionCallShape;
 
 export { isFunctionCall };
@@ -19,6 +19,10 @@ export type FunctionImplementation = (
 export interface FunctionExecutionContext {
   catalogId: string;
   dataContext: DataContext;
+  /**
+   * Evaluates a nested call. It resolves to its own catalogId, else to the surface default catalog, never to the
+   * catalog of the calling function. formatString sets catalogId on its ${...} calls to scope them to its own catalog.
+   */
   evaluateFunctionCall(call: FunctionCall): FunctionEvaluationResult;
   /** Re-throws a recursive typed failure through the current evaluator boundary. */
   propagateFunctionFailure(error: import("./errors.js").FunctionEvaluationError): never;

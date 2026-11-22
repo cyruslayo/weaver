@@ -1,4 +1,5 @@
 import type { CatalogRegistry, DynamicPropertyKind } from "../catalog/index.js";
+import { componentCatalogId } from "../catalog/catalogResolution.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext } from "../data-context/index.js";
 import { isDataBinding } from "../functions/index.js";
@@ -54,7 +55,12 @@ export class InputBindingWriter {
       return { ok: false, error: { code: "INPUT_PROPERTY_NOT_FOUND", sourceComponentId: instance.sourceComponentId, property } };
     }
 
-    const metadata = this.catalogRegistry.getDynamicProperties(surface.catalogId, component.component);
+    // Input metadata comes from the component's own resolved catalog, which may differ from the surface default.
+    const componentCatalog = componentCatalogId(component, surface.catalogId);
+    if (componentCatalog === undefined) {
+      return { ok: false, error: { code: "CATALOG_RESOLUTION_FAILED", sourceComponentId: instance.sourceComponentId } };
+    }
+    const metadata = this.catalogRegistry.getDynamicProperties(componentCatalog, component.component);
     if (!metadata.ok) return { ok: false, error: { code: "CATALOG_REGISTRY_ERROR", cause: metadata.error } };
     const dynamic = metadata.value.find((definition) => definition.property === property);
     if (dynamic === undefined) {

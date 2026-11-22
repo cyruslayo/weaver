@@ -168,7 +168,7 @@ export class WebSurfaceRenderer {
     try {
       result = this.#attributionProvider(Object.freeze({
         surfaceId: surface.surfaceId,
-        catalogId: surface.catalogId,
+        ...(surface.catalogId === undefined ? {} : { catalogId: surface.catalogId }),
       }));
     } catch {
       return { ok: false, error: { code: "ATTRIBUTION_PROVIDER_FAILED" } };
@@ -218,7 +218,9 @@ export class WebSurfaceRenderer {
     for (const snapshot of surface.checks.components) {
       checks.set(identityKey(snapshot.sourceComponentId, snapshot.scopePath), snapshot);
     }
-    return this.#renderInstance(surface.surfaceId, surface.catalogId, surface.tree.root!, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
+    // WEB-SLICE GAP: renderer lookup still uses the surface default catalog. A defaultless surface renders no
+    // instance until the lookup moves to each instance.catalogId. Components of other catalogs are not looked up yet.
+    return this.#renderInstance(surface.surfaceId, surface.catalogId ?? "", surface.tree.root!, checks, document, generation, isCurrent, requestRefresh, localState, renderedIdentities, controlMetadata, controls);
   }
 
   #renderInstance(

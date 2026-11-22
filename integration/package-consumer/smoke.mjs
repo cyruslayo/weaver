@@ -54,7 +54,7 @@ for (const [label, mod] of [["core", core], ["web", web], ["mcp", mcp]]) {
 }
 
 // Prompt generation: a Basic prompt is produced, is deterministic, and an empty catalog list is rejected by code.
-const promptOptions = { catalogs: [core.createBasicCatalogV10Registration()], examples: core.A2UI_V10_BASIC_PROMPT_EXAMPLES };
+const promptOptions = { catalogs: [core.createBasicCatalogV10Registration()], defaultCatalogId: core.A2UI_V10_BASIC_CATALOG_ID, examples: core.A2UI_V10_BASIC_PROMPT_EXAMPLES };
 const prompt = core.generateA2UIV10Prompt(promptOptions);
 if (!prompt.ok) throw new Error(`Packed prompt generation failed: ${prompt.error.code}`);
 if (!prompt.value.text.includes("## Components")) throw new Error("Packed prompt has no Components section");

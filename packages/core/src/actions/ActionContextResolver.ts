@@ -1,4 +1,5 @@
 import type { CatalogRegistry } from "../catalog/index.js";
+import { functionCallCatalogId } from "../catalog/catalogResolution.js";
 import type { AgentFunctionScope } from "../agent-functions/types.js";
 import { cloneJson } from "../data-model/clone.js";
 import { DataContext } from "../data-context/index.js";
@@ -28,7 +29,7 @@ export class ActionContextResolver {
    * result then has `awaiting` set and an incomplete value.
    */
   resolve(
-    catalogId: string,
+    surfaceCatalogId: string | undefined,
     context: JsonObject,
     dataContext: DataContext,
     scope?: AgentFunctionScope,
@@ -54,8 +55,11 @@ export class ActionContextResolver {
       }
       if (isFunctionCall(value)) {
         const functionName = value["@call"];
-        const definition = this.catalogs.getFunctionDefinition(catalogId, functionName);
-        if (definition.ok && definition.value.returnType === "void") {
+        // The void check reads the call's own resolved catalog. An unresolvable call is reported by evaluation below.
+        const callCatalog = functionCallCatalogId(value, surfaceCatalogId);
+        const definition =
+          callCatalog === undefined ? undefined : this.catalogs.getFunctionDefinition(callCatalog, functionName);
+        if (definition?.ok && definition.value.returnType === "void") {
           return {
             ok: false,
             error: {
@@ -66,7 +70,7 @@ export class ActionContextResolver {
             },
           };
         }
-        const evaluated = this.functionEvaluator.evaluate(catalogId, value, dataContext, scope);
+        const evaluated = this.functionEvaluator.evaluate(surfaceCatalogId, value, dataContext, scope);
         if (!evaluated.ok) {
           return {
             ok: false,

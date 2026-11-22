@@ -36,6 +36,8 @@ export function mapRendererFunctionError(error: FunctionEvaluationError): Render
   switch (error.code) {
     case "CATALOG_NOT_FOUND":
       return invalidCall(`Catalog not found: ${error.catalogId}`);
+    case "CATALOG_RESOLUTION_FAILED":
+      return invalidCall(error.message);
     case "FUNCTION_NOT_ALLOWED":
       return invalidCall(`Function not found: ${error.functionName ?? ""}`);
     case "FUNCTION_VALIDATION_FAILED": {
@@ -53,7 +55,6 @@ export function mapRendererFunctionError(error: FunctionEvaluationError): Render
     case "FUNCTION_RETURN_TYPE_MISMATCH":
     case "FUNCTION_MAX_DEPTH_EXCEEDED":
     case "EXPRESSION_ERROR":
-    case "UNSUPPORTED_FEATURE":
     case "INVALID_RESERVED_KEY":
     case "INVALID_CATALOG_SCHEMA":
     case "CATALOG_ALREADY_REGISTERED":

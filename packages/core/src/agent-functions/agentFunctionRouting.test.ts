@@ -208,11 +208,13 @@ test("test_agent_routing_agent_error_is_expression_error: an agent error is repo
 test("test_agent_routing_unknown_catalog_is_catalog_error: a call naming a missing catalog is refused locally and not sent", () => {
   const runtime = routed();
   createSurface(runtime);
+  // Deviation: an unregistered call catalogId is refused at ingress (CATALOG_NOT_FOUND), so nothing is stored and nothing is routed.
   const result = runtime.process({
     version: "1.0",
     updateComponents: { surfaceId: "main", components: [textComponent({ "@call": "fetchFxRate", catalogId: "conformance/missing", args: { base: "EUR" } })] },
   });
-  assert.equal(result.ok, true);
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code === "CATALOG_REGISTRY_ERROR" && result.error.catalogError.code, "CATALOG_NOT_FOUND");
   assert.equal(textValue(runtime), null);
   assert.deepEqual(runtime.takeAgentFunctionCalls(), []);
 });

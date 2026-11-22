@@ -16,6 +16,7 @@ import {
   unescapeLiteralDynamicValue,
 } from "../functions/index.js";
 import type { FunctionEvaluationError } from "../functions/index.js";
+import { componentCatalogId } from "../catalog/catalogResolution.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
 import type { SurfaceSnapshot } from "../surfaces/index.js";
 import type { ComponentPropertyError } from "./errors.js";
@@ -119,7 +120,7 @@ function compatible(kind: DynamicPropertyKind | "dynamicValue", value: JsonValue
 
 /**
  * Rejects envelope conflicts before any evaluation: a component carrying both the
- * @-form and the bare form of a mixin, or a @catalogId that is not the surface catalog.
+ * @-form and the bare form of a mixin. The catalog is the component's resolved catalog.
  */
 function checkEnvelope(
   instance: ResolvedComponentInstance,
@@ -140,15 +141,6 @@ function checkEnvelope(
         : `Component "${instance.sourceComponentId}" carries the undeclared bare "${bareKey}"; use "${atKey}"`,
       sourceComponentId: instance.sourceComponentId,
       key: bareKey,
-    };
-  }
-  const declared = definition["@catalogId"];
-  if (declared !== undefined && declared !== catalogId) {
-    return {
-      code: "UNSUPPORTED_FEATURE",
-      message: `Component "${instance.sourceComponentId}" declares @catalogId "${String(declared)}" which differs from the surface catalog; multi-catalog components are not yet supported`,
-      sourceComponentId: instance.sourceComponentId,
-      feature: "@catalogId",
     };
   }
   return undefined;
@@ -197,12 +189,27 @@ export class ComponentPropertyResolver {
     private readonly functionEvaluator: FunctionEvaluator,
   ) {}
 
+  /**
+   * Hydrates one component. The component resolves to its own @catalogId, else to surfaceCatalogId, the
+   * surface default. Its FunctionCalls resolve against surfaceCatalogId, never against its own catalog.
+   */
   resolve(
     instance: ResolvedComponentInstance,
     dataContext: DataContext,
-    catalogId: string,
+    surfaceCatalogId: string | undefined,
     scope?: AgentFunctionScope,
   ): ComponentPropertyResult {
+    const catalogId = componentCatalogId(instance.definition, surfaceCatalogId);
+    if (catalogId === undefined) {
+      return {
+        ok: false,
+        error: {
+          code: "CATALOG_RESOLUTION_FAILED",
+          message: `Component "${instance.sourceComponentId}" names no @catalogId, and the surface has no default catalogId`,
+          sourceComponentId: instance.sourceComponentId,
+        },
+      };
+    }
     const envelope = checkEnvelope(instance, catalogId, this.catalogs);
     if (envelope !== undefined) return { ok: false, error: envelope };
     const structure = this.catalogs.getComponentStructure(
@@ -249,7 +256,7 @@ export class ComponentPropertyResolver {
       let functionOwned = false;
       if (isFunctionCall(original)) {
         const evaluated = this.functionEvaluator.evaluate(
-          catalogId,
+          surfaceCatalogId,
           original,
           dataContext,
           scope,
@@ -529,6 +536,18 @@ export class ComponentPropertyResolver {
     ): ComponentPropertyResult<HydratedComponentInstance> => {
       const own = this.resolve(instance, context, surface.catalogId, { surfaceId: surface.surfaceId, kind: "reactive" });
       if (!own.ok) return own;
+      // resolve() succeeded, so the component resolves to a catalog. The guard only narrows the type.
+      const resolvedCatalogId = componentCatalogId(instance.definition, surface.catalogId);
+      if (resolvedCatalogId === undefined) {
+        return {
+          ok: false,
+          error: {
+            code: "CATALOG_RESOLUTION_FAILED",
+            message: `Component "${instance.sourceComponentId}" names no @catalogId, and the surface has no default catalogId`,
+            sourceComponentId: instance.sourceComponentId,
+          },
+        };
+      }
       issues.push(...own.value.issues.map((issue) => ({ ...issue })));
       const relationships: HydratedInstanceRelationship[] = [];
 
@@ -621,6 +640,7 @@ export class ComponentPropertyResolver {
         value: {
           sourceComponentId: instance.sourceComponentId,
           component: instance.component,
+          catalogId: resolvedCatalogId,
           scopePath: instance.scopePath,
           ...(instance.collectionIndex === undefined
             ? {}

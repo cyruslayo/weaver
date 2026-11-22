@@ -114,11 +114,10 @@ test("producer rejects non-JSON input and cycles", () => {
   assert.throws(() => producer.updateDataModel({ surfaceId: "main", value: cyclic as never }), TypeError);
 });
 
-test("producer output is accepted by the Weaver validator and the runtime rejects theme-free createSurface without catalog", () => {
+test("producer output is accepted by the Weaver validator and the runtime accepts a defaultless createSurface with no components", () => {
   const runtime = basicRuntime();
   const message = producer.createSurface({ surfaceId: "main" });
   assert.equal(validateA2UIAgentMessage(message).ok, true);
   const result = runtime.process(message);
-  assert.equal(result.ok, false);
-  assert.equal(!result.ok && result.error.code, "UNSUPPORTED_FEATURE");
+  assert.equal(result.ok, true);
 });

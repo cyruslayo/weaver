@@ -5,7 +5,21 @@ import { A2UI_V10_COMMON_TYPES } from "./generated-common-types.js";
 /** The reference the pinned common types use for "any function of the catalog". */
 const UPSTREAM_ANY_FUNCTION_REF = "catalog.json#/$defs/anyFunction";
 const COMMON_ANY_FUNCTION = "weaverAnyFunction";
-const COMMON_FUNCTION_PREFIX = "weaverFunction_";
+
+/**
+ * The generic FunctionCall branch. A component's FunctionCall may name a function
+ * of any registered catalog (its own catalogId, or the one it resolves to), so the
+ * schema checks only the envelope: a string @call other than the reserved @index,
+ * and args as an object. Each call is then validated against the catalog it
+ * resolves to, by the message processor and the function evaluator.
+ */
+const GENERIC_ANY_FUNCTION: JsonValue = {
+  type: "object",
+  properties: {
+    "@call": { type: "string", not: { const: "@index" } },
+    args: { type: "object" },
+  },
+};
 
 function rewriteAnyFunctionRefs(value: JsonValue): void {
   if (Array.isArray(value)) {
@@ -23,24 +37,16 @@ function rewriteAnyFunctionRefs(value: JsonValue): void {
 }
 
 /**
- * Returns a caller-owned copy of the built-in common types resource for one
- * catalog. Its FunctionCall branch resolves to that catalog's own functions:
- * each function definition is copied into the resource and `anyFunction`
- * becomes a union of those copies (an empty catalog accepts no function).
+ * Returns a caller-owned copy of the built-in common types resource for compilation.
+ * Its FunctionCall branch is the generic envelope above, so cross-catalog calls pass
+ * component schema validation and are checked per call against their own catalog.
  *
  * The copy is internal to compilation and is never returned as catalog data.
  */
-export function buildCatalogCommonTypes(functions: JsonObject): JsonObject {
+export function buildCatalogCommonTypes(): JsonObject {
   const resource = cloneJson(A2UI_V10_COMMON_TYPES);
   rewriteAnyFunctionRefs(resource);
   const defs = resource.$defs as JsonObject;
-  const names = Object.keys(functions);
-  for (const name of names) {
-    defs[`${COMMON_FUNCTION_PREFIX}${name}`] = cloneJson(functions[name] as JsonObject);
-  }
-  defs[COMMON_ANY_FUNCTION] =
-    names.length === 0
-      ? { not: {} }
-      : { oneOf: names.map((name) => ({ $ref: `#/$defs/${COMMON_FUNCTION_PREFIX}${name}` })) };
+  defs[COMMON_ANY_FUNCTION] = cloneJson(GENERIC_ANY_FUNCTION);
   return resource;
 }

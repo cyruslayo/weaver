@@ -186,9 +186,10 @@ test("rejects unsafe results and implementation exceptions without leaking them"
 });
 
 test("propagates nested failures from an unknown call", () => {
+  // Deviation: the nested call is refused when it is evaluated, not by the enclosing function's schema, which takes any FunctionCall.
   const { evaluator, data } = setup({ outer: (args) => String(args.value) });
   const failure = evaluator.evaluate("test", { "@call": "outer", args: { value: { "@call": "missing", args: {} } } }, data);
-  assert.equal(errorCode(failure), "FUNCTION_VALIDATION_FAILED");
+  assert.equal(errorCode(failure), "FUNCTION_NOT_ALLOWED");
 });
 
 test("action effects run only at the action root and nested calls stay pure", () => {
@@ -246,10 +247,12 @@ test("a FunctionCall that declares allowedCallers or returnType is rejected on t
   assert.equal(errorCode(evaluator.evaluate("test", { "@call": "echo", args: { value: "x" }, allowedCallers: "agentOnly" }, data)), "FUNCTION_VALIDATION_FAILED");
 });
 
-test("a FunctionCall catalogId that differs from the surface catalog is unsupported", () => {
+test("a FunctionCall resolves its own catalogId, an unregistered one is CATALOG_NOT_FOUND, and none falls back to the surface default", () => {
   const { evaluator, data } = setup({ echo: () => "ok" });
-  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "echo", args: { value: "x" }, catalogId: "other" }, data)), "UNSUPPORTED_FEATURE");
+  assert.equal(errorCode(evaluator.evaluate("test", { "@call": "echo", args: { value: "x" }, catalogId: "other" }, data)), "CATALOG_NOT_FOUND");
   assert.deepEqual(evaluator.evaluate("test", { "@call": "echo", args: { value: "x" }, catalogId: "test" }, data), { ok: true, value: "ok" });
+  assert.deepEqual(evaluator.evaluate("test", { "@call": "echo", args: { value: "x" } }, data), { ok: true, value: "ok" });
+  assert.equal(errorCode(evaluator.evaluate(undefined, { "@call": "echo", args: { value: "x" } }, data)), "CATALOG_RESOLUTION_FAILED");
 });
 
 test("supports a configurable depth limit", () => {
@@ -267,7 +270,7 @@ test("@index returns the innermost collection index plus the offset", () => {
   assert.deepEqual(evaluator.evaluate("test", { "@call": "@index" }, first.value), { ok: true, value: 1 });
   assert.deepEqual(evaluator.evaluate("test", { "@call": "@index", args: { offset: 1 } }, first.value), { ok: true, value: 2 });
   assert.deepEqual(evaluator.evaluate("test", { "@call": "@index", args: { offset: { "@path": "/offsetBy" } } }, first.value), { ok: false, error: {
-    code: "FUNCTION_ARGUMENT_RESOLUTION_FAILED", message: "@index offset must resolve to a finite number", catalogId: "test", functionName: "@index",
+    code: "FUNCTION_ARGUMENT_RESOLUTION_FAILED", message: "@index offset must resolve to a finite number", functionName: "@index",
   } });
 });
 
@@ -318,4 +321,18 @@ test("array DynamicBoolean items coerce in the generic evaluator before the impl
   const { evaluator, data } = setup({ all: (args) => { seen.push(args.values); return args.values; } });
   assert.equal(evaluator.evaluate("test", { "@call": "all", args: { values: [{ "@path": "/check" }, true] } }, data).ok, true);
   assert.deepEqual(seen, [[false, true]]);
+});
+
+test("a host implementation's nested call resolves to the surface default, not the calling function's catalog", () => {
+  const { evaluator, data } = setup({
+    echo: () => "ok",
+    outer: (_args, context) => {
+      const nested = context.evaluateFunctionCall({ "@call": "echo", args: { value: "x" } });
+      if (!nested.ok) context.propagateFunctionFailure(nested.error);
+      return nested.value as string;
+    },
+  });
+  // The outer call names "test", but the surface has no default, so the nested call has no catalog to resolve to.
+  assert.equal(errorCode(evaluator.evaluate(undefined, { "@call": "outer", catalogId: "test", args: { value: "x" } }, data)), "CATALOG_RESOLUTION_FAILED");
+  assert.deepEqual(evaluator.evaluate("test", { "@call": "outer", catalogId: "test", args: { value: "x" } }, data), { ok: true, value: "ok" });
 });

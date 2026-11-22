@@ -1,4 +1,5 @@
 import type { CatalogRegistry } from "../catalog/index.js";
+import { componentCatalogId } from "../catalog/catalogResolution.js";
 import type { AgentFunctionScope } from "../agent-functions/types.js";
 import type { ResolvedComponentInstance } from "../component-instances/index.js";
 import { DataContext } from "../data-context/index.js";
@@ -76,18 +77,36 @@ export class CheckEvaluator {
     private readonly functionEvaluator: FunctionEvaluator,
   ) {}
 
+  /**
+   * Evaluates the component's checks. Checkability and the check schema come from the component's own
+   * resolved catalog. Each check's FunctionCall resolves against surfaceCatalogId, the surface default.
+   */
   evaluate(
-    catalogId: string,
+    surfaceCatalogId: string | undefined,
     instance: ResolvedComponentInstance,
     dataContext: DataContext,
     scope?: AgentFunctionScope,
   ): CheckEvaluationResult {
+    const catalogId = componentCatalogId(instance.definition, surfaceCatalogId);
+    if (catalogId === undefined) {
+      return {
+        ok: false,
+        error: {
+          code: "CATALOG_RESOLUTION_FAILED",
+          message: `Component "${instance.sourceComponentId}" names no @catalogId, and the surface has no default catalogId`,
+          sourceComponentId: instance.sourceComponentId,
+          scopePath: instance.scopePath,
+        },
+      };
+    }
     const checkable = this.catalogs.isComponentCheckable(catalogId, instance.component);
     if (!checkable) return { ok: true, value: this.snapshot(instance, false, []) };
 
     const declared = instance.definition["@checks"];
     const definitions = Array.isArray(declared) ? declared : [];
-    const checks = definitions.map((definition, index) => this.evaluateCheck(catalogId, definition, index, dataContext, scope));
+    const checks = definitions.map((definition, index) =>
+      this.evaluateCheck(surfaceCatalogId, definition, index, dataContext, scope),
+    );
     return { ok: true, value: this.snapshot(instance, true, checks) };
   }
 
@@ -152,7 +171,7 @@ export class CheckEvaluator {
   }
 
   private evaluateCheck(
-    catalogId: string,
+    surfaceCatalogId: string | undefined,
     definition: unknown,
     index: number,
     dataContext: DataContext,
@@ -169,7 +188,7 @@ export class CheckEvaluator {
       return this.conditionResult(index, message, resolved.value);
     }
     if (isFunctionCall(condition)) {
-      const evaluated = this.functionEvaluator.evaluate(catalogId, condition, dataContext, scope);
+      const evaluated = this.functionEvaluator.evaluate(surfaceCatalogId, condition, dataContext, scope);
       if (!evaluated.ok) {
         return this.issueResult(index, message, { code: "CHECK_FUNCTION_EVALUATION_FAILED", error: { ...evaluated.error } });
       }

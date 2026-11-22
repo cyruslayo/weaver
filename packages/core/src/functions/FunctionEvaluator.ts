@@ -7,6 +7,7 @@ import { cloneJson } from "../data-model/clone.js";
 import { DataContext } from "../data-context/index.js";
 import type { DataContextError } from "../data-context/index.js";
 import type { JsonObject, JsonValue } from "../protocol/index.js";
+import { functionCallCatalogId } from "../catalog/catalogResolution.js";
 import { FunctionRegistry } from "./FunctionRegistry.js";
 import {
   coerceDynamicBoolean,
@@ -48,6 +49,11 @@ export interface FunctionEvaluatorOptions {
 /** Per-evaluation state. Activation is honored only at the action root. */
 interface EvaluationFrame {
   depth: number;
+  /**
+   * The surface default catalogId, which resolves every call that names no catalog of its own. It is
+   * carried unchanged into nested arguments. Absent when the evaluation has no surface default.
+   */
+  surfaceDefault: string | undefined;
   actionRoot: boolean;
   userActivation: boolean;
   /**
@@ -60,8 +66,6 @@ interface EvaluationFrame {
 }
 
 type DynamicArgumentKind = "dynamicValue" | "dynamicString" | "dynamicNumber" | "dynamicBoolean" | "dynamicStringList";
-
-const PASSIVE_FRAME = { depth: 0, actionRoot: false, userActivation: false, caller: "renderer" } as const;
 
 function isPlainObject(value: unknown): value is JsonObject {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
@@ -99,7 +103,7 @@ function isJsonSafe(value: unknown): value is JsonValue {
   return true;
 }
 
-function defensiveValue(value: unknown, catalogId: string, functionName: string): InternalResult<unknown> {
+function defensiveValue(value: unknown, catalogId: string | undefined, functionName: string): InternalResult<unknown> {
   if (value === undefined) return { ok: true, value: undefined };
   if (!isJsonSafe(value)) {
     return {
@@ -156,13 +160,13 @@ function validReturnValue(value: unknown, expected: FunctionReturnType): boolean
   }
 }
 
-function argumentError(catalogId: string, functionName: string, message: string, cause?: DataContextError): InternalResult<never> {
+function argumentError(catalogId: string | undefined, functionName: string, message: string, cause?: DataContextError): InternalResult<never> {
   return {
     ok: false,
     error: {
       code: "FUNCTION_ARGUMENT_RESOLUTION_FAILED",
       message,
-      catalogId,
+      ...(catalogId === undefined ? {} : { catalogId }),
       functionName,
       ...(cause === undefined ? {} : { cause }),
     },
@@ -173,13 +177,18 @@ function expressionError(catalogId: string, functionName: string, message: strin
   return { ok: false, error: { code: "EXPRESSION_ERROR", message, catalogId, functionName } };
 }
 
-/** The frame of a call nested in the arguments or the body of another call. Nested calls are renderer calls and inherit the scope. */
+/**
+ * The frame of a call nested in the arguments or the body of another call. Nested calls are renderer
+ * calls and inherit the scope and the surface default catalog. They never inherit the catalog of the
+ * call that contains them, except through the formatString exception applied in #evaluate.
+ */
 function nestedFrame(frame: EvaluationFrame): EvaluationFrame {
   return {
     depth: frame.depth + 1,
     actionRoot: false,
     userActivation: false,
     caller: "renderer",
+    surfaceDefault: frame.surfaceDefault,
     ...(frame.scope === undefined ? {} : { scope: frame.scope }),
   };
 }
@@ -204,13 +213,17 @@ export class FunctionEvaluator {
    * scope lets a call to an agent function route; without one such a call fails locally.
    */
   evaluate(
-    catalogId: string,
+    surfaceCatalogId: string | undefined,
     functionCall: unknown,
     dataContext: DataContext,
     scope?: AgentFunctionScope,
   ): FunctionEvaluationResult {
-    return this.#evaluate(catalogId, functionCall, dataContext, {
-      ...PASSIVE_FRAME,
+    return this.#evaluate(surfaceCatalogId, functionCall, dataContext, {
+      depth: 0,
+      actionRoot: false,
+      userActivation: false,
+      caller: "renderer",
+      surfaceDefault: surfaceCatalogId,
       ...(scope === undefined ? {} : { scope }),
     });
   }
@@ -220,16 +233,17 @@ export class FunctionEvaluator {
    * the caller reports an explicit user gesture; nested calls never inherit it.
    */
   evaluateAction(
-    catalogId: string,
+    surfaceCatalogId: string | undefined,
     functionCall: unknown,
     dataContext: DataContext,
     options: { userActivation: boolean; scope?: AgentFunctionScope },
   ): FunctionEvaluationResult {
-    return this.#evaluate(catalogId, functionCall, dataContext, {
+    return this.#evaluate(surfaceCatalogId, functionCall, dataContext, {
       depth: 0,
       actionRoot: true,
       userActivation: options.userActivation === true,
       caller: "renderer",
+      surfaceDefault: surfaceCatalogId,
       ...(options.scope === undefined ? {} : { scope: options.scope }),
     });
   }
@@ -242,10 +256,10 @@ export class FunctionEvaluator {
    * a renderer call. Action-effect implementations therefore cannot run here,
    * because an agent call is not a local-action root.
    *
-   * Nested calls inside the arguments are ordinary renderer expressions. Their
-   * own catalogId values are not changed or widened by this method. A nested
-   * catalogId that differs from the call's catalogId still fails with
-   * UNSUPPORTED_FEATURE, as in every other evaluation.
+   * The root runs in catalogId, which the message names explicitly. Nested calls
+   * inside the arguments are ordinary renderer expressions. Each one resolves to
+   * its own catalogId or to surfaceCatalogId, the target surface's default, which
+   * is absent when the call names no surfaceId.
    *
    * Implementations are synchronous. A host implementation that returns a
    * Promise fails the return-type check.
@@ -254,6 +268,7 @@ export class FunctionEvaluator {
     catalogId: string,
     functionCall: Pick<FunctionCall, "@call" | "args">,
     dataContext: DataContext,
+    surfaceCatalogId?: string,
   ): FunctionEvaluationResult {
     const name = functionCall["@call"];
     // @index is the reserved system function. It is never a catalog function, so it is handled in #evaluate.
@@ -289,12 +304,35 @@ export class FunctionEvaluator {
       actionRoot: false,
       userActivation: false,
       caller: "agent",
+      surfaceDefault: surfaceCatalogId,
     });
   }
 
-  #evaluate(catalogId: string, functionCall: unknown, dataContext: DataContext, frame: EvaluationFrame): FunctionEvaluationResult {
+  /**
+   * Evaluates one FunctionCall. Its catalog is its own catalogId, else defaultCatalogId. A call never
+   * takes the catalog of the call that contains it. Nested arguments resolve against frame.surfaceDefault.
+   */
+  #evaluate(
+    defaultCatalogId: string | undefined,
+    functionCall: unknown,
+    dataContext: DataContext,
+    frame: EvaluationFrame,
+  ): FunctionEvaluationResult {
     if (isPlainObject(functionCall) && functionCall["@call"] === INDEX_FUNCTION) {
-      return this.#evaluateIndex(catalogId, functionCall, dataContext, frame);
+      return this.#evaluateIndex(undefined, functionCall, dataContext, frame);
+    }
+
+    const catalogId = isPlainObject(functionCall) ? functionCallCatalogId(functionCall, defaultCatalogId) : defaultCatalogId;
+    if (catalogId === undefined) {
+      const name = isPlainObject(functionCall) && typeof functionCall["@call"] === "string" ? functionCall["@call"] : "";
+      return {
+        ok: false,
+        error: {
+          code: "CATALOG_RESOLUTION_FAILED",
+          message: `Function '${name}' names no catalogId, and the surface has no default catalogId`,
+          functionName: name,
+        },
+      };
     }
 
     let validation: ReturnType<CatalogRegistry["validateFunctionCall"]>;
@@ -327,17 +365,6 @@ export class FunctionEvaluator {
     const call = validation.value as FunctionCall;
     const functionName = call["@call"];
 
-    if (call.catalogId !== undefined && call.catalogId !== catalogId) {
-      return {
-        ok: false,
-        error: {
-          code: "UNSUPPORTED_FEATURE",
-          message: `FunctionCall catalogId "${call.catalogId}" differs from the surface catalog; multi-catalog functions are not yet supported`,
-          catalogId,
-          functionName,
-        },
-      };
-    }
     if (frame.depth >= this.#maxDepth) {
       return {
         ok: false,
@@ -411,7 +438,8 @@ export class FunctionEvaluator {
       const context: FunctionExecutionContext = {
         catalogId,
         dataContext,
-        evaluateFunctionCall: (nestedCall) => this.#evaluate(catalogId, nestedCall, dataContext, nestedFrame(frame)),
+        // Host implementations get the surface default for nested calls. Only formatString scopes its ${...} calls, by passing its own catalogId.
+        evaluateFunctionCall: (nestedCall) => this.#evaluate(frame.surfaceDefault, nestedCall, dataContext, nestedFrame(frame)),
         propagateFunctionFailure: (error) => {
           throw new RecursiveFunctionFailure(error);
         },
@@ -528,7 +556,7 @@ export class FunctionEvaluator {
    * @index returns the innermost collection item index plus an optional offset. It
    * belongs to no catalog, so it is handled before catalog lookup.
    */
-  #evaluateIndex(catalogId: string, call: JsonObject, dataContext: DataContext, frame: EvaluationFrame): FunctionEvaluationResult {
+  #evaluateIndex(catalogId: string | undefined, call: JsonObject, dataContext: DataContext, frame: EvaluationFrame): FunctionEvaluationResult {
     const index = dataContext.collectionIndex;
     if (index === undefined) {
       return {
@@ -570,7 +598,7 @@ export class FunctionEvaluator {
    * while the others still resolve, so sibling agent calls are all sent together.
    */
   #resolveCallArgs(
-    catalogId: string,
+    catalogId: string | undefined,
     functionName: string,
     args: JsonObject,
     definitionFor: (name: string) => CatalogFunctionArgumentDefinition,
@@ -589,7 +617,7 @@ export class FunctionEvaluator {
   }
 
   #resolveArgument(
-    catalogId: string,
+    catalogId: string | undefined,
     functionName: string,
     value: JsonValue,
     definition: CatalogFunctionArgumentDefinition,
@@ -644,7 +672,7 @@ export class FunctionEvaluator {
   }
 
   #resolveDynamic(
-    catalogId: string,
+    catalogId: string | undefined,
     functionName: string,
     value: JsonValue,
     kind: DynamicArgumentKind,
@@ -657,7 +685,7 @@ export class FunctionEvaluator {
       return defensiveValue(resolved.value, catalogId, functionName);
     }
     if (isFunctionCall(value)) {
-      return this.#evaluate(catalogId, value, dataContext, nestedFrame(frame));
+      return this.#evaluate(frame.surfaceDefault, value, dataContext, nestedFrame(frame));
     }
     if (kind === "dynamicValue" && isPlainObject(value)) {
       const unescaped = unescapeLiteralDynamicValue(value);

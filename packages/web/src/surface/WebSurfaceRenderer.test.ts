@@ -135,7 +135,7 @@ test("attribution supports name-only, undefined, independent mounts, updates, an
   const rt = runtime(); rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "one" }]));
   let verified: string | undefined = "Registry One"; let calls = 0;
-  const provider = ({ surfaceId, catalogId }: { surfaceId: string; catalogId: string }) => {
+  const provider = ({ surfaceId, catalogId }: { surfaceId: string; catalogId?: string }) => {
     calls++; return verified === undefined ? undefined : { displayName: `${verified}:${surfaceId}:${catalogId}` };
   };
   const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), attributionProvider: provider });

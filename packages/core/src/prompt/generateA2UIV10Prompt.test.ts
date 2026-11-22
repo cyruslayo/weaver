@@ -565,3 +565,31 @@ test("the envelope states the v1.0 rules for ids, bindings, checks, accessibilit
   assert.ok(!/theme/i.test(text), "no theme is mentioned");
   assert.ok(!/h[1-5]\b/.test(text), "no h1 to h5 variants are mentioned");
 });
+
+// The defaultCatalogId option. Without it the envelope says there is no default catalog, so every component
+// sets "@catalogId" and every function call sets "catalogId". With it, the named catalog is the default.
+test("without defaultCatalogId the envelope states that there is no default catalog", () => {
+  const result = generateA2UIV10Prompt({ catalogs: [basicCatalog()] });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.match(result.value.text, /There is no default catalog\. Every component sets `"@catalogId"` and every function call sets `"catalogId"`/);
+  assert.doesNotMatch(result.value.text, /The default catalog is/);
+});
+
+test("defaultCatalogId names the default catalog and removes the no-default rule", () => {
+  const catalogId = basicCatalog().catalogId;
+  const result = generateA2UIV10Prompt({ catalogs: [basicCatalog()], defaultCatalogId: catalogId });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.match(result.value.text, new RegExp(`The default catalog is ${JSON.stringify(catalogId).replace(/[/.]/g, "\$&")}\. Components and calls from it need no catalog property`));
+  assert.doesNotMatch(result.value.text, /There is no default catalog/);
+});
+
+test("a defaultCatalogId that is not a registered catalog is CATALOG_INVALID", () => {
+  const result = generateA2UIV10Prompt({ catalogs: [basicCatalog()], defaultCatalogId: "conformance/missing" });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "CATALOG_INVALID");
+    assert.equal(result.error.catalogId, "conformance/missing");
+  }
+});
