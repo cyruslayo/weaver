@@ -10,11 +10,10 @@ export type ComponentPropertyError =
       key: string;
     }
   | {
-      /** A component feature that Weaver does not execute yet, such as a differing @catalogId. */
-      code: "UNSUPPORTED_FEATURE";
+      /** A component that names no @catalogId inside a surface with no default catalogId. */
+      code: "CATALOG_RESOLUTION_FAILED";
       message: string;
       sourceComponentId: string;
-      feature: "@catalogId";
     }
   | {
       code: "CATALOG_PROPERTY_METADATA_FAILED";

@@ -598,10 +598,15 @@ test("a component carrying both the @-form and the bare envelope key is rejected
   }), DataContext.root({}), catalogId)), "INVALID_RESERVED_KEY");
 });
 
-test("a component @catalogId equal to the surface catalog is accepted and a different one is unsupported", () => {
+test("a component @catalogId resolves its own catalog; an unregistered one fails its metadata lookup", () => {
   const { properties, catalogId } = setup({});
   assert.equal(ok(properties.resolve(instance({ id: "root", component: "Display", "@catalogId": catalogId }), DataContext.root({}), catalogId)).accessibility, undefined);
-  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display", "@catalogId": "other" }), DataContext.root({}), catalogId)), "UNSUPPORTED_FEATURE");
+  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display", "@catalogId": "other" }), DataContext.root({}), catalogId)), "CATALOG_PROPERTY_METADATA_FAILED");
+});
+
+test("a component with no @catalogId and no surface default fails with CATALOG_RESOLUTION_FAILED", () => {
+  const { properties } = setup({});
+  assert.equal(errorCode(properties.resolve(instance({ id: "root", component: "Display" }), DataContext.root({}), undefined)), "CATALOG_RESOLUTION_FAILED");
 });
 
 test("a DynamicValue property resolves bindings and calls, and unescapes literal objects", () => {

@@ -13,7 +13,7 @@ import type {
 
 interface StoredSurface {
   surfaceId: string;
-  catalogId: string;
+  catalogId?: string;
   sendDataModel: boolean;
   components: Map<string, A2UIComponent>;
   dataModel: DataModel;
@@ -66,7 +66,7 @@ export class SurfaceStore {
 
     const surface: StoredSurface = {
       surfaceId: input.surfaceId,
-      catalogId: input.catalogId,
+      ...(input.catalogId === undefined ? {} : { catalogId: input.catalogId }),
       sendDataModel: input.sendDataModel ?? false,
       components,
       dataModel,
@@ -220,7 +220,7 @@ export class SurfaceStore {
     }
     return {
       surfaceId: surface.surfaceId,
-      catalogId: surface.catalogId,
+      ...(surface.catalogId === undefined ? {} : { catalogId: surface.catalogId }),
       sendDataModel: surface.sendDataModel,
       components,
       dataModel: this.#dataSnapshot(surface.dataModel),

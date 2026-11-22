@@ -43,8 +43,9 @@ A failed event carries a structured error that identifies its source:
 - `PROTOCOL_VALIDATION_FAILED` comes from A2UI envelope validation.
 - `CATALOG_REGISTRY_ERROR` comes from trusted catalog checks.
 - `SURFACE_STORE_ERROR` comes from runtime lifecycle and state checks.
-- `UNSUPPORTED_FEATURE` comes from a valid v1.0 message that this release does not yet implement
-  (see [conformance](conformance-v1.0.md)).
+- `CATALOG_RESOLUTION_FAILED` comes from a component or function call that resolves to no catalog:
+  it names no `@catalogId` or `catalogId`, and the surface has no default (see
+  [architecture](architecture.md#catalog-resolution)).
 
 Malformed JSON, Markdown fences, trailing commas, and oversized frames are not repaired, stripped,
 retried, or sent to a model for correction. Protocol and runtime processing are fail-closed. A failed

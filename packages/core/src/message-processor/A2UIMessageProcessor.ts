@@ -17,7 +17,8 @@ import {
   type SurfaceStoreResult,
   type SurfaceSnapshot,
 } from "../surfaces/index.js";
-import type { UnsupportedFeature } from "./errors.js";
+import { componentCatalogId, functionCallCatalogId } from "../catalog/catalogResolution.js";
+import { embeddedFunctionCalls } from "./embeddedCalls.js";
 import { mapRendererFunctionError } from "./rendererFunctionCall.js";
 import type { MessageProcessorResult, MessageProcessorSuccess } from "./types.js";
 
@@ -109,14 +110,8 @@ export class A2UIMessageProcessor {
     components?: readonly A2UIComponent[];
     dataModel?: JsonObject;
   }): MessageProcessorResult {
-    if (create.catalogId === undefined) {
-      return this.unsupported(
-        "createSurface.catalogId",
-        "createSurface without catalogId requires multi-catalog support, which is not available yet",
-      );
-    }
     const catalogId = create.catalogId;
-    if (!this.catalogs.has(catalogId)) {
+    if (catalogId !== undefined && !this.catalogs.has(catalogId)) {
       return this.catalogError({
         code: "CATALOG_NOT_FOUND",
         catalogId,
@@ -128,16 +123,14 @@ export class A2UIMessageProcessor {
       return this.storeError({ code: "INTEGRITY_ERROR", surfaceId: create.surfaceId });
     }
     const components = create.components ?? [];
-    for (const component of components) {
-      const validation = this.catalogs.validateComponent(catalogId, component);
-      if (!validation.ok) return this.catalogError(validation.error);
-    }
+    const invalid = this.validateComponents(components, catalogId);
+    if (invalid !== undefined) return invalid;
     return this.withSurface(
       "surfaceCreated",
       create.surfaceId,
       this.store.create({
         surfaceId: create.surfaceId,
-        catalogId,
+        ...(catalogId === undefined ? {} : { catalogId }),
         ...(create.sendDataModel === undefined ? {} : { sendDataModel: create.sendDataModel }),
         ...(create.dataModel === undefined ? {} : { dataModel: create.dataModel }),
         components,
@@ -153,10 +146,8 @@ export class A2UIMessageProcessor {
     if (surface === undefined) {
       return this.storeError({ code: "SURFACE_NOT_FOUND", surfaceId: update.surfaceId });
     }
-    for (const component of update.components) {
-      const validation = this.catalogs.validateComponent(surface.catalogId, component);
-      if (!validation.ok) return this.catalogError(validation.error);
-    }
+    const invalid = this.validateComponents(update.components, surface.catalogId);
+    if (invalid !== undefined) return invalid;
     return this.withSurface(
       "componentsUpdated",
       update.surfaceId,
@@ -235,6 +226,8 @@ export class A2UIMessageProcessor {
   private callRendererFunction(call: CallRendererFunctionPayload): MessageProcessorResult {
     const { functionCallId, callFunction } = call;
     let dataContext: DataContext;
+    // Nested calls default to the target surface's catalog. Without a surfaceId there is none.
+    let surfaceCatalogId: string | undefined;
     if (call.surfaceId === undefined) {
       dataContext = DataContext.root({});
     } else {
@@ -246,6 +239,7 @@ export class A2UIMessageProcessor {
         });
       }
       dataContext = DataContext.root(surface.dataModel);
+      surfaceCatalogId = surface.catalogId;
     }
 
     const catalogId = callFunction.catalogId;
@@ -263,6 +257,7 @@ export class A2UIMessageProcessor {
         ...(callFunction.args === undefined ? {} : { args: callFunction.args }),
       },
       dataContext,
+      surfaceCatalogId,
     );
     if (!evaluated.ok) {
       const mapped = mapRendererFunctionError(evaluated.error);
@@ -274,8 +269,52 @@ export class A2UIMessageProcessor {
     return rendererFunctionResponse({ functionCallId, value: evaluated.value ?? null });
   }
 
-  private unsupported(feature: UnsupportedFeature, message: string): MessageProcessorResult {
-    return { ok: false, error: { code: "UNSUPPORTED_FEATURE", feature, message } };
+  /**
+   * Validates components against their resolved catalogs, and every FunctionCall inside them against
+   * the catalog it resolves to. Runs before anything is stored, so a failure changes nothing.
+   * A component resolves to its @catalogId or the surface default. A call resolves to its own
+   * catalogId or the surface default, never to its enclosing component's catalog.
+   */
+  private validateComponents(
+    components: readonly A2UIComponent[],
+    surfaceCatalogId: string | undefined,
+  ): MessageProcessorResult | undefined {
+    for (const component of components) {
+      const componentCatalog = componentCatalogId(component, surfaceCatalogId);
+      if (componentCatalog === undefined) {
+        return this.resolutionFailure(component.id, "", "Component names no @catalogId and the surface has no default catalogId");
+      }
+      const validation = this.catalogs.validateComponent(componentCatalog, component);
+      if (!validation.ok) return this.catalogError(validation.error);
+      for (const embedded of embeddedFunctionCalls(component)) {
+        const failure = this.validateEmbeddedCall(component.id, surfaceCatalogId, embedded.call, embedded.path);
+        if (failure !== undefined) return failure;
+      }
+    }
+    return undefined;
+  }
+
+  private validateEmbeddedCall(
+    sourceComponentId: string,
+    surfaceCatalogId: string | undefined,
+    call: JsonObject,
+    path: string,
+  ): MessageProcessorResult | undefined {
+    // @index is a reserved system function with no catalog, so it is not resolved.
+    if (call["@call"] === "@index") return undefined;
+    const callCatalog = functionCallCatalogId(call, surfaceCatalogId);
+    if (callCatalog === undefined) {
+      return this.resolutionFailure(sourceComponentId, path, "FunctionCall names no catalogId and the surface has no default catalogId");
+    }
+    if (!this.catalogs.has(callCatalog)) {
+      return this.catalogError({ code: "CATALOG_NOT_FOUND", catalogId: callCatalog, message: "Catalog is not registered" });
+    }
+    const validation = this.catalogs.validateFunctionCall(callCatalog, call);
+    return validation.ok ? undefined : this.catalogError(validation.error);
+  }
+
+  private resolutionFailure(sourceComponentId: string, path: string, message: string): MessageProcessorResult {
+    return { ok: false, error: { code: "CATALOG_RESOLUTION_FAILED", sourceComponentId, path, message } };
   }
 }
 

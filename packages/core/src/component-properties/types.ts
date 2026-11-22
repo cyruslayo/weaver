@@ -35,6 +35,8 @@ export interface ResolvedAccessibility {
 export interface HydratedComponentInstance {
   sourceComponentId: string;
   component: string;
+  /** The catalog the component resolved to: its @catalogId, else the surface default. */
+  catalogId: string;
   scopePath: string;
   collectionIndex?: number;
   properties: ResolvedComponentProperties;

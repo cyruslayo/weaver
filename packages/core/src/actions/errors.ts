@@ -13,6 +13,12 @@ export type ActionDispatchError =
   | { code: "ACTION_BLOCKED_BY_CHECKS"; message: string; checks: ComponentCheckSnapshot }
   | { code: "LOCAL_FUNCTION_FAILED"; message: string; cause: FunctionEvaluationError }
   | ActionContextResolutionError
-  | { code: "CLIENT_DATA_MODEL_NOT_OBJECT"; message: string };
+  | { code: "CLIENT_DATA_MODEL_NOT_OBJECT"; message: string }
+  | {
+      /** A component that names no @catalogId inside a surface with no default catalogId. */
+      code: "CATALOG_RESOLUTION_FAILED";
+      message: string;
+      sourceComponentId: string;
+    };
 
 export type ActionDispatchErrorCode = ActionDispatchError["code"];

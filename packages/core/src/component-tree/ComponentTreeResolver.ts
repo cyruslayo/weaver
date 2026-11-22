@@ -3,6 +3,7 @@ import type {
   CatalogRegistryError,
   ComponentStructureLocation,
 } from "../catalog/index.js";
+import { componentCatalogId } from "../catalog/catalogResolution.js";
 import type {
   A2UIComponent,
   JsonObject,
@@ -131,14 +132,6 @@ export class ComponentTreeResolver {
     componentId: string,
     budget = createResolutionBudget(defaultResolutionSafetyPolicy()),
   ): ComponentTreeResult {
-    if (!this.catalogs.has(surface.catalogId)) {
-      const missing = this.catalogs.getComponentStructureLocations(
-        surface.catalogId,
-        componentId,
-      );
-      if (!missing.ok)
-        return { ok: false, error: resolverError(missing.error) };
-    }
     const startingComponent = surface.components[componentId];
     if (startingComponent === undefined)
       return { ok: true, value: { ready: false, issues: [] } };
@@ -160,10 +153,16 @@ export class ComponentTreeResolver {
         const countError = budget.consumeTreeNode(component.id);
         if (countError !== undefined) return countError;
       }
-      const metadata = this.catalogs.getComponentStructureLocations(
-        surface.catalogId,
-        component.component,
-      );
+      // A component resolves to its own @catalogId, else to the surface default catalog.
+      const catalogId = componentCatalogId(component, surface.catalogId);
+      if (catalogId === undefined) {
+        return {
+          code: "CATALOG_RESOLUTION_FAILED",
+          message: `Component "${component.id}" names no @catalogId, and the surface has no default catalogId`,
+          componentId: component.id,
+        };
+      }
+      const metadata = this.catalogs.getComponentStructureLocations(catalogId, component.component);
       if (!metadata.ok) return resolverError(metadata.error);
       const relationships: ResolvedRelationship[] = [];
       const ancestryPath = [...ancestry, component.id];

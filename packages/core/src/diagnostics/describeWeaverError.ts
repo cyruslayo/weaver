@@ -469,9 +469,9 @@ function functionEvaluationError(error: FunctionEvaluationError): ErrorNode {
           hint: "Call the function where it is valid, for example @index only inside a list template.",
         },
       );
-    case "UNSUPPORTED_FEATURE":
-      return node("UNSUPPORTED_FEATURE", error.message, {
-        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", error.message, {
+        hint: "Name a catalogId on the FunctionCall, or set a default catalogId on the surface.",
       });
     case "INVALID_RESERVED_KEY":
       return node(
@@ -557,9 +557,10 @@ function messageProcessorError(error: MessageProcessorError): ErrorNode {
       return node("CATALOG_REGISTRY_ERROR", "The message does not satisfy its catalog.", {
         children: [catalogRegistryError(error.catalogError)],
       });
-    case "UNSUPPORTED_FEATURE":
-      return node("UNSUPPORTED_FEATURE", error.message, {
-        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", error.message, {
+        componentId: error.sourceComponentId,
+        hint: "Name a catalogId on the component or call, or set a default catalogId on the surface.",
       });
     default:
       return unknownError(error);
@@ -611,6 +612,11 @@ function componentTreeError(error: ComponentTreeError): ErrorNode {
           hint: "Add a definition for this component to the catalog schema.",
         },
       );
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", error.message, {
+        componentId: error.componentId,
+        hint: "Name a @catalogId on the component, or set a default catalogId on the surface.",
+      });
     case "RESOLUTION_BUDGET_EXCEEDED":
       return resolutionBudgetExceeded(error);
     default:
@@ -644,8 +650,12 @@ function checkEvaluatorError(error: CheckEvaluatorError): ErrorNode {
           hint: "Check the data paths that this component's checks read.",
         },
       );
-    default:
-      return unknownCode(error.code);
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", error.message, {
+        componentId: error.sourceComponentId,
+        scopePath: error.scopePath,
+        hint: "Name a @catalogId on the component, or set a default catalogId on the surface.",
+      });
   }
 }
 
@@ -660,10 +670,10 @@ function componentPropertyError(error: ComponentPropertyError): ErrorNode {
           hint: "Keep one of the conflicting keys on the component, such as only @checks, not both @checks and checks.",
         },
       );
-    case "UNSUPPORTED_FEATURE":
-      return node("UNSUPPORTED_FEATURE", error.message, {
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", error.message, {
         componentId: error.sourceComponentId,
-        hint: "This valid A2UI v1.0 feature is not supported by this Weaver release.",
+        hint: "Name a @catalogId on the component, or set a default catalogId on the surface.",
       });
     case "CATALOG_PROPERTY_METADATA_FAILED":
       return node("CATALOG_PROPERTY_METADATA_FAILED", "The catalog metadata for a component property could not be read.", {
@@ -798,6 +808,11 @@ function actionDispatchError(error: ActionDispatchError): ErrorNode {
       return node("CLIENT_DATA_MODEL_NOT_OBJECT", "The client data model must be a JSON object.", {
         hint: "Send the client data model as an object, not an array or a primitive value.",
       });
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", error.message, {
+        componentId: error.sourceComponentId,
+        hint: "Name a @catalogId on the component, or set a default catalogId on the surface.",
+      });
     case "ACTION_CONTEXT_VOID_FUNCTION":
     case "ACTION_CONTEXT_VALUE_UNAVAILABLE":
     case "INVALID_RESERVED_KEY":
@@ -866,6 +881,11 @@ function inputBindingWriteError(error: InputBindingWriteError): ErrorNode {
       return node("BINDING_PATH_RESOLUTION_FAILED", "The data path of the input binding could not be resolved.", {
         children: [dataContextError(error.cause)],
         hint: "Check the data path that the input is bound to.",
+      });
+    case "CATALOG_RESOLUTION_FAILED":
+      return node("CATALOG_RESOLUTION_FAILED", "The input component names no catalog, and the surface has no default catalog.", {
+        componentId: error.sourceComponentId,
+        hint: "Name a @catalogId on the component, or set a default catalogId on the surface.",
       });
     case "SURFACE_STORE_ERROR":
       return node("SURFACE_STORE_ERROR", "The surface store rejected the input write.", {
@@ -1039,7 +1059,7 @@ function describeTop(error: DescribableWeaverError): ErrorNode {
     case "PROTOCOL_VALIDATION_FAILED":
     case "SURFACE_STORE_ERROR":
     case "CATALOG_REGISTRY_ERROR":
-    case "UNSUPPORTED_FEATURE":
+    case "CATALOG_RESOLUTION_FAILED":
       return messageProcessorError(error as MessageProcessorError);
     case "INVALID_JSON":
     case "FRAME_TOO_LARGE":

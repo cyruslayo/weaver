@@ -40,6 +40,7 @@ export function basicPromptFixtureConfigs(
   ];
   const shared: Omit<A2UIV10PromptConfig, "mode"> = {
     catalogs: [createBasicCatalogV10Registration()],
+    defaultCatalogId: A2UI_V10_BASIC_CATALOG_ID,
     functions,
     actions: [
       {

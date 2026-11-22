@@ -135,7 +135,7 @@ test("attribution supports name-only, undefined, independent mounts, updates, an
   const rt = runtime(); rt.process(create("test"));
   rt.process(components([{ id: "root", component: "Text", text: "one" }]));
   let verified: string | undefined = "Registry One"; let calls = 0;
-  const provider = ({ surfaceId, catalogId }: { surfaceId: string; catalogId: string }) => {
+  const provider = ({ surfaceId, catalogId }: { surfaceId: string; catalogId?: string }) => {
     calls++; return verified === undefined ? undefined : { displayName: `${verified}:${surfaceId}:${catalogId}` };
   };
   const web = new WebSurfaceRenderer({ runtime: rt, renderers: new RendererRegistry(registrations()), attributionProvider: provider });
@@ -882,4 +882,55 @@ test("resolved @accessibility maps label, description, live, and hidden onto eve
   assert.equal(byText("Quiet").hasAttribute("aria-live"), false, "live off is omitted");
   assert.equal(byText("Quiet").hasAttribute("aria-hidden"), false);
   assert.equal(byText("Visible").hasAttribute("aria-live"), false, "absent live adds no region");
+});
+
+const mixedRegistrations = (): RendererRegistration[] => [
+  ...registrations(),
+  { catalogId: "custom", component: "Text", render: ({ document, properties }) => {
+    const node = document.createElement("em"); node.textContent = String(properties.text ?? ""); return node;
+  } },
+];
+
+test("a surface mixes catalogs: each instance renders with its own resolved catalog", () => {
+  const rt = runtime(["test", "custom"]); rt.process(create("test"));
+  rt.process(components([
+    { id: "root", component: "Stack", sections: ["basic", "branded"] },
+    { id: "basic", component: "Text", text: "basic" },
+    { id: "branded", component: "Text", "@catalogId": "custom", text: "custom" },
+  ]));
+  const { target, result } = mount(rt, mixedRegistrations());
+  assert.ok(result.ok);
+  assert.equal(target.querySelector("span")?.textContent, "basic");
+  assert.equal(target.querySelector("em")?.textContent, "custom");
+  assert.equal(target.textContent, "basiccustom");
+});
+
+test("a defaultless surface renders when every component names its own @catalogId", () => {
+  const rt = runtime(["test"]);
+  const created = rt.process({ version: "1.0", createSurface: { surfaceId: "s" } });
+  assert.ok(created.ok);
+  rt.process(components([
+    { id: "root", component: "Stack", "@catalogId": "test", sections: ["text"] },
+    { id: "text", component: "Text", "@catalogId": "test", text: "defaultless" },
+  ]));
+  const { target, result } = mount(rt);
+  assert.ok(result.ok);
+  assert.equal(target.textContent, "defaultless");
+});
+
+test("a component whose resolved catalog has no renderer fails with RENDERER_NOT_FOUND for that catalog", () => {
+  const rt = runtime(["test", "custom"]); rt.process(create("test"));
+  rt.process(components([
+    { id: "root", component: "Stack", sections: ["basic", "branded"] },
+    { id: "basic", component: "Text", text: "basic" },
+    { id: "branded", component: "Text", "@catalogId": "custom", text: "custom" },
+  ]));
+  const { target, result } = mount(rt, registrations());
+  assert.equal(!result.ok && result.error.code, "RENDERER_NOT_FOUND");
+  if (!result.ok && result.error.code === "RENDERER_NOT_FOUND") {
+    assert.equal(result.error.catalogId, "custom");
+    assert.equal(result.error.component, "Text");
+    assert.equal(result.error.sourceComponentId, "branded");
+  }
+  assert.equal(target.innerHTML, "", "a failed initial render attaches nothing");
 });

@@ -24,6 +24,11 @@ export type A2UIV10PromptMode = "create" | "edit";
 
 export interface A2UIV10PromptConfig {
   catalogs: readonly CatalogRegistration[];
+  /**
+   * The default catalog of the surfaces the model creates. Its components and calls need no catalog property.
+   * Without it, every component sets "@catalogId" and every function call sets "catalogId". Must be a registered catalog.
+   */
+  defaultCatalogId?: string;
   /** Listed only when the catalog declares the function AND it is registered here. */
   functions?: readonly FunctionRegistration[];
   actions?: readonly A2UIV10PromptAction[];

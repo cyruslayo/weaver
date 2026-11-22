@@ -22,9 +22,9 @@ import { createWeaverTraceRecorder, parseWeaverTrace, replayWeaverTrace, type We
  *   "rendererOrAgent" is rejected at registration, as the spec requires. The
  *   fixture's function is registered as "rendererOnly" instead. The agent
  *   outcome is INVALID_FUNCTION_CALL either way.
- * - The mixed-catalog fixtures use a nested formatString with its own literal
- *   catalogId. Core does not widen that rule, so the test catalog uses one
- *   catalog id for both calls and the mixed shape is pinned separately.
+ * - The mixed-catalog fixtures are restored: a nested formatString names the
+ *   Basic catalog while the call names the media catalog. Each nested call
+ *   resolves to its own catalogId, so Basic is registered in those runtimes.
  */
 
 const MEDIA = "conformance/media_catalog";
@@ -232,8 +232,8 @@ test("test_rpc_call_renderer_function_invalid_argument_schema: arguments that fa
 });
 
 test("test_rpc_call_renderer_function_with_surface_id_and_dynamic_args: @path and nested calls resolve against the surface root", () => {
-  // Deviation: the fixture's nested formatString names "basic" while the call names media_catalog. Here both use MEDIA.
-  const runtime = createRuntime();
+  // The mixed shape: the nested formatString names basic while the call names media_catalog.
+  const runtime = createRuntime({ withBasic: true });
   createSurface(runtime, SURFACE_CALL_ID, MEDIA, { media: { id: "video-456" }, prefix: "now-" });
   const response = respond(
     runtime,
@@ -244,7 +244,7 @@ test("test_rpc_call_renderer_function_with_surface_id_and_dynamic_args: @path an
         catalogId: MEDIA,
         args: {
           mediaId: { "@path": "/media/id" },
-          formatted: { "@call": "formatString", catalogId: MEDIA, args: { value: "${/prefix}${/media/id}" } },
+          formatted: { "@call": "formatString", catalogId: A2UI_V10_BASIC_CATALOG_ID, args: { value: "${/prefix}${/media/id}" } },
         },
       },
       SURFACE_CALL_ID,
@@ -254,8 +254,8 @@ test("test_rpc_call_renderer_function_with_surface_id_and_dynamic_args: @path an
 });
 
 test("test_rpc_call_renderer_function_format_string_arg_inherits_catalog: a nested formatString template resolves in the call catalog", () => {
-  // Deviation: the nested formatString names MEDIA, not "basic". See the header comment.
-  const runtime = createRuntime();
+  // The nested formatString names basic, the mixed shape of the fixture. See the header comment.
+  const runtime = createRuntime({ withBasic: true });
   createSurface(runtime, SURFACE_CALL_ID, MEDIA, { count: 2 });
   const response = respond(
     runtime,
@@ -267,7 +267,7 @@ test("test_rpc_call_renderer_function_format_string_arg_inherits_catalog: a nest
         args: {
           formatted: {
             "@call": "formatString",
-            catalogId: MEDIA,
+            catalogId: A2UI_V10_BASIC_CATALOG_ID,
             args: { value: "Clips: ${pluralize(value: /count, one: 'clip', other: 'clips')}" },
           },
         },
@@ -330,8 +330,8 @@ test("a surface-present call may name a catalog that differs from the surface ca
   assert.deepEqual(response, { functionCallId: "call-500", value: { mediaId: "video-9" } });
 });
 
-test("the mixed-catalog shape (nested literal catalogId differs from the call) is refused as EXECUTION_ERROR", () => {
-  // Pinned behavior, not a conformance port. The nested call keeps the renderer rule for catalog mismatch.
+test("a nested call naming an unregistered catalog is refused as INVALID_FUNCTION_CALL", () => {
+  // Pinned behavior, not a conformance port. The nested call resolves to its own catalogId, which this runtime does not register.
   const runtime = createRuntime();
   const response = respond(
     runtime,
@@ -341,7 +341,39 @@ test("the mixed-catalog shape (nested literal catalogId differs from the call) i
       args: { formatted: { "@call": "formatString", catalogId: "basic", args: { value: "x" } } },
     }),
   );
-  expectError(response, "EXECUTION_ERROR");
+  expectError(response, "INVALID_FUNCTION_CALL", "basic");
+});
+
+test("a nested call with no catalogId and no surface default is refused as INVALID_FUNCTION_CALL", () => {
+  // Without a surfaceId there is no surface default, so the nested call has no catalog to resolve to.
+  const runtime = createRuntime();
+  const response = respond(
+    runtime,
+    callMessage("call-504", {
+      "@call": "echoArgs",
+      catalogId: MEDIA,
+      args: { formatted: { "@call": "formatString", args: { value: "x" } } },
+    }),
+  );
+  expectError(response, "INVALID_FUNCTION_CALL", "catalogId");
+});
+
+test("a nested call with no catalogId resolves to the target surface's default catalog", () => {
+  const runtime = createRuntime();
+  createSurface(runtime, SURFACE_CALL_ID, MEDIA, { prefix: "now-", media: { id: "video-789" } });
+  const response = respond(
+    runtime,
+    callMessage(
+      "call-505",
+      {
+        "@call": "echoArgs",
+        catalogId: MEDIA,
+        args: { formatted: { "@call": "formatString", args: { value: "${/prefix}${/media/id}" } } },
+      },
+      SURFACE_CALL_ID,
+    ),
+  );
+  assert.deepEqual(response, { functionCallId: "call-505", value: { formatted: "now-video-789" } });
 });
 
 test("a function whose effect is action cannot run for an agent", () => {

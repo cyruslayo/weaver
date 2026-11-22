@@ -277,6 +277,7 @@ export const formScreen: CookbookScreenDefinition<FormState> = {
 export function formPrompt(): string {
   const result = generateA2UIV10Prompt({
     catalogs: [createBasicCatalogV10Registration()],
+    defaultCatalogId: A2UI_V10_BASIC_CATALOG_ID,
     functions: formFunctions,
     actions: [
       {

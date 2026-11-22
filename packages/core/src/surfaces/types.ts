@@ -2,7 +2,7 @@ import type { A2UIComponent, JsonObject, JsonValue } from "../protocol/index.js"
 
 export interface SurfaceSnapshot {
   surfaceId: string;
-  catalogId: string;
+  catalogId?: string;
   sendDataModel: boolean;
   components: Record<string, A2UIComponent>;
   dataModel: JsonValue;
@@ -15,7 +15,7 @@ export interface SurfaceSnapshot {
  */
 export interface CreateSurfaceInput {
   surfaceId: string;
-  catalogId: string;
+  catalogId?: string;
   sendDataModel?: boolean;
   dataModel?: JsonObject;
   components?: readonly A2UIComponent[];

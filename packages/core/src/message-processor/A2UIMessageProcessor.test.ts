@@ -92,15 +92,11 @@ test("createSurface applies dataModel before components in one atomic step", () 
   assert.deepEqual(Object.keys(store.get("main")?.components ?? {}), ["root"]);
 });
 
-test("createSurface without catalogId is rejected as UNSUPPORTED_FEATURE and creates nothing", () => {
+test("createSurface without catalogId is accepted when it has no components, and stores no default catalog", () => {
   const { processor, store } = setup();
   const result = processor.process(envelope({ createSurface: { surfaceId: "main" } }));
-  assert.equal(result.ok, false);
-  if (!result.ok) {
-    assert.equal(result.error.code, "UNSUPPORTED_FEATURE");
-    if (result.error.code === "UNSUPPORTED_FEATURE") assert.equal(result.error.feature, "createSurface.catalogId");
-  }
-  assert.equal(store.has("main"), false);
+  assert.equal(result.ok, true);
+  assert.equal(store.get("main")?.catalogId, undefined);
 });
 
 test("a createSurface with an invalid component creates no surface and applies no data", () => {

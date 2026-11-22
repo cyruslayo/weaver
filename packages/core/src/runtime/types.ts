@@ -143,7 +143,7 @@ export type WeaverRuntimeCreationResult =
 
 export interface WeaverResolvedSurface {
   surfaceId: string;
-  catalogId: string;
+  catalogId?: string;
   sendDataModel: boolean;
   tree: HydratedComponentTree;
   checks: ComponentCheckTreeSnapshot;

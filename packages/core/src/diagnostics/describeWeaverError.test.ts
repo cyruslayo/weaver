@@ -37,7 +37,7 @@ import type { DescribableWeaverError, DescribeWeaverErrorContext, WeaverErrorDes
 
 const ALL_CODES = [
   // MessageProcessorError
-  "PROTOCOL_VALIDATION_FAILED", "SURFACE_STORE_ERROR", "CATALOG_REGISTRY_ERROR", "UNSUPPORTED_FEATURE",
+  "PROTOCOL_VALIDATION_FAILED", "SURFACE_STORE_ERROR", "CATALOG_REGISTRY_ERROR", "CATALOG_RESOLUTION_FAILED",
   // ValidationIssue
   "VALIDATION_FAILED",
   // JsonlDecodeError
@@ -144,7 +144,7 @@ const functionEvaluationCodes: FunctionEvaluationError[] = [
   { code: "FUNCTION_CALLER_NOT_ALLOWED", message: "caller", catalogId: "catalog", functionName: "save" },
   { code: "EXPRESSION_ERROR", message: "expression", catalogId: "catalog", functionName: "regex" },
   { code: "EXECUTION_ERROR", message: "index", catalogId: "catalog", functionName: "index" },
-  { code: "UNSUPPORTED_FEATURE", message: "other catalog", catalogId: "catalog", functionName: "format" },
+  { code: "CATALOG_RESOLUTION_FAILED", message: "no catalog", functionName: "format" },
   { code: "INVALID_RESERVED_KEY", message: "reserved", catalogId: "catalog", functionName: "format", key: "@name", path: "/args" },
 ];
 
@@ -177,6 +177,7 @@ const actionDispatchCodes: ActionDispatchError[] = [
   { code: "ACTION_DATA_CONTEXT_FAILED", message: "data", cause: { code: "COLLECTION_NOT_ARRAY", path: "/items" } },
   { code: "ACTION_CHECK_EVALUATION_FAILED", message: "checks", cause: checkEvaluatorError },
   { code: "ACTION_BLOCKED_BY_CHECKS", message: "blocked", checks: blockedSnapshot },
+  { code: "CATALOG_RESOLUTION_FAILED", message: "no catalog", sourceComponentId: "title" },
   { code: "LOCAL_FUNCTION_FAILED", message: "local", cause: functionEvaluationCodes[3]! },
   { code: "CLIENT_DATA_MODEL_NOT_OBJECT", message: "not object" },
   { code: "ACTION_CONTEXT_VOID_FUNCTION", message: "void", key: "name", functionName: "noop" },
@@ -215,6 +216,7 @@ const componentTreeCodes: ComponentTreeError[] = [
   { code: "CATALOG_NOT_FOUND", message: "no catalog", catalogId: "catalog", cause: catalogCodes[2]! },
   { code: "COMPONENT_STRUCTURE_NOT_FOUND", message: "no structure", catalogId: "catalog", component: "Text", cause: catalogCodes[4]! },
   { code: "RESOLUTION_BUDGET_EXCEEDED", message: "too many", budget: "instances", limit: 1000, observed: 1001, phase: "component-tree", componentId: "root" },
+  { code: "CATALOG_RESOLUTION_FAILED", message: "no catalog", componentId: "root" },
 ];
 
 const componentInstanceCodes: ComponentInstanceError[] = [
@@ -230,12 +232,13 @@ const componentPropertyCodes: ComponentPropertyError[] = [
     cause: { sourceComponentId: "row", scopePath: "/items/1", cause: { code: "COLLECTION_INDEX_OUT_OF_RANGE", path: "/items", index: 1, length: 1 } },
   },
   { code: "INVALID_RESERVED_KEY", message: "conflict", sourceComponentId: "title", key: "@checks" },
-  { code: "UNSUPPORTED_FEATURE", message: "catalog id", sourceComponentId: "title", feature: "@catalogId" },
+  { code: "CATALOG_RESOLUTION_FAILED", message: "no catalog", sourceComponentId: "title" },
 ];
 
 const inputWriteCodes: InputBindingWriteError[] = [
   { code: "SURFACE_NOT_FOUND", surfaceId: "main" },
   { code: "SOURCE_COMPONENT_NOT_FOUND", surfaceId: "main", sourceComponentId: "field" },
+  { code: "CATALOG_RESOLUTION_FAILED", sourceComponentId: "field" },
   { code: "INPUT_PROPERTY_NOT_FOUND", sourceComponentId: "field", property: "value" },
   { code: "INPUT_PROPERTY_NOT_DYNAMIC", sourceComponentId: "field", property: "value" },
   { code: "INPUT_PROPERTY_NOT_BOUND", sourceComponentId: "field", property: "value" },
@@ -276,12 +279,8 @@ const fixtures: Fixture[] = [
   { code: "SURFACE_STORE_ERROR", error: { code: "SURFACE_STORE_ERROR", storeError: surfaceStoreCodes[0]! } },
   { code: "CATALOG_REGISTRY_ERROR", error: { code: "CATALOG_REGISTRY_ERROR", catalogError: catalogCodes[2]! } },
   {
-    code: "UNSUPPORTED_FEATURE",
-    error: {
-      code: "UNSUPPORTED_FEATURE",
-      feature: "createSurface.catalogId",
-      message: "createSurface without catalogId requires multi-catalog support, which is not available yet",
-    },
+    code: "CATALOG_RESOLUTION_FAILED",
+    error: { code: "CATALOG_RESOLUTION_FAILED", sourceComponentId: "row", path: "/text/@call", message: "no catalog" },
   },
 
   // JsonlDecodeError (top level)

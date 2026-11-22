@@ -2,7 +2,8 @@
 
 - Output A2UI v1.0 messages as JSON Lines: one complete JSON object per line, with no prose and no code fences.
 - Every message has `"version": "1.0"` and exactly one of `createSurface`, `updateComponents`, `updateDataModel` or `deleteSurface`.
-- `createSurface` takes `surfaceId` and `catalogId`. The `catalogId` must equal one of these catalog ids: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json". It may also carry an initial `components` array and an initial `dataModel` object; the data model is applied first.
+- `createSurface` takes `surfaceId` and may take `catalogId`, the surface's default catalog. Any `catalogId` must equal one of these catalog ids: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json". It may also carry an initial `components` array and an initial `dataModel` object; the data model is applied first.
+- The default catalog is "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json". Components and calls from it need no catalog property. A component from another catalog sets `"@catalogId"`. A function call from another catalog sets `"catalogId"`; a call never takes the catalog of its component. Calls inside a `formatString` `${...}` expression take that `formatString`'s catalog, and `@index` takes none.
 - `updateComponents` takes `surfaceId` and `components`. Components are flat objects. Each has a unique `id` and a `component` name from the catalog. Refer to children by id.
 - Component ids must be UAX #31 identifiers: start with a letter or an underscore, continue with letters, digits or underscores, and never start with a digit. Hyphens, spaces and other symbols are not allowed. `user_card` and `userCard` are valid; `user-card` and `1st_item` are not.
 - The component tree is rooted at the component with id `"root"`.

@@ -88,6 +88,7 @@ const REFERENCE_PROMPT_EXAMPLE: A2UIV10PromptExample = {
 export function buildReferencePrompt(): string {
   const result = generateA2UIV10Prompt({
     catalogs: [createBasicCatalogV10Registration()],
+    defaultCatalogId: createBasicCatalogV10Registration().catalogId,
     actions: [REFERENCE_PROMPT_ACTION],
     examples: [REFERENCE_PROMPT_EXAMPLE],
   });

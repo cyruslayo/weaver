@@ -253,7 +253,7 @@ test("Button is declared by the cookbook catalog, so a Button message is accepte
   assert.equal(result.ok, true, JSON.stringify(result));
 });
 
-test("a component outside the cookbook catalog is rejected, so one surface uses one catalog", () => {
+test("a component that resolves to the cookbook catalog but is not declared there is rejected", () => {
   // Divider is a valid Basic component that this catalog does not declare, so only the catalog membership fails.
   const components: A2UIComponent[] = [
     { id: "root", component: "Column", children: ["rule", "label"] },

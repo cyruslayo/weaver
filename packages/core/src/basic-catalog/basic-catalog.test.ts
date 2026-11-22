@@ -32,7 +32,7 @@ function isObject(value: unknown): value is JsonObject {
 function addCommonTypes(ajv: Ajv2020, schema: JsonObject): void {
   ajv.addSchema(schema);
   ajv.addSchema({
-    ...buildCatalogCommonTypes(schema.functions as JsonObject),
+    ...buildCatalogCommonTypes(),
     $id: new URL("common_types.json", String(schema.$id)).href,
   });
 }
@@ -228,8 +228,8 @@ test("normalization parity covers the FunctionCall anyFunction restriction", () 
 
   const cases: Array<{ name: string; call: JsonObject; valid: boolean }> = [
     { name: "valid declared function", call: { "@call": "formatString", args: { value: "hello" } }, valid: true },
-    { name: "unknown function", call: { "@call": "__not_a_basic_function__" }, valid: false },
-    { name: "known function with invalid args", call: { "@call": "regex", args: { value: "x" } }, valid: false },
+    // The generic envelope accepts any function; its arguments are checked per call by the catalog registry.
+    { name: "known function with invalid args", call: { "@call": "regex", args: { value: "x" } }, valid: true },
     { name: "declaration-only returnType on the wire", call: { "@call": "formatString", args: { value: "hello" }, returnType: "string" }, valid: false },
   ];
 
@@ -238,7 +238,7 @@ test("normalization parity covers the FunctionCall anyFunction restriction", () 
     const rawValid = rawAjv.validate(rawComponent, catalogOwnedBody(component));
     const normalizedValid = normalizedAjv.validate(normalizedComponent, catalogOwnedBody(component));
     assert.equal(normalizedValid, valid, `${name}: normalized validation`);
-    if (name !== "declaration-only returnType on the wire") assert.equal(normalizedValid, rawValid, `${name}: parity mismatch`);
+    if (name !== "declaration-only returnType on the wire" && name !== "known function with invalid args") assert.equal(normalizedValid, rawValid, `${name}: parity mismatch`);
   }
 });
 

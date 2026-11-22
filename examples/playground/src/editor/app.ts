@@ -332,6 +332,7 @@ function renderErrors(errors: readonly WeaverErrorDescription[]): void {
 function renderPrompt(): void {
   const prompt = generateA2UIV10Prompt({
     catalogs: [createBasicCatalogV10Registration()],
+    defaultCatalogId: createBasicCatalogV10Registration().catalogId,
     mode: "create",
   });
   ui.promptText.textContent = prompt.ok ? prompt.value.text : `Prompt generation failed: ${prompt.error.code}`;

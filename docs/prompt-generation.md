@@ -29,6 +29,7 @@ const systemPrompt = result.value.text;
 | Field | Meaning |
 |---|---|
 | `catalogs` | Required. The trusted catalog registrations. They are validated the same way `createWeaverRuntime` validates them. |
+| `defaultCatalogId` | Optional. The catalog of the surfaces the model creates by default. It must be one of `catalogs`, or the result is `CATALOG_INVALID`. Components and calls from it need no catalog property. See [Default catalog](#default-catalog). |
 | `functions` | Optional. Function registrations. A function is listed only when the catalog declares it **and** it is registered here. |
 | `actions` | Optional. Action names the application accepts, with a description and optional context. Context values are copied and key-sorted. |
 | `examples` | Optional. Example message sequences, each with a `title`. Every example is checked (see below). |
@@ -36,6 +37,37 @@ const systemPrompt = result.value.text;
 | `maxCharacters` | Optional. The budget, 24,000 characters by default. |
 
 An action name that is empty or duplicated fails with `ACTION_NAME_INVALID`.
+
+## Default catalog
+
+The envelope section tells the model which catalog to use, and it depends on `defaultCatalogId`:
+
+- With `defaultCatalogId`, the envelope names it as the default. Components and function calls
+  from that catalog need no catalog property. A component from another registered catalog sets
+  `"@catalogId"`, and a function call from another catalog sets `"catalogId"`.
+- Without it, the prompt states that there is no default catalog. Every component sets
+  `"@catalogId"` and every function call sets `"catalogId"`. A `createSurface` may then omit its
+  `catalogId`, since the surface has no default.
+
+A call never takes the catalog of its component, and a `${...}` call inside `formatString` takes
+the catalog of that `formatString`. `@index` takes no catalog. These rules match the runtime, see
+[Catalog resolution](architecture.md#catalog-resolution).
+
+```ts
+import {
+  A2UI_V10_BASIC_CATALOG_ID,
+  createBasicCatalogV10Registration,
+  generateA2UIV10Prompt,
+} from "@cylayo/weaver-core";
+
+const result = generateA2UIV10Prompt({
+  catalogs: [createBasicCatalogV10Registration()],
+  defaultCatalogId: A2UI_V10_BASIC_CATALOG_ID,
+});
+if (!result.ok) throw new Error(`${result.error.code}: ${result.error.message}`);
+
+const systemPrompt = result.value.text;
+```
 
 ## The result
 
@@ -136,7 +168,7 @@ with a `stage`:
 
 | Code | When | Fields |
 |---|---|---|
-| `CATALOG_INVALID` | A catalog is not valid for registration | `catalogId?`, `cause?` |
+| `CATALOG_INVALID` | A catalog is not valid for registration, or `defaultCatalogId` is not one of `catalogs` | `catalogId?`, `cause?` |
 | `ACTION_NAME_INVALID` | An action name is empty or duplicated | `actionName`, `reason` |
 | `PROMPT_TOO_LARGE` | The output is longer than `maxCharacters` | `characters`, `maxCharacters` |
 | `EXAMPLE_INVALID` | An example failed the checked pipeline | `exampleIndex`, `exampleTitle`, `stage`, `cause` |

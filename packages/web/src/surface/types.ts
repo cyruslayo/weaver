@@ -12,7 +12,8 @@ export type WebAgentFunctionCallsHandoff = Extract<WeaverActionResult, { ok: tru
 
 export interface WebSurfaceAttributionInput {
   surfaceId: string;
-  catalogId: string;
+  /** The surface default catalog. Absent when the surface has none. */
+  catalogId?: string;
 }
 
 export interface WebVerifiedSurfaceAttribution {

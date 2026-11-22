@@ -19,7 +19,7 @@ const SURFACE_ID = "cookbook-barchart";
 function renderDirect(properties: Record<string, HydratedValue>): { window: Window; target: Element } {
   const window = new Window();
   const document = window.document as unknown as Document;
-  const instance = { sourceComponentId: "chart", component: "BarChart", scopePath: "/", properties, relationships: [], unresolved: [] } as HydratedComponentInstance;
+  const instance = { sourceComponentId: "chart", component: "BarChart", catalogId: COOKBOOK_CATALOG_ID, scopePath: "/", properties, relationships: [], unresolved: [] } as HydratedComponentInstance;
   const input = {
     document,
     surfaceId: SURFACE_ID,

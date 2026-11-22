@@ -11,5 +11,10 @@ export type InputBindingWriteError =
   | { code: "INPUT_PROPERTY_NOT_BOUND"; sourceComponentId: string; property: string }
   | ({ code: "INPUT_VALUE_TYPE_MISMATCH"; sourceComponentId: string; property: string } & InputBindingTypeMismatchDetails)
   | { code: "CATALOG_REGISTRY_ERROR"; cause: CatalogRegistryError }
+  | {
+      /** A component that names no @catalogId inside a surface with no default catalogId. */
+      code: "CATALOG_RESOLUTION_FAILED";
+      sourceComponentId: string;
+    }
   | { code: "BINDING_PATH_RESOLUTION_FAILED"; cause: DataContextError }
   | { code: "SURFACE_STORE_ERROR"; cause: SurfaceStoreError };

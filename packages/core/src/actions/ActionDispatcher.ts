@@ -1,4 +1,5 @@
 import type { CatalogRegistry } from "../catalog/index.js";
+import { componentCatalogId } from "../catalog/catalogResolution.js";
 import { CheckEvaluator } from "../checks/index.js";
 import type { ActionCallMemo, AgentFunctionScope } from "../agent-functions/types.js";
 import { cloneJson } from "../data-model/clone.js";
@@ -89,10 +90,19 @@ export class ActionDispatcher {
     memo,
     continuation,
   }: ActionDispatchInput): ActionDispatchResult {
-    const metadata = this.catalogs.getActionProperties(
-      surface.catalogId,
-      instance.component,
-    );
+    // Action properties come from the component's own resolved catalog.
+    const componentCatalog = componentCatalogId(instance.definition, surface.catalogId);
+    if (componentCatalog === undefined) {
+      return {
+        ok: false,
+        error: {
+          code: "CATALOG_RESOLUTION_FAILED",
+          message: "Component names no @catalogId, and the surface has no default catalogId",
+          sourceComponentId: instance.sourceComponentId,
+        },
+      };
+    }
+    const metadata = this.catalogs.getActionProperties(componentCatalog, instance.component);
     if (!metadata.ok || !metadata.value.includes(actionProperty)) {
       return {
         ok: false,
@@ -304,7 +314,7 @@ export class ActionDispatcher {
 
   /** userMessage is a DynamicString; an absent value stays absent and a non-string result is invalid. */
   #resolveUserMessage(
-    catalogId: string,
+    catalogId: string | undefined,
     value: unknown,
     dataModel: DataContext,
     actionProperty: string,

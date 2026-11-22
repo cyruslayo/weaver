@@ -65,6 +65,13 @@ export function generateA2UIV10Prompt(
   const catalogs = registerCatalogs(config.catalogs);
   if (!catalogs.ok) return { ok: false, error: catalogs.error };
   const { registry, snapshots } = catalogs.value;
+  if (config.defaultCatalogId !== undefined && !registry.has(config.defaultCatalogId)) {
+    return fail({
+      code: "CATALOG_INVALID",
+      message: `The default catalog ${config.defaultCatalogId} is not one of the registered catalogs.`,
+      catalogId: config.defaultCatalogId,
+    });
+  }
 
   const actions = actionsSection(config.actions ?? []);
   if (!actions.ok) return { ok: false, error: actions.error };
@@ -79,7 +86,7 @@ export function generateA2UIV10Prompt(
   if (!examples.ok) return { ok: false, error: examples.error };
 
   const built: Partial<Record<A2UIV10PromptSectionId, string>> = {
-    envelope: envelopeSection(snapshots),
+    envelope: envelopeSection(snapshots, config.defaultCatalogId),
     instructions: instructionsSection(snapshots),
     components: components.value,
     functions: functions.value,
@@ -273,16 +280,21 @@ function registerCatalogs(
   return { ok: true, value: { registry, snapshots } };
 }
 
-function envelopeSection(snapshots: readonly CatalogSnapshot[]): string {
+function envelopeSection(snapshots: readonly CatalogSnapshot[], defaultCatalogId: string | undefined): string {
   const catalogIds = snapshots
     .map((snapshot) => JSON.stringify(snapshot.catalogId))
     .join(", ");
+  const catalogRules =
+    defaultCatalogId === undefined
+      ? '- There is no default catalog. Every component sets `"@catalogId"` and every function call sets `"catalogId"`. Calls inside a `formatString` `${...}` expression take that `formatString`\'s catalog, and `@index` takes none.'
+      : `- The default catalog is ${JSON.stringify(defaultCatalogId)}. Components and calls from it need no catalog property. A component from another catalog sets \`"@catalogId"\`. A function call from another catalog sets \`"catalogId"\`; a call never takes the catalog of its component. Calls inside a \`formatString\` \`\${...}\` expression take that \`formatString\`'s catalog, and \`@index\` takes none.`;
   return [
     `## ${SECTION_TITLES.envelope}`,
     "",
     '- Output A2UI v1.0 messages as JSON Lines: one complete JSON object per line, with no prose and no code fences.',
     '- Every message has `"version": "1.0"` and exactly one of `createSurface`, `updateComponents`, `updateDataModel` or `deleteSurface`.',
-    `- \`createSurface\` takes \`surfaceId\` and \`catalogId\`. The \`catalogId\` must equal one of these catalog ids: ${catalogIds}. It may also carry an initial \`components\` array and an initial \`dataModel\` object; the data model is applied first.`,
+    `- \`createSurface\` takes \`surfaceId\` and may take \`catalogId\`, the surface's default catalog. Any \`catalogId\` must equal one of these catalog ids: ${catalogIds}. It may also carry an initial \`components\` array and an initial \`dataModel\` object; the data model is applied first.`,
+    catalogRules,
     '- `updateComponents` takes `surfaceId` and `components`. Components are flat objects. Each has a unique `id` and a `component` name from the catalog. Refer to children by id.',
     '- Component ids must be UAX #31 identifiers: start with a letter or an underscore, continue with letters, digits or underscores, and never start with a digit. Hyphens, spaces and other symbols are not allowed. `user_card` and `userCard` are valid; `user-card` and `1st_item` are not.',
     '- The component tree is rooted at the component with id `"root"`.',

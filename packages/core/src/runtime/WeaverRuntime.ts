@@ -328,7 +328,7 @@ export class WeaverRuntime {
       ok: true,
       value: {
         surfaceId: surface.surfaceId,
-        catalogId: surface.catalogId,
+        ...(surface.catalogId === undefined ? {} : { catalogId: surface.catalogId }),
         sendDataModel: surface.sendDataModel,
         tree: hydrated.value,
         checks: checks.value,

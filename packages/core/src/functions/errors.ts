@@ -16,7 +16,6 @@ export type FunctionEvaluationError =
       code:
         | "FUNCTION_IMPLEMENTATION_NOT_FOUND"
         | "FUNCTION_EFFECT_NOT_ALLOWED"
-        | "FUNCTION_ARGUMENT_RESOLUTION_FAILED"
         | "FUNCTION_EXECUTION_FAILED"
         | "FUNCTION_RETURN_TYPE_MISMATCH"
         | "FUNCTION_MAX_DEPTH_EXCEEDED"
@@ -27,6 +26,14 @@ export type FunctionEvaluationError =
       cause?: DataContextError;
       expected?: string;
       actual?: string;
+    }
+  | {
+      /** Argument failures. @index belongs to no catalog, so catalogId is absent for it. */
+      code: "FUNCTION_ARGUMENT_RESOLUTION_FAILED";
+      message: string;
+      catalogId?: string;
+      functionName: string;
+      cause?: DataContextError;
     }
   | {
       /**
@@ -40,24 +47,30 @@ export type FunctionEvaluationError =
       functionCallId?: string;
     }
   | {
-      /** Runtime failures such as @index outside a collection template scope. */
+      /**
+       * Runtime failures such as @index outside a collection template scope. @index belongs to no
+       * catalog, so catalogId is absent for it.
+       */
       code: "EXECUTION_ERROR";
       message: string;
-      catalogId: string;
+      catalogId?: string;
       functionName: string;
     }
   | {
-      /** A FunctionCall.catalogId that differs from the surface catalog (multi-catalog is not yet supported). */
-      code: "UNSUPPORTED_FEATURE";
+      /**
+       * A FunctionCall that names no catalogId, inside a surface with no default catalogId. Nothing
+       * is run or routed. Ingress rejects such calls first, so this is reached only by a direct
+       * evaluation that has no catalog to resolve against.
+       */
+      code: "CATALOG_RESOLUTION_FAILED";
       message: string;
-      catalogId: string;
       functionName: string;
     }
   | {
       /** A reserved single-@ key inside a dynamic object (see functions/dynamic.ts). */
       code: "INVALID_RESERVED_KEY";
       message: string;
-      catalogId: string;
+      catalogId?: string;
       functionName: string;
       key: string;
       path: string;

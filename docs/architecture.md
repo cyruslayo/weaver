@@ -314,7 +314,7 @@ queue, transport parsing, or subscription layer. The processor requires a `Catal
 Catalog validation is mandatory for surface creation and component updates;
 applications explicitly register every trusted catalog during initialization.
 
-## v1.0 bindings, envelope keys and unsupported features
+## v1.0 bindings and envelope keys
 
 The v1.0 bindings are `{"@path": ...}` and `{"@call": ...}`. A literal string that
 begins with `@` is written as `@@`. A bare `path` or `call` key is not a binding, and
@@ -324,12 +324,10 @@ Component metadata uses the `@accessibility`, `@checks` and `@metadata` envelope
 keys. Legacy bare `accessibility`, `checks` and `metadata` keys are rejected unless
 the catalog declares them. Component ids follow the UAX #31 identifier pattern.
 
-These v1.0 features are accepted in the wire format but return a typed
-`UNSUPPORTED_FEATURE` error in this release, and they change no state: `createSurface`
-without `catalogId`; a component `@catalogId`, or a function-call `catalogId`, that
-differs from its surface. Composition constraints (`allowedParents`, `allowedChildren`)
-are not enforced yet. Remote function calls are supported, as described in
-[Remote function calls](#remote-function-calls). See
+A surface may mix catalogs. Each component and each function call resolves to its own
+catalog, as described in [Catalog resolution](#catalog-resolution). Composition constraints
+(`allowedParents`, `allowedChildren`) are not enforced yet. Remote function calls are supported,
+as described in [Remote function calls](#remote-function-calls). See
 [conformance-v1.0.md](conformance-v1.0.md).
 
 ## Remote function calls
@@ -375,9 +373,6 @@ Deviations from the v1.0 specification in this release:
   identical reactive call returns that failure rather than a fresh request.
 - The `rendererOrAgent` conformance fixtures that combine it with `requiresUserActivation`
   are adapted to the activation rule above.
-- Nested calls to functions in a different catalog are deferred until multi-catalog
-  surfaces are supported.
-
 ## Trusted catalog boundary
 
 A v1.0 catalog declares `protocolVersion: "1.0"`, its `catalogId`, its `components`
@@ -486,8 +481,8 @@ reported separately from undeclared functions.
 
 Function arguments resolve direct A2UI dynamic references through the supplied
 immutable `DataContext`. Relative bindings use the current collection scope.
-Nested calls use the same selected catalog; ordinary object schemas remain
-literal defensive objects. Wrapped or general JSON Schema argument semantics
+A nested call resolves its own catalog, as described in [Catalog resolution](#catalog-resolution).
+Ordinary object schemas remain literal defensive objects. Wrapped or general JSON Schema argument semantics
 are intentionally unsupported beyond the recognized direct A2UI references.
 
 Weaver Core functions are synchronous local operations in the v1.0 runtime
@@ -579,7 +574,8 @@ validation      |
                 +-- DataModel
 ```
 
-Surface creation selects its catalog for the surface lifetime:
+Surface creation may name a default catalog for the surface lifetime. `catalogId` is
+optional, so a surface can have no default:
 
 ```text
 createSurface
@@ -602,13 +598,13 @@ with the surface. A `theme` member is rejected, because A2UI v1.0 removes theme 
 Weaver has no theme data. Weaver neither silently installs the Basic Catalog nor
 reads any agent-supplied styling.
 
-Component updates use only the selected surface catalog:
+Component updates resolve each component's catalog, its `@catalogId` or else the surface default:
 
 ```text
 updateComponents
     |
     v
-surface catalog selected
+each component's catalog resolved
     |
     v
 all incoming components validated
@@ -619,8 +615,47 @@ atomic storage
 
 Unknown types and invalid properties never reach `SurfaceStore`. Validation is
 batch-wide and does not revalidate existing state. Unresolved child references
-remain allowed during progressive delivery. Deleting and recreating a surface
-is the only way to select another catalog.
+remain allowed during progressive delivery. The surface default is fixed at creation,
+so deleting and recreating a surface is the only way to change it. A component can
+name any registered catalog with `@catalogId`.
+
+## Catalog resolution
+
+A component resolves to its `@catalogId`, else to the surface default `catalogId`. A
+FunctionCall resolves to its own `catalogId`, else to the surface default. The two rules are
+independent, so a call never inherits the catalog of the component that contains it, and a
+nested call never inherits the catalog of the call that contains it. The one exception is a
+`${...}` call inside a `formatString`, which takes the catalog that resolved its `formatString`
+call. `@index` belongs to no catalog. These rules apply at ingress and during hydration:
+
+- A component or call that resolves to no catalog is rejected at ingress with
+  `CATALOG_RESOLUTION_FAILED`. This happens when the component names no `@catalogId` and the
+  surface has no default. The message is refused and no state changes.
+- A component or call that names an unregistered catalog is refused with
+  `CATALOG_REGISTRY_ERROR`, and no state changes.
+- Each embedded call is validated against its resolved catalog at ingress. A call name the
+  catalog does not declare fails as `CATALOG_REGISTRY_ERROR` with `FUNCTION_NOT_ALLOWED`.
+  Component schemas accept any `FunctionCall` envelope, so the check is per call.
+- Hydrated instances carry the catalog they resolved to, in `HydratedComponentInstance.catalogId`.
+  Checks, actions and input writes use the resolved catalog of their component.
+- Function identity is still `catalogId` plus function name, with no cross-catalog fallback.
+- The Web renderer looks up each instance's renderer by its resolved catalog and component. A
+  component whose catalog has no registered renderer fails the surface render with
+  `RENDERER_NOT_FOUND`, which is the same atomic behavior as any missing renderer. See
+  [Browser rendering](#browser-rendering).
+
+A surface with no default catalog is valid when every component names its own catalog. A surface
+with no default and no components is also valid. The prompt generator follows the same
+model: `defaultCatalogId` names the default that the model may omit. See
+[prompt-generation.md](prompt-generation.md).
+
+```json
+{ "version": "1.0", "createSurface": { "surfaceId": "main" } }
+{ "version": "1.0", "updateComponents": { "surfaceId": "main", "components": [
+  { "id": "root", "component": "Column", "@catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json", "children": ["chart"] },
+  { "id": "chart", "component": "BarChart", "@catalogId": "https://example.com/catalogs/charts/v1.json", "values": { "@path": "/stats" } }
+] } }
+```
 
 ## Derived component trees
 
@@ -909,9 +944,10 @@ ComponentPropertyResolver
 Hydrated Component
 ```
 
-Function identity and permission come from the surface's catalog only. The
-resolver passes `surface.catalogId`; it never takes a catalog from the property,
-searches another catalog, or falls back to a global function table.
+Function identity and permission come from the call's own catalog, or else the surface
+default. The resolver never takes a catalog from the component that holds the property,
+never searches another catalog, and never falls back to a global function table. See
+[Catalog resolution](#catalog-resolution).
 
 Function evaluation is side-effect free: functions used during hydration are
 trusted synchronous local computations, and property hydration never performs

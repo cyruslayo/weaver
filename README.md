@@ -94,11 +94,11 @@ Weaver is pre-1.0. The public API is evolving and should not be assumed stable.
   function (`callAgentFunction`, answered by `agentFunctionResponse`). The browser
   HTTP/SSE adapter and the MCP bridge carry them. The host owns timeouts and the
   reply channel. See [docs/architecture.md](docs/architecture.md#remote-function-calls).
-- **Not yet supported in 0.4.0.** The runtime returns a typed `UNSUPPORTED_FEATURE`
-  error for `createSurface` without a `catalogId`, and for a component or function call
-  that names a catalog other than its surface's. Nested calls into another catalog are
-  deferred with multi-catalog surfaces. Composition constraints (`allowedParents`,
-  `allowedChildren`) are accepted in catalogs but are not enforced yet. See
+- **Multi-catalog surfaces.** A component resolves to its `@catalogId`, else to the surface's
+  default catalog, so one surface can mix Basic and custom components. A surface may have no default.
+  See [docs/architecture.md](docs/architecture.md#catalog-resolution).
+- **Not yet supported in 0.4.0.** Composition constraints (`allowedParents`, `allowedChildren`)
+  are accepted in catalogs but are not enforced yet. See
   [docs/conformance-v1.0.md](docs/conformance-v1.0.md).
 
 Runtime support declarations are package-specific. `@cylayo/weaver-mcp` requires

@@ -683,8 +683,7 @@ function compilationDocument(schema: JsonObject, id: string): JsonObject {
   const catalogDocument = cloneJson(schema);
   catalogDocument.$id = id;
   if (!isPlainObject(catalogDocument.$defs)) catalogDocument.$defs = {};
-  const functions = isPlainObject(schema.functions) ? schema.functions : {};
-  (catalogDocument.$defs as JsonObject).weaverCommonTypes = buildCatalogCommonTypes(functions);
+  (catalogDocument.$defs as JsonObject).weaverCommonTypes = buildCatalogCommonTypes();
   return catalogDocument;
 }
 
